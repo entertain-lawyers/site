@@ -1,26 +1,142 @@
 @import "tailwindcss";
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+@theme {
+  /* Brand Colors — Entertain Lawyers */
+  --color-navy: #16325a;
+  --color-navy-dark: #0c1b30;
+  --color-navy-light: #214b87;
+  --color-gold: #c9a227;
+  --color-gold-dark: #b08d22;
+  --color-gold-light: #dcb845;
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Modern Educational Accent (Lex Nepal inspired) */
+  --color-accent: #2563eb;
+  --color-accent-hover: #1d4ed8;
+
+  /* Semantic Theme Tokens */
+  --color-background: var(--bg-primary);
+  --color-surface: var(--bg-surface);
+  --color-surface-alt: var(--bg-surface-alt);
+  --color-border: var(--border-color);
+  --color-border-strong: var(--border-strong);
+
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Light Theme — Modern Educational values */
+    --bg-primary: #f8fafc;
+    --bg-surface: #ffffff;
+    --bg-surface-alt: #f1f5f9;
+
+    --border-color: #e2e8f0;
+    --border-strong: #cbd5e1;
+
+    --text-primary: #0f172a;
+    --text-secondary: #334155;
+    --text-muted: #64748b;
+  }
+
+  /* Dark Theme — Restrained adaptation */
+  :root[data-theme='dark'] {
+    --bg-primary: #0f172a;
+    --bg-surface: #1e293b;
+    --bg-surface-alt: #0c1b30; /* Brand navy dark */
+
+    --border-color: rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.15);
+
+    --text-primary: #f8fafc;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-family: var(--font-mukta), Inter, Tahoma, sans-serif;
+    color: var(--text-primary);
+    background-color: var(--bg-primary);
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  /* Smooth links */
+  a {
+    color: var(--color-accent);
+    transition: color 0.2s ease, text-decoration-color 0.2s ease;
+  }
+
+  a:hover, a:focus, a:active {
+    color: var(--color-accent-hover);
+  }
+
+  ::selection {
+    background-color: var(--color-gold);
+    color: #1a365d;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  .shadow-soft {
+    box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+  }
+  .shadow-soft-lg {
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.08);
+  }
+
+  /* Fluid Typography Utilities */
+  .text-fluid-h1 {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    line-height: 1.1;
+  }
+  .text-fluid-h2 {
+    font-size: clamp(1.75rem, 4vw, 2.75rem);
+    line-height: 1.2;
+  }
+  .text-fluid-h3 {
+    font-size: clamp(1.5rem, 3vw, 2.25rem);
+    line-height: 1.25;
+  }
+  .text-fluid-base {
+    font-size: clamp(1rem, 1.5vw, 1.125rem);
+    line-height: 1.6;
+  }
+
+  /* Content Protection utilities */
+  body.protected-mode {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  
+  body.protected-mode input,
+  body.protected-mode textarea,
+  body.protected-mode select,
+  body.protected-mode [contenteditable="true"] {
+    user-select: text;
+    -webkit-user-select: text;
+  }
 }
+

@@ -1,0 +1,312 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+  EDITOR
+}
+
+enum SubStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum TxStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum TxType {
+  SUBSCRIPTION
+  PURCHASE
+}
+
+enum EntitlementSource {
+  SUBSCRIPTION
+  PURCHASE
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String?
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now())
+
+  sessions      Session[]
+  subscriptions Subscription[]
+  purchases     Purchase[]
+  entitlements  Entitlement[]
+  transactions  PaymentTransaction[]
+  accessLogs    AccessLog[]
+  uploadIntents UploadIntent[]
+  posts         Post[]
+  accounts      Account[]
+}
+
+model Account {
+  id                 String  @id @default(uuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?  @db.Text
+  access_token       String?  @db.Text
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?  @db.Text
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  userAgent    String?
+  ipAddress    String?
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// === ENTITLEMENT & MONETIZATION ===
+
+model Plan {
+  id            String         @id @default(uuid())
+  name          String
+  durationDays  Int
+  priceAmount   Int // Minor units (paisa)
+  currency      String         @default("NPR")
+  isActive      Boolean        @default(true)
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id               String    @id @default(uuid())
+  userId           String
+  planId           String
+  status           SubStatus
+  currentPeriodEnd DateTime // Extension base date
+  createdAt        DateTime  @default(now())
+
+  user         User                 @relation(fields: [userId], references: [id])
+  plan         Plan                 @relation(fields: [planId], references: [id])
+  entitlements Entitlement[]
+  transactions PaymentTransaction[]
+
+  @@index([userId, status])
+}
+
+model Purchase {
+  id         String   @id @default(uuid())
+  userId     String
+  resourceId String
+  amountPaid Int // Minor units (paisa)
+  currency   String   @default("NPR")
+  createdAt  DateTime @default(now())
+
+  user         User                 @relation(fields: [userId], references: [id])
+  resource     Resource             @relation(fields: [resourceId], references: [id])
+  transactions PaymentTransaction[]
+
+  @@unique([userId, resourceId]) // Prevent duplicate purchase of the same resource
+}
+
+model PaymentTransaction {
+  id             String   @id @default(uuid())
+  userId         String
+  provider       String // "ESEWA", "KHALTI"
+  providerRef    String?  @unique // Reference returned by provider
+  idempotencyKey String   @unique // Internal key generated on initiation
+  amount         Int // Minor units (paisa)
+  currency       String   @default("NPR")
+  type           TxType
+  status         TxStatus @default(PENDING)
+  targetId       String?  // Holds planId or resourceId pending completion
+
+  subscriptionId String?
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+
+  purchaseId String?
+  purchase   Purchase? @relation(fields: [purchaseId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([providerRef])
+  @@index([userId, status])
+}
+
+model Entitlement {
+  id         String            @id @default(uuid())
+  userId     String
+  sourceType EntitlementSource
+  expiresAt  DateTime? // Null if permanent (one-time purchase)
+
+  resourceId String?
+  resource   Resource? @relation(fields: [resourceId], references: [id])
+
+  subscriptionId String?
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+  @@index([userId, resourceId])
+}
+
+// === CONTENT & INFRASTRUCTURE ===
+
+enum ResourceType {
+  LAW_NOTE
+  CASE_LAW
+  OLD_QUESTION
+  OTHER
+}
+
+model Semester {
+  id       String    @id @default(uuid())
+  name     String
+  order    Int
+  subjects Subject[]
+}
+
+model Subject {
+  id         String     @id @default(uuid())
+  name       String
+  semesterId String
+  semester   Semester   @relation(fields: [semesterId], references: [id])
+  resources  Resource[]
+  units      Unit[]
+}
+
+model Unit {
+  id        String     @id @default(uuid())
+  name      String                          // "Unit I", "Unit III", "Prescribed Cases"
+  title     String?                         // Optional descriptive title
+  order     Int
+  subjectId String
+  subject   Subject    @relation(fields: [subjectId], references: [id])
+  resources Resource[]
+}
+
+model Resource {
+  id          String       @id @default(uuid())
+  title       String
+  type        ResourceType @default(LAW_NOTE)
+  order       Int?                               // Sort order within subject/unit
+  isPremium   Boolean      @default(false)
+  priceAmount Int?                               // Minor units (paisa)
+  currency    String       @default("NPR")
+  subjectId   String
+  unitId      String?                            // Nullable for backward compat
+  documentId  String?      @unique
+
+  subject      Subject       @relation(fields: [subjectId], references: [id])
+  unit         Unit?         @relation(fields: [unitId], references: [id])
+  document     Document?     @relation(fields: [documentId], references: [id])
+  purchases    Purchase[]
+  entitlements Entitlement[]
+  accessLogs   AccessLog[]
+  uploadIntents UploadIntent[]
+
+  @@index([subjectId, type])
+  @@index([unitId])
+}
+
+model Document {
+  id              String @id @default(uuid())
+  storageProvider String // "R2"
+  storageKey      String
+  fileSize        Int
+  mimeType        String
+
+  resource Resource?
+  
+  accessLogs AccessLog[]
+}
+
+enum IntentStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+  EXPIRED
+}
+
+model UploadIntent {
+  id               String       @id @default(uuid())
+  resourceId       String
+  storageKey       String       @unique
+  expectedSize     Int
+  expectedMimeType String
+  adminId          String
+  status           IntentStatus @default(PENDING)
+  expiresAt        DateTime
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  resource Resource @relation(fields: [resourceId], references: [id])
+  admin    User     @relation(fields: [adminId], references: [id])
+
+  @@index([resourceId, status])
+  @@index([adminId])
+}
+
+// === POSTS (NEWS, BLOGS, FACTS) ===
+
+enum PostType {
+  NEWS
+  BLOG
+  FACT
+}
+
+model Post {
+  id          String    @id @default(uuid())
+  title       String
+  content     String    @db.Text
+  type        PostType
+  isPublished Boolean   @default(false)
+  authorId    String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  author      User      @relation(fields: [authorId], references: [id])
+
+  @@index([type, isPublished])
+}
+
+model AccessLog {
+  id         String   @id @default(uuid())
+  userId     String
+  resourceId String?
+  documentId String?
+  action     String   // e.g. "VIEW_DOCUMENT", "DOWNLOAD_INTENT"
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id])
+  resource Resource? @relation(fields: [resourceId], references: [id])
+  document Document? @relation(fields: [documentId], references: [id])
+
+  @@index([userId, action])
+  @@index([resourceId])
+}

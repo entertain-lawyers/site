@@ -1,0 +1,173 @@
+"use server";
+
+import { createSafeAction } from "@/lib/safe-action";
+import { prisma } from "@/lib/prisma";
+import { generatePresignedPutUrl, getObjectMetadata, getObjectHeadBytes } from "@/lib/r2";
+import { z } from "zod";
+
+const initiateUploadSchema = z.object({
+  resourceId: z.string().uuid(),
+  expectedSize: z.number().positive().max(50 * 1024 * 1024), // Max 50MB
+});
+
+export const initiateDocumentUpload = createSafeAction(
+  async ({ resourceId, expectedSize }: { resourceId: string; expectedSize: number }, { userId }) => {
+    if (!userId) throw new Error("Unauthorized");
+
+    const parsed = initiateUploadSchema.safeParse({ resourceId, expectedSize });
+    if (!parsed.success) {
+      throw new Error("Invalid parameters");
+    }
+
+    const resource = await prisma.resource.findUnique({
+      where: { id: resourceId },
+      include: { document: true }
+    });
+
+    if (!resource) {
+      throw new Error("Resource not found");
+    }
+
+    // Do not allow if it already has a document (for now, simplify replacement logic)
+    if (resource.documentId) {
+      throw new Error("This resource already has a document. Please delete it first to upload a new one.");
+    }
+
+    // Generate internal storage key
+    const storageKey = `documents/${resourceId}-${Date.now()}.pdf`;
+    
+    // Hardcode MIME type to PDF for this phase
+    const expectedMimeType = "application/pdf";
+    
+    // Generate the PUT URL (expires in 10 minutes)
+    const uploadUrl = await generatePresignedPutUrl(storageKey, expectedMimeType, 600);
+
+    // Create the upload intent
+    const intent = await prisma.uploadIntent.create({
+      data: {
+        resourceId,
+        storageKey,
+        expectedSize,
+        expectedMimeType,
+        adminId: userId,
+        status: "PENDING",
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 mins
+      }
+    });
+
+    // Return the intent ID and URL, DO NOT return the storage key
+    return {
+      uploadIntentId: intent.id,
+      uploadUrl,
+    };
+  },
+  { requireAdmin: true }
+);
+
+const confirmUploadSchema = z.object({
+  resourceId: z.string().uuid(),
+  uploadIntentId: z.string().uuid(),
+});
+
+export const confirmDocumentUpload = createSafeAction(
+  async ({ resourceId, uploadIntentId }: { resourceId: string; uploadIntentId: string }, { userId }) => {
+    if (!userId) throw new Error("Unauthorized");
+
+    const parsed = confirmUploadSchema.safeParse({ resourceId, uploadIntentId });
+    if (!parsed.success) {
+      throw new Error("Invalid parameters");
+    }
+
+    // 1. Retrieve the intent
+    const intent = await prisma.uploadIntent.findUnique({
+      where: { id: uploadIntentId }
+    });
+
+    if (!intent) throw new Error("Upload intent not found");
+
+    // 2. Validate Intent Status & Ownership
+    if (intent.status !== "PENDING") {
+      throw new Error(`Upload intent is already ${intent.status}`);
+    }
+    if (intent.resourceId !== resourceId) {
+      throw new Error("Intent does not match the provided resource");
+    }
+    if (intent.adminId !== userId) {
+      throw new Error("You are not the admin who initiated this upload");
+    }
+    if (intent.expiresAt < new Date()) {
+      await prisma.uploadIntent.update({
+        where: { id: intent.id },
+        data: { status: "EXPIRED" }
+      });
+      throw new Error("Upload intent has expired");
+    }
+
+    // 3. Verify R2 object existence and metadata
+    let metadata;
+    try {
+      metadata = await getObjectMetadata(intent.storageKey);
+    } catch (error) {
+      throw new Error("Failed to verify file upload in R2. The file may not have been uploaded yet.");
+    }
+
+    const actualSize = metadata.ContentLength ?? 0;
+    
+    // Optional: we can loosely verify size if needed, but R2 metadata is trustworthy
+    if (actualSize === 0) {
+      throw new Error("Uploaded file is empty");
+    }
+
+    // 4. Verify Magic Bytes (%PDF-)
+    try {
+      // '%PDF-' is exactly 5 bytes
+      const magicBytes = await getObjectHeadBytes(intent.storageKey, 5);
+      if (!magicBytes.startsWith("%PDF-")) {
+        // Mark failed
+        await prisma.uploadIntent.update({
+          where: { id: intent.id },
+          data: { status: "FAILED" }
+        });
+        throw new Error("Invalid file content. Expected a valid PDF document.");
+      }
+    } catch (error: any) {
+      throw new Error(`Failed to verify PDF signature: ${error.message}`);
+    }
+
+    // 5. Finalize Document Record
+    // Use a transaction to ensure atomic creation and intent confirmation
+    const document = await prisma.$transaction(async (tx) => {
+      // Compare-and-swap to prevent race conditions (TOCTOU)
+      const updateResult = await tx.uploadIntent.updateMany({
+        where: { id: intent.id, status: "PENDING" },
+        data: { status: "CONFIRMED" }
+      });
+      
+      if (updateResult.count === 0) {
+        throw new Error("Upload intent was already processed by another request.");
+      }
+
+      const doc = await tx.document.create({
+        data: {
+          storageProvider: "R2",
+          storageKey: intent.storageKey,
+          fileSize: actualSize,
+          mimeType: intent.expectedMimeType,
+        }
+      });
+
+      await tx.resource.update({
+        where: { id: resourceId },
+        data: { documentId: doc.id }
+      });
+
+      return doc;
+    });
+
+    return {
+      success: true,
+      documentId: document.id
+    };
+  },
+  { requireAdmin: true }
+);
