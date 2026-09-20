@@ -49,11 +49,6 @@ export default async function HomePage() {
         <p className="max-w-2xl text-text-secondary text-fluid-base font-medium tracking-wide mt-2">
           Nepal's premium platform for comprehensive <span className="text-accent font-bold">law notes</span>, <span className="text-accent font-bold">case laws</span>, and <span className="text-accent font-bold">study resources</span>.
         </p>
-        <div className="mt-8 flex items-center justify-center gap-4">
-          <Link href="/study" className="px-8 py-3.5 bg-accent hover:bg-accent-hover text-white text-sm font-bold rounded-full transition-all shadow-[0_4px_15px_rgba(var(--color-accent),0.3)] hover:shadow-[0_6px_20px_rgba(var(--color-accent),0.4)] hover:-translate-y-0.5">
-            Start Studying
-          </Link>
-        </div>
       </section>
 
       {/* Core Resource Categories */}
