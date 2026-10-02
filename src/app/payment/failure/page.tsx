@@ -9,7 +9,7 @@ export default async function PaymentFailurePage({
 }) {
   const resolvedParams = await searchParams;
   const reason = resolvedParams.reason || 'Unknown error occurred during payment verification.';
-  
+
   let targetUrl = '/';
   let targetLabel = 'Return Home';
 
@@ -17,7 +17,7 @@ export default async function PaymentFailurePage({
     const tx = await prisma.paymentTransaction.findUnique({
       where: { idempotencyKey: resolvedParams.txId }
     });
-    
+
     if (tx) {
       if (tx.type === 'PURCHASE' && tx.targetId) {
         targetUrl = `/read/${tx.targetId}`;
@@ -31,12 +31,12 @@ export default async function PaymentFailurePage({
 
   return (
     <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 bg-background">
-      <div className="bg-surface p-10 rounded-2xl shadow-soft border border-border max-w-md w-full text-center">
+      <div className="bg-surface p-6 sm:p-10 rounded-2xl shadow-soft border border-border max-w-md w-full text-center">
         <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-50 border border-red-200 mb-6 shadow-sm">
           <XCircle className="h-8 w-8 text-red-600" />
         </div>
         <h1 className="text-2xl font-bold text-navy dark:text-white mb-2">Payment Failed</h1>
-        <p className="text-text-secondary font-medium mb-6">
+        <p className="text-text-secondary font-medium mb-6 break-words">
           {reason}
         </p>
         <div className="bg-red-50 border border-red-100 text-red-800 text-sm p-4 rounded-xl mb-8 text-left font-medium">

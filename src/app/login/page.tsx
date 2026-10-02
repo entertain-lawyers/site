@@ -11,6 +11,7 @@ export default function LoginPage() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
   const errorParam = searchParams.get('error');
+  const codeParam = searchParams.get('code');
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
@@ -18,11 +19,13 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(
-    errorParam === 'CredentialsSignin' 
-      ? 'Invalid email or password.' 
+    codeParam === 'UnverifiedEmail' || errorParam === 'UnverifiedEmail'
+      ? 'Please verify your email address before logging in.'
+      : errorParam === 'CredentialsSignin'
+      ? 'Invalid email or password.'
       : errorParam === 'OAuthAccountNotLinked'
       ? 'This email is already registered with a password. Please sign in with your email and password.'
-      : errorParam 
+      : errorParam
       ? 'An error occurred during authentication.'
       : null
   );
@@ -51,9 +54,10 @@ export default function LoginPage() {
     try {
       const result = await register({ email, password });
       if (result.success) {
-        setSuccess('Account created successfully. You can now sign in.');
-        setMode('login');
-        setPassword('');
+        setSuccess('Account created. Redirecting to verification...');
+        setTimeout(() => {
+          window.location.href = `/verify-email?email=${encodeURIComponent(email)}`;
+        }, 1000);
       } else {
         setError(result.error || 'Registration failed.');
       }
@@ -64,7 +68,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col justify-center py-12 sm:px-6 lg:px-8 transition-colors duration-300">
+    <div className="min-h-screen bg-background flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-300">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
         <Link href="/" className="inline-block group mb-6">
           <div className="relative w-[200px] h-16 mx-auto overflow-hidden transition-transform duration-300 group-hover:scale-[1.02]">
@@ -111,6 +115,13 @@ export default function LoginPage() {
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl">
               {error}
+              {(codeParam === 'UnverifiedEmail' || errorParam === 'UnverifiedEmail') && (
+                <div className="mt-2">
+                  <Link href={`/verify-email?email=${encodeURIComponent(email)}`} className="font-bold underline hover:text-red-900">
+                    Verify email now
+                  </Link>
+                </div>
+              )}
             </div>
           )}
           {success && (
@@ -143,9 +154,16 @@ export default function LoginPage() {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-semibold text-text-secondary mb-1.5">
-                Password
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label htmlFor="password" className="block text-sm font-semibold text-text-secondary">
+                  Password
+                </label>
+                {mode === 'login' && (
+                  <Link href="/forgot-password" className="text-sm font-medium text-accent hover:text-accent-hover transition-colors">
+                    Forgot password?
+                  </Link>
+                )}
+              </div>
               <div className="relative">
                 <input
                   id="password"

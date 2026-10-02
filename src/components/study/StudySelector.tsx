@@ -91,7 +91,7 @@ export default function StudySelector({
   ];
 
   return (
-    <div className="bg-surface border-y md:border md:border-border md:rounded shadow-sm px-4 py-8 md:p-8">
+    <div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
         {/* Semester */}
         <div>

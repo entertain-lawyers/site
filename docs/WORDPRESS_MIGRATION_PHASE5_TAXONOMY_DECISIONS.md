@@ -1,0 +1,891 @@
+# WORDPRESS MIGRATION PHASE 5 TAXONOMY DECISIONS
+
+## 10th Semester -> Moot Court
+- **9th Semester Criminal Moot Court Final** (Site: english, WP ID: 5513, Cat: Others)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Classification ambiguity resolved to CASE_LAW. Explicit evidence supports existing subject Moot Court.
+- **8th Semester Civil Moot Court Complete File** (Site: english, WP ID: 5523, Cat: 8th Semester Civil Moot Court Complete File)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Classification ambiguity resolved to CASE_LAW. Explicit evidence supports existing subject Moot Court.
+
+## 4th Semester -> Property Law
+- **Property Law Case: Ramdulari Sravan Baishnav vs. Saligram Sravan Baishnav, NKP (3rd Semester)** (Site: english, WP ID: 3614, Cat: Property Law)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Classification ambiguity resolved to CASE_LAW. Explicit evidence supports existing subject Property Law.
+- **Property Law Case: Dawa Tasi Lama vs. GoN, NKP (3rd Semester)** (Site: english, WP ID: 3956, Cat: Property Law)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Classification ambiguity resolved to CASE_LAW. Explicit evidence supports existing subject Property Law.
+- **Property Law Case: Guljariya Devi Yadavni vs. Gunjeshwori Devi Yadav, NKP (3rd Semester)** (Site: english, WP ID: 3972, Cat: Property Law)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Classification ambiguity resolved to CASE_LAW. Explicit evidence supports existing subject Property Law.
+- **Property Law Case: Kaman Bahadur Khadka vs. Shiwa Kumari Khadka, NKP (3rd Semester)** (Site: english, WP ID: 3980, Cat: Property Law)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Classification ambiguity resolved to CASE_LAW. Explicit evidence supports existing subject Property Law.
+- **Property Law Case: Jhagmi Palvar Bist vs. Diki Dolkar Palvar Bist, NKP (3rd Semester)** (Site: english, WP ID: 3988, Cat: Property Law)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Classification ambiguity resolved to CASE_LAW. Explicit evidence supports existing subject Property Law.
+- **Property Law Case: Minbahadur Basnet vs. Bedkumari Basnet, NKP (3rd Semester)** (Site: english, WP ID: 3993, Cat: Property Law)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Classification ambiguity resolved to CASE_LAW. Explicit evidence supports existing subject Property Law.
+- **Property Law Case: Kiran Shoes vs. Dept. of Industry, NKP (3rd Semester)** (Site: english, WP ID: 3998, Cat: Property Law)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Classification ambiguity resolved to CASE_LAW. Explicit evidence supports existing subject Property Law.
+- **Property Law Case: Mount Everest Brewery Pvt. Ltd. &amp; United Brewery Nepal Pvt. Ltd. vs. Nepal Government &amp; Others NKP (3rd Semester)** (Site: english, WP ID: 4002, Cat: Property Law)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Classification ambiguity resolved to CASE_LAW. Explicit evidence supports existing subject Property Law.
+- **Property Law Case: Sanu Shrestha vs. GoN, NKP (3rd Semester)** (Site: english, WP ID: 4005, Cat: Property Law)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Classification ambiguity resolved to CASE_LAW. Explicit evidence supports existing subject Property Law.
+- **Property Law Case: Ram Pratap khadka vs. Kathmandu Metropolitan Police, Hanumandhoka, NKP (3rd Semester)** (Site: english, WP ID: 4009, Cat: Property Law)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Classification ambiguity resolved to CASE_LAW. Explicit evidence supports existing subject Property Law.
+- **Property Law Case: Adv. Omprakash Aryal vs. GoN, 078-WC-0004** (Site: english, WP ID: 4021, Cat: Property Law)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Classification ambiguity resolved to CASE_LAW. Explicit evidence supports existing subject Property Law.
+- **Interpretation of Law/ Property Law Case: Ratna Devi vs. Prem Man, NKP (6th Semester)** (Site: english, WP ID: 4909, Cat: Interpretation of Law)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Taxonomy gap resolved: Explicit evidence maps to existing subject Property Law.
+
+## 5th Semester -> Administrative Law
+- **Election Law Case: Mulchandra Azad v. Madan Mohan Joshi & Others, NKP (5th Semester)** (Site: english, WP ID: 5117, Cat: Election Law)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Taxonomy gap resolved: Explicit evidence maps to existing subject Administrative Law.
+- **Fiscal Law Case: Advocate Ramchandra Poudel vs. Parliament Secretariat & Others, NKP (7th Semester, Old Syllabus)** (Site: english, WP ID: 5647, Cat: Fiscal Law)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Taxonomy gap resolved: Explicit evidence maps to existing subject Administrative Law.
+
+## 5th Semester -> Company Law
+- **Company Law Case: Arun Chandra Vs. Nepal Rastra Bank, NKP, (5th Semester)** (Site: english, WP ID: 5261, Cat: Writs)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Explicit source evidence supports mapping to existing subject: Company Law
+- **Company Law Case: Nepal Airlines Corporation Vs. Harati Travels, NKP (5th Semester)** (Site: english, WP ID: 5266, Cat: Writs)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Explicit source evidence supports mapping to existing subject: Company Law
+- **Company Law Case: Piyus Raj Pandey Vs. Tax Office Kathmandu, NKP** (Site: english, WP ID: 5271, Cat: Writs)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Explicit source evidence supports mapping to existing subject: Company Law
+- **Company Law Case: Shankar Lal Agrawal Vs. Nepal Lever Limited, NKP (5th Semester)** (Site: english, WP ID: 5280, Cat: Writs)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Explicit source evidence supports mapping to existing subject: Company Law
+- **Company Law Case: Jyoti Spinning Mills Ltd. Vs. Department of Industry, NKP** (Site: english, WP ID: 5289, Cat: Writs)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Explicit source evidence supports mapping to existing subject: Company Law
+- **Company Law Case: Kirendra Bahadur Pradhan vs. Hetaunda Industrial Sector, NKP (5th Semester new)** (Site: english, WP ID: 5364, Cat: Writs)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Explicit source evidence supports mapping to existing subject: Company Law
+- **Company Law Case: Nepal Insurance Company Limited vs. Labour Court, NKP (5th Semester new)** (Site: english, WP ID: 5368, Cat: Writs)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Explicit source evidence supports mapping to existing subject: Company Law
+- **Company Law Case: Prakash Raj Sharma vs. Labour Court, NKP (5th Semester new)** (Site: english, WP ID: 5372, Cat: Writs)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Explicit source evidence supports mapping to existing subject: Company Law
+
+## 5th Semester -> Labor Law
+- **Labour Law Case: Nepal Battery Company, Balaju Industrial Estate Pvt. Ltd. vs. Ministry of Labour, NKP (7th Semester)** (Site: english, WP ID: 4958, Cat: Civil)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Explicit source evidence supports mapping to existing subject: Labor Law
+
+## 6th Semester -> Civil Procedure
+- **Procedural Law Case: Pradip Kumar Shah v. Rambhanjan Yadav, NKP (5th Semester)** (Site: english, WP ID: 4266, Cat: Procedural Law-II)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Classification ambiguity resolved to CASE_LAW. Explicit evidence supports existing subject Civil Procedure.
+- **Intellectual Property Case: Mihir Kumar Thakur vs. Bhesh Jung Badal Lamichhane, NKP (6th Semester)** (Site: english, WP ID: 4588, Cat: Others)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Classification ambiguity resolved to CASE_LAW. Explicit evidence supports existing subject Civil Procedure.
+
+## 6th Semester -> Criminal Procedure
+- **The Right to Protest: Legal Limits and Government Crackdowns – A Global and Nepali Perspective** (Site: english, WP ID: 2621, Cat: Opinion)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Classification ambiguity resolved to CASE_LAW. Explicit evidence supports existing subject Criminal Procedure.
+
+## 6th Semester -> Environmental Law
+- **Environmental Law Case: Padam Bahadur Shrestha v. PMO et al., NKP (7th Semester)** (Site: english, WP ID: 4179, Cat: Civil)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Explicit source evidence supports mapping to existing subject: Environmental Law
+- **Environmental Law Case: Adv. Khagendra Subedi and Others vs. GON et. al., NKP (7th Semester)** (Site: english, WP ID: 4182, Cat: Civil)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Explicit source evidence supports mapping to existing subject: Environmental Law
+- **Environmental Law Case: Adv. Amita Gautam Paudel vs. Prime Minister and Council of Ministers, et al., NKP (7th Semester)** (Site: english, WP ID: 4186, Cat: Civil)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Explicit source evidence supports mapping to existing subject: Environmental Law
+
+## 6th Semester -> Taxation Law
+- **Taxation Law Case: Tax Office Biratnagar vs. Mahendra Kumar Golchha, NKP(9th  Semester)** (Site: english, WP ID: 4561, Cat: Civil)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Explicit source evidence supports mapping to existing subject: Taxation Law
+- **Taxation Law Case: Laxman Narayan vs. Tax Office Lalitpur, NKP (9th Semester)** (Site: english, WP ID: 4564, Cat: Civil)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Explicit source evidence supports mapping to existing subject: Taxation Law
+
+## 7th Semester -> Human Rights Law
+- **Know about voice of the voiceless Adv. Meera Dhungana** (Site: english, WP ID: 2772, Cat: Legal Personality)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Classification ambiguity resolved to CASE_LAW. Explicit evidence supports existing subject Human Rights Law.
+
+## 7th Semester -> International Law
+- **Unit-1: Use of Force and War** (Site: english, WP ID: 3709, Cat: Public International Law-II)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Classification ambiguity resolved to CASE_LAW. Explicit evidence supports existing subject International Law.
+- **Unit-2 Neutrality** (Site: english, WP ID: 3859, Cat: Public International Law-II)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Classification ambiguity resolved to LAW_NOTE. Explicit evidence supports existing subject International Law.
+- **Criminology and Penology Case: Jung Bahadur Singh Vs. Council of Ministers, NKP (5th semester)** (Site: english, WP ID: 4517, Cat: Criminology and Penology)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Taxonomy gap resolved: Explicit evidence maps to existing subject International Law.
+- **Labour Law Case: International Centre for Integrated Mountain Development vs. Labour Court, NKP (7th Semester)** (Site: english, WP ID: 4668, Cat: Civil)
+  - *Decision:* APPROVED_EXISTING_SUBJECT
+  - *Rationale:* Explicit source evidence supports mapping to existing subject: International Law
+
+## UNASSIGNED -> NEW SUBJECT REQUIRED
+- **Juvenile Delinquency Case: Advocate Aashish Adhikari on behalf of Bablu Godia v. Banke District Court et al, (5th Semester)** (Site: english, WP ID: 4306, Cat: Juvenile Delinquency)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Juvenile Delinquency) absent from Prisma.
+- **Juvenile Delinquency Case: Advocate Aashish Adhikari on behalf of Keshav Khadka v. HMG et al (5th Semester)** (Site: english, WP ID: 4310, Cat: Juvenile Delinquency)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Juvenile Delinquency) absent from Prisma.
+- **Juvenile Delinquency Case: Pleader Tara Devi Khanal on behalf of Raj Kumar Rai vs. Ministry of Home Affairs et al (5th Semester)** (Site: english, WP ID: 4314, Cat: Juvenile Delinquency)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Juvenile Delinquency) absent from Prisma.
+- **Juvenile Delinquency Case: Adv. Santosh Kumar Mahato vs. Office of the Prime Minister and the Council of Ministers et al., NKP (5th Semester)** (Site: english, WP ID: 4317, Cat: Juvenile Delinquency)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Juvenile Delinquency) absent from Prisma.
+- **Juvenile Delinquency Case: Mahesh Kumar Chaudhary v. Government of Nepal, NKP (5th Semester)** (Site: english, WP ID: 4321, Cat: Juvenile Delinquency)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Juvenile Delinquency) absent from Prisma.
+- **Juvenile Delinquency Case: Advocate Kalyan K.C. on behalf of Saroj Rai vs. District Administration Office, Kathmandu et al. (5th Semester)** (Site: english, WP ID: 4400, Cat: Juvenile Delinquency)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Juvenile Delinquency) absent from Prisma.
+- **Juvenile Delinquency Case: Advocate Sapana Pradhan Malla on behalf of Forum for Women, Law and Development (FWLD) and on her own behalf vs. Office of the Prime Minister and Council of Ministers et al, NKP (5th Semester)** (Site: english, WP ID: 4403, Cat: Juvenile Delinquency)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Juvenile Delinquency) absent from Prisma.
+- **Criminology and Penology Case: Advocate Ratna Bahadur Bagchand Vs. Council of Ministers and Others, NKP (5th semester)** (Site: english, WP ID: 4412, Cat: Criminology and Penology)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Criminology and Penology) absent from Prisma.
+- **Criminology and Penology Case: Sunil Babu Panta vs Council of Ministers and others, NKP (5th semester)** (Site: english, WP ID: 4414, Cat: Criminology and Penology)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Criminology and Penology) absent from Prisma.
+- **Criminology and Penology Case: Jeet Kumari Pangeni vs. Council of Ministers and others, NKP (5th semester)** (Site: english, WP ID: 4416, Cat: Criminology and Penology)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Criminology and Penology) absent from Prisma.
+- **Criminology and Penology Case: Prakash Mani Sharma V. Council of Ministers and others, NKP (5th Semester)** (Site: english, WP ID: 4520, Cat: Criminology and Penology)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Criminology and Penology) absent from Prisma.
+- **Criminology and Penology Case: HMG Vs. Samjhana Lamichhane, NKP (5th Semester)** (Site: english, WP ID: 4525, Cat: Criminology and Penology)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Criminology and Penology) absent from Prisma.
+- **Criminology and Penology Case: Shanti B.K. vs. HMG, NKP (5th Semester)** (Site: english, WP ID: 4529, Cat: Criminology and Penology)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Criminology and Penology) absent from Prisma.
+- **Interpretation of Law Case: Kanchha Prajapati vs. Nhechchhe Kumar Prajapati, NKP (6th Semester)** (Site: english, WP ID: 4888, Cat: Interpretation of Law)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Interpretation of Law) absent from Prisma.
+- **Interpretation of Law Case: Lok Bhakta Rana vs. Rama Devi, NKP (6th Semester)** (Site: english, WP ID: 4894, Cat: Interpretation of Law)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Interpretation of Law) absent from Prisma.
+- **Interpretation of Laws Case: K.I. Singh vs. His Majesty’s Government of Nepal, NKP (6th Semester)** (Site: english, WP ID: 4900, Cat: Interpretation of Law)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Interpretation of Law) absent from Prisma.
+- **Interpretation of Law Case: Yagyamurti Banjade vs. Durga Das, NKP (6th Semester)** (Site: english, WP ID: 4903, Cat: Interpretation of Law)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Interpretation of Law) absent from Prisma.
+- **Election Law Case: Som Prasad Sapkota v. Election Commission, NKP (5th Semester)** (Site: english, WP ID: 5108, Cat: Election Law)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Election Law) absent from Prisma.
+- **Election Law Case: Communist Party of Nepal v. Election Commission, NKP (5th Semester)** (Site: english, WP ID: 5376, Cat: Election Law)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Election Law) absent from Prisma.
+- **Election  Law Case: Mangol National Organisation  v. Election Commission, NKP (5th Semester)** (Site: english, WP ID: 5385, Cat: Election Law)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Election Law) absent from Prisma.
+- **Election Law Case:  Peshal Dahal & Others v. Parliament Secretariat , NKP (5th Semester)** (Site: english, WP ID: 5391, Cat: Election Law)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Election Law) absent from Prisma.
+- **Election Law Case: Mihir Kumar Thakur v. Election Commission , NKP (5th Semester)** (Site: english, WP ID: 5396, Cat: Election Law)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Election Law) absent from Prisma.
+- **Election Law Case: Advocate Kamlesh Dwivedi v. Prime Minister & Cabinet Secretariat, NKP (5th Semester)** (Site: english, WP ID: 5402, Cat: Election Law)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Election Law) absent from Prisma.
+- **Fiscal Law Case: Pitambar Prasad Acharya & Others vs. Ministry of Finance & Others, NKP (7th Semester, Old & New Syllabus)** (Site: english, WP ID: 5541, Cat: Fiscal Law)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Fiscal Law) absent from Prisma.
+- **Gender and Inclusive Justice Case: Sapana Pradhan Malla vs. Government of Nepal & Others, NKP (7th Semester)** (Site: english, WP ID: 5562, Cat: Gender and Inclusive Justice)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Gender and Inclusive Justice) absent from Prisma.
+- **Gender and Inclusive Justice Case: Laxmi Dhikta & Others vs. Government of Nepal, NKP (7th semester)** (Site: english, WP ID: 5570, Cat: Gender and Inclusive Justice)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Gender and Inclusive Justice) absent from Prisma.
+- **Gender and Inclusive Justice Case: Sabina Damai vs. Government of Nepal & Others, NKP (7th Semester)** (Site: english, WP ID: 5576, Cat: Gender and Inclusive Justice)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Gender and Inclusive Justice) absent from Prisma.
+- **Gender and Inclusive Justice Case: Meera Dhungana vs. Ministry of Law, Justice and Parliamentary Affairs & Others, NKP (7th Semester)** (Site: english, WP ID: 5584, Cat: Gender and Inclusive Justice)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Gender and Inclusive Justice) absent from Prisma.
+- **Gender and Inclusive Justice Case: Sunil Babu Panta vs. Government of Nepal & Others, NKP (7th Semester)** (Site: english, WP ID: 5589, Cat: Gender and Inclusive Justice)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Gender and Inclusive Justice) absent from Prisma.
+- **Gender and Inclusive Justice Case: Jyoti Paudel vs. Government of Nepal & Others, NKP (7th Semester)** (Site: english, WP ID: 5594, Cat: Gender and Inclusive Justice)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Gender and Inclusive Justice) absent from Prisma.
+- **Gender and Inclusive Justice Case: Sapana Pradhan Malla vs. Office of Prime Minister & Others, ΝΚΡ (7th Semester)** (Site: english, WP ID: 5600, Cat: Gender and Inclusive Justice)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Gender and Inclusive Justice) absent from Prisma.
+- **Gender and Inclusive Justice Case: Dil Bahadur Bishwakarma & Others vs. Cabinet Secretariat & Others, NKP (7th Semester)** (Site: english, WP ID: 5618, Cat: Gender and Inclusive Justice)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Gender and Inclusive Justice) absent from Prisma.
+- **Gender and Inclusive Justice Case: Advocate Basundhara Thapa vs. Council of Ministers, NKP (7th Semester)** (Site: english, WP ID: 5627, Cat: Gender and Inclusive Justice)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Gender and Inclusive Justice) absent from Prisma.
+- **Gender and Inclusive Justice Case: Advocate Sundarshan Subedi vs. Office of the Prime Minister & Others, NKP (7th Semester)** (Site: english, WP ID: 5635, Cat: Gender and Inclusive Justice)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Gender and Inclusive Justice) absent from Prisma.
+- **Gender and Inclusive Justice Case: Meera Dhungana vs. Council of Ministers & Others, NKP (7th Semester)** (Site: english, WP ID: 5659, Cat: Gender and Inclusive Justice)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Gender and Inclusive Justice) absent from Prisma.
+- **Gender and Inclusive Justice Case: Sunilbabu Panta vs. Government of Nepal et.al. , NKP (8th semester, New Syllabus)** (Site: english, WP ID: 5686, Cat: Gender and Inclusive Justice)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Gender and Inclusive Justice) absent from Prisma.
+- **Gender and Inclusive Justice Case: Sukum Thapa vs. Pitamber Thapa, NKP (8th Semester, New Syllabus)** (Site: english, WP ID: 5701, Cat: Gender and Inclusive Justice)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Gender and Inclusive Justice) absent from Prisma.
+- **Gender and Inclusive Justice Case: Narayanlal Manandhar vs. Shakti Kumar Basnet, NKP (8th Semester, New Syllabus)** (Site: english, WP ID: 5709, Cat: Gender and Inclusive Justice)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Gender and Inclusive Justice) absent from Prisma.
+- **Gender and Inclusive Justice Case: Indu Tuladhar vs Election Commission, NKP (8th Semester, New Syllabus)** (Site: english, WP ID: 5722, Cat: Gender and Inclusive Justice)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Gender and Inclusive Justice) absent from Prisma.
+- **Gender and Inclusive Justice Case: Prachi Rayamajhi vs. Vashker Singh Karki, NKP (8th Semester, New Syllabus)** (Site: english, WP ID: 5730, Cat: Gender and Inclusive Justice)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Gender and Inclusive Justice) absent from Prisma.
+- **Gender and Inclusive Justice Case: Adhip Pokhrel vs. Minister of Home Affair, Department of Immigration, NKP (8th Semester, New Syllabus)** (Site: english, WP ID: 5735, Cat: Gender and Inclusive Justice)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Gender and Inclusive Justice) absent from Prisma.
+- **Gender and Inclusive Justice Case: Premilal Chaudhary vs. Office of Prime Minister, Council of Minister, NKP (8th Semester, New Syllabus)** (Site: english, WP ID: 5742, Cat: Gender and Inclusive Justice)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Gender and Inclusive Justice) absent from Prisma.
+- **Gender and Inclusive Justice Case: Surendra Badadur Rawal vs. Government of Nepal, Office of Prime Minister, NKP (8th Semester, New Syllabus)** (Site: english, WP ID: 5747, Cat: Gender and Inclusive Justice)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Gender and Inclusive Justice) absent from Prisma.
+- **Gender and Inclusive Justice Case: Rukshana Kapali vs. Office of Prime Minister, Council of Minister (8th Semester, New Syllabus)** (Site: english, WP ID: 5757, Cat: Gender and Inclusive Justice)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Gender and Inclusive Justice) absent from Prisma.
+- **Gender and Inclusive Justice Case: Munish Acharya vs. Shruti Gautam, Supreme Court (8th Semester, New Syllabus)** (Site: english, WP ID: 5761, Cat: Gender and Inclusive Justice)
+  - *Decision:* NEW_SUBJECT_REQUIRED
+  - *Rationale:* Content clearly represents distinct academic subject (Gender and Inclusive Justice) absent from Prisma.
+
+## UNASSIGNED -> NULL SUBJECT CANDIDATE
+- **Court: State vs. Nobody – A Gripping Telugu Courtroom Drama Shedding Light on POCSO Act Misuse** (Site: english, WP ID: 2395, Cat: Opinion)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to CASE_LAW, but subject cannot be determined safely.
+- **12 Angry Men: A Timeless Courtroom Drama Exploring Justice and Conviction** (Site: english, WP ID: 2400, Cat: Opinion)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to CASE_LAW, but subject cannot be determined safely.
+- **A Must-Watch for Courtroom Thriller Fans: Sirf Ek Banda Kaafi Hai** (Site: english, WP ID: 2403, Cat: Opinion)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to CASE_LAW, but subject cannot be determined safely.
+- **Jana Gana Mana (2022): A Stirring Legal Thriller That Holds a Mirror to Society** (Site: english, WP ID: 2406, Cat: Opinion)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to CASE_LAW, but subject cannot be determined safely.
+- **A Bold, Fearless Legal Thriller That Redefines Consent** (Site: english, WP ID: 2417, Cat: Opinion)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to OTHER, but subject cannot be determined safely.
+- **KNOW ABOUT HONORABLE JUSTICE SAPANA PRADHAN MALLA** (Site: english, WP ID: 2475, Cat: Legal Personality)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to CASE_LAW, but subject cannot be determined safely.
+- **RCB FAN WENT CRAZY IN NEPAL- CUT CAKE IN COLLEGE** (Site: english, WP ID: 2489, Cat: Opinion)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to OTHER, but subject cannot be determined safely.
+- **Evidence Law Case: Shahadev Singh Sikh Vs. Others, NKP (7th Semester)** (Site: english, WP ID: 2691, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Brutal Rape and Murder of 15-Year-Old Girl** (Site: english, WP ID: 2705, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Evidence Law Case: Marshakal Kaski Vs. Tribhuvan Airport Custom Office & Others. NKP (7th Semester)** (Site: english, WP ID: 2713, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Girlfriend raped by 10 men and Boyfriend forced to watch** (Site: english, WP ID: 2765, Cat: International)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to OTHER, but subject cannot be determined safely.
+- **Online Betting & Trading Platforms Should Be Completely Banned** (Site: english, WP ID: 2816, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Evidence Law Case: Monasir Rain Kachary v. Jeun Khatun, NKP (7th Semester)** (Site: english, WP ID: 2833, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Evidence Law Case: Keshav Prasad Ghimire v. His Majesty's Government of Nepal, NKP(7th Semester)** (Site: english, WP ID: 2840, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Criminal Law Case: Bhuwane Basnet Chhetri v. His Majesty Government of Nepal, NKP (3rd Semester TU)** (Site: english, WP ID: 2849, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Criminal Case Law: His Majesty Government of Nepal v. Mayasori Damini, NKP (3rd Semester TU)** (Site: english, WP ID: 2857, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Criminal Law case: HMG v. Rameshwar Raut Barai & Others, NKP (3rd Semester TU)** (Site: english, WP ID: 2866, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Criminal Law Case: Tirtha Dangol v. His Majesty's Government of Nepal, NKP (3rd Semester TU)** (Site: english, WP ID: 2874, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Evidence Law Case: Devendra Shumsher JBR v. Lila Shumsher JBR & Others, NKP (7th Semester)** (Site: english, WP ID: 2881, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Evidence Law Case: Baldev Upadhyaya v. Gita Bhattarai & others, NKP (7th Semester)** (Site: english, WP ID: 2886, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Evidence Law Case: His Majesty's Government of Nepal v. Kailash Mahato & others, NKP (7th Semester)** (Site: english, WP ID: 2892, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Evidence Law Case: His Majesty's Government of Nepal v. Diwakar Pandit, NKP (7th Semester)** (Site: english, WP ID: 2899, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Evidence Law Case: His Majesty’s Government of Nepal v. Devi Maya Ranabhat, NKP (7th Semester)** (Site: english, WP ID: 2902, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Criminal Law Case: Idris Miya v. His majesty’s Government of Nepal, NKP (3rd Semester)** (Site: english, WP ID: 2919, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Criminal Law Case: Uttam Lama v. His Majesty's Government of Nepal, NKP (3rd Semester)** (Site: english, WP ID: 2929, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Criminal Law Case: Nar Bahadur Reule v. His Majesty’s Government of Nepal, NKP (3rd Semester)** (Site: english, WP ID: 2937, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Criminal Law Case: Jasman Limbu v. Government of Nepal, NKP (3rd Semester)** (Site: english, WP ID: 2942, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Criminal Law Case: Government of Nepal v. Sanjeev Kumar Singh Yadav and 8 others, NKP (3rd Semester)** (Site: english, WP ID: 2949, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Criminal Law Case: Manish Shrestha v. Government of Nepal, NKP (3rd Semester)** (Site: english, WP ID: 2955, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Procedural Law Case: Samir Khan vs. Kathmandu District Court & Others NKP (5th Semester)** (Site: english, WP ID: 2966, Cat: Procedural Law-II)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to CASE_LAW, but subject cannot be determined safely.
+- **Procedural Law Case: Kallu Tharu (Chaudhary) vs. Appealate Court, Dipayal Doti & Others NKP (5th Semester)** (Site: english, WP ID: 2970, Cat: Procedural Law-I)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to CASE_LAW, but subject cannot be determined safely.
+- **Procedural Law Case: Pasang Dawa Tamang (Lopchan) Vs. His Majesty's Government of Nepal, NKP (5th Semester)** (Site: english, WP ID: 2974, Cat: Procedural Law-II)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to CASE_LAW, but subject cannot be determined safely.
+- **Procedural Law Case: Parsuram Banjade vs. Durgadas Shrestha, Bagmati Special Court, Kathmandu & Others, NKP (5th Semester)** (Site: english, WP ID: 2977, Cat: Procedural Law-I)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to CASE_LAW, but subject cannot be determined safely.
+- **Second Murder at Eleven? A privileged kid? Crime, Power, and the absence of punishment!** (Site: english, WP ID: 2984, Cat: Others)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to OTHER, but subject cannot be determined safely.
+- **A Click for Safety or a Violation of Privacy? Rethinking Section 295 of the Muluki Criminal Code, 2074** (Site: english, WP ID: 2993, Cat: Opinion)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to CASE_LAW, but subject cannot be determined safely.
+- **Criminal Law Case: Bhuwane Basnet Kshetri vs. His Majesty's Government of Nepal, NKP (4th Semester)** (Site: english, WP ID: 2998, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Criminal Law Case: Idris Miya v. His majesty’s Government of Nepal, NKP (4th Semester)** (Site: english, WP ID: 3004, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Old Questions** (Site: english, WP ID: 3232, Cat: Others)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to OTHER, but subject cannot be determined safely.
+- **Criminal Law Case: His Majesty's Government of Nepal v. Abdul Phatte Musalman, NKP (4th Semester)** (Site: english, WP ID: 3331, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Criminal Law Case: Mahendra Raj Bam v. His majesty's Government of Nepal, NKP (4th Semester)** (Site: english, WP ID: 3350, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Criminal Law Case: Janak Tripathi & Others v. His Majesty's Government of Nepal, NKP (4th Semester)** (Site: english, WP ID: 3379, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **First thing PNC (law faculty) taught me was fear not of failure, not of academics, but of being seen...** (Site: english, WP ID: 3392, Cat: Opinion)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to LAW_NOTE, but subject cannot be determined safely.
+- **Criminal Law Case: Government of Nepal v. Vasanta Kumar Yadav et. al, NKP (4th Semester)** (Site: english, WP ID: 3396, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Criminal Law Case: Triratna Chitrakar v. Government of Nepal, NKP (4th Semester)** (Site: english, WP ID: 3407, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Family Law Case: Ratna Sambhab Tuladhar v. Sonam Tuladhar, NKP (4th Semester)** (Site: english, WP ID: 3426, Cat: Family Law)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Ambiguous Family Law record. No explicit evidence distinguishing Family Law-I vs Family Law-II.
+- **Contract Law Case: Achyut Prasad Kharel vs Office of the Prime Minister & Council of Ministers, NKP (4th Semester)** (Site: english, WP ID: 3437, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Family Law Case: Koushila Devi Ghimire v. Parbati Devi Pandey, NKP (4th Semester)** (Site: english, WP ID: 3454, Cat: Family Law)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Ambiguous Family Law record. No explicit evidence distinguishing Family Law-I vs Family Law-II.
+- **Contract Law Case: Tirtha Rajkumari Rana v. Ram Shanker Shrestha, NKP (4th Semester)** (Site: english, WP ID: 3470, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Amar Adarsha Secondary School & Others vs Krishna Bahadur Shrestha, NKP (4th Semester)** (Site: english, WP ID: 3483, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Family Law Case: Meera Kumari Dhungana v. His Majesty’s Government, Ministry of Law, Justice and Parliamentary Affairs, NKP(4th Semester)** (Site: english, WP ID: 3495, Cat: Family Law)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Ambiguous Family Law record. No explicit evidence distinguishing Family Law-I vs Family Law-II.
+- **Family Law Case: Chijkaji Gurung v. Ashmaya Gurung, NKP (4th Semester)** (Site: english, WP ID: 3500, Cat: Family Law)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Ambiguous Family Law record. No explicit evidence distinguishing Family Law-I vs Family Law-II.
+- **Family Law Case: Chitra Bahadur Khadka & Others v. Pushpa Kumari Khadka, NKP(4th Semester)** (Site: english, WP ID: 3508, Cat: Family Law)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Ambiguous Family Law record. No explicit evidence distinguishing Family Law-I vs Family Law-II.
+- **Criminal Law Case: Indra Prasad Khanal vs. Government of Nepal, NKP (4th Semester)** (Site: english, WP ID: 3517, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Bhairab Prasad Neupane vs Chitwan Irrigation Project, NKP (4th Semester)** (Site: english, WP ID: 3523, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Badriraj Pandey vs Nabaraj Koirala, NKP (4th Semester)** (Site: english, WP ID: 3529, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Family Law Case: Rabindra Kami v. Tilatma Kami, NKP (4th Semester)** (Site: english, WP ID: 3540, Cat: Family Law)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Ambiguous Family Law record. No explicit evidence distinguishing Family Law-I vs Family Law-II.
+- **Family Law Case: Someshwor Prasad Kayastha v. Shivshankar Das et al., NKP (4th Semester)** (Site: english, WP ID: 3547, Cat: Family Law)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Ambiguous Family Law record. No explicit evidence distinguishing Family Law-I vs Family Law-II.
+- **Family Law Case: Devi Gurung v. Nita Gurung, NKP (4th Semester)** (Site: english, WP ID: 3558, Cat: Family Law)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Ambiguous Family Law record. No explicit evidence distinguishing Family Law-I vs Family Law-II.
+- **Family Law Case: Miraj Shrestha v. Manamaya Gharti Chhetri et al., NKP (4th Semester)** (Site: english, WP ID: 3565, Cat: Family Law)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Ambiguous Family Law record. No explicit evidence distinguishing Family Law-I vs Family Law-II.
+- **Criminal Law Case: Hendric Otto v. Government of Nepal, NKP (4th Semester)** (Site: english, WP ID: 3571, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Shanti Devi Shah vs. Biratnagar Panchayat, NKP, (4th Semester)** (Site: english, WP ID: 3578, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Ircon International Ltd. Vs Rawani Devi Mahato, NKP, (4th Semester)** (Site: english, WP ID: 3583, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Contract law Case: Apex Builders Pvt. Ltd. Vs Nepal Food Corporation. NKP (4th Semester)** (Site: english, WP ID: 3591, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Hari Prasad Joshi vs. Hikmat Bahadur Malla, NKP,(4th Semester).** (Site: english, WP ID: 3602, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Gunraj Upadhyay vs Shyam Shamsher, NKP, (4th Semester).** (Site: english, WP ID: 3609, Cat: Others)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to CASE_LAW, but subject cannot be determined safely.
+- **Criminal Law Case: Government of Nepal v. Kesh Bahadur Budhathoki, NKP (3rd Semester)** (Site: english, WP ID: 3854, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Gunraj Upadhyay vs Shyam Shamsher, NKP, (4th Semester).** (Site: english, WP ID: 3965, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract law case, Poyas Transport Company Pvt. ltd  vs Hetauda Cement Factory ltd, NKP (4th Semester).** (Site: english, WP ID: 4029, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Environment Law Case: Surya Prasad Sharma Dhungel et. al v. Godawari Marble Industries et. al. NKP, (7th semester)** (Site: english, WP ID: 4084, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Chandra Bahadur Mabo vs Lakh Bahadur Mabo, NKP (4th Semester)** (Site: english, WP ID: 4085, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Environment Law Case: Prakash Mani Sharma et. al. vs. Council of Ministers et. al, NKP (7th semester)** (Site: english, WP ID: 4091, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Environment Law Case: Prakash Mani Sharma et. al vs. PM and Council of Ministers et. al, NKP, (7th semester)** (Site: english, WP ID: 4099, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Environment Law Case: Tulsi Simkhada vs. PM and Council of Ministers & Others, NKP (7th semester)** (Site: english, WP ID: 4105, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract law Case: Damodar Ropeways & Construction Company (DRCC) v. Hazama Corporation and Others. NKP, (4th Semester).** (Site: english, WP ID: 4142, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Birat Thapa vs. Nepal Bangladesh Bank Ltd. Head Office Bijuli Bajar & Others, NKP (4th Semester)** (Site: english, WP ID: 4145, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Thuli Kanchi Kamini vs. Kanchho Kami, NKP (4th semester)** (Site: english, WP ID: 4152, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Procedural Law Case: Pradeep Kumar Agrawal v. Tax Office Morang, NKP (4th Semester)** (Site: english, WP ID: 4160, Cat: Procedural Law-I)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to CASE_LAW, but subject cannot be determined safely.
+- **Procedural Law Case: Narayanhari Gajurel v. Civil Service Commission, NKP (4th Semester)** (Site: english, WP ID: 4168, Cat: Procedural Law-I)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to CASE_LAW, but subject cannot be determined safely.
+- **Procedural Law Case: Chandrakala Devi Rajputni vs. Land Reform Office, NKP (4th Semester)** (Site: english, WP ID: 4172, Cat: Procedural Law-I)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to CASE_LAW, but subject cannot be determined safely.
+- **Environment Law Case: Adv. Shailendra Prasad Ambedkar and others vs. Prime Minister and Council of Ministers et. al (7th semester)** (Site: english, WP ID: 4189, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Family Law Case: Puran Shamsher J.B.R. vs. Kiran Rana, NKP (4th Semester)** (Site: english, WP ID: 4214, Cat: Family Law)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Ambiguous Family Law record. No explicit evidence distinguishing Family Law-I vs Family Law-II.
+- **Family Law Case: Krishna Serchan vs. Padam Kumari Serchan, NKP (4th Semester)** (Site: english, WP ID: 4218, Cat: Family Law)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Ambiguous Family Law record. No explicit evidence distinguishing Family Law-I vs Family Law-II.
+- **Family Law Case: Prem Prasad Timilsina v. Ramananda Timilsina, NKP (4th Semester)** (Site: english, WP ID: 4222, Cat: Family Law)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Ambiguous Family Law record. No explicit evidence distinguishing Family Law-I vs Family Law-II.
+- **Contract Law Case: Ministry of Finance v. Damodar Ropeways & Construction Com, NKP (4th Semester)** (Site: english, WP ID: 4227, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Siddhisingh Trading Co. vs. Janakpur Cigarette Factory, NKP (4th Semester)** (Site: english, WP ID: 4236, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Sitaram Kedia vs. Ministry of Forests Babarmahal, NKP (4th Semester)** (Site: english, WP ID: 4239, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Dhruba Shumser J.B.R. vs. Navaraj Sharma, NKP, (4th Semester).** (Site: english, WP ID: 4242, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Janak Singh Seghal vs. Dwarika Prasad Arya, NKP (4th Semester)** (Site: english, WP ID: 4245, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Sabur Devi Yadavni and Others v. Kesharwati Yadavni , NKP (4th Semester)** (Site: english, WP ID: 4248, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Department of Road vs. Nepal Adarsha Company Pvt. Ltd., NKP, (4th Semester).** (Site: english, WP ID: 4251, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Summit Hotel Pvt. Ltd. Vs. Sarada Prasai & Others, NKP (4th Semester).** (Site: english, WP ID: 4255, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Richhood Multiple Pvt. Ltd. Vs. Banijya Bank Branch Office Birgunj & Others, NKP (4th semester)** (Site: english, WP ID: 4259, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Department of Road vs. Himal Construction Company. NKP, (4th Semester).** (Site: english, WP ID: 4263, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Procedural Law Case: Shivnath Shah Kanu v. Vishwanath Shah Kanu, NKP (5th Semester)** (Site: english, WP ID: 4270, Cat: Procedural Law-II)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to CASE_LAW, but subject cannot be determined safely.
+- **Procedural Law Case: Tripuradevi Jha v. Kathmandu District Court, NKP (5th Semester)** (Site: english, WP ID: 4279, Cat: Procedural Law-II)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to CASE_LAW, but subject cannot be determined safely.
+- **Family Law Case: Rabindra Kami v. Tilottama Kami, NKP (4th Semester)** (Site: english, WP ID: 4325, Cat: Family Law)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Ambiguous Family Law record. No explicit evidence distinguishing Family Law-I vs Family Law-II.
+- **Family Law Case: Puspa Raj v. Nepal Government, NKP (4th Semester)** (Site: english, WP ID: 4328, Cat: Family Law)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Ambiguous Family Law record. No explicit evidence distinguishing Family Law-I vs Family Law-II.
+- **Family Law Case: Narayan Prasad Tharu v. Harendra Kumar Chaudhary, NKP (4th Semester)** (Site: english, WP ID: 4333, Cat: Family Law)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Ambiguous Family Law record. No explicit evidence distinguishing Family Law-I vs Family Law-II.
+- **Family Law Case: Sukum Thapa v. Pitamber Thapa, NKP (4th Semester)** (Site: english, WP ID: 4338, Cat: Family Law)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Ambiguous Family Law record. No explicit evidence distinguishing Family Law-I vs Family Law-II.
+- **Contract Law Case: Nepal Recreation Center Pvt. Ltd. V. Soaltee Hotel Ltd, NKP ( 4th Semester)** (Site: english, WP ID: 4343, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Devi Khatri v. Dev Bahadur Gurung, NKP (4th Semester)** (Site: english, WP ID: 4346, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Pawan Raj Bhandari v. Ram Shrestha, NKP (4th Semester)** (Site: english, WP ID: 4349, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Madav Kumar Karki v. High Court Patan and others, NKP (4th Semester)** (Site: english, WP ID: 4352, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Tularatna Bajracharya v. Tara Shrestha, NKP (4th Semester).** (Site: english, WP ID: 4356, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Pradip Raj Pandey v. Karma Laxmi Kansakar, NKP (4th semester)** (Site: english, WP ID: 4359, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Dewta Baniya vs Durga prasad Baniya et.al, NKP ( 4th Semester)** (Site: english, WP ID: 4362, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Damodar Ropeways & Construction Company v. Ministry of Finance, NKP (4th semester)** (Site: english, WP ID: 4365, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Chitra Bahadur Karki v. Maniram Agrawal, NKP, (4th Semester).** (Site: english, WP ID: 4370, Cat: Others)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to CASE_LAW, but subject cannot be determined safely.
+- **Family Law Case: Dr. Rajaram Karki v. Usha Karki, NKP (4th Semester)** (Site: english, WP ID: 4382, Cat: Family Law)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Ambiguous Family Law record. No explicit evidence distinguishing Family Law-I vs Family Law-II.
+- **Family Law Case: Sunil Babu Pant v. GON and Others, NKP (4th Semester)** (Site: english, WP ID: 4386, Cat: Family Law)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Ambiguous Family Law record. No explicit evidence distinguishing Family Law-I vs Family Law-II.
+- **Family Law Case: Sudhansu Koirala vs. Snidha Mainali, NKP (4th Semester)** (Site: english, WP ID: 4391, Cat: Family Law)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Ambiguous Family Law record. No explicit evidence distinguishing Family Law-I vs Family Law-II.
+- **Intellectual Property Case: Suresh Chandra Agrawal vs. Dept. of Industries et. al, NKP (6th Semester)** (Site: english, WP ID: 4463, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Intellectual Property Case: Nurpratap Rana vs. Department of Industries et. al, NKP (6th Semester)** (Site: english, WP ID: 4467, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Intellectual Property Case: Madan Pd. Lamsal vs. Repsona Publication Pvt. Ltd, NKP (6th Semester)** (Site: english, WP ID: 4533, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Intellectual Property Case: CA. K. N. Modi vs. Pradeep Kumar Aanchalia, NKP (6th Semester)** (Site: english, WP ID: 4537, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Intellectual Property Case: Karma Ghale vs. Anju Upreti Dhakal, NKP (6th Semester)** (Site: english, WP ID: 4542, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Banking Law Case: Shivaram Timilsina vs. Rastriya Banijya Bank, NKP (9th Semester)** (Site: english, WP ID: 4545, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Banking Law Case: Shankar Prasad Bishwakarma vs. Nepal Bank Ltd., NKP (9th Semester)** (Site: english, WP ID: 4548, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Banking Law Case: Rastriya Banijya Bank vs. Ushadevi Naulakha, NKP (9th Semester)** (Site: english, WP ID: 4552, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Interpretation of Law Case: Kanchha Prajapati vs. Nhuchche Kumar Prajapati, NKP (6th Semester)** (Site: english, WP ID: 4554, Cat: Others)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to CASE_LAW, but subject cannot be determined safely.
+- **Intellectual Property Case: Dr. Daman Bdr. Amatya vs. Department of Industry, NKP (6th Semester)** (Site: english, WP ID: 4575, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Intellectual Property Case: Gopal Bhattarai et. al vs. Nepal Government, NKP (6th Semester)** (Site: english, WP ID: 4592, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Labour Law Case: Casino Royal vs. Labour Court, NKP (7th Semester)** (Site: english, WP ID: 4632, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Labour Law Case: Rup Jyoti vs. Labour Court, NKP (7th Semester)** (Site: english, WP ID: 4645, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Banking Law Case: Shivaram Timilsina vs. Rastriya Banijya Bank, NKP  (9th Semester)** (Site: english, WP ID: 4651, Cat: Others)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to CASE_LAW, but subject cannot be determined safely.
+- **Labour Law Case: Mukunda Bahadur Bista vs. Labour Court, NKP (7th Semester)** (Site: english, WP ID: 4673, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Evidence Law Case: Pushkar Gautam vs Government of Nepal, NKP (7th Semester)** (Site: english, WP ID: 4711, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Evidence Law Case: Nishan K.C v. Government of Nepal, NKP (7th semester)** (Site: english, WP ID: 4723, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Evidence Law Case: Ram Shahi v. Prem Kumari Shahi NKP (7th Semester)** (Site: english, WP ID: 4735, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Evidence Law Case: Government of Nepal v. Gurudev Adhikari, NKP (7th Semester)** (Site: english, WP ID: 4752, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Evidence Law Case: Hareram Yadav v. Rameshwor Thakur Bhahari, NKP (7th Semester)** (Site: english, WP ID: 4758, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Evidence Law Case: Bir Bahadur Bot v. Government of Nepal, NKP (7th Semester)** (Site: english, WP ID: 4767, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Evidence Law Case: Liladhar Rijal v. Bel Prasad Rijal, NKP (7th Semester)** (Site: english, WP ID: 4775, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Evidence Law Case: Kanchi Tamang v. Ratnamaya Tamang, NKP (7th Semester)** (Site: english, WP ID: 4782, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Evidence Law Case: Ramanand Timisina v. Premprasad Timisina et.al, NKP (7th Semester)** (Site: english, WP ID: 4787, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Evidence Law Case: Lal Bahadur Bhujel v. Government of Nepal, NKP (7th Semester)** (Site: english, WP ID: 4793, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Evidence Law Case: Hari Prasad Chaulagain v. Government of Nepal, NKP (7th Semester)** (Site: english, WP ID: 4802, Cat: Criminal)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Banking Law Case: Wasir Ahamad Rain vs. Agricultural Development Bank Bardiya, NKP (9th Semester)** (Site: english, WP ID: 4825, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Banking Law Case: Harisundar Shrestha vs. Ushadevi Naulakha, NKP (9th Semester)** (Site: english, WP ID: 4832, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Banking Law Case: Agricultural Development Bank vs. Jagadamba Prasad Gupta, NKP (9th Semester)** (Site: english, WP ID: 4835, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Banking Law Case: Nepal Bank Limited vs. Ghanshyam Shrestha, NKP (9th Semester)** (Site: english, WP ID: 4838, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Banking Law Case: Pratutlal Shrestha vs. Rastriya Banijya Bank, Kathmandu, NKP (9th Semester)** (Site: english, WP ID: 4841, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Banking Law Case : Piyush Bahadur Amatya  vs. Nepal Rastra Bank, NKP (9th Semester)** (Site: english, WP ID: 4844, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Banking Law Case: Sangita Tripathi vs. Lumbini Bank Ltd., NKP (9th Semester)** (Site: english, WP ID: 4847, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Banking Law Case: Suresh Bahadur Malla vs. Nepal Rastra Bank, NKP (9th Semester)** (Site: english, WP ID: 4850, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Banking Law Case: Krishna Gopal Tandon vs. Nepal Rastra Bank, NKP (9th Semester)** (Site: english, WP ID: 4853, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Banking Law Case: Arun Chand vs. Nepal Rastra Bank, NKP (9th Semester)** (Site: english, WP ID: 4856, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Banking Law Case: Nur Pratap Ja.Ba. Ra  vs. Nepal Rastra Bank, NKP (9th Semester)** (Site: english, WP ID: 4859, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Banking Law Case: Rajendra Kumar Khetan vs. Nepal Rastra Bank, NKP (9th Semester)** (Site: english, WP ID: 4862, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Banking Law Case: Suresh Chandra Poudel vs. Legislature-Parliament Secretariat, NKP (9th Semester)** (Site: english, WP ID: 4931, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Socio-Economic Crime Case: Dhana Kumari Sitaula Vs. Government of Nepal, NKP (6th semester)** (Site: english, WP ID: 4963, Cat: Socio Economic Crime)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Taxonomy gap (Socio Economic Crime) but content lacks explicit target evidence.
+- **Socio-Economic Crime Case: Sitaram Giri V. Government of Nepal, NKP (6th semester)** (Site: english, WP ID: 4969, Cat: Socio Economic Crime)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Taxonomy gap (Socio Economic Crime) but content lacks explicit target evidence.
+- **Socio-Economic Crime: Arjun Lamsal alias Dinesh Aale vs. GON, NKP (6th semester)** (Site: english, WP ID: 4973, Cat: Socio Economic Crime)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Taxonomy gap (Socio Economic Crime) but content lacks explicit target evidence.
+- **Socio-Economic Crime Case: Ram Bahadur Gurung vs. GON, NKP (6th semester)** (Site: english, WP ID: 4976, Cat: Socio Economic Crime)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Taxonomy gap (Socio Economic Crime) but content lacks explicit target evidence.
+- **Contract Law Case: Nepal Electricity Authority vs. Modern Malewalls Ltd., NKP (5th Semester Old Syllabus)** (Site: english, WP ID: 4999, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Corporate Law Case: Nepal Airlines Corporation vs. Harati Travels, NKP (6th Semester)** (Site: english, WP ID: 5024, Cat: Corporate Law and Management)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Corporate Law record lacks explicit mapping. Do not auto-map to Company Law without evidence.
+- **Corporate Law Cases: Piyus Raj Pandey vs. Tax Office Kathmandu, NKP (6th Semester)** (Site: english, WP ID: 5035, Cat: Corporate Law and Management)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Corporate Law record lacks explicit mapping. Do not auto-map to Company Law without evidence.
+- **Corporate Law Case: McPadden vs. Sidhu (Court of Chancery Delaware) (6th Semester)** (Site: english, WP ID: 5042, Cat: Corporate Law and Management)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Corporate Law record lacks explicit mapping. Do not auto-map to Company Law without evidence.
+- **Corporate Law Case: Jones vs. Lipman (6th semester)** (Site: english, WP ID: 5048, Cat: Corporate Law and Management)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Corporate Law record lacks explicit mapping. Do not auto-map to Company Law without evidence.
+- **Corporate Law Case: Delhi Development Authority vs. Skipper Constructions Co. (P)Ltd. (6th semester)** (Site: english, WP ID: 5056, Cat: Corporate Law and Management)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Corporate Law record lacks explicit mapping. Do not auto-map to Company Law without evidence.
+- **Corporate Law Case: Connors Bros v Connors (6th semester)** (Site: english, WP ID: 5062, Cat: Corporate Law and Management)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Corporate Law record lacks explicit mapping. Do not auto-map to Company Law without evidence.
+- **Corporate Law Case: Arun Chanda vs. Nepal Rastra Bank, NKP (6th semester)** (Site: english, WP ID: 5074, Cat: Corporate Law and Management)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Corporate Law record lacks explicit mapping. Do not auto-map to Company Law without evidence.
+- **Corporate Law Case: Re R.G. Films Ltd (6th semester)** (Site: english, WP ID: 5079, Cat: Corporate Law and Management)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Corporate Law record lacks explicit mapping. Do not auto-map to Company Law without evidence.
+- **Corporate Law Case: Re Westmid Packing Services Limited vs. Secretary of State for Trade & Industry & Griffiths (6th semester)** (Site: english, WP ID: 5083, Cat: Corporate Law and Management)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Corporate Law record lacks explicit mapping. Do not auto-map to Company Law without evidence.
+- **Corporate Law Case: Unity Life International Ltd. vs. Office of the Council of Ministers, NKP (6th Semester)** (Site: english, WP ID: 5086, Cat: Corporate Law and Management)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Corporate Law record lacks explicit mapping. Do not auto-map to Company Law without evidence.
+- **Corporate Law Case: Webneuron Services Ltd., In-re (6th Semester)** (Site: english, WP ID: 5091, Cat: Corporate Law and Management)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Corporate Law record lacks explicit mapping. Do not auto-map to Company Law without evidence.
+- **Contract Law Case: Bishnu Prashad Upadhayaya vs. Rastriya Banijya Bank, NKP (5th Semester)** (Site: english, WP ID: 5149, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Gauri Parbati Nirman Sewa Pvt. Ltd. v. Kathmandu Greater Municipality, NKP (5th Semester)** (Site: english, WP ID: 5153, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Rastriya Banijya Bank vs. Purnalala Aryal, NKP (5th Semester)** (Site: english, WP ID: 5159, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Nepal Orient Magnesite Pvt. Ltd. Vs. Debt Recovery Appellate Tribunal et al, NKP (5th Semester)** (Site: english, WP ID: 5168, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Labour Law Case: Nepal Insurance vs. Labour Court, NKP (7th Semester)** (Site: english, WP ID: 5171, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Everest Bank Ltd. Head Office Vs. Debt Recovery Appellate Tribunal & Others, NKP (5th Semester)** (Site: english, WP ID: 5184, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Keshavkisi vs. International Leasing and Finance Company Limited et.al, NKP (5th semester new)** (Site: english, WP ID: 5187, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Pushpa Rawal Rayamajhi vs. Nepal Bank Limited, Central Office et.al, NKP (5th Semester new)** (Site: english, WP ID: 5190, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Kamala Amatya vs. Himalayan Bank Limited, et.al, NKP (5th Semester new)** (Site: english, WP ID: 5194, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Lumbini Bank Limited vs. Sangita Tripathi, NKP (5th Semester new)** (Site: english, WP ID: 5199, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Satish Kumar Bohra vs. Ministry of Industry, Commerce and Supplies et.al, NKP (5th Semester new)** (Site: english, WP ID: 5202, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Contract Law Case: Bipin Hada vs. Nepal Rastra Bank et.al, NKP (5th Semester new)** (Site: english, WP ID: 5205, Cat: Writs)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Labour Law Case: Pro-Public vs. Ministry of Women, Children and Social Welfare, NKP (7th Semester)** (Site: english, WP ID: 5211, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Labour Law Case: Pro-Public vs. Nepal Independent Trade Union of Hotel, NKP(7th Semester)** (Site: english, WP ID: 5217, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Corporate Law Case: Hutton vs. West Cork Railway Co. (6th Semester New Syllabus)** (Site: english, WP ID: 5220, Cat: Corporate Law and Management)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Corporate Law record lacks explicit mapping. Do not auto-map to Company Law without evidence.
+- **Corporate Law Case: Dodge vs. Ford Motor Co (6th Semester, New Syllabus)** (Site: english, WP ID: 5228, Cat: Corporate Law and Management)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Corporate Law record lacks explicit mapping. Do not auto-map to Company Law without evidence.
+- **Corporate Law Case: Salomon vs. A. Salomon & Co. Ltd. (6th Semester, New Syllabus)** (Site: english, WP ID: 5238, Cat: Corporate Law and Management)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Corporate Law record lacks explicit mapping. Do not auto-map to Company Law without evidence.
+- **Corporate Law Case: Foss vs. Harbottle (6th Semester, New Syllabus)** (Site: english, WP ID: 5246, Cat: Corporate Law and Management)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Corporate Law record lacks explicit mapping. Do not auto-map to Company Law without evidence.
+- **Corporate Law Case: Percival vs. Wright (6th Semester, New Syllabus)** (Site: english, WP ID: 5253, Cat: Corporate Law and Management)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Corporate Law record lacks explicit mapping. Do not auto-map to Company Law without evidence.
+- **Corporate Law Case: Re Smith & Fawcett Ltd. (6th Semester)** (Site: english, WP ID: 5260, Cat: Others)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to CASE_LAW, but subject cannot be determined safely.
+- **Corporate Law Case: Re Smith & Fawcett Ltd. (6th Semester, New syllabus)** (Site: english, WP ID: 5319, Cat: Corporate Law and Management)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Corporate Law record lacks explicit mapping. Do not auto-map to Company Law without evidence.
+- **Labour Law Case: Olampia Textile vs. Labour Court, NKP (7th Semester)** (Site: english, WP ID: 5453, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Labour Law Case: Purushottam Bhandari vs. Ministry of Transport and Labour Management, NKP (7th Semester)** (Site: english, WP ID: 5464, Cat: Civil)
+  - *Decision:* NULL_SUBJECT_CANDIDATE
+  - *Rationale:* Valid null-subject migration candidate; no reliable subject evidence found.
+- **Clinical Law-II (Conveyancing), 8th Semester** (Site: english, WP ID: 5533, Cat: 8th Semester Clinical Law-II (Conveyancing))
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to LAW_NOTE, but subject cannot be determined safely.
+- **** (Site: english, WP ID: 5560, Cat: Others)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to CASE_LAW, but subject cannot be determined safely.
+- **Gender Justice Case: Suntali Dhami vs. Council of Ministers & Others, NKP (7th Semester)** (Site: english, WP ID: 5606, Cat: Gender and Inclusive Justice)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Taxonomy gap (Gender and Inclusive Justice) but content lacks explicit target evidence.
+- **Ramsharan Varma vs. Office of the Prime Minister & Others (7th Semester)** (Site: english, WP ID: 5671, Cat: Others)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to CASE_LAW, but subject cannot be determined safely.
+- **Gender and Inclusive Justice Case: Meera Dhungana vs. Office of Prime Minister, Council of Minister et.al. NKP (8th Semester, New Syllabus)** (Site: english, WP ID: 5677, Cat: Others)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to CASE_LAW, but subject cannot be determined safely.
+- **बागलुङको सामुहिक भोजमा जातिय विभेद र अपमानजनक व्यवहार** (Site: nepali, WP ID: 2326, Cat: समसामयिक)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to OTHER, but subject cannot be determined safely.
+- **प्रहरीले लिन मानेन खुलेआम भएको जातीय विभेदको मुद्दा** (Site: nepali, WP ID: 2340, Cat: समसामयिक)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to OTHER, but subject cannot be determined safely.
+- **उमेर नपुगेको प्रेम सम्बन्ध जोडीले सहमतिमा गरेको करणीलाई जबरजस्ती करणी मान्न मिल्दैन** (Site: nepali, WP ID: 2343, Cat: उच्च अदालत)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to OTHER, but subject cannot be determined safely.
+- **आलमलाई सफाई दिने श्रीमान खुसीराम थारुलाई कालोमोसो** (Site: nepali, WP ID: 2348, Cat: उच्च अदालत)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to OTHER, but subject cannot be determined safely.
+- **काठमाडौँ महानगरपालिकाको नगर प्रहरी र ट्राफिक प्रहरी कार्यालयविरुद्ध कारण देखाउ आदेश** (Site: nepali, WP ID: 2353, Cat: उच्च अदालत)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to OTHER, but subject cannot be determined safely.
+- **जेन्जी, संविधान र जेन्जी आन्दोलन: एक कानून विद्यार्थीको दृष्टिकोण** (Site: nepali, WP ID: 2362, Cat: विचार)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to OTHER, but subject cannot be determined safely.
+- **किशोरीहरू न त घरमै सुरक्षित छन्, न सार्वजनिक स्थानमा, न त डिजिटल संसारमै** (Site: nepali, WP ID: 2367, Cat: विचार)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to OTHER, but subject cannot be determined safely.
+- **आखिर कहिले सम्म महिलाको अधिकार कागज मै सिमित हुने ?** (Site: nepali, WP ID: 2375, Cat: हाइलाइट)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to CASE_LAW, but subject cannot be determined safely.
+- **तिमी बलत्कारीलाई फाँसीको सजाएको माग गरी, किन ताक्छौ आफ्नै चेलीबेटी माथि ....** (Site: nepali, WP ID: 2382, Cat: विचार)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to OTHER, but subject cannot be determined safely.
+- **संविधानको बलमा बदलिँदो नेपाल: गाउँकी छोरीदेखि राज्यको सर्वोच्च पदसम्म...........** (Site: nepali, WP ID: 2387, Cat: विचार)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to OTHER, but subject cannot be determined safely.
+- **सरकार फेरियो, तर देशको अवस्था फेरिएन -आरती साह** (Site: nepali, WP ID: 2399, Cat: हाइलाइट)
+  - *Decision:* NEEDS_BUSINESS_DECISION
+  - *Rationale:* Classification resolved to OTHER, but subject cannot be determined safely.

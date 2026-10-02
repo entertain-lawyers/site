@@ -8,6 +8,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticRoutes = [
     '',
     '/about',
+    '/explore',
     '/contact',
     '/pricing',
     '/privacy-policy',
@@ -25,7 +26,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const semesters = await prisma.semester.findMany({
     select: { id: true },
   });
-  
+
   const semesterRoutes = semesters.map((semester) => ({
     url: `${BASE_URL}/semesters/${semester.id}`,
     lastModified: new Date(),

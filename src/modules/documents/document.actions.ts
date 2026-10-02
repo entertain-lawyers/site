@@ -3,7 +3,7 @@
 import { createSafeAction } from "@/lib/safe-action";
 import { prisma } from "@/lib/prisma";
 import { canAccessResource } from "@/modules/entitlements/entitlement.service";
-import { generatePresignedGetUrl } from "@/lib/r2";
+import { generatePresignedGetUrl } from "@/lib/b2";
 import { rateLimit } from "@/lib/rate-limit";
 import { headers } from "next/headers";
 import { z } from "zod";
@@ -24,7 +24,7 @@ export const getSecureDocumentUrl = createSafeAction(
     // 1. Scoped Rate Limiting
     const headersList = await headers();
     const ip = headersList.get("x-forwarded-for") ?? "unknown-ip";
-    
+
     // IP-based abuse limiter (10 per minute per IP globally for this action)
     const ipLimit = await rateLimit(`doc_abuse_${ip}`, 10, 60);
     if (!ipLimit.success) {

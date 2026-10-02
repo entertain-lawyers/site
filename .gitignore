@@ -42,3 +42,29 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+wordpress-migration-source/
+
+# Extra env protections
+temp.env
+*.env
+!.env.example
+!.env.template
+
+# WordPress / Migration artifacts
+wp_posts_grouped.json
+posts_data.json
+prisma_taxonomy.json
+migration-staging/
+staging/
+import/
+exports/
+*.sql
+*.dump
+!prisma/migrations/**/*.sql
+!prisma/migrations/**/*.toml
+
+# Local db / extra build
+*.sqlite
+*.sqlite3
+/dist/
+tracked_files.txt

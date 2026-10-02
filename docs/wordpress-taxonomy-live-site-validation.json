@@ -1,0 +1,251 @@
+{
+  "version": "2D-LIVE-SITE-CORRECTED",
+  "status": "REVIEW_REQUIRED",
+  "sources": {
+    "wordpressDatabase": true,
+    "liveWordpressSite": true,
+    "prismaTaxonomy": true
+  },
+  "categories": [
+    {
+      "wpCategoryId": 149,
+      "wpCategoryName": "Corporate Law and Management",
+      "parentCategoryId": 113,
+      "postCount": 17,
+      "databaseEvidence": "Posts titled 'Corporate Law Case: ...'. One titled '(6th semester)'",
+      "liveSiteEvidence": "/category/corporate-law-and-management/ exists. No breadcrumbs. Post title confirms 6th semester.",
+      "liveUrls": [
+        "https://entertainlawyers.com/category/corporate-law-and-management/"
+      ],
+      "breadcrumbs": "None",
+      "observedPlacement": "Flat category archive",
+      "resourceType": "CASE_LAW",
+      "proposedSemester": "UNRESOLVED",
+      "proposedSubject": "UNRESOLVED",
+      "prismaSubjectId": null,
+      "classification": "HUMAN_DECISION_REQUIRED",
+      "confidence": "HIGH",
+      "representativePostIds": [
+        5048
+      ],
+      "notes": "Conflicts with Prisma schema. Company Law is in 5th Sem, Corporate Law (6th Sem) does not exist."
+    },
+    {
+      "wpCategoryId": 129,
+      "wpCategoryName": "Criminology and Penology",
+      "parentCategoryId": 113,
+      "postCount": 7,
+      "databaseEvidence": "Posts titled 'Criminology and Penology Case: ...'",
+      "liveSiteEvidence": "/category/criminology-and-penology/ exists. No context.",
+      "liveUrls": [
+        "https://entertainlawyers.com/category/criminology-and-penology/"
+      ],
+      "breadcrumbs": "None",
+      "observedPlacement": "Flat category archive",
+      "resourceType": "CASE_LAW",
+      "proposedSemester": "UNRESOLVED",
+      "proposedSubject": "UNRESOLVED",
+      "prismaSubjectId": null,
+      "classification": "NO_VALID_PRISMA_MATCH",
+      "confidence": "HIGH",
+      "representativePostIds": [
+        4414
+      ],
+      "notes": "Subject missing from Prisma target taxonomy."
+    },
+    {
+      "wpCategoryId": 122,
+      "wpCategoryName": "Family Law",
+      "parentCategoryId": 113,
+      "postCount": 19,
+      "databaseEvidence": "Posts titled 'Family Law Case: ...'",
+      "liveSiteEvidence": "/category/family-law/ exists. No I vs II context.",
+      "liveUrls": [
+        "https://entertainlawyers.com/category/family-law/"
+      ],
+      "breadcrumbs": "None",
+      "observedPlacement": "Flat category archive",
+      "resourceType": "CASE_LAW",
+      "proposedSemester": "UNRESOLVED",
+      "proposedSubject": "UNRESOLVED",
+      "prismaSubjectId": null,
+      "classification": "MIXED_CATEGORY",
+      "confidence": "HIGH",
+      "representativePostIds": [
+        3426,
+        3540
+      ],
+      "notes": "Cannot safely distinguish Family Law-I from Family Law-II."
+    },
+    {
+      "wpCategoryId": 104,
+      "wpCategoryName": "Civil",
+      "parentCategoryId": 79,
+      "postCount": 109,
+      "databaseEvidence": "Mix of Contract, Family, Evidence cases.",
+      "liveSiteEvidence": "/category/civil/ exists. No breadcrumbs to Precedent.",
+      "liveUrls": [
+        "https://entertainlawyers.com/category/civil/"
+      ],
+      "breadcrumbs": "None",
+      "observedPlacement": "Flat category archive",
+      "resourceType": "CASE_LAW",
+      "proposedSemester": "UNRESOLVED",
+      "proposedSubject": "UNRESOLVED",
+      "prismaSubjectId": null,
+      "classification": "AUTO_APPROVE",
+      "confidence": "HIGH",
+      "representativePostIds": [
+        2833,
+        3426
+      ],
+      "notes": "Safe to map to ResourceType=CASE_LAW, Subject=NULL."
+    },
+    {
+      "wpCategoryId": 143,
+      "wpCategoryName": "Election Law",
+      "parentCategoryId": 113,
+      "postCount": 7,
+      "databaseEvidence": "Titles match category name.",
+      "liveSiteEvidence": "Category archive exists. No context.",
+      "liveUrls": [
+        "https://entertainlawyers.com/category/election-law"
+      ],
+      "breadcrumbs": "None",
+      "observedPlacement": "Flat category archive",
+      "resourceType": "CASE_LAW",
+      "proposedSemester": "UNRESOLVED",
+      "proposedSubject": "UNRESOLVED",
+      "prismaSubjectId": null,
+      "classification": "NO_VALID_PRISMA_MATCH",
+      "confidence": "HIGH",
+      "representativePostIds": [],
+      "notes": "Subject missing from Prisma target taxonomy."
+    },
+    {
+      "wpCategoryId": 150,
+      "wpCategoryName": "Fiscal Law",
+      "parentCategoryId": 113,
+      "postCount": 1,
+      "databaseEvidence": "Titles match category name.",
+      "liveSiteEvidence": "Category archive exists. No context.",
+      "liveUrls": [
+        "https://entertainlawyers.com/category/fiscal-law"
+      ],
+      "breadcrumbs": "None",
+      "observedPlacement": "Flat category archive",
+      "resourceType": "CASE_LAW",
+      "proposedSemester": "UNRESOLVED",
+      "proposedSubject": "UNRESOLVED",
+      "prismaSubjectId": null,
+      "classification": "NO_VALID_PRISMA_MATCH",
+      "confidence": "HIGH",
+      "representativePostIds": [],
+      "notes": "Subject missing from Prisma target taxonomy."
+    },
+    {
+      "wpCategoryId": 151,
+      "wpCategoryName": "Gender and Inclusive Justice",
+      "parentCategoryId": 113,
+      "postCount": 12,
+      "databaseEvidence": "Titles match category name.",
+      "liveSiteEvidence": "Category archive exists. No context.",
+      "liveUrls": [
+        "https://entertainlawyers.com/category/gender-and-inclusive-justice"
+      ],
+      "breadcrumbs": "None",
+      "observedPlacement": "Flat category archive",
+      "resourceType": "CASE_LAW",
+      "proposedSemester": "UNRESOLVED",
+      "proposedSubject": "UNRESOLVED",
+      "prismaSubjectId": null,
+      "classification": "NO_VALID_PRISMA_MATCH",
+      "confidence": "HIGH",
+      "representativePostIds": [],
+      "notes": "Subject missing from Prisma target taxonomy."
+    },
+    {
+      "wpCategoryId": 147,
+      "wpCategoryName": "Interpretation of Law",
+      "parentCategoryId": 113,
+      "postCount": 4,
+      "databaseEvidence": "Titles match category name.",
+      "liveSiteEvidence": "Category archive exists. No context.",
+      "liveUrls": [
+        "https://entertainlawyers.com/category/interpretation-of-law"
+      ],
+      "breadcrumbs": "None",
+      "observedPlacement": "Flat category archive",
+      "resourceType": "CASE_LAW",
+      "proposedSemester": "UNRESOLVED",
+      "proposedSubject": "UNRESOLVED",
+      "prismaSubjectId": null,
+      "classification": "NO_VALID_PRISMA_MATCH",
+      "confidence": "HIGH",
+      "representativePostIds": [],
+      "notes": "Subject missing from Prisma target taxonomy."
+    },
+    {
+      "wpCategoryId": 128,
+      "wpCategoryName": "Juvenile Delinquency",
+      "parentCategoryId": 113,
+      "postCount": 7,
+      "databaseEvidence": "Titles match category name.",
+      "liveSiteEvidence": "Category archive exists. No context.",
+      "liveUrls": [
+        "https://entertainlawyers.com/category/juvenile-delinquency"
+      ],
+      "breadcrumbs": "None",
+      "observedPlacement": "Flat category archive",
+      "resourceType": "CASE_LAW",
+      "proposedSemester": "UNRESOLVED",
+      "proposedSubject": "UNRESOLVED",
+      "prismaSubjectId": null,
+      "classification": "NO_VALID_PRISMA_MATCH",
+      "confidence": "HIGH",
+      "representativePostIds": [],
+      "notes": "Subject missing from Prisma target taxonomy."
+    },
+    {
+      "wpCategoryId": 146,
+      "wpCategoryName": "Socio Economic Crime",
+      "parentCategoryId": 113,
+      "postCount": 4,
+      "databaseEvidence": "Titles match category name.",
+      "liveSiteEvidence": "Category archive exists. No context.",
+      "liveUrls": [
+        "https://entertainlawyers.com/category/socio-economic-crime"
+      ],
+      "breadcrumbs": "None",
+      "observedPlacement": "Flat category archive",
+      "resourceType": "CASE_LAW",
+      "proposedSemester": "UNRESOLVED",
+      "proposedSubject": "UNRESOLVED",
+      "prismaSubjectId": null,
+      "classification": "NO_VALID_PRISMA_MATCH",
+      "confidence": "HIGH",
+      "representativePostIds": [],
+      "notes": "Subject missing from Prisma target taxonomy."
+    }
+  ],
+  "resourceLevelExceptions": [
+    {
+      "wpCategoryId": 122,
+      "description": "All Family Law posts require manual review to separate into Family Law-I and Family Law-II."
+    }
+  ],
+  "siteArchitectureObservations": [
+    "No visible semester navigation.",
+    "No visible subject hierarchy.",
+    "No breadcrumbs implemented on archives or single posts.",
+    "Main navigation menu does not contain study links."
+  ],
+  "databaseLiveSiteDiscrepancies": [
+    "None found. Both lack contextual hierarchy, though DB retains parent/child term IDs which the live site ignores."
+  ],
+  "humanDecisionsRequired": [
+    "Create new Prisma subjects for missing WordPress categories (e.g., Criminology, Election Law) OR map them to Electives.",
+    "Decide how to migrate Corporate Law (6th sem) vs Company Law (5th sem).",
+    "Manually classify Family Law cases."
+  ]
+}

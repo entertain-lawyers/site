@@ -1,0 +1,132 @@
+{
+  "resourceTypeMappings": [
+    {
+      "wpCategoryId": 113,
+      "prismaResourceType": "CASE_LAW",
+      "confidence": "HIGH"
+    },
+    {
+      "wpCategoryId": 121,
+      "prismaResourceType": "LAW_NOTE",
+      "confidence": "HIGH"
+    },
+    {
+      "wpCategoryId": 126,
+      "prismaResourceType": "OLD_QUESTION",
+      "confidence": "HIGH"
+    },
+    {
+      "wpCategoryId": 79,
+      "prismaResourceType": "CASE_LAW",
+      "confidence": "HIGH"
+    }
+  ],
+  "subjectMappings": [
+    {
+      "wpCategoryId": 114,
+      "wpCategoryName": "Criminal Law-II",
+      "proposedSemester": "4th Semester",
+      "proposedSubject": "Criminal Law-II",
+      "confidence": "HIGH",
+      "reason": "Validated via post titles 'Criminal Law-II Case'",
+      "humanDecision": "Approved"
+    },
+    {
+      "wpCategoryId": 137,
+      "wpCategoryName": "Intellectual Property Law",
+      "proposedSemester": "7th Semester",
+      "proposedSubject": "Intellectual Property Law",
+      "confidence": "HIGH",
+      "reason": "Validated via post titles 'Intellectual Property Law Case'",
+      "humanDecision": "Approved"
+    },
+    {
+      "wpCategoryId": 142,
+      "wpCategoryName": "Labour Law",
+      "proposedSemester": "5th Semester",
+      "proposedSubject": "Labor Law",
+      "confidence": "HIGH",
+      "reason": "Validated via post titles 'Labour Law Case'",
+      "humanDecision": "Approved"
+    },
+    {
+      "wpCategoryId": 122,
+      "wpCategoryName": "Family Law",
+      "proposedSemester": "UNRESOLVED",
+      "proposedSubject": "UNRESOLVED",
+      "confidence": "LOW",
+      "reason": "Category contains generic Family Law posts. Cannot distinguish between Family Law-I and II programmatically.",
+      "humanDecision": "Per-resource classification required"
+    },
+    {
+      "wpCategoryId": 104,
+      "wpCategoryName": "Civil",
+      "proposedSemester": "UNRESOLVED",
+      "proposedSubject": "UNRESOLVED",
+      "confidence": "HIGH",
+      "reason": "Category is a broad tag grouping Contract, Family, and Evidence cases. Does not represent Civil Procedure.",
+      "humanDecision": "Leave Subject null, set ResourceType to CASE_LAW"
+    },
+    {
+      "wpCategoryId": 105,
+      "wpCategoryName": "Criminal",
+      "proposedSemester": "UNRESOLVED",
+      "proposedSubject": "UNRESOLVED",
+      "confidence": "HIGH",
+      "reason": "Category is a broad tag grouping Evidence and Criminal cases.",
+      "humanDecision": "Leave Subject null, set ResourceType to CASE_LAW"
+    },
+    {
+      "wpCategoryId": 106,
+      "wpCategoryName": "Writs",
+      "proposedSemester": "UNRESOLVED",
+      "proposedSubject": "UNRESOLVED",
+      "confidence": "HIGH",
+      "reason": "Category is a broad tag grouping Contract and Environmental cases.",
+      "humanDecision": "Leave Subject null, set ResourceType to CASE_LAW"
+    },
+    {
+      "wpCategoryId": 139,
+      "wpCategoryName": "Law of Banking and Negotiable Instruments",
+      "proposedSemester": "7th Semester",
+      "proposedSubject": "Banking and Insurance Law",
+      "confidence": "HIGH",
+      "reason": "Validated via post titles 'Banking Law Case'",
+      "humanDecision": "Approved"
+    }
+  ],
+  "unresolvedCategories": [
+    {
+      "wpCategoryId": 129,
+      "name": "Criminology and Penology"
+    },
+    {
+      "wpCategoryId": 143,
+      "name": "Election Law"
+    },
+    {
+      "wpCategoryId": 150,
+      "name": "Fiscal Law"
+    },
+    {
+      "wpCategoryId": 151,
+      "name": "Gender and Inclusive Justice"
+    },
+    {
+      "wpCategoryId": 147,
+      "name": "Interpretation of Law"
+    },
+    {
+      "wpCategoryId": 128,
+      "name": "Juvenile Delinquency"
+    },
+    {
+      "wpCategoryId": 146,
+      "name": "Socio Economic Crime"
+    },
+    {
+      "wpCategoryId": 149,
+      "name": "Corporate Law and Management"
+    }
+  ]
+}

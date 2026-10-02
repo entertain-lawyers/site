@@ -17,10 +17,10 @@ export default async function DashboardPage() {
 
   const userId = session.user.id;
 
-  const [activeSubscriptions, purchases] = await Promise.all([
+  let [activeSubscriptions, purchases] = await Promise.all([
     prisma.subscription.findMany({
-      where: { 
-        userId, 
+      where: {
+        userId,
         status: 'ACTIVE',
         currentPeriodEnd: { gt: new Date() }
       },
@@ -38,14 +38,38 @@ export default async function DashboardPage() {
     })
   ]);
 
+  if (session.user.role === 'ADMIN') {
+    activeSubscriptions = [
+      {
+        id: 'admin-lifetime-access',
+        userId: session.user.id,
+        planId: 'lifetime',
+        status: 'ACTIVE',
+        currentPeriodEnd: new Date('2099-12-31T23:59:59.999Z'),
+        createdAt: new Date(),
+        plan: {
+          id: 'lifetime',
+          name: 'Premium Lifetime Access (Admin)',
+          description: 'Lifetime access to all resources and features.',
+          price: 0,
+          duration: 999,
+          stripePriceId: null,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        } as any
+      },
+      ...activeSubscriptions
+    ];
+  }
+
   return (
     <div className="min-h-screen bg-background py-10 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
+
         {/* Header */}
-        <div className="bg-surface rounded-2xl shadow-soft border border-border p-8 mb-8">
+        <div className="bg-surface rounded-2xl shadow-soft border border-border p-5 sm:p-8 mb-8">
           <h1 className="text-fluid-h2 font-bold text-navy dark:text-white mb-2 tracking-tight">My Dashboard</h1>
-          <p className="text-text-secondary text-fluid-base">Welcome back, {session.user.email}</p>
+          <p className="text-text-secondary text-fluid-base truncate">Welcome back, {session.user.email}</p>
         </div>
 
         {/* Subscriptions Section */}
@@ -58,7 +82,7 @@ export default async function DashboardPage() {
               Active Subscriptions
             </h2>
             {activeSubscriptions.length === 0 && (
-              <Link href="/pricing" className="text-sm font-bold text-accent hover:text-accent-hover transition-colors">
+              <Link href="/pricing" className="text-sm font-bold text-accent hover:text-accent-hover transition-colors min-h-[44px] inline-flex items-center">
                 View Plans
               </Link>
             )}
@@ -79,11 +103,11 @@ export default async function DashboardPage() {
                     <p>Access to all premium resources</p>
                     <p>
                       <span className="font-semibold text-navy dark:text-white">Expires: </span>
-                      {new Date(sub.currentPeriodEnd).toLocaleDateString()}
+                      {sub.planId === 'lifetime' ? 'Never (Lifetime Access)' : new Date(sub.currentPeriodEnd).toLocaleDateString()}
                     </p>
                   </div>
-                  <Link 
-                    href="/study" 
+                  <Link
+                    href="/study"
                     className="inline-flex w-full justify-center items-center px-4 py-3 min-h-[44px] border border-transparent text-sm font-bold rounded-xl text-accent bg-accent/10 hover:bg-accent/20 transition-colors"
                   >
                     Browse Resources
@@ -92,14 +116,14 @@ export default async function DashboardPage() {
               ))}
             </div>
           ) : (
-            <div className="bg-surface rounded-2xl shadow-soft border border-border p-12 text-center">
+            <div className="bg-surface rounded-2xl shadow-soft border border-border p-6 sm:p-12 text-center">
               <div className="w-16 h-16 bg-surface-alt rounded-full flex items-center justify-center mx-auto mb-5 text-text-muted">
                 <svg className="w-8 h-8" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                 </svg>
               </div>
               <p className="text-text-secondary mb-6 text-lg">You don't have any active subscriptions.</p>
-              <Link 
+              <Link
                 href="/pricing"
                 className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-bold rounded-xl shadow-md text-white bg-accent hover:bg-accent-hover transition-all duration-300 hover:shadow-[0_0_15px_rgba(var(--color-accent),0.4)] hover:-translate-y-0.5"
               >
@@ -125,8 +149,8 @@ export default async function DashboardPage() {
               {purchases.map((purchase) => {
                 const typedResource = purchase.resource as any;
                 return (
-                  <Link 
-                    key={purchase.id} 
+                  <Link
+                    key={purchase.id}
                     href={`/read/${purchase.resourceId}`}
                     className="group flex flex-col bg-surface rounded-2xl shadow-soft border border-border p-6 hover:border-accent transition-all duration-300 hover:shadow-lg"
                   >
@@ -151,7 +175,7 @@ export default async function DashboardPage() {
               })}
             </div>
           ) : (
-            <div className="bg-surface rounded-2xl shadow-soft border border-border p-12 text-center">
+            <div className="bg-surface rounded-2xl shadow-soft border border-border p-6 sm:p-12 text-center">
               <div className="w-16 h-16 bg-surface-alt rounded-full flex items-center justify-center mx-auto mb-5 border border-border">
                 <svg className="w-8 h-8 text-text-muted" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
@@ -159,7 +183,7 @@ export default async function DashboardPage() {
               </div>
               <h3 className="text-lg font-bold text-navy dark:text-white mb-2">No purchased resources</h3>
               <p className="text-text-secondary mb-6 text-base">You haven't purchased any individual resources yet.</p>
-              <Link 
+              <Link
                 href="/study"
                 className="inline-flex items-center px-6 py-3 min-h-[44px] border border-border text-sm font-bold rounded-xl text-navy dark:text-white bg-surface-alt hover:bg-border transition-colors"
               >

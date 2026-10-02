@@ -3,62 +3,57 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import MobileMenu from './MobileMenu';
-import { Dictionary } from '@/lib/i18n';
+import { Dictionary, Locale } from '@/lib/i18n';
 import { usePathname } from 'next/navigation';
-import { BookOpen, User, LogIn, LayoutDashboard, Shield } from 'lucide-react';
+import { BookOpen, User, LogIn, LayoutDashboard, Shield, LogOut, FileEdit } from 'lucide-react';
+import { signOut } from 'next-auth/react';
 
 interface NavbarProps {
   dict: Dictionary;
   session: any;
   semesters: { id: string; name: string }[];
+  locale: 'en' | 'ne';
 }
 
-export default function Navbar({ dict, session, semesters }: NavbarProps) {
+export default function Navbar({ dict, session, semesters, locale }: NavbarProps) {
   const pathname = usePathname();
+  const isNepaliPage = locale === 'ne';
 
-  const navLinks = [
-    { href: '/', label: dict.home },
-    { href: '/pricing', label: dict.pricing },
-    { href: '/about', label: dict.about },
-    { href: '/contact', label: dict.contact },
-  ];
+  const navLinks = isNepaliPage
+    ? [
+        { href: '/nepali', label: dict.home },
+        { href: '/contact', label: dict.contact },
+      ]
+    : [
+        { href: '/', label: dict.home },
+        { href: '/explore', label: dict.exploreStudyMaterials || 'Explore' },
+        { href: '/pricing', label: dict.pricing },
+        { href: '/contact', label: dict.contact },
+      ];
 
   return (
     <header className="sticky top-2 sm:top-4 z-40 transition-colors duration-300 w-full pointer-events-none">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-14 sm:h-16 pointer-events-auto">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 sm:gap-3 no-underline group py-1.5 transition-all duration-300">
-            <div className="relative w-9 h-9 sm:w-10 sm:h-10 overflow-hidden flex-shrink-0 transition-transform duration-300 group-hover:scale-[1.02] rounded-full bg-white border border-border/50">
-              <Image
-                src="/logo.jpg"
-                alt="Entertain Lawyers"
-                fill
-                className="object-cover"
-                priority
-              />
-            </div>
-            <span className="font-extrabold text-base sm:text-lg text-navy dark:text-white tracking-tight hidden sm:block">
-              Entertain Lawyers
-            </span>
-          </Link>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+        <div className="relative flex items-center justify-between h-12 sm:h-14 px-3 sm:px-5 bg-white/95 dark:bg-surface/95 backdrop-blur-xl border border-border/50 shadow-[0_8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] rounded-full pointer-events-auto">
+          {/* Logo removed as requested */}
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-1 bg-white/80 dark:bg-surface/80 backdrop-blur-xl border border-border/50 shadow-sm rounded-full px-2 py-1.5" aria-label="Main navigation">
+          <nav className="hidden lg:flex items-center space-x-1" aria-label="Main navigation">
             <Link
-              href="/"
+              href={navLinks[0].href}
               className={`px-5 py-2 rounded-full text-[14px] font-bold transition-all duration-300 ${
-                pathname === '/'
+                pathname === navLinks[0].href
                   ? 'text-accent bg-accent/10 shadow-sm'
                   : 'text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5'
               }`}
             >
-              {dict.home}
+              {navLinks[0].label}
             </Link>
 
-            {/* Study Dropdown */}
-            <div className="relative group">
-              <button 
+            {/* Study Dropdown - Hide on Nepali Pages (No Premium Content) */}
+            {!isNepaliPage && (
+              <div className="relative group">
+              <button
                 className={`flex items-center gap-1 px-5 py-2 rounded-full text-[14px] font-bold transition-all duration-300 ${
                   pathname?.startsWith('/study') || pathname?.startsWith('/semesters')
                     ? 'text-accent bg-accent/10 shadow-sm'
@@ -70,10 +65,10 @@ export default function Navbar({ dict, session, semesters }: NavbarProps) {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              
+
               <div className="absolute top-full left-0 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
                 <div className="w-64 bg-surface rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-border py-1.5">
-                  
+
                   {/* LAW NOTES */}
                   <div className="group/sub relative">
                     <Link href="/study?type=LAW_NOTE" className="flex items-center justify-between px-5 py-3 min-h-[44px] text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors">
@@ -115,11 +110,12 @@ export default function Navbar({ dict, session, semesters }: NavbarProps) {
                   </div>
 
                   <Link href="/semesters" className="flex items-center px-5 py-3 min-h-[44px] text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors border-t border-border mt-1">
-                    Browse by Semester
+                    {dict.browseSemesters || 'Browse by Semester'}
                   </Link>
                 </div>
               </div>
             </div>
+            )}
 
             {navLinks.slice(1).map((link) => {
               const isActive = pathname?.startsWith(link.href);
@@ -139,37 +135,52 @@ export default function Navbar({ dict, session, semesters }: NavbarProps) {
             })}
           </nav>
 
-          <div className="flex items-center gap-2 sm:gap-3 pointer-events-auto">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Auth — Desktop */}
             <div className="hidden lg:flex items-center gap-3">
             {session ? (
               <div className="flex items-center gap-2">
-                {session.user?.role === 'ADMIN' && (
-                  <Link 
-                    href="/admin" 
+                {(session.user?.role === 'ADMIN' || session.user?.role === 'EDITOR') && (
+                  <Link
+                    href="/admin"
                     className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-text-secondary hover:text-accent hover:bg-surface-alt rounded-full transition-colors"
                   >
-                    <Shield className="w-4 h-4" />
-                    <span>{dict.admin}</span>
+                    {session.user.role === 'ADMIN' ? (
+                      <>
+                        <Shield className="w-4 h-4" />
+                        <span>{dict.admin || 'Admin Portal'}</span>
+                      </>
+                    ) : (
+                      <>
+                        <FileEdit className="w-4 h-4" />
+                        <span>Editor</span>
+                      </>
+                    )}
                   </Link>
                 )}
-                <Link 
-                  href="/dashboard" 
+                <Link
+                  href="/dashboard"
                   className="flex items-center gap-1.5 px-5 py-2.5 text-sm font-semibold bg-accent text-white hover:bg-accent-hover rounded-full transition-all duration-300 hover:shadow-[0_0_15px_rgba(var(--color-accent),0.4)]"
                 >
                   <LayoutDashboard className="w-4 h-4" />
                   <span>{dict.dashboard}</span>
                 </Link>
-                <form action="/api/auth/signout" method="POST">
-                  <button type="submit" className="flex items-center justify-center p-2.5 text-text-muted hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-full transition-colors" aria-label={dict.signOut}>
-                    <User className="w-5 h-5" />
-                  </button>
-                </form>
+                <Link
+                  href="/profile"
+                  className="flex items-center justify-center p-2.5 text-text-secondary hover:text-accent hover:bg-surface-alt rounded-full transition-colors border border-black/5 dark:border-white/5"
+                  aria-label="Profile"
+                  title="Profile"
+                >
+                  <User className="w-5 h-5" />
+                </Link>
+                <button onClick={() => signOut({ callbackUrl: '/' })} className="flex items-center justify-center p-2.5 text-text-muted hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-full transition-colors" aria-label={dict.signOut} title="Sign Out">
+                  <LogOut className="w-5 h-5" />
+                </button>
               </div>
             ) : (
               <div className="flex items-center gap-3">
-                <Link 
-                  href={`/login?callbackUrl=${encodeURIComponent(pathname)}`} 
+                <Link
+                  href={`/login?callbackUrl=${encodeURIComponent(pathname)}`}
                   className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold bg-accent text-white hover:bg-accent-hover rounded-full transition-all duration-300 hover:shadow-[0_0_15px_rgba(var(--color-accent),0.4)]"
                 >
                   <LogIn className="w-4 h-4" />
@@ -181,7 +192,7 @@ export default function Navbar({ dict, session, semesters }: NavbarProps) {
 
           {/* Mobile Menu Button */}
           <div className="flex items-center lg:hidden">
-            <MobileMenu links={navLinks} session={session} dict={dict} semesters={semesters} />
+            <MobileMenu links={navLinks} session={session} dict={dict} semesters={semesters} isNepaliMode={isNepaliPage} />
           </div>
           </div>
         </div>

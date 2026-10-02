@@ -6,7 +6,7 @@ export const revalidate = 60;
 
 export default async function BlogDetailPage({ params }: { params: { id: string } }) {
   const post = await prisma.post.findUnique({
-    where: { id: params.id, type: 'BLOG', isPublished: true },
+    where: { id: params.id, type: 'BLOG', status: 'PUBLISHED' },
     include: { author: { select: { email: true } } }
   });
 
@@ -14,5 +14,5 @@ export default async function BlogDetailPage({ params }: { params: { id: string 
     notFound();
   }
 
-  return <PostDetail post={post} backUrl="/blogs" backLabel="Blogs" />;
+  return <PostDetail post={{...post, author: post.author || { email: 'Unknown' }}} backUrl="/blogs" backLabel="Blogs" />;
 }

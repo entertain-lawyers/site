@@ -17,14 +17,14 @@ export default function HomeSearchBar() {
 
   return (
     <form onSubmit={handleSearch} className="relative group w-full">
-      <input 
-        type="text" 
+      <input
+        type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search what you're looking for quickly and easily..." 
-        className="w-full pl-6 pr-14 py-4 rounded-full border-2 border-border bg-surface text-text-primary focus:outline-none focus:border-accent shadow-sm transition-all text-base sm:text-lg"
+        placeholder="Search what you're looking for quickly and easily..."
+        className="w-full pl-6 pr-14 py-3 rounded-full border-2 border-border bg-surface text-text-primary focus:outline-none focus:border-accent shadow-sm transition-all text-sm sm:text-base"
       />
-      <button 
+      <button
         type="submit"
         className="absolute right-2 top-2 bottom-2 aspect-square bg-navy dark:bg-accent text-white rounded-full flex items-center justify-center hover:bg-navy-light dark:hover:bg-accent-hover transition-colors"
       >

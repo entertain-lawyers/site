@@ -49,13 +49,13 @@ export default async function PricingPage() {
 
   return (
     <div className="min-h-screen bg-background transition-colors duration-300 pb-20">
-      
+
       {/* Hero Header */}
       <div className="bg-surface border-b border-border relative overflow-hidden pt-20 pb-24">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-accent/10 via-background to-transparent dark:from-accent/20 dark:via-background dark:to-transparent opacity-80 pointer-events-none" />
-        
+
         <div className="text-center max-w-3xl mx-auto px-4 relative z-10">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-black text-navy dark:text-white mb-6 tracking-tight drop-shadow-sm">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-navy dark:text-white mb-6 tracking-tight drop-shadow-sm">
             Transparent, Simple <span className="text-accent bg-clip-text text-transparent bg-gradient-to-r from-accent to-blue-500">Pricing</span>
           </h1>
           <p className="text-lg sm:text-xl text-text-secondary leading-relaxed font-medium">
@@ -87,11 +87,11 @@ export default async function PricingPage() {
                        Recommended
                      </div>
                   )}
-                  
-                  <div className="p-8 sm:p-10 flex-1">
-                    <h3 className="text-2xl font-black text-navy dark:text-white mb-4">{plan.name}</h3>
-                    <div className="flex items-baseline mb-3">
-                      <span className="text-5xl font-black text-navy dark:text-white tracking-tight">
+
+                  <div className="p-5 sm:p-8 lg:p-10 flex-1">
+                    <h3 className="text-xl sm:text-2xl font-black text-navy dark:text-white mb-4">{plan.name}</h3>
+                    <div className="flex flex-wrap items-baseline mb-3 gap-1">
+                      <span className="text-3xl sm:text-5xl font-black text-navy dark:text-white tracking-tight">
                         NPR xxx
                       </span>
                       <span className="text-text-muted ml-2 font-bold uppercase tracking-wider text-sm">/ {plan.durationDays} {dict.days}</span>
@@ -111,7 +111,7 @@ export default async function PricingPage() {
                       ))}
                     </ul>
                   </div>
-                  <div className="p-8 sm:p-10 pt-0 mt-auto">
+                  <div className="p-5 sm:p-8 lg:p-10 pt-0 mt-auto">
                     <CheckoutButtonsSubscription planId={plan.id} />
                   </div>
                 </div>
@@ -129,7 +129,7 @@ export default async function PricingPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
             {faqs.map((faq, idx) => (
-              <div key={idx} className="bg-surface/50 hover:bg-surface backdrop-blur-sm p-8 rounded-3xl border border-border transition-all duration-300 hover:shadow-soft group">
+              <div key={idx} className="bg-surface/50 hover:bg-surface backdrop-blur-sm p-5 sm:p-8 rounded-2xl sm:rounded-3xl border border-border transition-all duration-300 hover:shadow-soft group">
                 <div className="flex items-start gap-5">
                   <div className="p-3 rounded-2xl bg-accent/10 text-accent shrink-0 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
                     <HelpCircle className="w-6 h-6" />

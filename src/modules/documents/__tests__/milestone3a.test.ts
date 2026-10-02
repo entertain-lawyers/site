@@ -6,14 +6,14 @@ import { getSecureDocumentUrl } from '@/modules/documents/document.actions';
 import { canAccessResource } from '@/modules/entitlements/entitlement.service';
 
 // Mock R2 Client
-vi.mock('@/lib/r2', () => ({
+vi.mock('@/lib/b2', () => ({
   generatePresignedGetUrl: vi.fn(async (key, exp) => `https://mock-url.com/${key}?expires=${exp}`),
   generatePresignedPutUrl: vi.fn(async (key, mime, exp) => `https://mock-put.com/${key}`),
   getObjectMetadata: vi.fn(async (key) => ({ ContentLength: 1024 })),
   getObjectHeadBytes: vi.fn(async (key, bytes) => {
-    // We can change this implementation per-test using vi.mocked().mockImplementationOnce if needed, 
+    // We can change this implementation per-test using vi.mocked().mockImplementationOnce if needed,
     // but default to valid magic bytes
-    return "%PDF-"; 
+    return "%PDF-";
   }),
 }));
 
@@ -34,14 +34,14 @@ vi.mock('@/lib/auth', () => ({
   authConfig: {},
 }));
 
-import { getObjectHeadBytes, getObjectMetadata } from '@/lib/r2';
+import { getObjectHeadBytes, getObjectMetadata } from '@/lib/b2';
 
 describe('Milestone 3A Integration Tests', () => {
   let adminId: string;
   let userId1: string; // Has subscription
   let userId2: string; // Has individual purchase
   let userId3: string; // Has NO entitlements
-  
+
   let freeResourceId: string;
   let premiumResourceId: string;
   let premiumResource2Id: string;
@@ -98,7 +98,7 @@ describe('Milestone 3A Integration Tests', () => {
 
     // Setup Entitlements
     const plan = await prisma.plan.create({ data: { name: 'Monthly', durationDays: 30, priceAmount: 1000 } });
-    
+
     // User 1 has ACTIVE subscription
     const subRecord = await prisma.subscription.create({
       data: {
@@ -129,7 +129,7 @@ describe('Milestone 3A Integration Tests', () => {
     it('1. Admin upload intent succeeds', async () => {
       mockSession = { user: { id: adminId, role: 'ADMIN' } };
       const res = await initiateDocumentUpload({ resourceId: freeResourceId, expectedSize: 1024 });
-      
+
       expect(res.success).toBe(true);
       if (!res.success) return;
       expect(res.data.uploadIntentId).toBeDefined();
@@ -151,7 +151,7 @@ describe('Milestone 3A Integration Tests', () => {
     });
 
     it('4. Invalid MIME/type is rejected (by typing/validation, though our schema hardcodes PDF currently)', async () => {
-      expect(true).toBe(true); 
+      expect(true).toBe(true);
     });
 
     it('5. Invalid/non-PDF content is rejected during validation/confirmation', async () => {
@@ -181,7 +181,7 @@ describe('Milestone 3A Integration Tests', () => {
       const conf = await confirmDocumentUpload({ resourceId: freeResourceId, uploadIntentId: init.data.uploadIntentId });
 
       expect(conf.success).toBe(true);
-      
+
       const resRecord = await prisma.resource.findUnique({ where: { id: freeResourceId }, include: { document: true } });
       expect(resRecord?.document).not.toBeNull();
       expect(resRecord?.document?.mimeType).toBe('application/pdf');
@@ -193,7 +193,7 @@ describe('Milestone 3A Integration Tests', () => {
       if (!init.success) throw new Error('Init failed');
 
       const resRecord = await prisma.resource.findUnique({ where: { id: premiumResourceId }, include: { document: true } });
-      expect(resRecord?.document).toBeNull(); 
+      expect(resRecord?.document).toBeNull();
     });
 
     it('10. Client cannot provide an arbitrary storage key', async () => {
@@ -202,7 +202,7 @@ describe('Milestone 3A Integration Tests', () => {
       if (!init.success) throw new Error('Init failed');
 
       const conf = await confirmDocumentUpload({ resourceId: premiumResourceId, uploadIntentId: "00000000-0000-0000-0000-000000000000" });
-      expect(conf.success).toBe(false); 
+      expect(conf.success).toBe(false);
     });
 
     it('11. Concurrent confirmation attempts cannot produce duplicate Documents', async () => {
@@ -242,7 +242,7 @@ describe('Milestone 3A Integration Tests', () => {
 
     it('12. Expired intent cannot be finalized', async () => {
       mockSession = { user: { id: adminId, role: 'ADMIN' } };
-      
+
       const testRes = await prisma.resource.findFirst();
       const init = await initiateDocumentUpload({ resourceId: testRes!.id, expectedSize: 1024 });
       if (!init.success) throw new Error('Init failed');
@@ -339,11 +339,11 @@ describe('Milestone 3A Integration Tests', () => {
     it('19. Access logging works if AccessLog is added', async () => {
       mockSession = { user: { id: userId3, role: 'USER' } };
       await getSecureDocumentUrl({ resourceId: freeResourceId });
-      
+
       const log = await prisma.accessLog.findFirst({
         where: { userId: userId3, action: 'VIEW_DOCUMENT' }
       });
-      
+
       expect(log).not.toBeNull();
       expect(log?.resourceId).toBe(freeResourceId);
     });

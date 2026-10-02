@@ -3,7 +3,8 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { createResourceAction } from '@/modules/admin/admin-resource.actions';
-import { initiateDocumentUpload, confirmDocumentUpload } from '@/modules/admin/admin-document.actions';
+import { initiateDocumentUpload } from '@/modules/admin/admin-document.actions';
+import RichTextEditor from '@/components/editor/RichTextEditor';
 
 const RESOURCE_TYPES = [
   { value: 'LAW_NOTE', label: 'Law Note' },
@@ -12,20 +13,32 @@ const RESOURCE_TYPES = [
   { value: 'OTHER', label: 'Other' },
 ] as const;
 
-export function AdminResourceForm({ subjects, units }: { subjects: any[]; units: any[] }) {
+export function AdminResourceForm({ semesters, subjects, units }: { semesters: any[]; subjects: any[]; units: any[] }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [step, setStep] = useState(1);
-  
+
   const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+  const [description, setDescription] = useState(''); // Maybe optional now
+  const [semesterId, setSemesterId] = useState('');
   const [subjectId, setSubjectId] = useState('');
   const [resourceType, setResourceType] = useState('LAW_NOTE');
   const [unitId, setUnitId] = useState('');
   const [isPremium, setIsPremium] = useState(false);
   const [priceAmount, setPriceAmount] = useState('');
+  const [featuredImage, setFeaturedImage] = useState('');
+
+  // Mode selection: 'PDF' or 'NOTE'
+  const [uploadMode, setUploadMode] = useState<'PDF' | 'NOTE'>('PDF');
+
   const [file, setFile] = useState<File | null>(null);
+  const [content, setContent] = useState('');
+
+  // Filter subjects by selected semester
+  const filteredSubjects = useMemo(
+    () => (semesterId ? subjects.filter((s: any) => s.semesterId === semesterId) : []),
+    [subjects, semesterId]
+  );
 
   // Filter units by selected subject
   const filteredUnits = useMemo(
@@ -35,13 +48,21 @@ export function AdminResourceForm({ subjects, units }: { subjects: any[]; units:
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) {
-      setError('Please select a PDF file');
-      return;
-    }
-    if (file.type !== 'application/pdf') {
-      setError('Only PDF files are allowed');
-      return;
+
+    if (uploadMode === 'PDF') {
+      if (!file) {
+        setError('Please select a PDF file');
+        return;
+      }
+      if (file.type !== 'application/pdf') {
+        setError('Only PDF files are allowed');
+        return;
+      }
+    } else {
+      if (!content.trim() || content === '<p><br></p>') {
+        setError('Please write some content for the note');
+        return;
+      }
     }
 
     setLoading(true);
@@ -49,7 +70,6 @@ export function AdminResourceForm({ subjects, units }: { subjects: any[]; units:
 
     try {
       // 1. Create Resource
-      setStep(1);
       const createRes = await createResourceAction({
         title,
         description,
@@ -58,6 +78,8 @@ export function AdminResourceForm({ subjects, units }: { subjects: any[]; units:
         priceAmount: isPremium ? parseFloat(priceAmount) * 100 : undefined,
         type: resourceType as any,
         unitId: unitId || undefined,
+        content: uploadMode === 'NOTE' ? content : undefined,
+        featuredImage: featuredImage || undefined,
       });
 
       if (!createRes.success || !createRes.data) {
@@ -66,194 +88,229 @@ export function AdminResourceForm({ subjects, units }: { subjects: any[]; units:
 
       const resourceId = (createRes.data as any).resourceId;
 
-      // 2. Initiate Upload
-      setStep(2);
-      const initRes = await initiateDocumentUpload({
-        resourceId,
-        expectedSize: file.size,
-      });
+      // 2. If PDF mode, upload file
+      if (uploadMode === 'PDF' && file) {
+        const initRes = await initiateDocumentUpload({
+          resourceId,
+          expectedSize: file.size,
+        });
 
-      if (!initRes.success || !initRes.data) {
-        throw new Error((initRes as any).error || 'Failed to initiate upload');
+        if (!initRes.success || !initRes.data) {
+          throw new Error((initRes as any).error || 'Failed to initiate upload');
+        }
+
+        const uploadUrl = initRes.data.uploadUrl;
+
+        const r2Response = await fetch(uploadUrl, {
+          method: 'PUT',
+          body: file,
+          headers: {
+            'Content-Type': 'application/pdf',
+          },
+        });
+
+        if (!r2Response.ok) {
+          throw new Error(`Upload failed with status ${r2Response.status}`);
+        }
       }
 
-      // 3. Upload to R2
-      setStep(3);
-      const uploadIntentId = initRes.data.uploadIntentId;
-      const uploadUrl = initRes.data.uploadUrl;
-
-      const r2Response = await fetch(uploadUrl, {
-        method: 'PUT',
-        body: file,
-        headers: {
-          'Content-Type': 'application/pdf',
-        },
-      });
-
-      if (!r2Response.ok) {
-        throw new Error('Failed to upload file to storage');
-      }
-
-      // 4. Confirm Upload
-      setStep(4);
-      const confirmRes = await confirmDocumentUpload({
-        resourceId,
-        uploadIntentId,
-      });
-
-      if (!confirmRes.success) {
-        throw new Error((confirmRes as any).error || 'Failed to confirm upload');
-      }
-
-      // Success!
-      router.push('/admin');
+      // Success
+      router.push('/admin/resources');
       router.refresh();
-
     } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred');
-    } finally {
+      setError(err.message || 'An error occurred during creation.');
       setLoading(false);
-      setStep(1);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-8 max-w-5xl">
       {error && (
-        <div className="bg-red-50 text-red-700 p-4 rounded-md text-sm border border-red-100">
+        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg font-medium">
           {error}
         </div>
       )}
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
-        <input
-          type="text"
-          required
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2 text-gray-900"
-          placeholder="e.g. Contract Law Notes - Unit 1"
-        />
+      {/* Upload Mode Toggle */}
+      <div className="flex bg-slate-100 dark:bg-zinc-800 p-1 rounded-xl w-fit">
+        <button
+          type="button"
+          onClick={() => setUploadMode('PDF')}
+          className={`px-4 sm:px-6 py-2.5 min-h-[44px] rounded-lg text-sm font-bold transition-all ${
+            uploadMode === 'PDF'
+              ? 'bg-white dark:bg-zinc-700 text-navy dark:text-white shadow-sm'
+              : 'text-text-muted hover:text-navy dark:hover:text-white'
+          }`}
+        >
+          Upload PDF
+        </button>
+        <button
+          type="button"
+          onClick={() => setUploadMode('NOTE')}
+          className={`px-4 sm:px-6 py-2.5 min-h-[44px] rounded-lg text-sm font-bold transition-all ${
+            uploadMode === 'NOTE'
+              ? 'bg-white dark:bg-zinc-700 text-navy dark:text-white shadow-sm'
+              : 'text-text-muted hover:text-navy dark:hover:text-white'
+          }`}
+        >
+          Write Note
+        </button>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-        <textarea
-          required
-          rows={3}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2 text-gray-900"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Resource Type</label>
+          <label className="block text-sm font-bold text-navy dark:text-white mb-2">Title</label>
+          <input
+            type="text"
+            required
+            value={title}
+            onChange={e => setTitle(e.target.value)}
+            className="w-full rounded-xl border border-black/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-bold text-navy dark:text-white mb-2">Resource Type</label>
           <select
             value={resourceType}
-            onChange={(e) => setResourceType(e.target.value)}
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2 text-gray-900"
+            onChange={e => setResourceType(e.target.value)}
+            className="w-full rounded-xl border border-black/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
           >
-            {RESOURCE_TYPES.map((rt) => (
-              <option key={rt.value} value={rt.value}>{rt.label}</option>
+            {RESOURCE_TYPES.map(type => (
+              <option key={type.value} value={type.value}>{type.label}</option>
             ))}
           </select>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Subject &amp; Semester</label>
+          <label className="block text-sm font-bold text-navy dark:text-white mb-2">Semester</label>
+          <select
+            required
+            value={semesterId}
+            onChange={e => {
+              setSemesterId(e.target.value);
+              setSubjectId('');
+              setUnitId('');
+            }}
+            className="w-full rounded-xl border border-black/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
+          >
+            <option value="">Select Semester</option>
+            {semesters.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-bold text-navy dark:text-white mb-2">Subject</label>
           <select
             required
             value={subjectId}
-            onChange={(e) => { setSubjectId(e.target.value); setUnitId(''); }}
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2 text-gray-900"
+            onChange={e => {
+              setSubjectId(e.target.value);
+              setUnitId('');
+            }}
+            disabled={!semesterId}
+            className="w-full rounded-xl border border-black/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm disabled:opacity-50"
           >
-            <option value="">Select a subject...</option>
-            {subjects.map(sub => (
-              <option key={sub.id} value={sub.id}>
-                {sub.semester?.name} - {sub.name}
-              </option>
+            <option value="">Select Subject</option>
+            {filteredSubjects.map((s: any) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
             ))}
           </select>
         </div>
-      </div>
 
-      {filteredUnits.length > 0 && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Unit (Optional)</label>
+          <label className="block text-sm font-bold text-navy dark:text-white mb-2">Unit (Optional)</label>
           <select
             value={unitId}
-            onChange={(e) => setUnitId(e.target.value)}
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2 text-gray-900"
+            onChange={e => setUnitId(e.target.value)}
+            disabled={!subjectId}
+            className="w-full rounded-xl border border-black/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm disabled:opacity-50"
           >
-            <option value="">No unit selected</option>
+            <option value="">Select Unit</option>
             {filteredUnits.map((u: any) => (
-              <option key={u.id} value={u.id}>
-                {u.name}{u.title ? ` — ${u.title}` : ''}
-              </option>
+              <option key={u.id} value={u.id}>{u.name}</option>
             ))}
           </select>
         </div>
-      )}
 
-      <div className="flex items-center space-x-3">
-        <input
-          type="checkbox"
-          id="isPremium"
-          checked={isPremium}
-          onChange={(e) => setIsPremium(e.target.checked)}
-          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-        />
-        <label htmlFor="isPremium" className="text-sm font-medium text-gray-700">
-          This is a Premium Resource
-        </label>
+        <div>
+          <label className="block text-sm font-bold text-navy dark:text-white mb-2">Featured Image URL (Optional)</label>
+          <input
+            type="url"
+            value={featuredImage}
+            onChange={e => setFeaturedImage(e.target.value)}
+            placeholder="https://example.com/image.jpg"
+            className="w-full rounded-xl border border-black/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
+          />
+        </div>
       </div>
 
-      {isPremium && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Price (NPR)</label>
+      <div className="pt-4 border-t border-black/10 dark:border-white/10">
+        <div className="flex items-center gap-3">
           <input
-            type="number"
-            required={isPremium}
-            min="10"
-            step="0.01"
-            value={priceAmount}
-            onChange={(e) => setPriceAmount(e.target.value)}
-            className="w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2 text-gray-900"
-            placeholder="e.g. 500"
+            id="isPremium"
+            type="checkbox"
+            checked={isPremium}
+            onChange={e => setIsPremium(e.target.checked)}
+            className="h-5 w-5 rounded border-black/20 text-accent focus:ring-accent"
           />
+          <label htmlFor="isPremium" className="text-sm font-bold text-navy dark:text-white">
+            Premium Resource
+          </label>
+        </div>
+
+        {isPremium && (
+          <div className="mt-4">
+            <label className="block text-sm font-bold text-navy dark:text-white mb-2">Price (NPR)</label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              required={isPremium}
+              value={priceAmount}
+              onChange={e => setPriceAmount(e.target.value)}
+              className="w-full md:w-1/2 rounded-xl border border-black/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
+            />
+          </div>
+        )}
+      </div>
+
+      {uploadMode === 'PDF' ? (
+        <div className="pt-6 border-t border-black/10 dark:border-white/10">
+          <label className="block text-sm font-bold text-navy dark:text-white mb-4">Upload PDF Document</label>
+          <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-black/10 border-dashed rounded-2xl bg-slate-50 dark:bg-zinc-950 hover:bg-slate-100 transition-colors">
+            <div className="space-y-1 text-center">
+              <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <div className="flex text-sm text-gray-600 justify-center">
+                <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-accent hover:text-accent-dark focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-accent">
+                  <span>Upload a file</span>
+                  <input id="file-upload" name="file-upload" type="file" className="sr-only" accept="application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+                </label>
+                <p className="pl-1">or drag and drop</p>
+              </div>
+              <p className="text-xs text-gray-500">PDF up to 100MB</p>
+            </div>
+          </div>
+          {file && <p className="mt-2 text-sm text-gray-600">Selected file: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</p>}
+        </div>
+      ) : (
+        <div className="pt-6 border-t border-black/10 dark:border-white/10">
+          <label className="block text-sm font-bold text-navy dark:text-white mb-4">Write Note Content</label>
+          <RichTextEditor value={content} onChange={setContent} placeholder="Write the law note or case law details here..." />
         </div>
       )}
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">PDF Document</label>
-        <input
-          type="file"
-          required
-          accept="application/pdf"
-          onChange={(e) => setFile(e.target.files?.[0] || null)}
-          className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-gray-300 rounded-md p-2"
-        />
-      </div>
-
-      <div className="pt-4 border-t border-gray-200">
+      <div className="pt-8">
         <button
           type="submit"
           disabled={loading}
-          className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+          className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-accent hover:bg-accent/90 transition-all hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent disabled:opacity-50"
         >
-          {loading ? (
-            <span>
-              {step === 1 && 'Creating resource...'}
-              {step === 2 && 'Requesting upload URL...'}
-              {step === 3 && 'Uploading to secure storage...'}
-              {step === 4 && 'Confirming upload...'}
-            </span>
-          ) : (
-            'Create Resource & Upload'
-          )}
+          {loading ? 'Creating Resource...' : 'Create Resource'}
         </button>
       </div>
     </form>

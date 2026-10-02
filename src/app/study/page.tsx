@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
+import { unstable_cache } from 'next/cache';
 import StudySelector from '@/components/study/StudySelector';
 import ResourceTypeFilter from '@/components/study/ResourceTypeFilter';
 import CaseLawLanding from '@/components/study/CaseLawLanding';
@@ -62,32 +63,49 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
   const searchQuery = searchParams.q;
 
   // 1. Fetch reference data for selectors
-  const semesters = await prisma.semester.findMany({
-    orderBy: { order: 'asc' },
-    select: { id: true, name: true },
-  });
+  const getCachedSemesters = unstable_cache(
+    async () => prisma.semester.findMany({
+      orderBy: { order: 'asc' },
+      select: { id: true, name: true },
+    }),
+    ['study-semesters'],
+    { revalidate: 3600 }
+  );
+  const semesters = await getCachedSemesters();
+
+  const getCachedSubjects = unstable_cache(
+    async (semesterId: string) => prisma.subject.findMany({
+      where: { semesterId },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true },
+    }),
+    ['study-subjects'],
+    { revalidate: 3600 }
+  );
 
   let subjects: { id: string; name: string }[] = [];
   if (selectedSemesterId) {
-    subjects = await prisma.subject.findMany({
-      where: { semesterId: selectedSemesterId },
-      orderBy: { name: 'asc' },
-      select: { id: true, name: true },
-    });
+    subjects = await getCachedSubjects(selectedSemesterId);
   }
+
+  const getCachedUnits = unstable_cache(
+    async (subjectId: string) => prisma.unit.findMany({
+      where: { subjectId },
+      orderBy: { order: 'asc' },
+      select: { id: true, name: true, title: true },
+    }),
+    ['study-units'],
+    { revalidate: 3600 }
+  );
 
   let units: { id: string; name: string; title: string | null }[] = [];
   if (selectedSubjectId) {
-    units = await prisma.unit.findMany({
-      where: { subjectId: selectedSubjectId },
-      orderBy: { order: 'asc' },
-      select: { id: true, name: true, title: true },
-    });
+    units = await getCachedUnits(selectedSubjectId);
   }
 
   // 2. Fetch filtered resources
   const resources = await prisma.resource.findMany({
-    where: {
+    where: { status: 'PUBLISHED',
       ...(selectedSemesterId && { subject: { semesterId: selectedSemesterId } }),
       ...(selectedSubjectId && { subjectId: selectedSubjectId }),
       ...(selectedUnitId && { unitId: selectedUnitId }),
@@ -139,7 +157,7 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
       <div className="bg-surface border-b border-border relative overflow-hidden">
         {/* Subtle Background Pattern/Gradient */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-accent/5 via-background to-transparent dark:from-accent/10 dark:via-background dark:to-transparent opacity-70 pointer-events-none" />
-        
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 lg:py-16 relative z-10">
           <h1 className="text-fluid-h1 font-extrabold text-navy dark:text-white mb-4 tracking-tight">
             {pageTitle}
@@ -195,7 +213,7 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
 
         <div>
           {resources.length === 0 ? (
-            <div className="bg-surface border border-border rounded-2xl p-16 text-center shadow-soft flex flex-col items-center justify-center">
+            <div className="bg-surface border border-border rounded-2xl p-8 sm:p-16 text-center shadow-soft flex flex-col items-center justify-center">
               <div className="w-16 h-16 bg-surface border border-border rounded-full flex items-center justify-center mb-6 text-text-muted shadow-sm">
                 {selectedType === 'CASE_LAW' ? <Scale className="w-8 h-8" /> : <Library className="w-8 h-8" />}
               </div>
@@ -218,7 +236,7 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
                   >
                     {/* Top Accent Bar */}
                     <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent/40 to-accent/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    
+
                     <div className="flex items-start justify-between mb-5 gap-2 flex-wrap relative z-10">
                       {!selectedType && (
                         <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold tracking-wider uppercase border ${RESOURCE_TYPE_COLORS[resource.type]}`}>
@@ -237,15 +255,15 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
                         </span>
                       )}
                     </div>
-                    
+
                     <h3 className="text-lg font-bold text-navy dark:text-white group-hover:text-accent transition-colors mb-4 line-clamp-2 leading-tight">
                       {resource.title}
                     </h3>
-                    
+
                     <div className="mt-auto space-y-2 mb-6">
                       <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
                         <BookOpen className="w-4 h-4 mt-0.5 flex-shrink-0 text-text-muted" />
-                        <span className="line-clamp-1">{resource.subject.name}</span>
+                        <span className="line-clamp-1">{resource.subject?.name || 'Uncategorized'}</span>
                       </div>
                       {resource.unit && (
                         <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
@@ -254,7 +272,7 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="mt-auto pt-5 border-t border-border flex justify-between items-center group-hover:border-accent/30 transition-colors">
                       <span className="text-sm font-bold text-accent">
                         {resource.type === 'LAW_NOTE' ? 'Read Note' : resource.type === 'CASE_LAW' ? 'Read Case' : resource.type === 'OLD_QUESTION' ? 'View Question' : dict.readMore}

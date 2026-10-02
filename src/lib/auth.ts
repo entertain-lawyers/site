@@ -1,4 +1,4 @@
-import NextAuth, { NextAuthConfig } from "next-auth";
+import NextAuth, { NextAuthConfig, CredentialsSignin } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
@@ -23,14 +23,22 @@ export async function testAuthorize(credentials: any) {
 
   // Dummy hash to prevent timing attacks on non-existent users
   const dummyHash = "$2b$12$dummyHashToPreventTimingAttacks12345678901234567890";
-  
+
   const passwordsMatch = await bcrypt.compare(
-    password, 
+    password,
     user?.passwordHash || dummyHash
   );
 
   if (!user || !user.passwordHash) {
     return null;
+  }
+
+  class UnverifiedEmail extends CredentialsSignin {
+    code = "UnverifiedEmail"
+  }
+
+  if (!user.isEmailVerified) {
+    throw new UnverifiedEmail('Please verify your email address before logging in.');
   }
 
   if (passwordsMatch) {
@@ -71,22 +79,14 @@ export const authConfig = {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+        token.role = user.role;
       }
       return token;
     },
     async session({ session, token }) {
       if (token && token.id) {
         session.user.id = token.id as string;
-      }
-      // Refresh the role from the database to ensure we never trust stale session data
-      if (session.user?.id) {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: session.user.id },
-          select: { role: true },
-        });
-        if (dbUser) {
-          session.user.role = dbUser.role;
-        }
+        session.user.role = token.role as any;
       }
       return session;
     },

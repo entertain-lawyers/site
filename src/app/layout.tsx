@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Mukta } from 'next/font/google';
 import './globals.css';
 import Navbar from '@/components/layout/Navbar';
@@ -8,8 +8,16 @@ import ContentProtection from '@/components/ContentProtection';
 import { getLocale, getDictionary } from '@/lib/i18n';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { unstable_cache } from 'next/cache';
+import PublicOnly from '@/components/layout/PublicOnly';
 
 const mukta = Mukta({ weight: ['400', '500', '600', '700', '800'], subsets: ['devanagari', 'latin'], variable: '--font-mukta' });
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.entertainlawyers.com'),
@@ -42,10 +50,18 @@ export default async function RootLayout({
   const dict = await getDictionary();
   const session = await auth();
 
-  const semesters = await prisma.semester.findMany({
-    orderBy: { order: 'asc' },
-    select: { id: true, name: true }
-  });
+  const getCachedSemesters = unstable_cache(
+    async () => {
+      return prisma.semester.findMany({
+        orderBy: { order: 'asc' },
+        select: { id: true, name: true }
+      });
+    },
+    ['layout-semesters'],
+    { revalidate: 3600 }
+  );
+
+  const semesters = await getCachedSemesters();
 
   // A lightweight script to apply the theme before hydration, preventing FOUC.
   // It checks localStorage, then defaults to 'light' (as it's the primary brand).
@@ -100,12 +116,16 @@ export default async function RootLayout({
       </head>
       <body className={`${mukta.variable} bg-background text-text-primary flex flex-col min-h-screen transition-colors duration-200`}>
         <ContentProtection />
-        <TopUtilityBar locale={locale} dict={dict} />
-        <Navbar dict={dict} session={session} semesters={semesters} />
-        <main className="flex-grow">
+        <PublicOnly>
+          <TopUtilityBar locale={locale} dict={dict} />
+          <Navbar dict={dict} session={session} semesters={semesters} locale={locale} />
+        </PublicOnly>
+        <main className="flex-grow flex flex-col">
           {children}
         </main>
-        <Footer dict={dict} />
+        <PublicOnly>
+          <Footer dict={dict} />
+        </PublicOnly>
       </body>
     </html>
   );

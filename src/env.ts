@@ -3,6 +3,7 @@ import { z } from "zod";
 const envSchema = z.object({
   // Required Database
   DATABASE_URL: z.string().url(),
+  DIRECT_URL: z.string().url().optional(),
 
   // Required Auth.js
   AUTH_SECRET: z.string().min(32),
@@ -23,11 +24,11 @@ const envSchema = z.object({
   KHALTI_PUBLIC_KEY: z.string().optional(),
   KHALTI_SECRET_KEY: z.string().optional(),
 
-  // Cloudflare R2
-  R2_ACCOUNT_ID: z.string().optional(),
-  R2_ACCESS_KEY_ID: z.string().optional(),
-  R2_SECRET_ACCESS_KEY: z.string().optional(),
-  R2_BUCKET_NAME: z.string().optional(),
+  // Backblaze B2
+  B2_ENDPOINT: z.string().url().optional(),
+  B2_ACCESS_KEY_ID: z.string().optional(),
+  B2_SECRET_ACCESS_KEY: z.string().optional(),
+  B2_BUCKET_NAME: z.string().optional(),
 
   // Upstash Redis (For Rate Limiting)
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
@@ -42,14 +43,15 @@ const envSchema = z.object({
   path: ["NEXT_PUBLIC_APP_URL"]
 }).refine(data => {
   if (data.NODE_ENV === 'production') {
-    if (!data.R2_ACCOUNT_ID || !data.R2_ACCESS_KEY_ID || !data.R2_SECRET_ACCESS_KEY || !data.R2_BUCKET_NAME) return false;
+    if (!data.DIRECT_URL) return false;
+    if (!data.B2_ENDPOINT || !data.B2_ACCESS_KEY_ID || !data.B2_SECRET_ACCESS_KEY || !data.B2_BUCKET_NAME) return false;
     if (!data.UPSTASH_REDIS_REST_URL || !data.UPSTASH_REDIS_REST_TOKEN) return false;
     if (!data.KHALTI_SECRET_KEY || !data.KHALTI_PUBLIC_KEY) return false;
     if (!data.ESEWA_MERCHANT_ID || !data.ESEWA_SUCCESS_URL || !data.ESEWA_FAILURE_URL) return false;
   }
   return true;
 }, {
-  message: "Production environment requires all third-party API keys (R2, Upstash, Khalti, eSewa) to be securely configured.",
+  message: "Production environment requires DIRECT_URL and all third-party API keys (B2, Upstash, Khalti, eSewa) to be securely configured.",
 });
 
 // For Next.js to properly evaluate NEXT_PUBLIC_ variables during build, they must be explicitly provided.

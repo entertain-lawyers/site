@@ -1,0 +1,68 @@
+{
+  "version": "FINAL-POLICY",
+  "status": "APPROVED_FOR_REVIEW",
+  "postMappings": {
+    "News": {
+      "model": "Post",
+      "type": "NEWS"
+    },
+    "Blog": {
+      "model": "Post",
+      "type": "BLOG"
+    },
+    "Historical Fact": {
+      "model": "Post",
+      "type": "FACT"
+    }
+  },
+  "resourceMappings": {
+    "Case Law": {
+      "model": "Resource",
+      "type": "CASE_LAW"
+    },
+    "Study Notes": {
+      "model": "Resource",
+      "type": "LAW_NOTE"
+    },
+    "Question Paper": {
+      "model": "Resource",
+      "type": "OLD_QUESTION"
+    },
+    "Precedent": {
+      "model": "Resource",
+      "type": "CASE_LAW",
+      "subjectRule": "NULL_REQUIRES_REVIEW"
+    }
+  },
+  "statusMappings": {
+    "publish": "PUBLISHED",
+    "draft": "DRAFT",
+    "revision": "DISCARD",
+    "trash": "DISCARD"
+  },
+  "mediaPolicy": {
+    "publicImages": "Public R2 -> Resource/Post featuredImage",
+    "privatePdfs": "Private R2 -> Document model -> Resource.documentId",
+    "thumbnails": "DISCARD",
+    "elementorData": "DISCARD"
+  },
+  "seoPolicy": {
+    "preserveMeta": true,
+    "targetFields": [
+      "metaTitle",
+      "metaDesc"
+    ],
+    "redirects": "Create Redirect records for old permalinks"
+  },
+  "humanReviewRequired": [
+    "Corporate Law and Management",
+    "Family Law (I vs II)",
+    "Criminology and Penology",
+    "Election Law",
+    "Fiscal Law",
+    "Gender and Inclusive Justice",
+    "Interpretation of Law",
+    "Juvenile Delinquency",
+    "Socio Economic Crime"
+  ]
+}

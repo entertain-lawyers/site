@@ -45,7 +45,12 @@ const getResourceTypeIcon = (type: string) => {
 };
 
 export default function StudyOutlineSidebar({ units, currentResourceId, currentUnitId }: StudyOutlineSidebarProps) {
-  const [isOpen, setIsOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth >= 768;
+    }
+    return true; // SSR default: open (desktop)
+  });
   const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set(currentUnitId ? [currentUnitId] : []));
 
   const toggleSidebar = () => setIsOpen(!isOpen);
@@ -63,23 +68,23 @@ export default function StudyOutlineSidebar({ units, currentResourceId, currentU
   return (
     <>
       {isOpen && (
-        <div 
+        <div
           className="absolute inset-0 bg-black/20 z-40 md:hidden"
           onClick={() => setIsOpen(false)}
         />
       )}
       <div className={`
-        flex flex-col h-full bg-white transition-all duration-300 z-50
+        flex flex-col h-full bg-surface transition-all duration-300 z-50
         absolute md:relative left-0 top-0 bottom-0
-        ${isOpen 
-          ? 'w-80 shadow-2xl md:shadow-none border-r border-gray-200' 
-          : 'w-12 border-r border-gray-200 shadow-md md:shadow-none'}
+        ${isOpen
+          ? 'w-72 md:w-80 shadow-2xl md:shadow-none border-r border-border'
+          : 'w-12 border-r border-border shadow-md md:shadow-none'}
       `}>
-      <div className="flex items-center justify-between p-3 border-b border-gray-200">
-        {isOpen && <h2 className="font-semibold text-gray-800 text-sm uppercase tracking-wider">Study Outline</h2>}
-        <button 
+      <div className="flex items-center justify-between p-3 border-b border-border">
+        {isOpen && <h2 className="font-semibold text-navy dark:text-gray-200 text-sm uppercase tracking-wider">Study Outline</h2>}
+        <button
           onClick={toggleSidebar}
-          className="p-1.5 text-gray-500 hover:bg-gray-100 rounded-md transition-colors mx-auto"
+          className="p-2.5 min-h-[44px] min-w-[44px] flex items-center justify-center text-text-muted hover:bg-surface-alt rounded-md transition-colors mx-auto"
           aria-label={isOpen ? "Collapse sidebar" : "Expand sidebar"}
         >
           {isOpen ? (
@@ -101,16 +106,16 @@ export default function StudyOutlineSidebar({ units, currentResourceId, currentU
               <div key={unit.id} className="space-y-1">
                 <button
                   onClick={() => toggleUnit(unit.id)}
-                  className={`w-full flex items-center justify-between text-left p-2 rounded-md transition-colors ${
-                    currentUnitId === unit.id ? 'bg-slate-50 text-[#1a365d] font-medium' : 'hover:bg-gray-50 text-gray-700'
+                  className={`w-full flex items-center justify-between text-left p-2 min-h-[44px] rounded-md transition-colors ${
+                    currentUnitId === unit.id ? 'bg-accent/5 text-navy dark:text-blue-300 font-medium' : 'hover:bg-surface-alt text-text-secondary'
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <svg 
-                      className={`w-4 h-4 transition-transform ${expandedUnits.has(unit.id) ? 'rotate-90' : ''}`} 
-                      aria-hidden="true" 
-                      xmlns="http://www.w3.org/2000/svg" 
-                      fill="none" 
+                    <svg
+                      className={`w-4 h-4 flex-shrink-0 transition-transform ${expandedUnits.has(unit.id) ? 'rotate-90' : ''}`}
+                      aria-hidden="true"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
                       viewBox="0 0 24 24"
                     >
                       <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m9 5 7 7-7 7" />
@@ -120,7 +125,7 @@ export default function StudyOutlineSidebar({ units, currentResourceId, currentU
                     </span>
                   </div>
                 </button>
-                
+
                 {expandedUnits.has(unit.id) && (
                   <div className="ml-6 space-y-1">
                     {unit.resources.map((resource) => {
@@ -129,13 +134,13 @@ export default function StudyOutlineSidebar({ units, currentResourceId, currentU
                         <Link
                           key={resource.id}
                           href={`/read/${resource.id}`}
-                          className={`flex items-center gap-2.5 p-2 rounded-md text-sm transition-colors ${
-                            isCurrent 
-                              ? 'bg-[#1a365d]/10 text-[#1a365d] font-medium' 
-                              : 'text-gray-600 hover:bg-gray-50'
+                          className={`flex items-center gap-2.5 p-2 min-h-[44px] rounded-md text-sm transition-colors ${
+                            isCurrent
+                              ? 'bg-accent/10 text-accent font-medium'
+                              : 'text-text-secondary hover:bg-surface-alt'
                           }`}
                         >
-                          <span className={`${isCurrent ? 'text-[#1a365d]' : 'text-gray-400'}`}>
+                          <span className={`flex-shrink-0 ${isCurrent ? 'text-accent' : 'text-text-muted'}`}>
                             {getResourceTypeIcon(resource.type)}
                           </span>
                           <span className="truncate">{resource.title}</span>

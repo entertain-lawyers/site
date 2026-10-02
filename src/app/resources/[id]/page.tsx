@@ -11,7 +11,7 @@ import { BookOpen, FileText, Lock, ChevronLeft, ChevronRight, LockOpen } from 'l
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const resource = await prisma.resource.findUnique({
-    where: { id },
+    where: { status: 'PUBLISHED',  id },
     include: { subject: true }
   });
 
@@ -51,7 +51,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
   };
 
   const resource = await prisma.resource.findUnique({
-    where: { id },
+    where: { status: 'PUBLISHED',  id },
     include: {
       subject: {
         include: {
@@ -70,7 +70,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
   const hasAccess = session?.user?.id ? await canAccessResource(session.user.id, id) : false;
 
   const allResourcesQuery = await prisma.resource.findMany({
-    where: {
+    where: { status: 'PUBLISHED',
       type: resource.type,
       subjectId: resource.subjectId,
       ...(resource.unitId ? { unitId: resource.unitId } : {})
@@ -147,9 +147,9 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
           })
         }}
       />
-      
+
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-16">
-        
+
         {/* Breadcrumbs */}
         <nav className="flex text-xs md:text-sm text-text-muted mb-10 overflow-x-auto pb-2 scrollbar-hide" aria-label="Breadcrumb">
           <ol className="inline-flex items-center space-x-1 md:space-x-2 whitespace-nowrap bg-surface-alt px-4 py-2.5 rounded-full border border-border shadow-sm">
@@ -200,8 +200,8 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
         <div className="mb-12">
           <div className="flex flex-wrap items-center gap-3 mb-5">
             <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md border tracking-wider uppercase ${
-              resource.isPremium 
-                ? 'bg-gold/10 text-gold-dark border-gold/30' 
+              resource.isPremium
+                ? 'bg-gold/10 text-gold-dark border-gold/30'
                 : 'bg-green-50 text-green-700 border-green-200'
             }`}>
               {resource.isPremium ? <Lock className="w-3.5 h-3.5" /> : <LockOpen className="w-3.5 h-3.5" />}
@@ -212,19 +212,19 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
               {getResourceTypeLabel(resource.type)}
             </span>
           </div>
-          
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-extrabold text-navy dark:text-white mb-6 leading-tight tracking-tight">
+
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-navy dark:text-white mb-6 leading-tight tracking-tight break-words">
             {resource.title}
           </h1>
-          
+
           <div className="flex flex-wrap items-center gap-6 text-sm text-text-secondary pb-8 border-b border-border/60">
             <div className="flex items-center gap-2">
-              <span className="font-bold text-text-muted uppercase tracking-wider">{dict.subject}:</span> 
+              <span className="font-bold text-text-muted uppercase tracking-wider">{dict.subject}:</span>
               <span className="text-navy dark:text-white font-bold">{typedResource.subject?.name}</span>
             </div>
             {resource.unit && (
               <div className="flex items-center gap-2">
-                <span className="font-bold text-text-muted uppercase tracking-wider">{dict.unit}:</span> 
+                <span className="font-bold text-text-muted uppercase tracking-wider">{dict.unit}:</span>
                 <span className="text-navy dark:text-white font-bold">{resource.unit.name}</span>
               </div>
             )}
@@ -235,8 +235,8 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
         <div className="bg-surface shadow-[0_8px_30px_rgba(0,0,0,0.04)] border border-border rounded-2xl mb-12 overflow-hidden relative group">
           {/* Top Gradient Bar */}
           <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-accent to-accent/50" />
-          
-          <div className="px-8 py-6 border-b border-border bg-surface-alt/30">
+
+          <div className="px-5 sm:px-8 py-5 sm:py-6 border-b border-border bg-surface-alt/30">
             <h2 className="text-xl font-bold text-navy dark:text-white flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
                 <FileText className="w-4 h-4" />
@@ -244,11 +244,11 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
               {dict.accessThisResource}
             </h2>
           </div>
-          
-          <div className="p-8 sm:p-10 bg-surface">
+
+          <div className="p-5 sm:p-8 md:p-10 bg-surface">
             {resource.isPremium && resource.priceAmount !== null && (
               <div className="flex items-center justify-center mb-10">
-                <div className="bg-surface-alt/50 border border-border px-8 py-5 rounded-2xl text-center shadow-soft relative overflow-hidden">
+                <div className="bg-surface-alt/50 border border-border px-5 sm:px-8 py-4 sm:py-5 rounded-2xl text-center shadow-soft relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-24 h-24 bg-gold/5 rounded-bl-full -z-10"></div>
                   <p className="text-xs text-text-secondary font-bold mb-2 uppercase tracking-widest">{dict.oneTimePurchase}</p>
                   <p className="text-4xl font-extrabold text-navy dark:text-white tracking-tight">
@@ -266,7 +266,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
                 </div>
                 <h3 className="text-2xl font-bold text-navy dark:text-white mb-3 tracking-tight">Login Required</h3>
                 <p className="text-text-secondary mb-8 text-lg">{dict.signInToAccess}</p>
-                <Link 
+                <Link
                   href={`/login?callbackUrl=/resources/${id}`}
                   className="w-full sm:w-auto inline-flex items-center justify-center px-10 py-4 text-sm font-bold rounded-xl text-white bg-accent hover:bg-accent-hover transition-all shadow-[0_4px_15px_rgba(var(--color-accent),0.3)] hover:shadow-[0_6px_20px_rgba(var(--color-accent),0.4)] hover:-translate-y-0.5"
                 >
@@ -280,18 +280,26 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
                 </div>
                 <h3 className="text-2xl font-bold text-navy dark:text-white mb-2 tracking-tight">Access Granted</h3>
                 <p className="text-green-700 font-bold mb-8 text-lg">{dict.youHaveAccess}</p>
-                
-                {resource.documentId ? (
-                  <Link 
+
+                {resource.documentId && (
+                  <Link
                     href={`/read/${resource.id}`}
-                    className="w-full sm:w-auto inline-flex items-center justify-center px-10 py-4 text-sm font-bold rounded-xl text-white bg-accent hover:bg-accent-hover transition-all shadow-[0_4px_15px_rgba(var(--color-accent),0.3)] hover:shadow-[0_6px_20px_rgba(var(--color-accent),0.4)] hover:-translate-y-0.5 group"
+                    className="w-full sm:w-auto inline-flex items-center justify-center px-10 py-4 text-sm font-bold rounded-xl text-white bg-accent hover:bg-accent-hover transition-all shadow-[0_4px_15px_rgba(var(--color-accent),0.3)] hover:shadow-[0_6px_20px_rgba(var(--color-accent),0.4)] hover:-translate-y-0.5 group mb-6"
                   >
                     <BookOpen className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform" />
                     {dict.readDocument}
                   </Link>
-                ) : (
+                )}
+
+                {!resource.documentId && !resource.content && (
                   <div className="inline-flex items-center justify-center px-8 py-4 border border-border text-sm font-bold rounded-xl text-text-muted bg-surface-alt cursor-not-allowed">
                     {dict.pdfComingSoon}
+                  </div>
+                )}
+
+                {resource.content && !resource.documentId && (
+                  <div className="text-sm font-bold text-text-secondary">
+                    Scroll down to read the note.
                   </div>
                 )}
               </div>
@@ -306,10 +314,10 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
                 </p>
                 <div className="flex flex-col sm:flex-row gap-5 items-center justify-center w-full">
                   <div className="w-full sm:w-auto">
-                    <CheckoutButtons 
-                      resourceId={resource.id} 
-                      priceAmount={resource.priceAmount ?? 0} 
-                      currency={resource.currency} 
+                    <CheckoutButtons
+                      resourceId={resource.id}
+                      priceAmount={resource.priceAmount ?? 0}
+                      currency={resource.currency}
                     />
                   </div>
                   <div className="flex items-center gap-4 w-full sm:w-auto">
@@ -317,8 +325,8 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
                     <span className="text-text-muted text-sm font-bold uppercase tracking-wider">{dict.or}</span>
                     <div className="h-px bg-border flex-1 sm:hidden"></div>
                   </div>
-                  <Link 
-                    href="/pricing" 
+                  <Link
+                    href="/pricing"
                     className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 text-sm font-bold rounded-xl text-navy bg-surface border border-border hover:border-accent hover:text-accent hover:bg-accent/5 transition-all shadow-sm hover:shadow-soft"
                   >
                     {dict.viewSubscriptionPlans}
@@ -329,11 +337,20 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
           </div>
         </div>
 
+        {hasAccess && resource.content && (
+          <div className="bg-white dark:bg-zinc-950 p-5 sm:p-8 md:p-12 rounded-2xl sm:rounded-3xl border border-black/5 dark:border-white/5 mb-12 shadow-[0_8px_30px_rgba(0,0,0,0.04)] overflow-x-auto">
+            <div
+              className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-accent hover:prose-a:text-accent-dark prose-img:rounded-xl prose-img:shadow-md"
+              dangerouslySetInnerHTML={{ __html: resource.content }}
+            />
+          </div>
+        )}
+
         {/* Navigation */}
         {(prevResource || nextResource) && (
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 border-t border-border pt-8 mt-12">
             {prevResource ? (
-              <Link 
+              <Link
                 href={`/resources/${prevResource.id}`}
                 className="group flex items-center gap-3 text-sm font-bold text-navy hover:text-accent transition-colors w-full sm:w-auto sm:max-w-[45%] p-4 rounded-xl hover:bg-surface border border-transparent hover:border-border"
               >
@@ -341,9 +358,9 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
                 <span className="truncate">{prevResource.title}</span>
               </Link>
             ) : <div className="hidden sm:block flex-1" />}
-            
+
             {nextResource ? (
-              <Link 
+              <Link
                 href={`/resources/${nextResource.id}`}
                 className="group flex items-center justify-end gap-3 text-sm font-bold text-navy hover:text-accent transition-colors w-full sm:w-auto sm:max-w-[45%] text-right p-4 rounded-xl hover:bg-surface border border-transparent hover:border-border"
               >

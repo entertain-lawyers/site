@@ -4,7 +4,16 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { canAccessResource } from '@/modules/entitlements/entitlement.service';
 import { getSecureDocumentUrl } from '@/modules/documents/document.actions';
-import SecurePdfViewer from '@/components/SecurePdfViewer';
+import dynamic from 'next/dynamic';
+
+const SecurePdfViewer = dynamic(() => import('@/components/SecurePdfViewer'), {
+  loading: () => (
+    <div className="flex-1 flex items-center justify-center bg-surface-alt animate-pulse">
+      <div className="w-16 h-16 border-4 border-border border-t-accent rounded-full animate-spin"></div>
+    </div>
+  )
+});
+
 import StudyOutlineSidebar from '@/components/study/StudyOutlineSidebar';
 import { Metadata } from 'next';
 import { getDictionary } from '@/lib/i18n';
@@ -12,7 +21,7 @@ import { getDictionary } from '@/lib/i18n';
 export async function generateMetadata({ params }: { params: Promise<{ resourceId: string }> }): Promise<Metadata> {
   const { resourceId } = await params;
   const resource = await prisma.resource.findUnique({
-    where: { id: resourceId },
+    where: { status: 'PUBLISHED',  id: resourceId },
   });
 
   if (!resource) return { title: 'Resource Not Found' };
@@ -36,8 +45,8 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
   }
 
   const resource = await prisma.resource.findUnique({
-    where: { id: resourceId },
-    include: { 
+    where: { status: 'PUBLISHED',  id: resourceId },
+    include: {
       document: true,
       unit: true,
       subject: {
@@ -82,13 +91,13 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
             {dict.accessDeniedDesc}
           </p>
           <div className="flex flex-col gap-3">
-            <Link 
+            <Link
               href={`/resources/${resourceId}`}
               className="w-full inline-flex justify-center items-center px-4 py-3 border border-transparent text-sm font-bold rounded-xl text-white bg-accent hover:bg-accent-hover transition-colors shadow-md hover:-translate-y-0.5"
             >
               {dict.goToResourceDetails}
             </Link>
-            <Link 
+            <Link
               href="/pricing"
               className="w-full inline-flex justify-center items-center px-4 py-3 border border-border text-sm font-bold rounded-xl text-navy dark:text-white hover:bg-surface-alt transition-colors"
             >
@@ -113,7 +122,7 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
           <p className="text-text-secondary mb-8">
             {dict.pdfNotAvailableDesc}
           </p>
-          <Link 
+          <Link
             href={`/resources/${resourceId}`}
             className="w-full inline-flex justify-center items-center px-4 py-3 border border-transparent text-sm font-bold rounded-xl text-white bg-accent hover:bg-accent-hover transition-colors shadow-md hover:-translate-y-0.5"
           >
@@ -125,13 +134,13 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
   }
 
   const result = await getSecureDocumentUrl({ resourceId });
-  
+
   if (!result.success) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 transition-colors duration-300">
         <div className="bg-surface p-8 rounded-2xl shadow-soft border border-border max-w-md w-full text-center">
           <p className="text-red-600 mb-6 font-medium">{result.error || dict.failedToLoadDocument}</p>
-          <Link 
+          <Link
             href={`/resources/${resourceId}`}
             className="inline-flex justify-center items-center px-6 py-3 border border-transparent text-sm font-bold rounded-xl text-white bg-accent hover:bg-accent-hover transition-colors shadow-md hover:-translate-y-0.5"
           >
@@ -147,7 +156,7 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-  
+
   // Create a pseudo-hash for the session to add tracing without exposing pure IDs
   const rawSessionString = `${session.user.id}-${resourceId}-${now.getTime()}`;
   let hash = 0;
@@ -167,7 +176,7 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
 
   // Navigation logic
   const allResourcesQuery = await prisma.resource.findMany({
-    where: {
+    where: { status: 'PUBLISHED',
       type: resource.type,
       subjectId: resource.subjectId,
       ...(resource.unitId ? { unitId: resource.unitId } : {})
@@ -198,13 +207,13 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
   })) || [];
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden transition-colors duration-300">
+    <div className="h-dvh flex flex-col bg-background overflow-hidden transition-colors duration-300">
       {/* Top Header/Breadcrumb */}
       <div className="h-16 bg-surface border-b border-border flex items-center px-4 shrink-0 shadow-sm z-10 justify-between">
         <div className="flex items-center text-sm">
-          <Link 
+          <Link
             href={`/resources/${resourceId}`}
-            className="text-text-muted hover:text-accent mr-4 transition-colors flex items-center justify-center bg-surface-alt rounded-full w-9 h-9"
+            className="text-text-muted hover:text-accent mr-4 transition-colors flex items-center justify-center bg-surface-alt rounded-full w-11 h-11"
             aria-label="Go back to resource details"
             title={dict.goBack}
           >
@@ -234,7 +243,7 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
               <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 9 4-4-4-4"/>
             </svg>
           </div>
-          <h1 className="text-sm font-bold text-navy dark:text-white truncate max-w-[200px] md:max-w-md ml-0 md:ml-1">
+          <h1 className="text-sm font-bold text-navy dark:text-white truncate max-w-[160px] sm:max-w-[200px] md:max-w-md ml-0 md:ml-1">
             {resource.title}
           </h1>
         </div>
@@ -243,10 +252,10 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar */}
-        <StudyOutlineSidebar 
-          units={filteredUnits} 
-          currentResourceId={resource.id} 
-          currentUnitId={resource.unitId} 
+        <StudyOutlineSidebar
+          units={filteredUnits}
+          currentResourceId={resource.id}
+          currentUnitId={resource.unitId}
         />
 
         {/* PDF Viewer Area */}
@@ -256,13 +265,13 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
           </div>
 
           {/* Bottom Navigation */}
-          <div className="h-20 bg-surface border-t border-border flex items-center justify-between px-6 shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-10">
+          <div className="h-16 sm:h-20 bg-surface border-t border-border flex items-center justify-between px-3 sm:px-6 shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-10">
             {prevResource ? (
-              <Link 
+              <Link
                 href={`/read/${prevResource.id}`}
                 className="flex items-center gap-3 text-sm text-text-secondary hover:text-accent font-medium transition-colors group"
               >
-                <div className="w-10 h-10 rounded-full bg-surface-alt flex items-center justify-center border border-transparent group-hover:border-accent/30 group-hover:bg-accent/5 transition-all">
+                <div className="w-11 h-11 rounded-full bg-surface-alt flex items-center justify-center border border-transparent group-hover:border-accent/30 group-hover:bg-accent/5 transition-all">
                   <svg className="w-4 h-4 text-text-muted group-hover:text-accent transition-colors" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 10">
                     <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5H1m0 0 4 4M1 5l4-4"/>
                   </svg>
@@ -275,7 +284,7 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
             ) : <div />}
 
             {nextResource ? (
-              <Link 
+              <Link
                 href={`/read/${nextResource.id}`}
                 className="flex items-center gap-3 text-sm text-text-secondary hover:text-accent font-medium transition-colors group text-right"
               >
@@ -283,7 +292,7 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
                   <div className="text-xs text-text-muted font-bold tracking-wider uppercase mb-0.5">{dict.next}</div>
                   <div className="truncate max-w-[200px] font-bold group-hover:text-accent transition-colors">{nextResource.title}</div>
                 </div>
-                <div className="w-10 h-10 rounded-full bg-surface-alt flex items-center justify-center border border-transparent group-hover:border-accent/30 group-hover:bg-accent/5 transition-all">
+                <div className="w-11 h-11 rounded-full bg-surface-alt flex items-center justify-center border border-transparent group-hover:border-accent/30 group-hover:bg-accent/5 transition-all">
                   <svg className="w-4 h-4 text-text-muted group-hover:text-accent transition-colors" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 10">
                     <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M1 5h12m0 0L9 1m4 4L9 9"/>
                   </svg>

@@ -11,9 +11,31 @@ const cspHeader = `
     form-action 'self';
     frame-ancestors 'none';
     upgrade-insecure-requests;
-`
+`;
+
+const getB2EndpointDomain = () => {
+  if (process.env.B2_ENDPOINT) {
+    try {
+      const url = new URL(process.env.B2_ENDPOINT);
+      return url.origin;
+    } catch {
+      return 'https://*.backblazeb2.com';
+    }
+  }
+  return 'https://*.backblazeb2.com';
+};
+
+const dynamicCspHeader = cspHeader.replace(
+  "img-src 'self' blob: data:;",
+  `img-src 'self' blob: data: ${getB2EndpointDomain()};`
+);
 
 const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '25mb',
+    },
+  },
   async headers() {
     return [
       {
@@ -21,7 +43,7 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: 'Content-Security-Policy',
-            value: cspHeader.replace(/\n/g, ''),
+            value: dynamicCspHeader.replace(/\n/g, ''),
           },
           {
             key: 'X-Content-Type-Options',

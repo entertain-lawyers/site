@@ -2,7 +2,7 @@
 
 import { createSafeAction } from "@/lib/safe-action";
 import { prisma } from "@/lib/prisma";
-import { generatePresignedPutUrl, getObjectMetadata, getObjectHeadBytes } from "@/lib/r2";
+import { generatePresignedPutUrl, getObjectMetadata, getObjectHeadBytes } from "@/lib/b2";
 import { z } from "zod";
 
 const initiateUploadSchema = z.object({
@@ -11,8 +11,8 @@ const initiateUploadSchema = z.object({
 });
 
 export const initiateDocumentUpload = createSafeAction(
-  async ({ resourceId, expectedSize }: { resourceId: string; expectedSize: number }, { userId }) => {
-    if (!userId) throw new Error("Unauthorized");
+  async ({ resourceId, expectedSize }: { resourceId: string; expectedSize: number }, { userId, role }) => {
+    if (!userId || (role !== "ADMIN" && role !== "EDITOR")) throw new Error("Unauthorized");
 
     const parsed = initiateUploadSchema.safeParse({ resourceId, expectedSize });
     if (!parsed.success) {
@@ -28,17 +28,19 @@ export const initiateDocumentUpload = createSafeAction(
       throw new Error("Resource not found");
     }
 
-    // Do not allow if it already has a document (for now, simplify replacement logic)
-    if (resource.documentId) {
-      throw new Error("This resource already has a document. Please delete it first to upload a new one.");
+    if (role === "EDITOR" && resource.authorId !== userId) {
+      throw new Error("You do not have permission to upload documents for this resource.");
     }
+
+    // Document replacement is fully supported.
+    // The previous document and R2 object will be safely retained as an orphaned historical artifact.
 
     // Generate internal storage key
     const storageKey = `documents/${resourceId}-${Date.now()}.pdf`;
-    
+
     // Hardcode MIME type to PDF for this phase
     const expectedMimeType = "application/pdf";
-    
+
     // Generate the PUT URL (expires in 10 minutes)
     const uploadUrl = await generatePresignedPutUrl(storageKey, expectedMimeType, 600);
 
@@ -60,8 +62,7 @@ export const initiateDocumentUpload = createSafeAction(
       uploadIntentId: intent.id,
       uploadUrl,
     };
-  },
-  { requireAdmin: true }
+  }
 );
 
 const confirmUploadSchema = z.object({
@@ -70,8 +71,8 @@ const confirmUploadSchema = z.object({
 });
 
 export const confirmDocumentUpload = createSafeAction(
-  async ({ resourceId, uploadIntentId }: { resourceId: string; uploadIntentId: string }, { userId }) => {
-    if (!userId) throw new Error("Unauthorized");
+  async ({ resourceId, uploadIntentId }: { resourceId: string; uploadIntentId: string }, { userId, role }) => {
+    if (!userId || (role !== "ADMIN" && role !== "EDITOR")) throw new Error("Unauthorized");
 
     const parsed = confirmUploadSchema.safeParse({ resourceId, uploadIntentId });
     if (!parsed.success) {
@@ -112,7 +113,7 @@ export const confirmDocumentUpload = createSafeAction(
     }
 
     const actualSize = metadata.ContentLength ?? 0;
-    
+
     // Optional: we can loosely verify size if needed, but R2 metadata is trustworthy
     if (actualSize === 0) {
       throw new Error("Uploaded file is empty");
@@ -142,7 +143,7 @@ export const confirmDocumentUpload = createSafeAction(
         where: { id: intent.id, status: "PENDING" },
         data: { status: "CONFIRMED" }
       });
-      
+
       if (updateResult.count === 0) {
         throw new Error("Upload intent was already processed by another request.");
       }
@@ -168,6 +169,5 @@ export const confirmDocumentUpload = createSafeAction(
       success: true,
       documentId: document.id
     };
-  },
-  { requireAdmin: true }
+  }
 );

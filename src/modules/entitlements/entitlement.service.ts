@@ -16,6 +16,14 @@ export async function canAccessResource(userId: string, resourceId: string): Pro
   // 2. Free resources are accessible to any authenticated user
   if (!resource.isPremium) return true;
 
+  // 3. Admin users have lifetime access to all premium resources
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true }
+  });
+
+  if (user?.role === "ADMIN") return true;
+
   const now = new Date();
 
   // 3. Check for a valid Purchase Entitlement for this specific resource

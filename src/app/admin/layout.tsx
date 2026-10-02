@@ -10,12 +10,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-4rem)] bg-background relative">
-      <AdminSidebar userRole={session.user.role} />
-      
+    <div className="flex min-h-screen bg-slate-50 dark:bg-zinc-950 relative selection:bg-accent/30">
+      <AdminSidebar userRole={session?.user?.role || 'ADMIN'} />
+
       {/* Main Content Area */}
-      <div className="flex-1 w-full lg:ml-64 bg-background min-h-[calc(100vh-4rem)] relative">
-        <main className="w-full">
+      <div className="flex-1 w-full lg:ml-64 bg-transparent min-h-screen relative flex flex-col pt-16 lg:pt-0">
+        <main className="w-full flex-1">
           {children}
         </main>
       </div>
