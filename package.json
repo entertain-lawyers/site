@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "rm -rf .next/cache .netlify/.next/cache && prisma generate && next build",
+    "build": "rm -rf .next/cache .netlify/.next/cache && prisma generate && AUTH_GOOGLE_SECRET=dummy-secret-not-real AUTH_GOOGLE_ID=dummy-id-not-real AUTH_SECRET=dummy-auth-secret-32-chars-long-12345 next build",
     "start": "next start",
     "lint": "eslint",
     "migration:extract": "node scripts/migration.js extract",
