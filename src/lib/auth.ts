@@ -62,10 +62,14 @@ export const authConfig = {
     signIn: "/login",
   },
   providers: [
-    GoogleProvider({
-      clientId: process.env.AUTH_GOOGLE_ID,
-      clientSecret: process.env.AUTH_GOOGLE_SECRET,
-    }),
+    // Only include Google provider if credentials are configured
+    // We check AUTH_GOOGLE_ID only to avoid statically evaluating the secret during the Turbopack build phase.
+    ...(process.env.AUTH_GOOGLE_ID
+      ? [GoogleProvider({
+          // clientSecret and clientId are omitted here so they are not evaluated at build time.
+          // Auth.js automatically infers them from AUTH_GOOGLE_SECRET and AUTH_GOOGLE_ID at runtime.
+        })]
+      : []),
     CredentialsProvider({
       name: "Credentials",
       credentials: {

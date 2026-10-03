@@ -62,8 +62,23 @@ export const envSchema = z.object({
 
 // For Next.js to properly evaluate NEXT_PUBLIC_ variables during build, they must be explicitly provided.
 const _env = envSchema.safeParse({
-  ...process.env,
+  DATABASE_URL: process.env.DATABASE_URL,
+  DIRECT_URL: process.env.DIRECT_URL,
+  AUTH_SECRET: process.env.AUTH_SECRET,
   NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL || (process.env.NODE_ENV !== 'production' ? 'http://localhost:3000' : undefined),
+  NODE_ENV: process.env.NODE_ENV,
+  ESEWA_MERCHANT_ID: process.env.ESEWA_MERCHANT_ID,
+  ESEWA_SECRET_KEY: process.env.ESEWA_SECRET_KEY,
+  ESEWA_SUCCESS_URL: process.env.ESEWA_SUCCESS_URL,
+  ESEWA_FAILURE_URL: process.env.ESEWA_FAILURE_URL,
+  KHALTI_PUBLIC_KEY: process.env.KHALTI_PUBLIC_KEY,
+  KHALTI_SECRET_KEY: process.env.KHALTI_SECRET_KEY,
+  B2_ENDPOINT: process.env.B2_ENDPOINT,
+  B2_ACCESS_KEY_ID: process.env.B2_ACCESS_KEY_ID,
+  B2_SECRET_ACCESS_KEY: process.env.B2_SECRET_ACCESS_KEY,
+  B2_BUCKET_NAME: process.env.B2_BUCKET_NAME,
+  UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+  UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
   PAYMENTS_ENABLED: process.env.PAYMENTS_ENABLED || 'true',
 });
 
