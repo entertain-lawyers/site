@@ -67,12 +67,21 @@ const _env = envSchema.safeParse({
   PAYMENTS_ENABLED: process.env.PAYMENTS_ENABLED || 'true',
 });
 
+let finalEnv: z.infer<typeof envSchema>;
+
 if (!_env.success) {
-  console.error(
-    "❌ Invalid environment variables:",
-    JSON.stringify(_env.error.format(), null, 4)
-  );
-  throw new Error("Invalid environment variables");
+  if (process.env.SKIP_ENV_VALIDATION === '1' || process.env.SKIP_ENV_VALIDATION === 'true') {
+    console.warn("⚠️ Skipping environment validation due to SKIP_ENV_VALIDATION flag.");
+    finalEnv = new Proxy({}, { get: () => 'mock-value' }) as z.infer<typeof envSchema>;
+  } else {
+    console.error(
+      "❌ Invalid environment variables:",
+      JSON.stringify(_env.error.format(), null, 4)
+    );
+    throw new Error("Invalid environment variables");
+  }
+} else {
+  finalEnv = _env.data;
 }
 
-export const env = _env.data;
+export const env = finalEnv;

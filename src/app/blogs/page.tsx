@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
+import { extractFirstImage } from '@/lib/media/extract-first-image';
 
 export const revalidate = 60; // Revalidate every minute
 
@@ -23,12 +24,19 @@ export default async function BlogsPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {posts.map(post => (
+          {posts.map(post => {
+            const thumbnail = extractFirstImage(post.content);
+            return (
             <div key={post.id} className="bg-surface border border-border rounded-2xl shadow-soft overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 flex flex-col">
-              <div className="w-full h-48 bg-slate-100 dark:bg-zinc-800 flex items-center justify-center border-b border-border">
-                <svg className="w-12 h-12 text-black/10 dark:text-white/10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
+              <div className="w-full h-48 bg-slate-100 dark:bg-zinc-800 flex items-center justify-center border-b border-border overflow-hidden">
+                {thumbnail ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={thumbnail} alt={post.title} className="w-full h-full object-cover" />
+                ) : (
+                  <svg className="w-12 h-12 text-black/10 dark:text-white/10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
+                )}
               </div>
               <div className="p-6 sm:p-8 flex flex-col flex-1 bg-white dark:bg-zinc-900">
                 <div className="flex-1">
@@ -46,7 +54,8 @@ export default async function BlogsPage() {
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
 
           {posts.length === 0 && (
             <div className="col-span-full py-20 text-center">

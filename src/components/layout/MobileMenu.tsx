@@ -145,6 +145,34 @@ export default function MobileMenu({ links, session, dict, semesters, isNepaliMo
                   {dict.browseSemesters || 'Browse by Semester'}
                 </Link>
               </div>
+
+              {/* Explore Section */}
+              <div className="px-4 py-2 mt-4 text-xs font-extrabold uppercase tracking-widest text-text-muted">
+                Explore
+              </div>
+              <div className="space-y-1 mt-1 pl-4 border-l-2 border-border ml-6">
+                <Link href="/events" onClick={closeMenu} className="flex items-center px-4 py-3 min-h-[44px] text-sm font-semibold text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all">
+                  Events
+                </Link>
+                <Link href="/publications" onClick={closeMenu} className="flex items-center px-4 py-3 min-h-[44px] text-sm font-semibold text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all">
+                  Publications
+                </Link>
+                <Link href="/gallery" onClick={closeMenu} className="flex items-center px-4 py-3 min-h-[44px] text-sm font-semibold text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all">
+                  Gallery
+                </Link>
+                <Link href="/faqs" onClick={closeMenu} className="flex items-center px-4 py-3 min-h-[44px] text-sm font-semibold text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all">
+                  FAQs
+                </Link>
+                <Link href="/blogs" onClick={closeMenu} className="flex items-center px-4 py-3 min-h-[44px] text-sm font-semibold text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all">
+                  Blogs
+                </Link>
+                <Link href="/news" onClick={closeMenu} className="flex items-center px-4 py-3 min-h-[44px] text-sm font-semibold text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all">
+                  News
+                </Link>
+                <Link href="/historical-facts" onClick={closeMenu} className="flex items-center px-4 py-3 min-h-[44px] text-sm font-semibold text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all">
+                  Historical Facts
+                </Link>
+              </div>
             </div>
             )}
 

@@ -86,7 +86,10 @@ export default function Footer({ dict }: FooterProps) {
             <ul className="space-y-3 text-[14px] sm:text-[15px] text-text-secondary dark:text-white font-medium">
               <li><Link href="/about" className="text-text-secondary dark:text-white hover:text-accent dark:hover:text-gray-300 hover:translate-x-1 inline-block transition-transform duration-300">About us</Link></li>
               <li><Link href="/team" className="text-text-secondary dark:text-white hover:text-accent dark:hover:text-gray-300 hover:translate-x-1 inline-block transition-transform duration-300">Team</Link></li>
-              <li><Link href="/researchers" className="text-text-secondary dark:text-white hover:text-accent dark:hover:text-gray-300 hover:translate-x-1 inline-block transition-transform duration-300">Researchers</Link></li>
+              <li><Link href="/events" className="text-text-secondary dark:text-white hover:text-accent dark:hover:text-gray-300 hover:translate-x-1 inline-block transition-transform duration-300">Events</Link></li>
+              <li><Link href="/publications" className="text-text-secondary dark:text-white hover:text-accent dark:hover:text-gray-300 hover:translate-x-1 inline-block transition-transform duration-300">Publications</Link></li>
+              <li><Link href="/gallery" className="text-text-secondary dark:text-white hover:text-accent dark:hover:text-gray-300 hover:translate-x-1 inline-block transition-transform duration-300">Gallery</Link></li>
+              <li><Link href="/faqs" className="text-text-secondary dark:text-white hover:text-accent dark:hover:text-gray-300 hover:translate-x-1 inline-block transition-transform duration-300">FAQs</Link></li>
               <li><Link href="/privacy-policy" className="text-text-secondary dark:text-white hover:text-accent dark:hover:text-gray-300 hover:translate-x-1 inline-block transition-transform duration-300">Privacy Policy</Link></li>
             </ul>
           </div>

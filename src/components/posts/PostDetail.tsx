@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { extractFirstImage } from '@/lib/media/extract-first-image';
 
 interface Post {
   id: string;
@@ -11,12 +12,13 @@ interface Post {
 }
 
 export default function PostDetail({ post, backUrl, backLabel }: { post: Post, backUrl: string, backLabel: string }) {
+  const featuredImage = post.featuredImage || extractFirstImage(post.content);
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[#0a0a0a] pb-24">
-      {post.featuredImage ? (
+      {featuredImage ? (
         <div className="w-full h-[40vh] md:h-[60vh] relative">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={post.featuredImage} alt={post.title} className="w-full h-full object-cover" />
+          <img src={featuredImage} alt={post.title} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
           <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 max-w-5xl mx-auto">
              <div className="flex items-center gap-4 mb-4">

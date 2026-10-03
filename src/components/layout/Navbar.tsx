@@ -21,6 +21,7 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
   const isNepaliPage = locale === 'ne';
   
   const [isStudyOpen, setIsStudyOpen] = useState(false);
+  const [isExploreOpen, setIsExploreOpen] = useState(false);
   const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
   
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -28,6 +29,7 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
   useEffect(() => {
     // Close on route change
     setIsStudyOpen(false);
+    setIsExploreOpen(false);
     setOpenSubmenu(null);
   }, [pathname]);
 
@@ -36,6 +38,7 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsStudyOpen(false);
+        setIsExploreOpen(false);
         setOpenSubmenu(null);
       }
     }
@@ -43,11 +46,12 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') {
         setIsStudyOpen(false);
+        setIsExploreOpen(false);
         setOpenSubmenu(null);
       }
     }
 
-    if (isStudyOpen) {
+    if (isStudyOpen || isExploreOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       document.addEventListener('keydown', handleKeyDown);
     }
@@ -64,7 +68,6 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
       ]
     : [
         { href: '/', label: dict.home },
-        { href: '/explore', label: dict.exploreStudyMaterials || 'Explore' },
         { href: '/pricing', label: dict.pricing },
         { href: '/contact', label: dict.contact },
       ];
@@ -73,6 +76,16 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       setIsStudyOpen(!isStudyOpen);
+      setIsExploreOpen(false);
+      setOpenSubmenu(null);
+    }
+  };
+
+  const handleExploreKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setIsExploreOpen(!isExploreOpen);
+      setIsStudyOpen(false);
       setOpenSubmenu(null);
     }
   };
@@ -111,10 +124,11 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
             {/* Study Dropdown */}
             {!isNepaliPage && (
               <div className="relative" ref={dropdownRef}>
+                <div className="flex items-center space-x-1">
                 <button
                   aria-expanded={isStudyOpen}
                   aria-haspopup="true"
-                  onClick={() => setIsStudyOpen(!isStudyOpen)}
+                  onClick={() => { setIsStudyOpen(!isStudyOpen); setIsExploreOpen(false); }}
                   onKeyDown={handleStudyKeyDown}
                   className={`flex items-center gap-1 px-5 py-2 rounded-full text-[14px] font-bold transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                     pathname?.startsWith('/study') || pathname?.startsWith('/semesters')
@@ -205,6 +219,38 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
                     </div>
                   </div>
                 )}
+                
+                {/* Explore Dropdown Button */}
+                <button
+                  aria-expanded={isExploreOpen}
+                  aria-haspopup="true"
+                  onClick={() => { setIsExploreOpen(!isExploreOpen); setIsStudyOpen(false); }}
+                  onKeyDown={handleExploreKeyDown}
+                  className={`flex items-center gap-1 px-5 py-2 rounded-full text-[14px] font-bold transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                    ['/events', '/publications', '/gallery', '/faqs', '/blogs', '/news', '/historical-facts'].some(p => pathname?.startsWith(p))
+                      ? 'text-accent bg-accent/10 shadow-sm'
+                      : 'text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5'
+                  }`}
+                >
+                  Explore
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExploreOpen ? 'rotate-180 text-accent' : 'text-text-muted'}`} />
+                </button>
+
+                {isExploreOpen && (
+                  <div className="absolute top-full left-32 pt-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="w-56 bg-surface rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-border py-1.5 flex flex-col">
+                      <Link href="/events" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors">Events</Link>
+                      <Link href="/publications" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors">Publications</Link>
+                      <Link href="/gallery" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors">Gallery</Link>
+                      <Link href="/faqs" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors">FAQs</Link>
+                      <div className="h-px bg-border my-1" />
+                      <Link href="/blogs" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors">Blogs</Link>
+                      <Link href="/news" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors">News</Link>
+                      <Link href="/historical-facts" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors">Historical Facts</Link>
+                    </div>
+                  </div>
+                )}
+                </div>
               </div>
             )}
 
