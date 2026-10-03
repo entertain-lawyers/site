@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
     "migration:extract": "node scripts/migration.js extract",
@@ -18,8 +18,9 @@
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",
     "@aws-sdk/client-s3": "^3.1135.0",
+    "@aws-sdk/lib-storage": "^3.1145.0",
     "@aws-sdk/s3-request-presigner": "^3.1135.0",
-    "@prisma/client": "^6.4.1",
+    "@prisma/client": "^6.19.3",
     "@tailwindcss/typography": "^0.5.20",
     "@upstash/ratelimit": "^2.1.0",
     "@upstash/redis": "^1.38.4",
@@ -33,6 +34,7 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-quill-new": "^3.8.3",
+    "uuid": "^14.0.2",
     "zod": "^4.6.5"
   },
   "devDependencies": {
