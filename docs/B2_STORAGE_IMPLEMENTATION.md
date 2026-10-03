@@ -33,10 +33,10 @@ Access to private documents remains secured via the existing dedicated endpoints
 
 ## Environment Variables
 Production storage requires the following variables:
-- `B2_ENDPOINT` (e.g., `https://s3.us-east-005.backblazeb2.com`)
+- `B2_ENDPOINT` (e.g., `https://s3.us-east-xxx.backblazeb2.com`)
 - `B2_ACCESS_KEY_ID` (Application Key ID)
 - `B2_SECRET_ACCESS_KEY` (Application Key Secret)
-- `B2_BUCKET_NAME` (e.g., `entertain-lawyers-production`)
+- `B2_BUCKET_NAME` (e.g., `your-bucket-name`)
 
 ## Local vs Production Storage
 The `StorageAdapter` pattern safely isolates local development:
