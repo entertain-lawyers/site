@@ -12,7 +12,7 @@ export default async function AdminEventsPage() {
 
   const events = await prisma.event.findMany({
     orderBy: { eventDate: 'desc' },
-    include: { author: { select: { email: true } } }
+    
   });
 
   return (

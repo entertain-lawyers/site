@@ -12,8 +12,7 @@ const createPostSchema = z.object({
   type: z.enum(['NEWS', 'BLOG', 'FACT', 'NEPALI_SAMANYA_SAMACHAR', 'NEPALI_ADALAT_SAMACHAR', 'NEPALI_MUKHYA_SAMACHAR', 'NEPALI_NAJIRHARU', 'NEPALI_AIN_KANUN', 'NEPALI_BLOG_BICHAR']),
   isPublished: z.boolean().optional(),
   status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).optional(),
-  featuredImage: z.string().optional().or(z.literal('')),
-});
+  });
 
 const updatePostSchema = z.object({
   id: z.string().uuid(),
@@ -22,8 +21,7 @@ const updatePostSchema = z.object({
   type: z.enum(['NEWS', 'BLOG', 'FACT', 'NEPALI_SAMANYA_SAMACHAR', 'NEPALI_ADALAT_SAMACHAR', 'NEPALI_MUKHYA_SAMACHAR', 'NEPALI_NAJIRHARU', 'NEPALI_AIN_KANUN', 'NEPALI_BLOG_BICHAR']).optional(),
   isPublished: z.boolean().optional(),
   status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).optional(),
-  featuredImage: z.string().optional().or(z.literal('')),
-});
+  });
 
 const deletePostSchema = z.object({
   id: z.string().uuid(),
@@ -40,8 +38,7 @@ export const createPostAction = createSafeAction(async (args: z.infer<typeof cre
       content: args.content,
       type: args.type,
       status: args.status || (args.isPublished ? 'PUBLISHED' : 'DRAFT'),
-      featuredImage: args.featuredImage || null,
-      authorId: session.userId!, // The editor/admin creating it is the author
+            authorId: session.userId!, // The editor/admin creating it is the author
     }
   });
 
@@ -81,7 +78,6 @@ export const updatePostAction = createSafeAction(async (args: z.infer<typeof upd
   } else if (args.isPublished !== undefined) {
     updateData.status = args.isPublished ? 'PUBLISHED' : 'DRAFT';
   }
-  if (args.featuredImage !== undefined) updateData.featuredImage = args.featuredImage || null;
 
   const updatedPost = await prisma.post.update({
     where: { id: args.id },

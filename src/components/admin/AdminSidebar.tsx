@@ -45,7 +45,6 @@ export default function AdminSidebar({ userRole }: { userRole: string }) {
     { name: 'Subjects', href: '/admin/study/subjects', icon: Database, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Units', href: '/admin/study/units', icon: Database, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Resources', href: '/admin/study/resources', icon: FileText, roles: ['ADMIN', 'EDITOR'] },
-    { name: 'Advertisements', href: '/admin/ads', icon: Settings, roles: ['ADMIN'] },
     { name: 'Users & Roles', href: '/admin/users', icon: Users, roles: ['ADMIN'] },
     { name: 'Audit Logs', href: '/admin/audit-logs', icon: History, roles: ['ADMIN'] },
   ];
@@ -183,7 +182,7 @@ export default function AdminSidebar({ userRole }: { userRole: string }) {
           <div className="mb-6">
             <p className="px-3 text-[11px] font-bold text-text-muted dark:text-white/40 tracking-wider uppercase mb-2">System</p>
             <div className="space-y-0.5">
-              {filteredNavItems.filter(i => ['Users & Roles', 'Audit Logs', 'Advertisements'].includes(i.name)).map((item) => {
+              {filteredNavItems.filter(i => ['Users & Roles', 'Audit Logs'].includes(i.name)).map((item) => {
                 const isActive = pathname.startsWith(item.href);
                 return (
                   <Link

@@ -79,8 +79,7 @@ export function AdminResourceForm({ semesters, subjects, units }: { semesters: a
         type: resourceType as any,
         unitId: unitId || undefined,
         content: uploadMode === 'NOTE' ? content : undefined,
-        featuredImage: featuredImage || undefined,
-      });
+              });
 
       if (!createRes.success || !createRes.data) {
         throw new Error((createRes as any).error || 'Failed to create resource');

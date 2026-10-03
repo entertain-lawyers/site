@@ -12,7 +12,7 @@ export default async function AdminPublicationsPage() {
 
   const pubs = await prisma.publication.findMany({
     orderBy: { publishDate: 'desc' },
-    include: { author: { select: { email: true } }, document: true }
+    include: { Document: true }
   });
 
   return (

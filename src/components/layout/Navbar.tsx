@@ -1,11 +1,12 @@
 'use client';
 
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import MobileMenu from './MobileMenu';
 import { Dictionary, Locale } from '@/lib/i18n';
 import { usePathname } from 'next/navigation';
-import { BookOpen, User, LogIn, LayoutDashboard, Shield, LogOut, FileEdit } from 'lucide-react';
+import { BookOpen, User, LogIn, LayoutDashboard, Shield, LogOut, FileEdit, ChevronDown, ChevronRight } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 
 interface NavbarProps {
@@ -18,6 +19,43 @@ interface NavbarProps {
 export default function Navbar({ dict, session, semesters, locale }: NavbarProps) {
   const pathname = usePathname();
   const isNepaliPage = locale === 'ne';
+  
+  const [isStudyOpen, setIsStudyOpen] = useState(false);
+  const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
+  
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Close on route change
+    setIsStudyOpen(false);
+    setOpenSubmenu(null);
+  }, [pathname]);
+
+  useEffect(() => {
+    // Handle outside click
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsStudyOpen(false);
+        setOpenSubmenu(null);
+      }
+    }
+    // Handle Escape key
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setIsStudyOpen(false);
+        setOpenSubmenu(null);
+      }
+    }
+
+    if (isStudyOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isStudyOpen]);
 
   const navLinks = isNepaliPage
     ? [
@@ -31,11 +69,31 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
         { href: '/contact', label: dict.contact },
       ];
 
+  const handleStudyKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setIsStudyOpen(!isStudyOpen);
+      setOpenSubmenu(null);
+    }
+  };
+
+  const handleSubmenuKeyDown = (e: React.KeyboardEvent, id: string) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setOpenSubmenu(openSubmenu === id ? null : id);
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      setOpenSubmenu(id);
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      setOpenSubmenu(null);
+    }
+  };
+
   return (
     <header className="sticky top-2 sm:top-4 z-40 transition-colors duration-300 w-full pointer-events-none">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="relative flex items-center justify-between h-12 sm:h-14 px-3 sm:px-5 bg-white/95 dark:bg-surface/95 backdrop-blur-xl border border-border/50 shadow-[0_8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] rounded-full pointer-events-auto">
-          {/* Logo removed as requested */}
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-1" aria-label="Main navigation">
@@ -50,71 +108,104 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
               {navLinks[0].label}
             </Link>
 
-            {/* Study Dropdown - Hide on Nepali Pages (No Premium Content) */}
+            {/* Study Dropdown */}
             {!isNepaliPage && (
-              <div className="relative group">
-              <button
-                className={`flex items-center gap-1 px-5 py-2 rounded-full text-[14px] font-bold transition-all duration-300 ${
-                  pathname?.startsWith('/study') || pathname?.startsWith('/semesters')
-                    ? 'text-accent bg-accent/10 shadow-sm'
-                    : 'text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5'
-                }`}
-              >
-                {dict.study}
-                <svg className="w-4 h-4 transition-transform group-hover:rotate-180 text-text-muted group-hover:text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  aria-expanded={isStudyOpen}
+                  aria-haspopup="true"
+                  onClick={() => setIsStudyOpen(!isStudyOpen)}
+                  onKeyDown={handleStudyKeyDown}
+                  className={`flex items-center gap-1 px-5 py-2 rounded-full text-[14px] font-bold transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                    pathname?.startsWith('/study') || pathname?.startsWith('/semesters')
+                      ? 'text-accent bg-accent/10 shadow-sm'
+                      : 'text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5'
+                  }`}
+                >
+                  {dict.study}
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isStudyOpen ? 'rotate-180 text-accent' : 'text-text-muted'}`} />
+                </button>
 
-              <div className="absolute top-full left-0 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50">
-                <div className="w-64 bg-surface rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-border py-1.5">
+                {isStudyOpen && (
+                  <div className="absolute top-full left-0 pt-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="w-64 bg-surface rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-border py-1.5 flex flex-col">
 
-                  {/* LAW NOTES */}
-                  <div className="group/sub relative">
-                    <Link href="/study?type=LAW_NOTE" className="flex items-center justify-between px-5 py-3 min-h-[44px] text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors">
-                      {dict.catLawNotes || 'Law Notes'}
-                      <svg className="w-4 h-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </Link>
-                    {/* Nested Semesters Dropdown */}
-                    <div className="absolute top-0 left-full ml-1 opacity-0 invisible group-hover/sub:opacity-100 group-hover/sub:visible transition-all duration-300 z-50">
-                      <div className="w-48 bg-surface rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-border overflow-hidden py-1.5 max-h-[60vh] overflow-y-auto">
-                        {semesters.map((s) => (
-                          <Link key={s.id} href={`/study?type=LAW_NOTE&semester=${s.id}`} className="flex items-center px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors">
-                            {s.name}
-                          </Link>
-                        ))}
+                      {/* LAW NOTES */}
+                      <div 
+                        className="relative"
+                        onMouseEnter={() => setOpenSubmenu('law_notes')}
+                        onMouseLeave={() => setOpenSubmenu(null)}
+                      >
+                        <button 
+                          onClick={() => setOpenSubmenu(openSubmenu === 'law_notes' ? null : 'law_notes')}
+                          onKeyDown={(e) => handleSubmenuKeyDown(e, 'law_notes')}
+                          aria-expanded={openSubmenu === 'law_notes'}
+                          className="w-full flex items-center justify-between px-5 py-3 min-h-[44px] text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors focus:outline-none focus-visible:bg-accent/5"
+                        >
+                          {dict.catLawNotes || 'Law Notes'}
+                          <ChevronRight className="w-4 h-4 opacity-50" />
+                        </button>
+                        
+                        {openSubmenu === 'law_notes' && (
+                          <div className="absolute top-0 left-full ml-1 z-50 animate-in fade-in slide-in-from-left-2 duration-200">
+                            <div className="w-48 bg-surface rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-border overflow-hidden py-1.5 max-h-[60vh] overflow-y-auto flex flex-col">
+                              {semesters.map((s) => (
+                                <Link 
+                                  key={s.id} 
+                                  href={`/study?type=LAW_NOTE&semester=${s.id}`} 
+                                  className="flex items-center px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors focus:outline-none focus-visible:bg-accent/5"
+                                >
+                                  {s.name}
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
+
+                      {/* OLD QUESTIONS */}
+                      <div 
+                        className="relative"
+                        onMouseEnter={() => setOpenSubmenu('old_questions')}
+                        onMouseLeave={() => setOpenSubmenu(null)}
+                      >
+                        <button 
+                          onClick={() => setOpenSubmenu(openSubmenu === 'old_questions' ? null : 'old_questions')}
+                          onKeyDown={(e) => handleSubmenuKeyDown(e, 'old_questions')}
+                          aria-expanded={openSubmenu === 'old_questions'}
+                          className="w-full flex items-center justify-between px-5 py-3 min-h-[44px] text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors focus:outline-none focus-visible:bg-accent/5"
+                        >
+                          {dict.catOldQuestions || 'Old Questions'}
+                          <ChevronRight className="w-4 h-4 opacity-50" />
+                        </button>
+                        
+                        {openSubmenu === 'old_questions' && (
+                          <div className="absolute top-0 left-full ml-1 z-50 animate-in fade-in slide-in-from-left-2 duration-200">
+                            <div className="w-48 bg-surface rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-border overflow-hidden py-1.5 max-h-[60vh] overflow-y-auto flex flex-col">
+                              {semesters.map((s) => (
+                                <Link 
+                                  key={s.id} 
+                                  href={`/study?type=OLD_QUESTION&semester=${s.id}`} 
+                                  className="flex items-center px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors focus:outline-none focus-visible:bg-accent/5"
+                                >
+                                  {s.name}
+                                </Link>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <Link 
+                        href="/semesters" 
+                        className="flex items-center px-5 py-3 min-h-[44px] text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors border-t border-border mt-1 focus:outline-none focus-visible:bg-accent/5"
+                      >
+                        {dict.browseSemesters || 'Browse by Semester'}
+                      </Link>
                     </div>
                   </div>
-
-                  {/* OLD QUESTIONS */}
-                  <div className="group/sub relative">
-                    <Link href="/study?type=OLD_QUESTION" className="flex items-center justify-between px-5 py-3 min-h-[44px] text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors">
-                      {dict.catOldQuestions || 'Old Questions'}
-                      <svg className="w-4 h-4 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </Link>
-                    {/* Nested Semesters Dropdown */}
-                    <div className="absolute top-0 left-full ml-1 opacity-0 invisible group-hover/sub:opacity-100 group-hover/sub:visible transition-all duration-300 z-50">
-                      <div className="w-48 bg-surface rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-border overflow-hidden py-1.5 max-h-[60vh] overflow-y-auto">
-                        {semesters.map((s) => (
-                          <Link key={s.id} href={`/study?type=OLD_QUESTION&semester=${s.id}`} className="flex items-center px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors">
-                            {s.name}
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <Link href="/semesters" className="flex items-center px-5 py-3 min-h-[44px] text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors border-t border-border mt-1">
-                    {dict.browseSemesters || 'Browse by Semester'}
-                  </Link>
-                </div>
+                )}
               </div>
-            </div>
             )}
 
             {navLinks.slice(1).map((link) => {

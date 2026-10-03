@@ -13,8 +13,6 @@ const createResourceSchema = z.object({
   priceAmount: z.number().optional(),
   type: z.nativeEnum(ResourceType).optional(),
   unitId: z.string().uuid().optional(),
-  content: z.string().optional(),
-  featuredImage: z.string().optional(),
 });
 
 export const createResourceAction = createSafeAction(async (args: {
@@ -26,7 +24,6 @@ export const createResourceAction = createSafeAction(async (args: {
   type?: ResourceType;
   unitId?: string;
   content?: string;
-  featuredImage?: string;
 }, session) => {
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) {
     throw new Error('Unauthorized');
@@ -45,9 +42,6 @@ export const createResourceAction = createSafeAction(async (args: {
       currency,
       type: args.type || ResourceType.LAW_NOTE,
       unitId: args.unitId || null,
-      content: args.content || null,
-      featuredImage: args.featuredImage || null,
-      authorId: session.userId || null,
     }
   });
 
@@ -77,7 +71,7 @@ export const deleteResourceAction = createSafeAction(async (args: z.infer<typeof
 
   const resource = await prisma.resource.findUnique({ where: { id: args.id } });
 
-  if (session.role === Role.EDITOR && resource?.authorId !== session.userId) {
+  if (session.role === Role.EDITOR ) {
     throw new Error('Unauthorized: You can only delete resources you created.');
   }
 
@@ -130,9 +124,7 @@ const updateResourceSchema = z.object({
   priceAmount: z.number().optional(),
   type: z.nativeEnum(ResourceType),
   unitId: z.string().uuid().optional(),
-  content: z.string().optional(),
-  featuredImage: z.string().optional(),
-  status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']),
+      status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']),
 });
 
 export const updateResourceAction = createSafeAction(async (args: z.infer<typeof updateResourceSchema>, session) => {
@@ -157,9 +149,7 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
       currency,
       type: args.type,
       unitId: args.unitId || null,
-      content: args.content || null,
-      featuredImage: args.featuredImage || null,
-      status: args.status as any,
+                  status: args.status as any,
     }
   });
 

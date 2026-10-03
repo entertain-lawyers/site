@@ -23,8 +23,7 @@ export default async function AdminResourcesPage() {
     ? {}
     : {
         OR: [
-          { type: { notIn: [ResourceType.LAW_NOTE, ResourceType.CASE_LAW] } }, // Free resources
-          { authorId: session.user.id } // Premium resources they authored
+          { type: { notIn: [ResourceType.LAW_NOTE, ResourceType.CASE_LAW] } }
         ]
       };
 
@@ -128,7 +127,7 @@ export default async function AdminResourcesPage() {
                           <Link href={`/resources/${resource.id}`} className="inline-flex items-center justify-center px-4 py-2 border border-black/5 dark:border-white/5 rounded-lg text-navy dark:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors shadow-sm">
                             View
                           </Link>
-                          {(session?.user?.role === 'ADMIN' || resource.authorId === session?.user?.id) && (
+                          {(session?.user?.role === 'ADMIN' ) && (
                             <DeleteResourceButton id={resource.id} />
                           )}
                         </td>

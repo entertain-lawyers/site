@@ -37,7 +37,7 @@ export default async function NepaliLandingPage() {
     orderBy: { createdAt: 'desc' },
     take: 10,
     include: {
-      author: { select: { name: true, email: true } }
+      author: { select: { email: true } }
     }
   });
 
@@ -114,21 +114,9 @@ export default async function NepaliLandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {recentPosts.map((post: any) => (
               <article key={post.id} className="group bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-black/5 dark:border-white/5 flex flex-col h-full">
-                {post.featuredImage ? (
-                  <div className="relative h-56 w-full overflow-hidden bg-slate-100 dark:bg-zinc-800">
-                    <Image
-                      src={post.featuredImage}
-                      alt={post.title}
-                      fill
-                      className="object-cover transform group-hover:scale-105 transition-transform duration-700 ease-in-out"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  </div>
-                ) : (
-                  <div className="relative h-56 w-full overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 dark:from-zinc-800 dark:to-zinc-900 flex items-center justify-center">
-                    <span className="text-6xl text-black/5 dark:text-white/5 font-serif italic">EL</span>
-                  </div>
-                )}
+                <div className="relative h-56 w-full overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 dark:from-zinc-800 dark:to-zinc-900 flex items-center justify-center">
+                  <span className="text-6xl text-black/5 dark:text-white/5 font-serif italic">EL</span>
+                </div>
                 <div className="p-6 flex flex-col flex-grow">
                   <div className="flex items-center gap-3 mb-4">
                     <span className="px-3 py-1 bg-accent/10 text-accent dark:bg-accent/20 text-xs font-bold rounded-full font-nepali uppercase tracking-wider">
@@ -144,9 +132,9 @@ export default async function NepaliLandingPage() {
                   <div className="mt-auto pt-4 border-t border-black/5 dark:border-white/5 flex items-center justify-between text-sm text-text-muted">
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-700 flex items-center justify-center text-xs font-bold text-navy dark:text-white">
-                        {(post.author?.name)?.charAt(0) || (post.author?.email)?.charAt(0) || 'U'}
+                        {(post.author?.email)?.charAt(0) || 'U'}
                       </div>
-                      <span className="font-medium truncate max-w-[120px]">{(post.author?.name) || 'सम्पादक'}</span>
+                      <span className="font-medium truncate max-w-[120px]">{(post.author?.email) || 'सम्पादक'}</span>
                     </div>
                     <time className="font-medium font-nepali">{formatBSDate(post.createdAt)}</time>
                   </div>

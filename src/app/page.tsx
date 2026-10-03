@@ -16,39 +16,13 @@ export const metadata = {
   description: 'Comprehensive law notes, old questions, case laws, and study resources for BA.LLB and LLB students.',
 };
 
-import { prisma } from '@/lib/prisma';
-import { unstable_cache } from 'next/cache';
-
-export default async function HomePage() {
-  const getActiveAd = unstable_cache(
-    async () => {
-      return prisma.advertisement.findFirst({
-        where: { isActive: true },
-      });
-    },
-    ['active-ad'],
-    { revalidate: 3600 }
-  );
-
-  const activeAd = await getActiveAd();
+export default function HomePage() {
   return (
     <div className="w-full bg-background min-h-screen pb-12 sm:pb-16 lg:pb-20 relative overflow-hidden">
 
       {/* Background Decorative Elements */}
       <div className="absolute top-[10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-accent/5 dark:bg-accent/10 blur-[120px] pointer-events-none" />
       <div className="absolute top-[30%] right-[-5%] w-[30%] h-[30%] rounded-full bg-blue-500/5 dark:bg-blue-500/10 blur-[100px] pointer-events-none" />
-
-      {/* Advertisement Placeholder (Uncomment when an ad is active in the admin dashboard)
-      <div className="w-full mt-1 h-[100px] sm:h-[130px] lg:h-[150px] border-b border-border/70 flex items-center justify-center transition-colors hover:bg-surface/5 relative z-10 overflow-hidden">
-        {activeAd ? (
-           <a href={activeAd.linkUrl || "#"} target="_blank" rel="noopener noreferrer" className="w-full h-full block">
-             <img src={activeAd.mediaUrl} alt={activeAd.title} className="w-full h-full object-cover" />
-           </a>
-        ) : (
-           <span className="text-text-muted text-xs sm:text-sm font-semibold tracking-[0.2em] uppercase">Advertisement</span>
-        )}
-      </div>
-      */}
 
       {/* Hero Section */}
       <section className="pt-2 pb-10 sm:pt-3 sm:pb-12 flex flex-col items-center justify-center text-center px-4 relative z-10">

@@ -7,6 +7,392 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id              String               @id @default(uuid())
+  email           String               @unique
+  isEmailVerified Boolean              @default(false)
+  passwordHash    String?
+  role            Role                 @default(USER)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  accessLogs    AccessLog[]
+  accounts      Account[]
+  AuditLog      AuditLog[]
+  entitlements  Entitlement[]
+  Event         Event[]
+  transactions  PaymentTransaction[]
+  posts         Post[]
+  Publication   Publication[]
+  purchases     Purchase[]
+  sessions      Session[]
+  subscriptions Subscription[]
+  uploadIntents UploadIntent[]
+}
+
+model Account {
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  userAgent    String?
+  ipAddress    String?
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Plan {
+  id            String         @id @default(uuid())
+  name          String
+  durationDays  Int
+  priceAmount   Int
+  currency      String         @default("NPR")
+  isActive      Boolean        @default(true)
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id               String               @id @default(uuid())
+  userId           String
+  planId           String
+  status           SubStatus
+  currentPeriodEnd DateTime
+  createdAt     DateTime             @default(now())
+  entitlements     Entitlement[]
+  transactions     PaymentTransaction[]
+  plan             Plan                 @relation(fields: [planId], references: [id])
+  user             User                 @relation(fields: [userId], references: [id])
+
+  @@index([userId, status])
+}
+
+model Purchase {
+  id           String               @id @default(uuid())
+  userId       String
+  resourceId   String
+  amountPaid   Int
+  currency     String               @default("NPR")
+  createdAt     DateTime             @default(now())
+  transactions PaymentTransaction[]
+  resource     Resource             @relation(fields: [resourceId], references: [id])
+  user         User                 @relation(fields: [userId], references: [id])
+
+  @@unique([userId, resourceId])
+}
+
+model PaymentTransaction {
+  id             String        @id @default(uuid())
+  userId         String
+  provider       String
+  providerRef    String?       @unique
+  idempotencyKey String        @unique
+  amount         Int
+  currency       String        @default("NPR")
+  type           TxType
+  status         TxStatus      @default(PENDING)
+  subscriptionId String?
+  purchaseId     String?
+  createdAt     DateTime             @default(now())
+  updatedAt      DateTime      @updatedAt
+  targetId       String?
+  purchase       Purchase?     @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  user           User          @relation(fields: [userId], references: [id])
+
+  @@index([providerRef])
+  @@index([userId, status])
+}
+
+model Entitlement {
+  id             String            @id @default(uuid())
+  userId         String
+  sourceType     EntitlementSource
+  expiresAt      DateTime?
+  resourceId     String?
+  subscriptionId String?
+  resource       Resource?         @relation(fields: [resourceId], references: [id], onDelete: Restrict)
+  subscription   Subscription?     @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  user           User              @relation(fields: [userId], references: [id])
+
+  @@index([userId, expiresAt])
+  @@index([userId, resourceId])
+}
+
+model Semester {
+  id       String    @id @default(uuid())
+  name     String
+  order    Int       @default(0)
+  slug     String?   @unique
+  subjects Subject[]
+}
+
+model Subject {
+  id         String     @id @default(uuid())
+  name       String
+  semesterId String
+  slug       String?    @unique
+  order      Int        @default(0)
+  resources  Resource[]
+  semester   Semester   @relation(fields: [semesterId], references: [id])
+  units      Unit[]
+}
+
+model Unit {
+  id        String     @id @default(uuid())
+  name      String
+  title     String?
+  order     Int        @default(0)
+  subjectId String
+  resources Resource[]
+  subject   Subject    @relation(fields: [subjectId], references: [id])
+}
+
+model Resource {
+  id            String         @id @default(uuid())
+  title         String
+  isPremium     Boolean        @default(false)
+  subjectId     String?
+  documentId    String?        @unique
+  currency      String         @default("NPR")
+  priceAmount   Int?
+  order         Int?           @default(0)
+  type          ResourceType   @default(LAW_NOTE)
+  unitId        String?
+  metaDesc      String?
+  metaTitle     String?
+  status        ContentStatus  @default(PUBLISHED)
+  accessLogs    AccessLog[]
+  entitlements  Entitlement[]
+  purchases     Purchase[]
+  document      Document?      @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  subject       Subject?       @relation(fields: [subjectId], references: [id])
+  unit          Unit?          @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  uploadIntents UploadIntent[]
+  Category      Category[]
+  Tag           Tag[]
+
+  @@index([subjectId, type])
+  @@index([unitId])
+}
+
+model Document {
+  id              String       @id @default(uuid())
+  storageProvider String
+  storageKey      String
+  fileSize        Int
+  mimeType        String
+  accessLogs      AccessLog[]
+  Publication     Publication?
+  resource        Resource?
+}
+
+model UploadIntent {
+  id               String       @id @default(uuid())
+  resourceId       String
+  storageKey       String       @unique
+  expectedSize     Int
+  expectedMimeType String
+  adminId          String
+  status           IntentStatus @default(PENDING)
+  expiresAt        DateTime
+  createdAt     DateTime             @default(now())
+  updatedAt        DateTime     @updatedAt
+  admin            User         @relation(fields: [adminId], references: [id])
+  resource         Resource     @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  @@index([resourceId, status])
+  @@index([adminId])
+}
+
+model Post {
+  id        String        @id @default(uuid())
+  title     String
+  content   String
+  type      PostType
+  authorId  String?
+  createdAt     DateTime             @default(now())
+  updatedAt DateTime      @updatedAt
+  status    ContentStatus @default(DRAFT)
+  metaDesc  String?
+  metaTitle String?
+  author    User?         @relation(fields: [authorId], references: [id])
+  Category  Category[]
+  Tag       Tag[]
+
+  @@index([type, status])
+}
+
+model AccessLog {
+  id         String    @id @default(uuid())
+  userId     String?
+  resourceId String?
+  documentId String?
+  action     String
+  ipAddress  String?
+  userAgent  String?
+  createdAt     DateTime             @default(now())
+  document   Document? @relation(fields: [documentId], references: [id])
+  resource   Resource? @relation(fields: [resourceId], references: [id])
+  user       User?     @relation(fields: [userId], references: [id])
+
+  @@index([userId, action])
+  @@index([resourceId])
+}
+
+model AuditLog {
+  id         String      @id @default(uuid())
+  userId     String?
+  action     AuditAction
+  entityType String
+  entityId   String
+  details    Json?
+  createdAt     DateTime             @default(now())
+  User       User?       @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([userId])
+}
+
+model Category {
+  id          String     @id @default(uuid())
+  name        String     @unique
+  slug        String     @unique
+  description String?
+  Post        Post[]
+  Resource    Resource[]
+}
+
+model Event {
+  id            String        @id @default(uuid())
+  title         String
+  slug          String        @unique
+  description   String?
+  content       String?
+  eventDate     DateTime
+  location      String?
+  featuredImage String?
+  status        ContentStatus @default(DRAFT)
+  metaTitle     String?
+  metaDesc      String?
+  authorId      String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime @updatedAt
+  User          User?         @relation(fields: [authorId], references: [id])
+}
+
+model FAQ {
+  id       String        @id @default(uuid())
+  question String
+  answer   String
+  order    Int           @default(0)
+  status   ContentStatus @default(PUBLISHED)
+}
+
+model Gallery {
+  id           String         @id @default(uuid())
+  title        String
+  description  String?
+  status       ContentStatus  @default(DRAFT)
+  createdAt     DateTime             @default(now())
+  updatedAt    DateTime @updatedAt
+  GalleryImage GalleryImage[]
+}
+
+model GalleryImage {
+  id        String   @id @default(uuid())
+  galleryId String
+  url       String
+  altText   String?
+  caption   String?
+  order     Int      @default(0)
+  createdAt     DateTime             @default(now())
+  updatedAt DateTime @updatedAt
+  Gallery   Gallery  @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+}
+
+model GlobalSettings {
+  id               String   @id
+  organizationName String   @default("Entertain Lawyers")
+  contactEmail     String?
+  contactPhone     String?
+  address          String?
+  facebookUrl      String?
+  twitterUrl       String?
+  instagramUrl     String?
+  youtubeUrl       String?
+  footerCopyright  String?
+  updatedAt        DateTime @updatedAt
+}
+
+model HomepageConfig {
+  id               String   @id
+  heroHeading      String
+  heroSubheading   String?
+  heroCtaText      String?
+  heroCtaLink      String?
+  announcementText String?
+  announcementLink String?
+  updatedAt        DateTime @updatedAt
+}
+
+model Publication {
+  id          String        @id @default(uuid())
+  title       String
+  slug        String        @unique
+  description String?
+  content     String?
+  publishDate DateTime?
+  coverImage  String?
+  documentUrl String?
+  documentId  String?       @unique
+  status      ContentStatus @default(DRAFT)
+  metaTitle   String?
+  metaDesc    String?
+  authorId    String?
+  createdAt     DateTime             @default(now())
+  updatedAt   DateTime @updatedAt
+  User        User?         @relation(fields: [authorId], references: [id])
+  Document    Document?     @relation(fields: [documentId], references: [id], onDelete: Restrict)
+}
+
+model Redirect {
+  id          String   @id @default(uuid())
+  source      String   @unique
+  destination String
+  statusCode  Int      @default(301)
+  isActive    Boolean  @default(true)
+  notes       String?
+  createdAt     DateTime             @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Tag {
+  id       String     @id @default(uuid())
+  name     String     @unique
+  slug     String     @unique
+  Post     Post[]
+  Resource Resource[]
+}
+
 enum Role {
   USER
   ADMIN
@@ -35,213 +421,11 @@ enum EntitlementSource {
   PURCHASE
 }
 
-model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  passwordHash String?
-  role         Role     @default(USER)
-  createdAt    DateTime @default(now())
-
-  sessions      Session[]
-  subscriptions Subscription[]
-  purchases     Purchase[]
-  entitlements  Entitlement[]
-  transactions  PaymentTransaction[]
-  accessLogs    AccessLog[]
-  uploadIntents UploadIntent[]
-  posts         Post[]
-  accounts      Account[]
-}
-
-model Account {
-  id                 String  @id @default(uuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?  @db.Text
-  access_token       String?  @db.Text
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?  @db.Text
-  session_state      String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-  @@index([userId])
-}
-
-model Session {
-  id           String   @id @default(uuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-  userAgent    String?
-  ipAddress    String?
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
-}
-
-// === ENTITLEMENT & MONETIZATION ===
-
-model Plan {
-  id            String         @id @default(uuid())
-  name          String
-  durationDays  Int
-  priceAmount   Int // Minor units (paisa)
-  currency      String         @default("NPR")
-  isActive      Boolean        @default(true)
-  subscriptions Subscription[]
-}
-
-model Subscription {
-  id               String    @id @default(uuid())
-  userId           String
-  planId           String
-  status           SubStatus
-  currentPeriodEnd DateTime // Extension base date
-  createdAt        DateTime  @default(now())
-
-  user         User                 @relation(fields: [userId], references: [id])
-  plan         Plan                 @relation(fields: [planId], references: [id])
-  entitlements Entitlement[]
-  transactions PaymentTransaction[]
-
-  @@index([userId, status])
-}
-
-model Purchase {
-  id         String   @id @default(uuid())
-  userId     String
-  resourceId String
-  amountPaid Int // Minor units (paisa)
-  currency   String   @default("NPR")
-  createdAt  DateTime @default(now())
-
-  user         User                 @relation(fields: [userId], references: [id])
-  resource     Resource             @relation(fields: [resourceId], references: [id])
-  transactions PaymentTransaction[]
-
-  @@unique([userId, resourceId]) // Prevent duplicate purchase of the same resource
-}
-
-model PaymentTransaction {
-  id             String   @id @default(uuid())
-  userId         String
-  provider       String // "ESEWA", "KHALTI"
-  providerRef    String?  @unique // Reference returned by provider
-  idempotencyKey String   @unique // Internal key generated on initiation
-  amount         Int // Minor units (paisa)
-  currency       String   @default("NPR")
-  type           TxType
-  status         TxStatus @default(PENDING)
-  targetId       String?  // Holds planId or resourceId pending completion
-
-  subscriptionId String?
-  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
-
-  purchaseId String?
-  purchase   Purchase? @relation(fields: [purchaseId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id])
-
-  @@index([providerRef])
-  @@index([userId, status])
-}
-
-model Entitlement {
-  id         String            @id @default(uuid())
-  userId     String
-  sourceType EntitlementSource
-  expiresAt  DateTime? // Null if permanent (one-time purchase)
-
-  resourceId String?
-  resource   Resource? @relation(fields: [resourceId], references: [id])
-
-  subscriptionId String?
-  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, expiresAt])
-  @@index([userId, resourceId])
-}
-
-// === CONTENT & INFRASTRUCTURE ===
-
 enum ResourceType {
   LAW_NOTE
   CASE_LAW
   OLD_QUESTION
   OTHER
-}
-
-model Semester {
-  id       String    @id @default(uuid())
-  name     String
-  order    Int
-  subjects Subject[]
-}
-
-model Subject {
-  id         String     @id @default(uuid())
-  name       String
-  semesterId String
-  semester   Semester   @relation(fields: [semesterId], references: [id])
-  resources  Resource[]
-  units      Unit[]
-}
-
-model Unit {
-  id        String     @id @default(uuid())
-  name      String                          // "Unit I", "Unit III", "Prescribed Cases"
-  title     String?                         // Optional descriptive title
-  order     Int
-  subjectId String
-  subject   Subject    @relation(fields: [subjectId], references: [id])
-  resources Resource[]
-}
-
-model Resource {
-  id          String       @id @default(uuid())
-  title       String
-  type        ResourceType @default(LAW_NOTE)
-  order       Int?                               // Sort order within subject/unit
-  isPremium   Boolean      @default(false)
-  priceAmount Int?                               // Minor units (paisa)
-  currency    String       @default("NPR")
-  subjectId   String
-  unitId      String?                            // Nullable for backward compat
-  documentId  String?      @unique
-
-  subject      Subject       @relation(fields: [subjectId], references: [id])
-  unit         Unit?         @relation(fields: [unitId], references: [id])
-  document     Document?     @relation(fields: [documentId], references: [id])
-  purchases    Purchase[]
-  entitlements Entitlement[]
-  accessLogs   AccessLog[]
-  uploadIntents UploadIntent[]
-
-  @@index([subjectId, type])
-  @@index([unitId])
-}
-
-model Document {
-  id              String @id @default(uuid())
-  storageProvider String // "R2"
-  storageKey      String
-  fileSize        Int
-  mimeType        String
-
-  resource Resource?
-  
-  accessLogs AccessLog[]
 }
 
 enum IntentStatus {
@@ -251,62 +435,38 @@ enum IntentStatus {
   EXPIRED
 }
 
-model UploadIntent {
-  id               String       @id @default(uuid())
-  resourceId       String
-  storageKey       String       @unique
-  expectedSize     Int
-  expectedMimeType String
-  adminId          String
-  status           IntentStatus @default(PENDING)
-  expiresAt        DateTime
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-
-  resource Resource @relation(fields: [resourceId], references: [id])
-  admin    User     @relation(fields: [adminId], references: [id])
-
-  @@index([resourceId, status])
-  @@index([adminId])
-}
-
-// === POSTS (NEWS, BLOGS, FACTS) ===
-
 enum PostType {
   NEWS
   BLOG
   FACT
+  OPINION
+  NEPALI_SAMANYA_SAMACHAR
+  NEPALI_ADALAT_SAMACHAR
+  NEPALI_MUKHYA_SAMACHAR
+  NEPALI_NAJIRHARU
+  NEPALI_AIN_KANUN
+  NEPALI_BLOG_BICHAR
 }
 
-model Post {
-  id          String    @id @default(uuid())
-  title       String
-  content     String    @db.Text
-  type        PostType
-  isPublished Boolean   @default(false)
-  authorId    String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  author      User      @relation(fields: [authorId], references: [id])
-
-  @@index([type, isPublished])
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  PUBLISH
 }
 
-model AccessLog {
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model VerificationToken {
   id         String   @id @default(uuid())
-  userId     String
-  resourceId String?
-  documentId String?
-  action     String   // e.g. "VIEW_DOCUMENT", "DOWNLOAD_INTENT"
-  ipAddress  String?
-  userAgent  String?
-  createdAt  DateTime @default(now())
+  identifier String
+  token      String
+  type       String
+  expires    DateTime
 
-  user     User      @relation(fields: [userId], references: [id])
-  resource Resource? @relation(fields: [resourceId], references: [id])
-  document Document? @relation(fields: [documentId], references: [id])
-
-  @@index([userId, action])
-  @@index([resourceId])
+  @@unique([identifier, token])
 }

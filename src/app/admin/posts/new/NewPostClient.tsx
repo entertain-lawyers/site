@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import RichTextEditor from '@/components/editor/RichTextEditor';
-import ImageUpload from '@/components/admin/ImageUpload';
 import { createPostAction } from '@/modules/admin/admin-post.actions';
 
 export default function NewPostClient() {
@@ -15,7 +14,6 @@ export default function NewPostClient() {
   const [title, setTitle] = useState('');
   const [type, setType] = useState<any>('NEWS');
   const [content, setContent] = useState('');
-  const [featuredImage, setFeaturedImage] = useState('');
   const [isPublished, setIsPublished] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,7 +31,6 @@ export default function NewPostClient() {
         title,
         type,
         content,
-        featuredImage,
         isPublished,
       });
 
@@ -141,14 +138,7 @@ export default function NewPostClient() {
             </div>
           </div>
 
-          <div className="bg-slate-50 dark:bg-zinc-950 p-6 rounded-2xl border border-black/5 dark:border-white/5 space-y-6">
-            <h3 className="font-bold text-navy dark:text-white border-b border-black/5 dark:border-white/10 pb-3">Featured Image</h3>
-            <ImageUpload
-              value={featuredImage}
-              onChange={setFeaturedImage}
-              type="POST"
-            />
-          </div>
+
 
         </div>
       </form>

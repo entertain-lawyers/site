@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { CheckoutButtonsSubscription } from '@/components/payments/CheckoutButtonsSubscription';
+import { env } from '@/env';
 import { getDictionary } from '@/lib/i18n';
 import { CheckCircle2, HelpCircle } from 'lucide-react';
 
@@ -112,7 +113,10 @@ export default async function PricingPage() {
                     </ul>
                   </div>
                   <div className="p-5 sm:p-8 lg:p-10 pt-0 mt-auto">
-                    <CheckoutButtonsSubscription planId={plan.id} />
+                    <CheckoutButtonsSubscription 
+                      planId={plan.id} 
+                      paymentsEnabled={env.PAYMENTS_ENABLED === 'true'}
+                    />
                   </div>
                 </div>
               ))}

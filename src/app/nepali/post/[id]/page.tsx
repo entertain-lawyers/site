@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
-import Image from 'next/image';
 import Link from 'next/link';
 import { formatBSDate } from '@/lib/nepali-date';
 import { Metadata } from 'next';
@@ -17,7 +16,7 @@ export default async function NepaliPostPage({ params }: { params: { id: string 
   const post = await prisma.post.findUnique({
     where: { id: params.id },
     include: {
-      author: { select: { name: true, email: true, role: true } }
+      author: { select: { email: true, role: true } }
     }
   });
 
@@ -65,29 +64,16 @@ export default async function NepaliPostPage({ params }: { params: { id: string 
 
           <div className="flex items-center gap-4 py-6 border-y border-black/5 dark:border-white/5">
             <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-zinc-800 flex items-center justify-center text-lg font-bold text-navy dark:text-white">
-              {(post.author?.name)?.charAt(0) || (post.author?.email)?.charAt(0) || 'U'}
+              {(post.author?.email)?.charAt(0) || 'U'}
             </div>
             <div>
-              <p className="font-bold text-navy dark:text-white text-lg">{(post.author?.name) || 'सम्पादक'}</p>
+              <p className="font-bold text-navy dark:text-white text-lg">{(post.author?.email) || 'सम्पादक'}</p>
               <p className="text-sm text-text-secondary font-nepali">
                 {post.author?.role === 'ADMIN' ? 'प्रशासक' : 'सम्पादक'}
               </p>
             </div>
           </div>
         </header>
-
-        {/* Featured Image */}
-        {post.featuredImage && (
-          <div className="relative w-full aspect-video rounded-3xl overflow-hidden mb-12 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)]">
-            <Image
-              src={post.featuredImage}
-              alt={post.title}
-              fill
-              className="object-cover"
-              priority
-            />
-          </div>
-        )}
 
         {/* Post Content */}
         <div

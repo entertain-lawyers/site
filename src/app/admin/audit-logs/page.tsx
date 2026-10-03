@@ -14,8 +14,8 @@ export default async function AuditLogsPage() {
   const logs = await prisma.auditLog.findMany({
     orderBy: { createdAt: 'desc' },
     include: {
-      user: {
-        select: { email: true, name: true, role: true }
+      User: {
+        select: { email: true, role: true }
       }
     },
     take: 100 // Limit to latest 100 for now
@@ -64,8 +64,8 @@ export default async function AuditLogsPage() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex flex-col">
-                          <span className="text-sm font-bold text-navy dark:text-white">{log.user ? (log.user.name || log.user.email) : 'System/Deleted'}</span>
-                          <span className="text-xs text-text-muted">{log.user?.role || 'N/A'}</span>
+                          <span className="text-sm font-bold text-navy dark:text-white">{log.User ? log.User.email : 'System/Deleted'}</span>
+                          <span className="text-xs text-text-muted">{log.User?.role || 'N/A'}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">

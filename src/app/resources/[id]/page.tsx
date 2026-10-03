@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { canAccessResource } from '@/modules/entitlements/entitlement.service';
 import { CheckoutButtons } from '@/components/payments/CheckoutButtons';
+import { env } from '@/env';
 import { Metadata } from 'next';
 import { getDictionary } from '@/lib/i18n';
 import { BookOpen, FileText, Lock, ChevronLeft, ChevronRight, LockOpen } from 'lucide-react';
@@ -291,17 +292,13 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
                   </Link>
                 )}
 
-                {!resource.documentId && !resource.content && (
+                {!resource.documentId && (
                   <div className="inline-flex items-center justify-center px-8 py-4 border border-border text-sm font-bold rounded-xl text-text-muted bg-surface-alt cursor-not-allowed">
                     {dict.pdfComingSoon}
                   </div>
                 )}
 
-                {resource.content && !resource.documentId && (
-                  <div className="text-sm font-bold text-text-secondary">
-                    Scroll down to read the note.
-                  </div>
-                )}
+                {/* Removed obsolete resource.content scroll hint */}
               </div>
             ) : (
               <div className="flex flex-col items-center text-center max-w-lg mx-auto">
@@ -318,6 +315,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
                       resourceId={resource.id}
                       priceAmount={resource.priceAmount ?? 0}
                       currency={resource.currency}
+                      paymentsEnabled={env.PAYMENTS_ENABLED === 'true'}
                     />
                   </div>
                   <div className="flex items-center gap-4 w-full sm:w-auto">
@@ -337,11 +335,11 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
           </div>
         </div>
 
-        {hasAccess && resource.content && (
+        {hasAccess && false && (
           <div className="bg-white dark:bg-zinc-950 p-5 sm:p-8 md:p-12 rounded-2xl sm:rounded-3xl border border-black/5 dark:border-white/5 mb-12 shadow-[0_8px_30px_rgba(0,0,0,0.04)] overflow-x-auto">
             <div
               className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-accent hover:prose-a:text-accent-dark prose-img:rounded-xl prose-img:shadow-md"
-              dangerouslySetInnerHTML={{ __html: resource.content }}
+              dangerouslySetInnerHTML={{ __html: "" }}
             />
           </div>
         )}

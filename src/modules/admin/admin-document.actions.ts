@@ -28,7 +28,7 @@ export const initiateDocumentUpload = createSafeAction(
       throw new Error("Resource not found");
     }
 
-    if (role === "EDITOR" && resource.authorId !== userId) {
+    if (role === "EDITOR" ) {
       throw new Error("You do not have permission to upload documents for this resource.");
     }
 

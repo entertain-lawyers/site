@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { updatePostAction } from '@/modules/admin/admin-post.actions';
 import Link from 'next/link';
 import RichTextEditor from '@/components/editor/RichTextEditor';
-import ImageUpload from '@/components/admin/ImageUpload';
 
 export default function EditPostClient({ post }: { post: any }) {
   const router = useRouter();
@@ -13,7 +12,6 @@ export default function EditPostClient({ post }: { post: any }) {
   const [content, setContent] = useState(post.content);
   const [type, setType] = useState<any>(post.type);
   const [isPublished, setIsPublished] = useState(post.status === 'PUBLISHED' || !!post.isPublished);
-  const [featuredImage, setFeaturedImage] = useState(post.featuredImage || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -34,7 +32,6 @@ export default function EditPostClient({ post }: { post: any }) {
         content,
         type,
         isPublished,
-        featuredImage,
       });
 
       if (!res.success) {
@@ -142,14 +139,7 @@ export default function EditPostClient({ post }: { post: any }) {
             </div>
           </div>
 
-          <div className="bg-slate-50 dark:bg-zinc-950 p-6 rounded-2xl border border-black/5 dark:border-white/5 space-y-6">
-            <h3 className="font-bold text-navy dark:text-white border-b border-black/5 dark:border-white/10 pb-3">Featured Image</h3>
-            <ImageUpload
-              value={featuredImage}
-              onChange={setFeaturedImage}
-              type="POST"
-            />
-          </div>
+
 
         </div>
       </form>

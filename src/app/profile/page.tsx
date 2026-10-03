@@ -34,10 +34,10 @@ export default async function ProfilePage() {
         <ProfileClient user={{
           id: user.id,
           email: user.email,
-          name: user.name || '',
-          phone: user.phone || '',
-          education: user.education || '',
-          university: user.university || '',
+          name: user.email,
+          phone: '',
+          education: '',
+          university: '',
           hasPassword: !!user.passwordHash
         }} />
       </div>

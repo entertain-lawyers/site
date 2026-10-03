@@ -5,7 +5,7 @@ export const revalidate = 60; // Revalidate every minute
 
 export default async function BlogsPage() {
   const posts = await prisma.post.findMany({
-    where: { type: 'BLOG', status: 'PUBLISHED' },
+    where: { type: { in: ['BLOG', 'OPINION'] }, status: 'PUBLISHED' },
     orderBy: { createdAt: 'desc' },
     include: { author: { select: { email: true } } }
   });
@@ -25,16 +25,11 @@ export default async function BlogsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {posts.map(post => (
             <div key={post.id} className="bg-surface border border-border rounded-2xl shadow-soft overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 flex flex-col">
-              {post.featuredImage ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={post.featuredImage} alt={post.title} className="w-full h-48 object-cover border-b border-border" />
-              ) : (
-                <div className="w-full h-48 bg-slate-100 dark:bg-zinc-800 flex items-center justify-center border-b border-border">
-                  <svg className="w-12 h-12 text-black/10 dark:text-white/10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-              )}
+              <div className="w-full h-48 bg-slate-100 dark:bg-zinc-800 flex items-center justify-center border-b border-border">
+                <svg className="w-12 h-12 text-black/10 dark:text-white/10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
               <div className="p-6 sm:p-8 flex flex-col flex-1 bg-white dark:bg-zinc-900">
                 <div className="flex-1">
                   <div className="text-xs text-red-600 dark:text-red-400 mb-3 font-bold uppercase tracking-wider">
