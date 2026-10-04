@@ -71,7 +71,6 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
     ['study-semesters'],
     { revalidate: 3600 }
   );
-  const semesters = await getCachedSemesters();
 
   const getCachedSubjects = unstable_cache(
     async (semesterId: string) => prisma.subject.findMany({
@@ -83,11 +82,6 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
     { revalidate: 3600 }
   );
 
-  let subjects: { id: string; name: string }[] = [];
-  if (selectedSemesterId) {
-    subjects = await getCachedSubjects(selectedSemesterId);
-  }
-
   const getCachedUnits = unstable_cache(
     async (subjectId: string) => prisma.unit.findMany({
       where: { subjectId },
@@ -98,34 +92,40 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
     { revalidate: 3600 }
   );
 
-  let units: { id: string; name: string; title: string | null }[] = [];
-  if (selectedSubjectId) {
-    units = await getCachedUnits(selectedSubjectId);
-  }
-
-  // 2. Fetch filtered resources
-  const resources = await prisma.resource.findMany({
-    where: { status: 'PUBLISHED',
-      ...(selectedSemesterId && { subject: { semesterId: selectedSemesterId } }),
-      ...(selectedSubjectId && { subjectId: selectedSubjectId }),
-      ...(selectedUnitId && { unitId: selectedUnitId }),
-      ...(selectedType && Object.values(ResourceType).includes(selectedType) && { type: selectedType }),
-      ...(searchQuery && {
-        OR: [
-          { title: { contains: searchQuery, mode: 'insensitive' } },
-        ],
-      }),
-    },
-    include: {
-      subject: true,
-      unit: true,
-    },
-    orderBy: [
-      { subject: { name: 'asc' } },
-      { order: 'asc' },
-      { title: 'asc' },
-    ],
-  });
+  // 2. Fetch in parallel
+  const [semesters, subjects, units, resources] = await Promise.all([
+    getCachedSemesters(),
+    selectedSemesterId ? getCachedSubjects(selectedSemesterId) : Promise.resolve([]),
+    selectedSubjectId ? getCachedUnits(selectedSubjectId) : Promise.resolve([]),
+    prisma.resource.findMany({
+      where: { status: 'PUBLISHED',
+        ...(selectedSemesterId && { subject: { semesterId: selectedSemesterId } }),
+        ...(selectedSubjectId && { subjectId: selectedSubjectId }),
+        ...(selectedUnitId && { unitId: selectedUnitId }),
+        ...(selectedType && Object.values(ResourceType).includes(selectedType) && { type: selectedType }),
+        ...(searchQuery && {
+          OR: [
+            { title: { contains: searchQuery, mode: 'insensitive' } },
+          ],
+        }),
+      },
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        isPremium: true,
+        priceAmount: true,
+        order: true,
+        subject: { select: { name: true } },
+        unit: { select: { name: true } },
+      },
+      orderBy: [
+        { subject: { name: 'asc' } },
+        { order: 'asc' },
+        { title: 'asc' },
+      ],
+    })
+  ]);
 
   let pageTitle = dict.studyMaterialsTitle;
   let pageDesc = dict.studyMaterialsDesc || "Explore our comprehensive collection of academic resources tailored for law students.";

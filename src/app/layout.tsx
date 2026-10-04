@@ -9,6 +9,7 @@ import { getLocale, getDictionary } from '@/lib/i18n';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { unstable_cache } from 'next/cache';
+import NextTopLoader from 'nextjs-toploader';
 import PublicOnly from '@/components/layout/PublicOnly';
 
 const mukta = Mukta({ weight: ['400', '500', '600', '700', '800'], subsets: ['devanagari', 'latin'], variable: '--font-mukta' });
@@ -115,6 +116,7 @@ export default async function RootLayout({
         />
       </head>
       <body className={`${mukta.variable} bg-background text-text-primary flex flex-col min-h-screen transition-colors duration-200`}>
+        <NextTopLoader color="var(--color-accent)" showSpinner={false} shadow="0 0 10px var(--color-accent),0 0 5px var(--color-accent)" />
         <ContentProtection />
         <PublicOnly>
           <TopUtilityBar locale={locale} dict={dict} />
