@@ -1,10 +1,11 @@
-import NextAuth, { NextAuthConfig, CredentialsSignin } from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { authConfig } from "./auth.config";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -51,23 +52,14 @@ export async function testAuthorize(credentials: any) {
   return null;
 }
 
-export const authConfig = {
-  trustHost: true,
+export { authConfig };
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
   adapter: PrismaAdapter(prisma),
-  session: {
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-  },
-  pages: {
-    signIn: "/login",
-  },
   providers: [
-    // Only include Google provider if credentials are configured
-    // We check AUTH_GOOGLE_ID only to avoid statically evaluating the secret during the Turbopack build phase.
     ...(process.env.AUTH_GOOGLE_ID
       ? [GoogleProvider({
-          // clientSecret and clientId are omitted here so they are not evaluated at build time.
-          // Auth.js automatically infers them from AUTH_GOOGLE_SECRET and AUTH_GOOGLE_ID at runtime.
         })]
       : []),
     CredentialsProvider({
@@ -79,22 +71,4 @@ export const authConfig = {
       authorize: testAuthorize,
     }),
   ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-        token.role = user.role;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (token && token.id) {
-        session.user.id = token.id as string;
-        session.user.role = token.role as any;
-      }
-      return session;
-    },
-  },
-} satisfies NextAuthConfig;
-
-export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
+});
