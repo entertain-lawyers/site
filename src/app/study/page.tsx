@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
 import { unstable_cache } from 'next/cache';
 import StudySelector from '@/components/study/StudySelector';
+import StudyCardNavigator from '@/components/study/StudyCardNavigator';
 import ResourceTypeFilter from '@/components/study/ResourceTypeFilter';
 import CaseLawLanding from '@/components/study/CaseLawLanding';
 import Link from 'next/link';
@@ -196,6 +197,18 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
           />
             </div>
             )}
+            
+            {/* The new Drill-down Card Navigator */}
+            {selectedType !== 'CASE_LAW' && (
+              <StudyCardNavigator 
+                semesters={semesters}
+                subjects={subjects}
+                units={units}
+                selectedSemesterId={selectedSemesterId}
+                selectedSubjectId={selectedSubjectId}
+                selectedUnitId={selectedUnitId}
+              />
+            )}
 
         {!selectedType && resources.length > 0 && (
           <div className="mb-10">
@@ -212,7 +225,8 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
         )}
 
         <div>
-          {resources.length === 0 ? (
+          {/* If the user is browsing normally, force them to drill down to at least a subject or unit before showing resource results, UNLESS they searched */}
+          {(!selectedUnitId && !searchQuery && selectedType !== 'CASE_LAW') ? null : resources.length === 0 ? (
             <div className="bg-surface border border-border rounded-2xl p-8 sm:p-16 text-center shadow-soft flex flex-col items-center justify-center">
               <div className="w-16 h-16 bg-surface border border-border rounded-full flex items-center justify-center mb-6 text-text-muted shadow-sm">
                 {selectedType === 'CASE_LAW' ? <Scale className="w-8 h-8" /> : <Library className="w-8 h-8" />}
