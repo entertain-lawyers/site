@@ -227,7 +227,7 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
                   onClick={() => { setIsExploreOpen(!isExploreOpen); setIsStudyOpen(false); }}
                   onKeyDown={handleExploreKeyDown}
                   className={`flex items-center gap-1 px-5 py-2 rounded-full text-[14px] font-bold transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-                    ['/events', '/publications', '/gallery', '/faqs', '/blogs', '/news', '/historical-facts'].some(p => pathname?.startsWith(p))
+                    ['/events', '/faqs', '/blogs', '/news', '/historical-facts'].some(p => pathname?.startsWith(p))
                       ? 'text-accent bg-accent/10 shadow-sm'
                       : 'text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5'
                   }`}
@@ -240,8 +240,7 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
                   <div className="absolute top-full left-32 pt-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="w-56 bg-surface rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-border py-1.5 flex flex-col">
                       <Link href="/events" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors">Events</Link>
-                      <Link href="/publications" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors">Publications</Link>
-                      <Link href="/gallery" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors">Gallery</Link>
+
                       <Link href="/faqs" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors">FAQs</Link>
                       <div className="h-px bg-border my-1" />
                       <Link href="/blogs" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors">Blogs</Link>

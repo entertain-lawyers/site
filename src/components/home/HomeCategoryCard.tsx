@@ -2,10 +2,10 @@ import Link from "next/link";
 import { LucideIcon } from "lucide-react";
 
 interface HomeCategoryCardProps {
-  title: string;
+  title: React.ReactNode;
   subtitle: string;
   href: string;
-  icon: LucideIcon;
+  icon: LucideIcon | React.ComponentType<any>;
 }
 
 export function HomeCategoryCard({ title, subtitle, href, icon: Icon }: HomeCategoryCardProps) {
@@ -15,12 +15,14 @@ export function HomeCategoryCard({ title, subtitle, href, icon: Icon }: HomeCate
 
         {/* Text Content */}
         <div className="flex flex-col items-start justify-center text-left relative z-10 w-[60%] sm:w-[50%] pr-2 h-full">
-          <h3 className="text-[17px] sm:text-xl font-bold text-navy dark:text-gray-100 tracking-tight leading-tight mb-1.5 transition-colors duration-400 ease-out group-hover:text-accent dark:group-hover:text-blue-400">
+          <h3 className="text-[18px] sm:text-[20px] font-black text-navy dark:text-gray-100 tracking-tight leading-snug mb-1 transition-colors duration-400 ease-out group-hover:text-accent dark:group-hover:text-blue-400 line-clamp-3">
             {title}
           </h3>
-          <p className="text-[12.5px] sm:text-[14px] text-text-muted dark:text-gray-400 font-medium leading-snug">
-            {subtitle}
-          </p>
+          {subtitle && (
+            <p className="text-[12px] sm:text-[13px] text-text-muted dark:text-gray-400 font-medium leading-snug line-clamp-1">
+              {subtitle}
+            </p>
+          )}
         </div>
 
         {/* Premium Graphic Composition */}

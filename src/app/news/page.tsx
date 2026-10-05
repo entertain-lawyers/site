@@ -8,7 +8,7 @@ export default async function NewsPage() {
   const posts = await prisma.post.findMany({
     where: { type: 'NEWS', status: 'PUBLISHED' },
     orderBy: { createdAt: 'desc' },
-    include: { author: { select: { email: true } } }
+    select: { id: true, title: true, type: true, content: true, createdAt: true },
   });
 
   return (

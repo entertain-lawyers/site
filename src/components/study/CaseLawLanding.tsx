@@ -1,51 +1,70 @@
-import Link from 'next/link';
-import { Scale, ShieldAlert, Landmark, ArrowRight, Gavel, FileSignature, Users } from 'lucide-react';
+import { HomeCategoryCard } from '@/components/home/HomeCategoryCard';
+import { Scale, Landmark } from 'lucide-react';
+
+function PrisonerIcon(props: any) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={props.strokeWidth || 2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      {/* Person */}
+      <circle cx="12" cy="10" r="4" />
+      <path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" />
+      
+      {/* Jail bars & Frame */}
+      <line x1="6" y1="3" x2="6" y2="21" />
+      <line x1="10" y1="3" x2="10" y2="21" />
+      <line x1="14" y1="3" x2="14" y2="21" />
+      <line x1="18" y1="3" x2="18" y2="21" />
+      <line x1="4" y1="3" x2="20" y2="3" />
+      <line x1="4" y1="21" x2="20" y2="21" />
+    </svg>
+  );
+}
 
 export default function CaseLawLanding() {
   const categories = [
     {
       id: 'civil',
       title: 'CIVIL CASES',
+      subtitle: '',
       href: '/study?type=CASE_LAW&q=civil',
-      Icon: Scale,
-      SecondaryIcon: Users,
+      icon: Scale,
     },
     {
       id: 'criminal',
       title: 'CRIMINAL CASES',
+      subtitle: '',
       href: '/study?type=CASE_LAW&q=criminal',
-      Icon: ShieldAlert,
-      SecondaryIcon: Gavel,
+      icon: PrisonerIcon,
     },
     {
       id: 'writs',
       title: 'WRITS',
+      subtitle: '',
       href: '/study?type=CASE_LAW&q=writ',
-      Icon: Landmark,
-      SecondaryIcon: FileSignature,
+      icon: Landmark,
     }
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
       {categories.map((cat) => (
-        <Link 
+        <HomeCategoryCard 
           key={cat.id}
+          title={cat.title}
+          subtitle={cat.subtitle}
           href={cat.href}
-          className="group flex flex-col items-center justify-center bg-surface border-2 border-border rounded-2xl hover:border-navy dark:hover:border-white/50 hover:shadow-[0_12px_40px_rgba(0,0,0,0.12)] hover:-translate-y-1 transition-all duration-300 p-10 h-full relative overflow-hidden aspect-square"
-        >
-          {/* Top Accent Bar */}
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-navy/40 to-navy/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-          
-          <div className="relative mb-6 text-navy dark:text-white group-hover:scale-110 transition-transform duration-500">
-            <cat.Icon className="w-24 h-24 stroke-[1.5]" />
-            <cat.SecondaryIcon className="w-10 h-10 absolute -bottom-2 -right-2 bg-surface rounded-full p-1 border-2 border-surface text-accent" />
-          </div>
-          
-          <h2 className="text-xl sm:text-2xl font-black text-navy dark:text-white tracking-wide uppercase mt-4">
-            {cat.title}
-          </h2>
-        </Link>
+          icon={cat.icon}
+        />
       ))}
     </div>
   );

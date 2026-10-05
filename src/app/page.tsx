@@ -25,8 +25,8 @@ export default function HomePage() {
       <div className="absolute top-[30%] right-[-5%] w-[30%] h-[30%] rounded-full bg-blue-500/5 dark:bg-blue-500/10 blur-[100px] pointer-events-none" />
 
       {/* Hero Section */}
-      <section className="pt-2 pb-10 sm:pt-3 sm:pb-12 flex flex-col items-center justify-center text-center px-4 relative z-10">
-        <div className="relative w-full max-w-[280px] sm:max-w-[480px] md:max-w-[600px] h-32 sm:h-40 md:h-48 mb-2 drop-shadow-sm">
+      <section className="pt-2 pb-4 sm:pt-3 sm:pb-6 flex flex-col items-center justify-center text-center px-4 relative z-10">
+        <div className="relative w-full max-w-[280px] sm:max-w-[480px] md:max-w-[600px] h-24 sm:h-32 md:h-36 mb-0 drop-shadow-sm">
           {/* Light Mode Logo */}
           <Image
             src="/wordmark_navy.png"
@@ -45,13 +45,13 @@ export default function HomePage() {
           />
         </div>
         <h1 className="sr-only">Entertain Lawyers - Connecting with Legal Updates</h1>
-        <p className="max-w-2xl text-text-secondary text-fluid-base font-medium tracking-wide mt-2">
+        <p className="max-w-2xl text-text-secondary text-fluid-base font-medium tracking-wide mt-1">
           Nepal's premium platform for comprehensive <span className="text-accent font-bold">law notes</span>, <span className="text-accent font-bold">case laws</span>, and <span className="text-accent font-bold">study resources</span>.
         </p>
       </section>
 
       {/* Divider Line */}
-      <div className="w-full max-w-3xl mx-auto px-6 mb-6 sm:mb-8 relative z-10">
+      <div className="w-full max-w-3xl mx-auto px-6 mb-4 sm:mb-6 relative z-10">
         <hr className="border-t-2 border-border-strong dark:border-white/20" />
       </div>
 

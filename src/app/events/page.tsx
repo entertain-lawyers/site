@@ -9,6 +9,10 @@ export default async function EventsPage() {
   const events = await prisma.event.findMany({
     where: { status: 'PUBLISHED' },
     orderBy: { eventDate: 'desc' },
+    select: {
+      id: true, title: true, slug: true, description: true,
+      eventDate: true, location: true, featuredImage: true, content: true,
+    },
   });
 
   return (

@@ -1,0 +1,32 @@
+=== PHASE 1: NETLIFY STAGING AUDIT ===
+[200] /
+  -> ISSUES: "undefined" text found, "Coming soon" found
+[200] /about
+  -> ISSUES: "undefined" text found, "Coming soon" found
+[200] /contact
+  -> ISSUES: "undefined" text found, "Coming soon" found
+[200] /blogs
+  -> ISSUES: "undefined" text found, "Coming soon" found
+[200] /news
+  -> ISSUES: "undefined" text found, "NaN" text found (maybe), "Coming soon" found
+[200] /resources
+  -> ISSUES: "undefined" text found, "Coming soon" found
+[200] /study
+  -> ISSUES: "undefined" text found, "Coming soon" found
+[200] /pricing
+  -> ISSUES: "undefined" text found, "Coming soon" found
+[200] /login
+  -> ISSUES: "undefined" text found, "Coming soon" found
+[307] /admin
+  -> Redirects to: /login?callbackUrl=%2Fadmin
+
+=== Checking Specific Resources ===
+[200] /resources/30758175-257c-467d-876d-ce05dc22db8b (Premium1)
+[200] /resources/500c5694-8925-424b-85ca-0fde3485a9e6 (Free)
+[200] /resources/c2c9d955-5691-486f-b6e5-c87d80acfb95 (Premium2)
+
+=== Checking WP 3907 PDF Split ===
+
+=== Checking B2 Media Routes ===
+[403] /api/media/documents/test.pdf
+Note: Posts use inline content images. We can test one via app logic.

@@ -1,0 +1,4 @@
+src/app/resources/[id]/page.tsx(294,43): error TS1109: Expression expected.
+src/app/resources/[id]/page.tsx(300,18): error TS1109: Expression expected.
+src/app/resources/[id]/page.tsx(340,23): error TS1109: Expression expected.
+src/app/resources/[id]/page.tsx(344,50): error TS1109: Expression expected.

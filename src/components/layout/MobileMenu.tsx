@@ -154,12 +154,7 @@ export default function MobileMenu({ links, session, dict, semesters, isNepaliMo
                 <Link href="/events" onClick={closeMenu} className="flex items-center px-4 py-3 min-h-[44px] text-sm font-semibold text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all">
                   Events
                 </Link>
-                <Link href="/publications" onClick={closeMenu} className="flex items-center px-4 py-3 min-h-[44px] text-sm font-semibold text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all">
-                  Publications
-                </Link>
-                <Link href="/gallery" onClick={closeMenu} className="flex items-center px-4 py-3 min-h-[44px] text-sm font-semibold text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all">
-                  Gallery
-                </Link>
+
                 <Link href="/faqs" onClick={closeMenu} className="flex items-center px-4 py-3 min-h-[44px] text-sm font-semibold text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all">
                   FAQs
                 </Link>

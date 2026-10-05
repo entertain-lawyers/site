@@ -16,14 +16,22 @@ export const revalidate = 60;
 export default async function ResourcesPage() {
   const dict = await getDictionary();
   const resources = await prisma.resource.findMany({
+    where: { status: 'PUBLISHED' },
     orderBy: { id: 'desc' },
-    include: {
+    take: 50, // Limit to 50 recent resources for performance
+    select: {
+      id: true,
+      title: true,
+      isPremium: true,
       subject: {
-        include: {
-          semester: true,
-        },
-      },
-    },
+        select: {
+          name: true,
+          semester: {
+            select: { name: true }
+          }
+        }
+      }
+    }
   });
 
   return (

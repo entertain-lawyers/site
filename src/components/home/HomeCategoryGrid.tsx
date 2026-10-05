@@ -10,7 +10,7 @@ export function HomeCategoryGrid() {
       icon: BookOpen,
     },
     {
-      title: "Precedent Case Laws",
+      title: "Precedent / Case Laws",
       subtitle: "Supreme Court Decisions",
       href: "/study?type=CASE_LAW",
       icon: Landmark,
@@ -28,14 +28,26 @@ export function HomeCategoryGrid() {
       icon: Briefcase,
     },
     {
-      title: "Historical Facts",
-      subtitle: "Discover History",
+      title: (
+        <div className="flex flex-col items-center justify-center text-center w-full leading-tight">
+          <span>Historical Facts</span>
+          <span className="text-[15px] sm:text-[17px] leading-none my-0.5">&</span>
+          <span>Legal Personalities</span>
+        </div>
+      ),
+      subtitle: "",
       href: "/historical-facts",
       icon: ScrollText,
     },
     {
-      title: "Blogs",
-      subtitle: "Opinion & Others",
+      title: (
+        <div className="flex flex-col items-center justify-center text-center w-full leading-tight">
+          <span>Blog, Opinion</span>
+          <span className="text-[15px] sm:text-[17px] leading-none my-0.5">&</span>
+          <span>Others</span>
+        </div>
+      ),
+      subtitle: "",
       href: "/blogs",
       icon: MessageSquare,
     },
@@ -44,7 +56,7 @@ export function HomeCategoryGrid() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 lg:gap-8">
       {categories.map((category) => (
-        <HomeCategoryCard key={category.title} {...category} />
+        <HomeCategoryCard key={category.href} {...category} />
       ))}
     </div>
   );

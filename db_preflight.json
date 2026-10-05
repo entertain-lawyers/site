@@ -1,0 +1,19 @@
+{
+  "User": 7,
+  "Account": 1,
+  "Session": 0,
+  "VerificationToken": 0,
+  "Semester": 2,
+  "Subject": 2,
+  "Unit": 0,
+  "Resource": 5,
+  "Document": 4,
+  "Post": 73,
+  "Redirect": 210,
+  "Purchase": 0,
+  "PaymentTransaction": 0,
+  "Subscription": 0,
+  "Entitlement": 0,
+  "AccessLog": 0,
+  "AuditLog": 0
+}

@@ -38,8 +38,7 @@ export default function AdminSidebar({ userRole }: { userRole: string }) {
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Posts', href: '/admin/posts', icon: FileText, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Events', href: '/admin/events', icon: FileText, roles: ['ADMIN', 'EDITOR'] },
-    { name: 'Publications', href: '/admin/publications', icon: FileText, roles: ['ADMIN', 'EDITOR'] },
-    { name: 'Gallery', href: '/admin/gallery', icon: FileText, roles: ['ADMIN', 'EDITOR'] },
+
     { name: 'FAQs', href: '/admin/faqs', icon: FileText, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Semesters', href: '/admin/study/semesters', icon: Database, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Subjects', href: '/admin/study/subjects', icon: Database, roles: ['ADMIN', 'EDITOR'] },
@@ -154,7 +153,7 @@ export default function AdminSidebar({ userRole }: { userRole: string }) {
         <div className="mb-6">
           <p className="px-3 text-[11px] font-bold text-text-muted dark:text-white/40 tracking-wider uppercase mb-2">Publishing</p>
           <div className="space-y-0.5">
-            {filteredNavItems.filter(i => ['Posts', 'Events', 'Publications', 'Gallery', 'FAQs'].includes(i.name)).map((item) => {
+            {filteredNavItems.filter(i => ['Posts', 'Events', 'FAQs'].includes(i.name)).map((item) => {
               const isActive = pathname.startsWith(item.href);
               return (
                 <Link

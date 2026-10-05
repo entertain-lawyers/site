@@ -1,0 +1,136 @@
+{
+  "semesters": 2,
+  "subjects": 2,
+  "units": 0,
+  "resources": 5,
+  "documents": 4,
+  "resourcesByType": [
+    {
+      "_count": 5,
+      "type": "LAW_NOTE"
+    }
+  ],
+  "resourcesByStatus": [
+    {
+      "_count": 5,
+      "status": "PUBLISHED"
+    }
+  ],
+  "resourceSubjectNull": 0,
+  "resourceSubjectNotNull": 5,
+  "resourceUnitNull": 5,
+  "resourceUnitNotNull": 0,
+  "resourcesWithDocument": 4,
+  "resourcesWithoutDocument": 1,
+  "semesterToSubject": [
+    {
+      "name": "Sem 1",
+      "subjects": 1
+    },
+    {
+      "name": "S1",
+      "subjects": 1
+    }
+  ],
+  "subjectToUnit": [
+    {
+      "name": "Math",
+      "units": 0
+    },
+    {
+      "name": "Sub1",
+      "units": 0
+    }
+  ],
+  "unitToResource": [],
+  "documentsList": [
+    {
+      "id": "39670df1-f246-405e-a07a-78eaa67fc2e1",
+      "storageProvider": "R2",
+      "storageKey": "documents/a37d2e12-dde6-413f-9c15-afe18066abe4-1791093238822.pdf",
+      "fileSize": 1024,
+      "mimeType": "application/pdf",
+      "resource": {
+        "id": "a37d2e12-dde6-413f-9c15-afe18066abe4",
+        "title": "Free Doc",
+        "isPremium": false,
+        "subjectId": "d1452d16-7797-4f43-b768-f0b02d887bd8",
+        "documentId": "39670df1-f246-405e-a07a-78eaa67fc2e1",
+        "currency": "NPR",
+        "priceAmount": null,
+        "order": 0,
+        "type": "LAW_NOTE",
+        "unitId": null,
+        "metaDesc": null,
+        "metaTitle": null,
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "id": "3b0424e3-7bf5-4f7f-8bfd-ebb1df54405b",
+      "storageProvider": "R2",
+      "storageKey": "documents/195fd659-7eff-4af0-9c02-1d3e1ea32cc2-1791093241439.pdf",
+      "fileSize": 1024,
+      "mimeType": "application/pdf",
+      "resource": {
+        "id": "195fd659-7eff-4af0-9c02-1d3e1ea32cc2",
+        "title": "Concurrency Test",
+        "isPremium": false,
+        "subjectId": "d1452d16-7797-4f43-b768-f0b02d887bd8",
+        "documentId": "3b0424e3-7bf5-4f7f-8bfd-ebb1df54405b",
+        "currency": "NPR",
+        "priceAmount": null,
+        "order": 0,
+        "type": "LAW_NOTE",
+        "unitId": null,
+        "metaDesc": null,
+        "metaTitle": null,
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "id": "4ebfef2c-2640-47e6-bf7c-2bc2233cebe9",
+      "storageProvider": "R2",
+      "storageKey": "documents/752aa2c9-487d-4187-bf97-2cfc9644101a-1791093244396.pdf",
+      "fileSize": 1024,
+      "mimeType": "application/pdf",
+      "resource": {
+        "id": "752aa2c9-487d-4187-bf97-2cfc9644101a",
+        "title": "Prem Doc",
+        "isPremium": true,
+        "subjectId": "d1452d16-7797-4f43-b768-f0b02d887bd8",
+        "documentId": "4ebfef2c-2640-47e6-bf7c-2bc2233cebe9",
+        "currency": "NPR",
+        "priceAmount": null,
+        "order": 0,
+        "type": "LAW_NOTE",
+        "unitId": null,
+        "metaDesc": null,
+        "metaTitle": null,
+        "status": "PUBLISHED"
+      }
+    },
+    {
+      "id": "37cefcf2-673d-49f1-9c2b-d525ecdf7fb4",
+      "storageProvider": "R2",
+      "storageKey": "documents/15670ad2-e5ca-4f62-8247-02fb8504ab47-1791093245504.pdf",
+      "fileSize": 1024,
+      "mimeType": "application/pdf",
+      "resource": {
+        "id": "15670ad2-e5ca-4f62-8247-02fb8504ab47",
+        "title": "Prem Doc 2",
+        "isPremium": true,
+        "subjectId": "d1452d16-7797-4f43-b768-f0b02d887bd8",
+        "documentId": "37cefcf2-673d-49f1-9c2b-d525ecdf7fb4",
+        "currency": "NPR",
+        "priceAmount": null,
+        "order": 0,
+        "type": "LAW_NOTE",
+        "unitId": null,
+        "metaDesc": null,
+        "metaTitle": null,
+        "status": "PUBLISHED"
+      }
+    }
+  ]
+}

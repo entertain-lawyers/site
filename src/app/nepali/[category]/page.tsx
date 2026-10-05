@@ -6,9 +6,9 @@ import { formatBSDate } from '@/lib/nepali-date';
 import { PostType } from '@prisma/client';
 
 const CATEGORY_MAP: Record<string, { type: PostType, title: string, icon: string, description: string }> = {
-  'samanya-samachar': { type: 'NEPALI_SAMANYA_SAMACHAR', title: 'सामान्य समाचार', icon: '📰', description: 'दैनिक र सामान्य कानूनी समाचारहरू' },
+  'samanya-samachar': { type: 'NEPALI_SAMANYA_SAMACHAR', title: 'सामान्य समाचार', icon: '📰', description: 'दैनिक र सामान्य समाचारहरू' },
   'adalat-samachar': { type: 'NEPALI_ADALAT_SAMACHAR', title: 'अदालत समाचार', icon: '⚖️', description: 'विभिन्न अदालतका महत्वपूर्ण निर्णय तथा समाचार' },
-  'mukhya-samachar': { type: 'NEPALI_MUKHYA_SAMACHAR', title: 'मुख्य समाचार', icon: '🔥', description: 'आजका प्रमुख र विशेष समाचारहरू' },
+  'mukhya-faisla': { type: 'NEPALI_MUKHYA_SAMACHAR', title: 'मुख्य फैसला', icon: '🔥', description: 'आजका प्रमुख र विशेष समाचारहरू' },
   'najirharu': { type: 'NEPALI_NAJIRHARU', title: 'नजिरहरु', icon: '📚', description: 'सर्वोच्च अदालतका स्थापित नजिरहरू' },
   'ain-kanun': { type: 'NEPALI_AIN_KANUN', title: 'ऐन तथा कानून', icon: '📜', description: 'नेपालका प्रचलित ऐन र कानूनहरू' },
   'blog-bichar': { type: 'NEPALI_BLOG_BICHAR', title: 'ब्लग, बिचार, अन्य', icon: '✍️', description: 'विभिन्न लेखकका लेख, विचार, र अन्य' },

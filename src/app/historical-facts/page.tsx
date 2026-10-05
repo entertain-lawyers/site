@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
+import { HomeCategoryCard } from '@/components/home/HomeCategoryCard';
+import { Hourglass, Users } from 'lucide-react';
 
 export const revalidate = 60;
 
@@ -8,7 +10,7 @@ export default async function FactsPage() {
   const posts = await prisma.post.findMany({
     where: { type: 'FACT', status: 'PUBLISHED' },
     orderBy: { createdAt: 'desc' },
-    include: { author: { select: { email: true } } }
+    select: { id: true, title: true, type: true, content: true, createdAt: true },
   });
 
   return (
@@ -21,6 +23,21 @@ export default async function FactsPage() {
           <p className="text-lg text-text-secondary leading-relaxed">
             Discover interesting historical facts, events, and trivia about the Nepalese legal system.
           </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 max-w-4xl mx-auto mb-16">
+          <HomeCategoryCard 
+            title="Historical Facts"
+            subtitle=""
+            href="/historical-facts?category=historical"
+            icon={Hourglass}
+          />
+          <HomeCategoryCard 
+            title="Legal Personalities"
+            subtitle=""
+            href="/historical-facts?category=personalities"
+            icon={Users}
+          />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">

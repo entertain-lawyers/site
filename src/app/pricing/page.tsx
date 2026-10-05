@@ -3,6 +3,7 @@ import { CheckoutButtonsSubscription } from '@/components/payments/CheckoutButto
 import { env } from '@/env';
 import { getDictionary } from '@/lib/i18n';
 import { CheckCircle2, HelpCircle } from 'lucide-react';
+import { unstable_cache } from 'next/cache';
 
 export async function generateMetadata() {
   const dict = await getDictionary();
@@ -15,10 +16,18 @@ export async function generateMetadata() {
 export default async function PricingPage() {
   const dict = await getDictionary();
 
-  const plans = await prisma.plan.findMany({
-    where: { isActive: true },
-    orderBy: { priceAmount: 'asc' }
-  });
+  const getCachedPlans = unstable_cache(
+    async () => {
+      return prisma.plan.findMany({
+        where: { isActive: true },
+        orderBy: { priceAmount: 'asc' }
+      });
+    },
+    ['pricing-plans'],
+    { revalidate: 3600 }
+  );
+
+  const plans = await getCachedPlans();
 
   const features = [
     dict.featAllPremium,
@@ -93,7 +102,7 @@ export default async function PricingPage() {
                     <h3 className="text-xl sm:text-2xl font-black text-navy dark:text-white mb-4">{plan.name}</h3>
                     <div className="flex flex-wrap items-baseline mb-3 gap-1">
                       <span className="text-3xl sm:text-5xl font-black text-navy dark:text-white tracking-tight">
-                        NPR xxx
+                        NPR {(plan.priceAmount / 100).toFixed(0)}
                       </span>
                       <span className="text-text-muted ml-2 font-bold uppercase tracking-wider text-sm">/ {plan.durationDays} {dict.days}</span>
                     </div>

@@ -36,11 +36,11 @@ export default function Footer({ dict }: FooterProps) {
               </li>
               <li className="flex items-center gap-3 group">
                 <Phone className="w-5 h-5 text-navy dark:text-[#ddba76] shrink-0 group-hover:scale-110 transition-transform" />
-                <a href="tel:9822010737" className="text-text-secondary dark:text-white underline underline-offset-4 hover:text-accent dark:hover:text-gray-300 transition-colors duration-300 font-medium min-h-[44px] inline-flex items-center">+977 9822010737</a>
+                <a href="tel:9822010737" className="text-text-secondary dark:text-white underline underline-offset-4 hover:text-accent dark:hover:text-gray-300 transition-colors duration-300 font-medium">+977 9822010737</a>
               </li>
               <li className="flex items-center gap-3 group">
                 <Mail className="w-5 h-5 text-navy dark:text-[#ddba76] shrink-0 group-hover:scale-110 transition-transform" />
-                <a href="mailto:contact@entertainlawyers.com" className="text-text-secondary dark:text-white underline underline-offset-4 hover:text-accent dark:hover:text-gray-300 transition-colors duration-300 break-words font-medium min-h-[44px] inline-flex items-center">
+                <a href="mailto:contact@entertainlawyers.com" className="text-text-secondary dark:text-white underline underline-offset-4 hover:text-accent dark:hover:text-gray-300 transition-colors duration-300 break-words font-medium">
                   contact@entertainlawyers.com
                 </a>
               </li>
@@ -87,8 +87,7 @@ export default function Footer({ dict }: FooterProps) {
               <li><Link href="/about" className="text-text-secondary dark:text-white hover:text-accent dark:hover:text-gray-300 hover:translate-x-1 inline-block transition-transform duration-300">About us</Link></li>
               <li><Link href="/team" className="text-text-secondary dark:text-white hover:text-accent dark:hover:text-gray-300 hover:translate-x-1 inline-block transition-transform duration-300">Team</Link></li>
               <li><Link href="/events" className="text-text-secondary dark:text-white hover:text-accent dark:hover:text-gray-300 hover:translate-x-1 inline-block transition-transform duration-300">Events</Link></li>
-              <li><Link href="/publications" className="text-text-secondary dark:text-white hover:text-accent dark:hover:text-gray-300 hover:translate-x-1 inline-block transition-transform duration-300">Publications</Link></li>
-              <li><Link href="/gallery" className="text-text-secondary dark:text-white hover:text-accent dark:hover:text-gray-300 hover:translate-x-1 inline-block transition-transform duration-300">Gallery</Link></li>
+
               <li><Link href="/faqs" className="text-text-secondary dark:text-white hover:text-accent dark:hover:text-gray-300 hover:translate-x-1 inline-block transition-transform duration-300">FAQs</Link></li>
               <li><Link href="/privacy-policy" className="text-text-secondary dark:text-white hover:text-accent dark:hover:text-gray-300 hover:translate-x-1 inline-block transition-transform duration-300">Privacy Policy</Link></li>
             </ul>
