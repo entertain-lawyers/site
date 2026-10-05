@@ -44,7 +44,7 @@ export default async function AdminEventsPage() {
             {events.length > 0 ? (
               events.map((evt) => (
                 <tr key={evt.id} className="hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors group">
-                  <td className="px-8 py-5 whitespace-nowrap text-sm font-bold text-navy dark:text-white">{evt.title}</td>
+                  <td className="px-8 py-5 text-sm font-bold text-navy dark:text-white min-w-[300px]">{evt.title}</td>
                   <td className="px-8 py-5 whitespace-nowrap text-sm font-medium text-text-secondary">{evt.eventDate.toLocaleDateString()}</td>
                   <td className="px-8 py-5 whitespace-nowrap text-sm">
                     <span className={`px-3 py-1 inline-flex text-xs font-bold rounded-full border ${evt.status === 'PUBLISHED' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>

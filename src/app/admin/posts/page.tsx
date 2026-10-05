@@ -53,7 +53,7 @@ export default async function AdminPostsPage() {
             {posts.length > 0 ? (
               posts.map((post) => (
                 <tr key={post.id} className="hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors group">
-                  <td className="px-8 py-5 whitespace-nowrap text-sm font-bold text-navy dark:text-white">
+                  <td className="px-8 py-5 text-sm font-bold text-navy dark:text-white min-w-[300px]">
                     {post.title}
                   </td>
                   <td className="px-8 py-5 whitespace-nowrap text-sm font-medium text-text-secondary">

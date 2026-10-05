@@ -67,7 +67,7 @@ export default function NewPostClient() {
       <form onSubmit={handleSubmit} className="bg-white dark:bg-zinc-900 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-black/5 dark:border-white/5 rounded-2xl p-5 sm:p-8 lg:p-10 flex flex-col lg:flex-row gap-10">
 
         {/* Left Column: Main Editor */}
-        <div className="flex-1 space-y-8">
+        <div className="flex-1 min-w-0 space-y-8">
           <div>
             <label htmlFor="title" className="block text-sm font-bold text-navy dark:text-white mb-2">Title</label>
             <input

@@ -44,7 +44,7 @@ export default async function AdminGalleryPage() {
             {galleries.length > 0 ? (
               galleries.map((gal) => (
                 <tr key={gal.id} className="hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors group">
-                  <td className="px-8 py-5 whitespace-nowrap text-sm font-bold text-navy dark:text-white">{gal.title}</td>
+                  <td className="px-8 py-5 text-sm font-bold text-navy dark:text-white min-w-[300px]">{gal.title}</td>
                   <td className="px-8 py-5 whitespace-nowrap text-sm font-medium text-text-secondary"></td>
                   <td className="px-8 py-5 whitespace-nowrap text-sm">
                     <span className={`px-3 py-1 inline-flex text-xs font-bold rounded-full border ${gal.status === 'PUBLISHED' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>

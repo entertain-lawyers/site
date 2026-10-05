@@ -93,9 +93,7 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Write y
         }
         .editor-wrapper .ql-toolbar {
           display: flex;
-          flex-wrap: nowrap;
-          overflow-x: auto;
-          -webkit-overflow-scrolling: touch;
+          flex-wrap: wrap;
         }
         .editor-wrapper .ql-toolbar::-webkit-scrollbar {
           height: 4px;
