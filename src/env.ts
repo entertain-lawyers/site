@@ -35,7 +35,9 @@ export const envSchema = z.object({
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 
   // Payments Flag
-  PAYMENTS_ENABLED: z.enum(["true", "false"]).default("true"),
+  STORAGE_ENABLED: z.enum(["true", "false"]).default("false"),
+  RATE_LIMITING_ENABLED: z.enum(["true", "false"]).default("false"),
+  PAYMENTS_ENABLED: z.enum(["true", "false"]).default("false"),
 }).refine(data => {
   if (data.NODE_ENV === 'production') {
     if (data.NEXT_PUBLIC_APP_URL.includes('localhost')) return false;
@@ -46,9 +48,9 @@ export const envSchema = z.object({
   path: ["NEXT_PUBLIC_APP_URL"]
 }).refine(data => {
   if (data.NODE_ENV === 'production') {
-    if (!data.DIRECT_URL) return false;
-    if (!data.B2_ENDPOINT || !data.B2_ACCESS_KEY_ID || !data.B2_SECRET_ACCESS_KEY || !data.B2_BUCKET_NAME) return false;
-    if (!data.UPSTASH_REDIS_REST_URL || !data.UPSTASH_REDIS_REST_TOKEN) return false;
+    // DIRECT_URL is used by Prisma CLI, not required for Next.js runtime/build
+    if (data.STORAGE_ENABLED === "true" && (!data.B2_ENDPOINT || !data.B2_ACCESS_KEY_ID || !data.B2_SECRET_ACCESS_KEY || !data.B2_BUCKET_NAME)) return false;
+    if (data.RATE_LIMITING_ENABLED === "true" && (!data.UPSTASH_REDIS_REST_URL || !data.UPSTASH_REDIS_REST_TOKEN)) return false;
   }
   
   if (data.NODE_ENV === 'production' && data.PAYMENTS_ENABLED === 'true') {
@@ -57,7 +59,7 @@ export const envSchema = z.object({
   }
   return true;
 }, {
-  message: "Production environment requires DIRECT_URL, B2, and Upstash. If PAYMENTS_ENABLED is true, Khalti and eSewa (including ESEWA_SECRET_KEY) must be fully configured.",
+  message: "Production environment: If STORAGE_ENABLED is true, B2 must be fully configured. If RATE_LIMITING_ENABLED is true, Upstash must be fully configured. If PAYMENTS_ENABLED is true, Khalti and eSewa (including ESEWA_SECRET_KEY) must be fully configured.",
 });
 
 // For Next.js to properly evaluate NEXT_PUBLIC_ variables during build, they must be explicitly provided.
@@ -79,7 +81,9 @@ const _env = envSchema.safeParse({
   B2_BUCKET_NAME: process.env.B2_BUCKET_NAME,
   UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
   UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
-  PAYMENTS_ENABLED: process.env.PAYMENTS_ENABLED || 'true',
+  STORAGE_ENABLED: process.env.STORAGE_ENABLED || 'false',
+  RATE_LIMITING_ENABLED: process.env.RATE_LIMITING_ENABLED || 'false',
+  PAYMENTS_ENABLED: process.env.PAYMENTS_ENABLED || 'false',
 });
 
 let finalEnv: z.infer<typeof envSchema>;

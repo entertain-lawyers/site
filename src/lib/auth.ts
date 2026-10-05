@@ -17,12 +17,12 @@ export async function testAuthorize(credentials: any) {
   if (!parsed.success) return null;
 
   const { email, password } = parsed.data;
+  const normalizedEmail = email.trim().toLowerCase();
 
   const user = await prisma.user.findUnique({
-    where: { email },
+    where: { email: normalizedEmail },
   });
 
-  // Dummy hash to prevent timing attacks on non-existent users
   const dummyHash = "$2b$12$dummyHashToPreventTimingAttacks12345678901234567890";
 
   const passwordsMatch = await bcrypt.compare(
@@ -30,26 +30,28 @@ export async function testAuthorize(credentials: any) {
     user?.passwordHash || dummyHash
   );
 
-  if (!user || !user.passwordHash) {
-    return null;
+  class UserNotFound extends CredentialsSignin { code = "UserNotFound" }
+  class MissingPasswordHash extends CredentialsSignin { code = "MissingPasswordHash" }
+  class PasswordMismatch extends CredentialsSignin { code = "PasswordMismatch" }
+  class UnverifiedEmail extends CredentialsSignin { code = "UnverifiedEmail" }
+
+  if (!user) {
+    throw new UserNotFound("User not found in database.");
+  }
+  
+  if (!user.passwordHash) {
+    throw new MissingPasswordHash("Password hash is missing for this user.");
   }
 
-  class UnverifiedEmail extends CredentialsSignin {
-    code = "UnverifiedEmail"
-  }
-
-  if (!user.isEmailVerified) {
+  if (!user.isEmailVerified && !user.emailVerified && user.role !== 'ADMIN') {
     throw new UnverifiedEmail('Please verify your email address before logging in.');
   }
 
   if (passwordsMatch) {
-    return {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-    };
+    return { id: user.id, email: user.email, role: user.role };
   }
-  return null;
+
+  throw new PasswordMismatch("Invalid email or password.");
 }
 
 export { authConfig };
