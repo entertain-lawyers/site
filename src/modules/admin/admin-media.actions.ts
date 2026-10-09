@@ -30,6 +30,10 @@ export const initiateMediaUploadAction = createSafeAction(async (args: z.infer<t
     throw new Error(parsed.error.issues[0]?.message || 'Invalid upload request');
   }
 
+  if (process.env.VERCEL_ENV === 'preview') {
+    throw new Error('Media uploads are disabled in Preview mode to protect production storage.');
+  }
+
   const input = parsed.data;
 
   // Generate a secure, unguessable key
