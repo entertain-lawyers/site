@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { ResourceType } from '@prisma/client';
 import { getDictionary } from '@/lib/i18n';
 import { BookOpen, Scale, FileQuestion, Library, ArrowRight, Lock } from 'lucide-react';
+import { SYLLABUS_CONFIG } from '@/lib/syllabus-config';
 
 export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
   const params = await searchParams;
@@ -67,7 +68,7 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
   const getCachedSemesters = unstable_cache(
     async () => prisma.semester.findMany({
       orderBy: { order: 'asc' },
-      select: { id: true, name: true },
+      select: { id: true, name: true, order: true },
     }),
     ['study-semesters'],
     { revalidate: 3600 }
@@ -94,7 +95,7 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
   );
 
   // 2. Fetch in parallel
-  const [semesters, subjects, units, resources] = await Promise.all([
+  const [semesters, rawSubjects, rawUnits, resources] = await Promise.all([
     getCachedSemesters(),
     selectedSemesterId ? getCachedSubjects(selectedSemesterId) : Promise.resolve([]),
     selectedSubjectId ? getCachedUnits(selectedSubjectId) : Promise.resolve([]),
@@ -127,6 +128,54 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
       ],
     })
   ]);
+
+  // 3. Merge syllabus configuration
+  const currentSemester = semesters.find(s => s.id === selectedSemesterId);
+  const currentSemesterConfig = currentSemester ? SYLLABUS_CONFIG.find(c => c.order === currentSemester.order) : undefined;
+  
+  const subjects = rawSubjects.map(sub => {
+    // Exact or normalized match
+    const subNameNorm = sub.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const config = currentSemesterConfig?.subjects.find(s => 
+      s.name.toLowerCase() === sub.name.toLowerCase() || 
+      s.name.toLowerCase().replace(/[^a-z0-9]/g, '') === subNameNorm
+    );
+    return {
+      ...sub,
+      isElective: config?.isElective,
+      isSeminar: config?.isSeminar,
+      unitStart: config?.unitStart,
+      unitEnd: config?.unitEnd,
+      hasPrescribedCases: config?.hasPrescribedCases
+    };
+  });
+
+  const units = [...rawUnits];
+  if (selectedSubjectId) {
+    const currentSub = subjects.find(s => s.id === selectedSubjectId);
+    if (currentSub?.unitStart && currentSub?.unitEnd) {
+      const existingNames = new Set(units.map(u => u.name.toLowerCase().replace(/[^a-z0-9]/g, '')));
+      for (let i = currentSub.unitStart; i <= currentSub.unitEnd; i++) {
+        const expectedName = `unit${i}`;
+        if (!existingNames.has(expectedName)) {
+          units.push({ id: `virtual-unit-${i}`, name: `Unit ${i}`, title: null });
+        }
+      }
+      
+      units.sort((a, b) => {
+        const numA = parseInt(a.name.match(/\d+/)?.[0] || '999');
+        const numB = parseInt(b.name.match(/\d+/)?.[0] || '999');
+        return numA - numB;
+      });
+    }
+    
+    if (currentSub?.hasPrescribedCases) {
+      const existingCases = units.find(u => u.name.toLowerCase().includes('cases'));
+      if (!existingCases) {
+        units.push({ id: `virtual-unit-cases`, name: 'Prescribed Cases', title: null });
+      }
+    }
+  }
 
   let pageTitle = dict.studyMaterialsTitle;
   let pageDesc = dict.studyMaterialsDesc || "Explore our comprehensive collection of academic resources tailored for law students.";
