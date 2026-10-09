@@ -18,26 +18,27 @@ export function HomeSemesterCard({ order, href }: HomeSemesterCardProps) {
 
   return (
     <Link href={href} className="group block h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-2xl">
-      <div className="h-40 sm:h-48 bg-gradient-to-br from-navy to-navy/90 dark:from-navy dark:to-navy/80 px-5 sm:px-6 py-6 rounded-2xl border border-navy-800 shadow-lg transition-all duration-500 ease-out group-hover:shadow-[0_20px_40px_-15px_rgba(26,41,66,0.6)] dark:group-hover:shadow-[0_20px_40px_-15px_rgba(255,255,255,0.1)] group-hover:scale-[1.02] flex flex-col items-center justify-center relative overflow-hidden z-0">
+      <div className="h-32 sm:h-36 bg-gradient-to-br from-navy to-navy/95 dark:from-navy dark:to-navy/90 px-5 sm:px-6 py-5 rounded-2xl border border-navy-800 shadow-md transition-all duration-400 ease-out hover:shadow-[0_8px_30px_rgba(26,41,66,0.3)] motion-safe:hover:-translate-y-1 flex flex-row items-center justify-between relative overflow-hidden z-0">
         
-        {/* Giant Watermark Number */}
-        <div className="absolute right-[-5%] top-[-10%] text-[140px] sm:text-[180px] font-black text-white/5 dark:text-white/5 pointer-events-none select-none leading-none z-0 transition-transform duration-700 ease-out group-hover:scale-[1.15] group-hover:-rotate-6">
+        {/* Faint Background Number */}
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-2 text-[100px] sm:text-[130px] font-black text-white/5 dark:text-white/5 pointer-events-none select-none leading-none z-0 transition-transform duration-500 ease-out group-hover:-translate-x-1">
           {order}
         </div>
         
-        {/* Foreground Content */}
-        <div className="relative z-10 flex flex-col items-center text-center w-full h-full justify-center">
-          <div className="mb-3 sm:mb-4 bg-white/10 dark:bg-white/5 p-3 rounded-full backdrop-blur-sm border border-white/10 transition-transform duration-500 ease-out group-hover:-translate-y-1.5 group-hover:scale-110 group-hover:bg-accent/20 group-hover:border-accent/30 shadow-sm">
-            <GraduationCap
-              className="w-7 h-7 sm:w-9 sm:h-9 text-accent dark:text-accent group-hover:text-white transition-colors duration-500"
-              strokeWidth={1.5}
-            />
-          </div>
-          
-          <h3 className="text-[19px] sm:text-[22px] font-black text-white tracking-tight leading-snug mb-1 capitalize">
-            {order}<sup>{suffix}</sup> Semester
+        {/* Left Icon Composition */}
+        <div className="relative z-10 flex items-center justify-center w-[60px] h-[60px] sm:w-[68px] sm:h-[68px] rounded-full bg-white/10 dark:bg-white/5 backdrop-blur-sm border border-white/10 shadow-inner transition-transform duration-400 ease-out group-hover:scale-110 shrink-0">
+          <GraduationCap
+            className="w-7 h-7 sm:w-8 sm:h-8 text-white transition-all duration-400 ease-out group-hover:text-accent group-hover:scale-110"
+            strokeWidth={1.5}
+          />
+        </div>
+
+        {/* Right Text Content */}
+        <div className="flex flex-col items-end justify-center text-right relative z-10 w-[calc(100%-4rem)] sm:w-[calc(100%-5rem)] pl-2 h-full">
+          <h3 className="text-[18px] sm:text-[20px] font-black text-white tracking-tight leading-snug mb-1 capitalize">
+            {order}<sup className="lowercase">{suffix}</sup> Semester
           </h3>
-          <p className="text-[11px] sm:text-[12px] text-white/60 font-semibold leading-snug uppercase tracking-widest mt-0.5 transition-colors duration-400 group-hover:text-white/90">
+          <p className="text-[12px] sm:text-[13px] text-white/70 font-medium leading-snug uppercase tracking-wider transition-colors duration-400 group-hover:text-white/90">
             Explore Subjects
           </p>
         </div>
