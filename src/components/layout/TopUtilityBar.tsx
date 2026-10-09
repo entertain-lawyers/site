@@ -5,7 +5,7 @@ import { Locale, Dictionary } from '@/lib/i18n';
 import { setLocale } from '@/actions/locale';
 import { useRouter, usePathname } from 'next/navigation';
 import { formatBSDate } from '@/lib/nepali-date';
-import { Sun, Moon, Globe, Clock } from 'lucide-react';
+import { Sun, Moon, Globe, Clock, Loader2 } from 'lucide-react';
 
 interface TopUtilityBarProps {
   locale: Locale;
@@ -134,11 +134,15 @@ export default function TopUtilityBar({ locale, dict }: TopUtilityBarProps) {
           <button
             onClick={handleLanguageToggle}
             disabled={isPending}
-            className={`flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] rounded-full bg-white text-navy-dark dark:bg-gray-800 dark:text-white dark:border dark:border-gray-700 hover:bg-red-700 hover:text-white dark:hover:bg-red-700 dark:hover:border-red-700 transition-all duration-300 focus:outline-none shadow-sm ${isPending ? 'opacity-50 cursor-not-allowed' : ''}`}
+            className={`flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] rounded-full bg-white text-navy-dark dark:bg-gray-800 dark:text-white dark:border dark:border-gray-700 hover:bg-red-700 hover:text-white dark:hover:bg-red-700 dark:hover:border-red-700 transition-all duration-300 focus:outline-none shadow-sm ${isPending ? 'opacity-80 cursor-wait' : ''}`}
             aria-label={`Switch to ${isNepaliMode ? 'English' : 'Nepali'} language`}
           >
-            <Globe className="w-3.5 h-3.5" />
-            <span className="font-bold">{isPending ? '...' : (isNepaliMode ? 'ENGLISH' : 'NEPALI')}</span>
+            {isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin text-current" />
+            ) : (
+              <Globe className="w-3.5 h-3.5" />
+            )}
+            <span className="font-bold">{isPending ? 'SWITCHING...' : (isNepaliMode ? 'ENGLISH' : 'NEPALI')}</span>
           </button>
 
         </div>

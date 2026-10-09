@@ -14,7 +14,15 @@ interface RichTextEditorProps {
   placeholder?: string;
 }
 
+type AllowedImageMimeType = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
+const ALLOWED_IMAGE_MIME_TYPES = new Set<string>(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+
+function isAllowedImageMimeType(mimeType: string): mimeType is AllowedImageMimeType {
+  return ALLOWED_IMAGE_MIME_TYPES.has(mimeType);
+}
+
 export default function RichTextEditor({ value, onChange, placeholder = 'Write your content here...' }: RichTextEditorProps) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const reactQuillRef = useRef<any>(null);
 
   const imageHandler = useCallback(() => {
@@ -28,15 +36,19 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Write y
       if (!file) return;
 
       try {
+        if (!isAllowedImageMimeType(file.type)) {
+          throw new Error('Only JPG, PNG, WebP, and GIF images are allowed');
+        }
+
         const res = await initiateMediaUploadAction({
           filename: file.name,
-          mimeType: file.type as any,
+          mimeType: file.type,
           size: file.size,
           type: 'RICH_TEXT',
         });
 
-        if (!res?.success || !res.data) {
-          throw new Error((res as any)?.error || 'Upload initialization failed');
+        if (!res.success) {
+          throw new Error(res.error || 'Upload initialization failed');
         }
 
         const uploadRes = await fetch(res.data.uploadUrl, {

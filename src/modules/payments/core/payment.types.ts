@@ -31,7 +31,7 @@ export interface IPaymentProviderService {
   ): Promise<PaymentInitiationResult>;
 
   verifyPayment(
-    payload: any, // The parsed query/body from the callback
+    payload: Record<string, unknown>, // The parsed query/body from the callback
     idempotencyKey: string,
     expectedAmount: number
   ): Promise<PaymentVerificationResult>;

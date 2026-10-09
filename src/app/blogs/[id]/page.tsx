@@ -1,18 +1,26 @@
-import { prisma } from '@/lib/prisma';
+import { getWordPressPostById, mapCategoryToType } from '@/lib/wordpress';
 import { notFound } from 'next/navigation';
 import PostDetail from '@/components/posts/PostDetail';
 
 export const revalidate = 60;
 
 export default async function BlogDetailPage({ params }: { params: { id: string } }) {
-  const post = await prisma.post.findUnique({
-    where: { id: params.id, type: 'BLOG', status: 'PUBLISHED' },
-    include: { author: { select: { email: true } } }
-  });
+  const wpId = Number(params.id);
+  if (isNaN(wpId)) notFound();
 
-  if (!post) {
+  const wpPost = await getWordPressPostById(wpId, 'en');
+  if (!wpPost || wpPost.status !== 'publish' || mapCategoryToType(wpPost.categories, 'en') !== 'BLOG') {
     notFound();
   }
 
-  return <PostDetail post={{...post, author: post.author || { email: 'Unknown' }}} backUrl="/blogs" backLabel="Blogs" />;
+  const post = {
+    id: String(wpPost.id),
+    title: wpPost.title.rendered,
+    content: wpPost.content.rendered,
+    type: 'BLOG' as const,
+    createdAt: new Date(wpPost.date),
+    author: { email: `WP Author (${wpPost.author})` }
+  };
+
+  return <PostDetail post={post as any} backUrl="/blogs" backLabel="Blogs" />;
 }

@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
+import { isRecordInUseError, isRecordNotFoundError } from '@/lib/prisma-errors';
 
 const createGallerySchema = z.object({
   title: z.string().min(1),
@@ -60,7 +61,17 @@ export const deleteGalleryAction = createSafeAction(async (args: z.infer<typeof 
   const existing = await prisma.gallery.findUnique({ where: { id: args.id } });
   if (!existing) throw new Error('Gallery not found');
 
-  await prisma.gallery.delete({ where: { id: args.id } }); // CASCADE deletes GalleryImage rows in DB, but orphaned R2 images remain!
+  try {
+    await prisma.gallery.delete({ where: { id: args.id } }); // CASCADE deletes GalleryImage rows in DB, but orphaned B2 images remain!
+  } catch (error) {
+    if (isRecordInUseError(error)) {
+      throw new Error('This gallery is still referenced by related records and cannot be deleted. Please archive it instead.');
+    }
+    if (isRecordNotFoundError(error)) {
+      throw new Error('Gallery not found');
+    }
+    throw error;
+  }
 
   await prisma.auditLog.create({
     data: { userId: session.userId!, action: 'DELETE', entityType: 'GALLERY', entityId: existing.id, details: { title: existing.title } }
@@ -133,10 +144,16 @@ export const deleteGalleryImageAction = createSafeAction(async (args: z.infer<ty
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) throw new Error('Unauthorized');
 
   const img = await prisma.galleryImage.findUnique({ where: { id: args.id } });
-  if (img) {
+  if (!img) throw new Error('Image not found');
+
+  try {
     await prisma.galleryImage.delete({ where: { id: args.id } });
-    revalidatePath(`/admin/gallery/${img.galleryId}/edit`);
-    revalidatePath('/gallery');
+  } catch (error) {
+    if (isRecordNotFoundError(error)) throw new Error('Image not found');
+    throw error;
   }
+
+  revalidatePath(`/admin/gallery/${img.galleryId}/edit`);
+  revalidatePath('/gallery');
   return { success: true };
 });

@@ -2,27 +2,40 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import { ResourceType } from '@prisma/client';
 import { createResourceAction } from '@/modules/admin/admin-resource.actions';
-import { initiateDocumentUpload } from '@/modules/admin/admin-document.actions';
+import { confirmDocumentUpload, initiateDocumentUpload } from '@/modules/admin/admin-document.actions';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 
 const RESOURCE_TYPES = [
-  { value: 'LAW_NOTE', label: 'Law Note' },
-  { value: 'CASE_LAW', label: 'Case Law' },
-  { value: 'OLD_QUESTION', label: 'Old Question' },
-  { value: 'OTHER', label: 'Other' },
+  { value: ResourceType.LAW_NOTE, label: 'Law Note' },
+  { value: ResourceType.CASE_LAW, label: 'Case Law' },
+  { value: ResourceType.OLD_QUESTION, label: 'Old Question' },
+  { value: ResourceType.OTHER, label: 'Other' },
 ] as const;
 
-export function AdminResourceForm({ semesters, subjects, units }: { semesters: any[]; subjects: any[]; units: any[] }) {
+type SemesterOption = { id: string; name: string };
+type SubjectOption = { id: string; name: string; semesterId: string };
+type UnitOption = { id: string; name: string; subjectId: string };
+
+export function AdminResourceForm({
+  semesters,
+  subjects,
+  units,
+}: {
+  semesters: SemesterOption[];
+  subjects: SubjectOption[];
+  units: UnitOption[];
+}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const [title, setTitle] = useState('');
-  const [description, setDescription] = useState(''); // Maybe optional now
+  const [description] = useState(''); // Maybe optional now
   const [semesterId, setSemesterId] = useState('');
   const [subjectId, setSubjectId] = useState('');
-  const [resourceType, setResourceType] = useState('LAW_NOTE');
+  const [resourceType, setResourceType] = useState<ResourceType>(ResourceType.LAW_NOTE);
   const [unitId, setUnitId] = useState('');
   const [isPremium, setIsPremium] = useState(false);
   const [priceAmount, setPriceAmount] = useState('');
@@ -36,13 +49,13 @@ export function AdminResourceForm({ semesters, subjects, units }: { semesters: a
 
   // Filter subjects by selected semester
   const filteredSubjects = useMemo(
-    () => (semesterId ? subjects.filter((s: any) => s.semesterId === semesterId) : []),
+    () => (semesterId ? subjects.filter((s) => s.semesterId === semesterId) : []),
     [subjects, semesterId]
   );
 
   // Filter units by selected subject
   const filteredUnits = useMemo(
-    () => units.filter((u: any) => u.subjectId === subjectId),
+    () => units.filter((u) => u.subjectId === subjectId),
     [units, subjectId]
   );
 
@@ -76,26 +89,27 @@ export function AdminResourceForm({ semesters, subjects, units }: { semesters: a
         subjectId,
         isPremium,
         priceAmount: isPremium ? parseFloat(priceAmount) * 100 : undefined,
-        type: resourceType as any,
+        type: resourceType,
         unitId: unitId || undefined,
         content: uploadMode === 'NOTE' ? content : undefined,
               });
 
-      if (!createRes.success || !createRes.data) {
-        throw new Error((createRes as any).error || 'Failed to create resource');
+      if (!createRes.success) {
+        throw new Error(createRes.error || 'Failed to create resource');
       }
 
-      const resourceId = (createRes.data as any).resourceId;
+      const resourceId = createRes.data.resourceId;
 
       // 2. If PDF mode, upload file
       if (uploadMode === 'PDF' && file) {
         const initRes = await initiateDocumentUpload({
           resourceId,
           expectedSize: file.size,
+          expectedMimeType: 'application/pdf',
         });
 
-        if (!initRes.success || !initRes.data) {
-          throw new Error((initRes as any).error || 'Failed to initiate upload');
+        if (!initRes.success) {
+          throw new Error(initRes.error || 'Failed to initiate upload');
         }
 
         const uploadUrl = initRes.data.uploadUrl;
@@ -111,13 +125,23 @@ export function AdminResourceForm({ semesters, subjects, units }: { semesters: a
         if (!r2Response.ok) {
           throw new Error(`Upload failed with status ${r2Response.status}`);
         }
+
+        const confirmRes = await confirmDocumentUpload({
+          resourceId,
+          uploadIntentId: initRes.data.uploadIntentId,
+        });
+
+        if (!confirmRes.success) {
+          throw new Error(confirmRes.error || 'Uploaded file could not be verified');
+        }
       }
 
       // Success
       router.push('/admin/resources');
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || 'An error occurred during creation.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'An error occurred during creation.';
+      setError(message);
       setLoading(false);
     }
   };
@@ -172,7 +196,7 @@ export function AdminResourceForm({ semesters, subjects, units }: { semesters: a
           <label className="block text-sm font-bold text-navy dark:text-white mb-2">Resource Type</label>
           <select
             value={resourceType}
-            onChange={e => setResourceType(e.target.value)}
+            onChange={e => setResourceType(e.target.value as ResourceType)}
             className="w-full rounded-xl border border-black/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
           >
             {RESOURCE_TYPES.map(type => (
@@ -213,7 +237,7 @@ export function AdminResourceForm({ semesters, subjects, units }: { semesters: a
             className="w-full rounded-xl border border-black/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm disabled:opacity-50"
           >
             <option value="">Select Subject</option>
-            {filteredSubjects.map((s: any) => (
+            {filteredSubjects.map((s) => (
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
           </select>
@@ -228,7 +252,7 @@ export function AdminResourceForm({ semesters, subjects, units }: { semesters: a
             className="w-full rounded-xl border border-black/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm disabled:opacity-50"
           >
             <option value="">Select Unit</option>
-            {filteredUnits.map((u: any) => (
+            {filteredUnits.map((u) => (
               <option key={u.id} value={u.id}>{u.name}</option>
             ))}
           </select>
@@ -291,7 +315,7 @@ export function AdminResourceForm({ semesters, subjects, units }: { semesters: a
                 </label>
                 <p className="pl-1">or drag and drop</p>
               </div>
-              <p className="text-xs text-gray-500">PDF up to 100MB</p>
+              <p className="text-xs text-gray-500">PDF up to 50MB</p>
             </div>
           </div>
           {file && <p className="mt-2 text-sm text-gray-600">Selected file: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</p>}

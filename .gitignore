@@ -68,3 +68,24 @@ exports/
 *.sqlite3
 /dist/
 tracked_files.txt
+
+# WordPress Integration Audit & Recovery Reports
+PHASE_*.md
+after.txt
+before.txt
+diagnostics-report.json
+subject-alias-analysis.md
+subject-alias-map.json
+subject-repair-analysis.json
+subject-repair-analysis.md
+subject-repair-report.json
+
+# Scratch Data and One-Off Scripts
+scratch/
+migration-staging-recovered/
+verify_media_counts.js
+fix_media_integrity.js
+
+# Internal Opencode Handover Docs
+docs/OPENCODE_*.md
+

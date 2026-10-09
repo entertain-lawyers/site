@@ -45,8 +45,9 @@ export default function ProfileClient({ user }: ProfileClientProps) {
       const res = await updateProfile({ name, phone, education, university });
       if (!res.success) throw new Error(res.error);
       setDetailsMessage({ type: 'success', text: 'Profile updated successfully.' });
-    } catch (err: any) {
-      setDetailsMessage({ type: 'error', text: err.message || 'Failed to update profile.' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update profile.';
+      setDetailsMessage({ type: 'error', text: message });
     } finally {
       setDetailsLoading(false);
     }
@@ -76,8 +77,9 @@ export default function ProfileClient({ user }: ProfileClientProps) {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
-    } catch (err: any) {
-      setSecurityMessage({ type: 'error', text: err.message || 'Failed to change password.' });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to change password.';
+      setSecurityMessage({ type: 'error', text: message });
     } finally {
       setSecurityLoading(false);
     }

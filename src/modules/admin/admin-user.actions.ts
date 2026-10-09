@@ -3,9 +3,10 @@
 import { createSafeAction } from '@/lib/safe-action';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { Role } from '@prisma/client';
+import { Prisma, Role } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import bcrypt from 'bcryptjs';
+import { isRecordInUseError, isRecordNotFoundError, isUniqueConstraintError } from '@/lib/prisma-errors';
 
 const createUserSchema = z.object({
   email: z.string().email(),
@@ -57,7 +58,7 @@ export const updateUserAction = createSafeAction(async (args: z.infer<typeof upd
   const targetUser = await prisma.user.findUnique({ where: { id: args.id } });
   if (!targetUser) throw new Error('User not found');
 
-  const updateData: any = {};
+  const updateData: Prisma.UserUpdateInput = {};
 
   if (args.email) updateData.email = args.email;
 
@@ -72,10 +73,16 @@ export const updateUserAction = createSafeAction(async (args: z.infer<typeof upd
     updateData.passwordHash = await bcrypt.hash(args.password, 12);
   }
 
-  await prisma.user.update({
-    where: { id: args.id },
-    data: updateData
-  });
+  try {
+    await prisma.user.update({
+      where: { id: args.id },
+      data: updateData
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) throw new Error('User with this email already exists');
+    if (isRecordNotFoundError(error)) throw new Error('User not found');
+    throw error;
+  }
 
   revalidatePath('/admin/users');
   return { success: true };
@@ -95,9 +102,19 @@ export const deleteUserAction = createSafeAction(async (args: z.infer<typeof del
     throw new Error('The main admin account cannot be deleted.');
   }
 
-  await prisma.user.delete({
-    where: { id: args.id }
-  });
+  if (!targetUser) throw new Error('User not found');
+
+  try {
+    await prisma.user.delete({
+      where: { id: args.id }
+    });
+  } catch (error) {
+    if (isRecordInUseError(error)) {
+      throw new Error('This user has related sessions, content, payments, entitlements, or logs and cannot be deleted safely. Disable or change their role instead.');
+    }
+    if (isRecordNotFoundError(error)) throw new Error('User not found');
+    throw error;
+  }
 
   revalidatePath('/admin/users');
   return { success: true };

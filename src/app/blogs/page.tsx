@@ -1,15 +1,19 @@
-import { prisma } from '@/lib/prisma';
+import { getWordPressPosts } from '@/lib/wordpress';
 import Link from 'next/link';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
 
 export const revalidate = 60; // Revalidate every minute
 
 export default async function BlogsPage() {
-  const posts = await prisma.post.findMany({
-    where: { type: { in: ['BLOG', 'OPINION'] }, status: 'PUBLISHED' },
-    orderBy: { createdAt: 'desc' },
-    select: { id: true, title: true, type: true, content: true, createdAt: true },
-  });
+  const wpRes = await getWordPressPosts({ categories: [61], status: 'publish', lang: 'en', perPage: 20, embed: true });
+  const posts = wpRes.data.map(p => ({
+    id: String(p.id),
+    title: p.title.rendered,
+    type: 'BLOG',
+    content: p.content.rendered,
+    createdAt: new Date(p.date),
+    featuredImage: (p as any)._embedded?.['wp:featuredmedia']?.[0]?.source_url || null
+  }));
 
   return (
     <div className="min-h-screen bg-background py-16">
@@ -25,7 +29,7 @@ export default async function BlogsPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {posts.map(post => {
-            const thumbnail = extractFirstImage(post.content);
+            const thumbnail = post.featuredImage || extractFirstImage(post.content);
             return (
             <div key={post.id} className="bg-surface border border-border rounded-2xl shadow-soft overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 flex flex-col">
               <div className="w-full h-48 bg-slate-100 dark:bg-zinc-800 flex items-center justify-center border-b border-border overflow-hidden">

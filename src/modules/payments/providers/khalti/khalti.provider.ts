@@ -46,9 +46,9 @@ export class KhaltiProvider implements IPaymentProviderService {
     };
   }
 
-  async verifyPayment(payload: any, idempotencyKey: string, expectedAmount: number): Promise<PaymentVerificationResult> {
+  async verifyPayment(payload: Record<string, unknown>, idempotencyKey: string, expectedAmount: number): Promise<PaymentVerificationResult> {
     const pidx = payload.pidx;
-    if (!pidx) throw new Error("Missing pidx in payload");
+    if (typeof pidx !== 'string' || !pidx) throw new Error("Missing pidx in payload");
 
     // 1. Perform server-to-server lookup
     const lookupData = await verifyKhaltiTransaction(pidx);

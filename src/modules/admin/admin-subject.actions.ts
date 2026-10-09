@@ -3,8 +3,9 @@
 import { createSafeAction } from '@/lib/safe-action';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { Role, Prisma } from '@prisma/client';
+import { Role } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
+import { isRecordInUseError, isUniqueConstraintError } from '@/lib/prisma-errors';
 
 const createSubjectSchema = z.object({
   name: z.string().min(1, 'Subject name is required'),
@@ -66,8 +67,8 @@ export const createSubjectAction = createSafeAction(async (args: z.infer<typeof 
     revalidatePath('/admin/study/semesters');
     revalidatePath('/study');
     return { id: subject.id };
-  } catch (error: any) {
-    if (error?.code === 'P2002' || (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')) {
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
       throw new Error('A subject with this slug already exists. Please choose a different slug.');
     }
     throw error;
@@ -116,8 +117,8 @@ export const updateSubjectAction = createSafeAction(async (args: z.infer<typeof 
     revalidatePath('/admin/study/semesters');
     revalidatePath('/study');
     return { success: true };
-  } catch (error: any) {
-    if (error?.code === 'P2002' || (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')) {
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
       throw new Error('A subject with this slug already exists. Please choose a different slug.');
     }
     throw error;
@@ -141,8 +142,8 @@ export const deleteSubjectAction = createSafeAction(async (args: z.infer<typeof 
     await prisma.subject.delete({
       where: { id: args.id },
     });
-  } catch (error: any) {
-    if (error?.code === 'P2003' || (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003')) {
+  } catch (error) {
+    if (isRecordInUseError(error)) {
       throw new Error('Cannot delete this subject because it contains units or study resources. Please delete or reassign them first.');
     }
     throw error;

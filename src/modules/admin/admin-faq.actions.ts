@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
+import { isRecordNotFoundError } from '@/lib/prisma-errors';
 
 const createFAQSchema = z.object({
   question: z.string().min(1),
@@ -61,7 +62,12 @@ export const deleteFAQAction = createSafeAction(async (args: z.infer<typeof dele
   const existing = await prisma.fAQ.findUnique({ where: { id: args.id } });
   if (!existing) throw new Error('FAQ not found');
 
-  await prisma.fAQ.delete({ where: { id: args.id } });
+  try {
+    await prisma.fAQ.delete({ where: { id: args.id } });
+  } catch (error) {
+    if (isRecordNotFoundError(error)) throw new Error('FAQ not found');
+    throw error;
+  }
 
   await prisma.auditLog.create({
     data: { userId: session.userId!, action: 'DELETE', entityType: 'FAQ', entityId: existing.id, details: { question: existing.question } }

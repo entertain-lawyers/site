@@ -30,14 +30,15 @@ export default auth((req) => {
 
   // Middleware Role Gating (UX only - Server Actions enforce true security)
   if (isAdminRoute) {
-    const role = (req.auth as any)?.user?.role || (req.auth as any)?.role;
+    const auth = req.auth as { user?: { role?: string } } | null;
+    const role = auth?.user?.role;
     if (role !== "ADMIN" && role !== "EDITOR") {
       return NextResponse.redirect(new URL('/dashboard', nextUrl));
     }
   }
 
   // Route-based language enforcement
-  let response = NextResponse.next();
+  const response = NextResponse.next();
   const currentLocale = req.cookies.get('NEXT_LOCALE')?.value;
 
   if (nextUrl.pathname.startsWith('/nepali')) {

@@ -1,28 +1,43 @@
-import { prisma } from '@/lib/prisma';
+import { getWordPressPostById, mapCategoryToType } from '@/lib/wordpress';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { formatBSDate } from '@/lib/nepali-date';
 import { Metadata } from 'next';
 
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const post = await prisma.post.findUnique({ where: { id: params.id } });
-  if (!post || post.status !== 'PUBLISHED') return { title: 'Not Found' };
+  const wpId = Number(params.id);
+  if (isNaN(wpId)) return { title: 'Not Found' };
+  
+  const wpPost = await getWordPressPostById(wpId, 'ne');
+  if (!wpPost || wpPost.status !== 'publish') return { title: 'Not Found' };
+  
   return {
-    title: `${post.title} - नेपाली | Entertain Lawyers`,
+    title: `${wpPost.title.rendered} - नेपाली | Entertain Lawyers`,
   };
 }
 
 export default async function NepaliPostPage({ params }: { params: { id: string } }) {
-  const post = await prisma.post.findUnique({
-    where: { id: params.id },
-    include: {
-      author: { select: { email: true, role: true } }
-    }
-  });
+  const wpId = Number(params.id);
+  if (isNaN(wpId)) notFound();
 
-  if (!post || post.status !== 'PUBLISHED' || !post.type.startsWith('NEPALI_')) {
+  const wpPost = await getWordPressPostById(wpId, 'ne');
+  if (!wpPost || wpPost.status !== 'publish') {
     notFound();
   }
+  
+  const mappedType = mapCategoryToType(wpPost.categories, 'ne');
+  if (!mappedType.startsWith('NEPALI_')) {
+    notFound();
+  }
+  
+  const post = {
+    id: String(wpPost.id),
+    title: wpPost.title.rendered,
+    content: wpPost.content.rendered,
+    type: mappedType,
+    createdAt: new Date(wpPost.date),
+    author: { email: `WP Author (${wpPost.author})`, role: 'EDITOR' }
+  };
 
   const getTypeLabel = (type: string) => {
     switch (type) {

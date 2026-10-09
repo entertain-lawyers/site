@@ -3,7 +3,8 @@
 import { createSafeAction } from '@/lib/safe-action';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { Role, ResourceType } from '@prisma/client';
+import { ContentStatus, Role, ResourceType } from '@prisma/client';
+import { isRecordInUseError, isRecordNotFoundError } from '@/lib/prisma-errors';
 
 const createResourceSchema = z.object({
   title: z.string().min(3),
@@ -96,9 +97,19 @@ export const deleteResourceAction = createSafeAction(async (args: z.infer<typeof
   // However, a document could be shared? No, it's 1:1 with resource usually.
   // We will leave the Document orphaned for future async GC, ensuring total safety.
 
-  await prisma.resource.delete({
-    where: { id: args.id }
-  });
+  try {
+    await prisma.resource.delete({
+      where: { id: args.id }
+    });
+  } catch (error) {
+    if (isRecordInUseError(error)) {
+      throw new Error('This resource is still referenced by related records and cannot be deleted. Please archive it instead.');
+    }
+    if (isRecordNotFoundError(error)) {
+      throw new Error('Resource not found');
+    }
+    throw error;
+  }
 
   if (resource && session.userId) {
     await prisma.auditLog.create({
@@ -124,7 +135,7 @@ const updateResourceSchema = z.object({
   priceAmount: z.number().optional(),
   type: z.nativeEnum(ResourceType),
   unitId: z.string().uuid().optional(),
-      status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']),
+      status: z.nativeEnum(ContentStatus),
 });
 
 export const updateResourceAction = createSafeAction(async (args: z.infer<typeof updateResourceSchema>, session) => {
@@ -149,7 +160,7 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
       currency,
       type: args.type,
       unitId: args.unitId || null,
-                  status: args.status as any,
+      status: args.status,
     }
   });
 

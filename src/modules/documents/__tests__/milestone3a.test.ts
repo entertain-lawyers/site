@@ -9,7 +9,7 @@ import { canAccessResource } from '@/modules/entitlements/entitlement.service';
 vi.mock('@/lib/b2', () => ({
   generatePresignedGetUrl: vi.fn(async (key, exp) => `https://mock-url.com/${key}?expires=${exp}`),
   generatePresignedPutUrl: vi.fn(async (key, mime, exp) => `https://mock-put.com/${key}`),
-  getObjectMetadata: vi.fn(async (key) => ({ ContentLength: 1024 })),
+  getObjectMetadata: vi.fn(async (key) => ({ ContentLength: 1024, ContentType: 'application/pdf' })),
   getObjectHeadBytes: vi.fn(async (key, bytes) => {
     // We can change this implementation per-test using vi.mocked().mockImplementationOnce if needed,
     // but default to valid magic bytes
@@ -128,7 +128,7 @@ describe('Milestone 3A Integration Tests', () => {
   describe('Admin Upload Lifecycle', () => {
     it('1. Admin upload intent succeeds', async () => {
       mockSession = { user: { id: adminId, role: 'ADMIN' } };
-      const res = await initiateDocumentUpload({ resourceId: freeResourceId, expectedSize: 1024 });
+      const res = await initiateDocumentUpload({ resourceId: freeResourceId, expectedSize: 1024, expectedMimeType: 'application/pdf' });
 
       expect(res.success).toBe(true);
       if (!res.success) return;
@@ -139,14 +139,14 @@ describe('Milestone 3A Integration Tests', () => {
 
     it('2. Normal user cannot create upload intent', async () => {
       mockSession = { user: { id: userId1, role: 'USER' } };
-      const res = await initiateDocumentUpload({ resourceId: premiumResourceId, expectedSize: 1024 });
+      const res = await initiateDocumentUpload({ resourceId: premiumResourceId, expectedSize: 1024, expectedMimeType: 'application/pdf' });
       expect(res.success).toBe(false);
       if (!res.success) expect(res.error).toContain('Forbidden');
     });
 
     it('3. Invalid resource is rejected', async () => {
       mockSession = { user: { id: adminId, role: 'ADMIN' } };
-      const res = await initiateDocumentUpload({ resourceId: '00000000-0000-0000-0000-000000000000', expectedSize: 1024 });
+      const res = await initiateDocumentUpload({ resourceId: '00000000-0000-0000-0000-000000000000', expectedSize: 1024, expectedMimeType: 'application/pdf' });
       expect(res.success).toBe(false);
     });
 
@@ -156,7 +156,7 @@ describe('Milestone 3A Integration Tests', () => {
 
     it('5. Invalid/non-PDF content is rejected during validation/confirmation', async () => {
       mockSession = { user: { id: adminId, role: 'ADMIN' } };
-      const init = await initiateDocumentUpload({ resourceId: premiumResourceId, expectedSize: 1024 });
+      const init = await initiateDocumentUpload({ resourceId: premiumResourceId, expectedSize: 1024, expectedMimeType: 'application/pdf' });
       if (!init.success) throw new Error('Init failed');
 
       vi.mocked(getObjectHeadBytes).mockResolvedValueOnce('GIF89');
@@ -169,13 +169,13 @@ describe('Milestone 3A Integration Tests', () => {
 
     it('6. Oversized file is rejected (intent phase)', async () => {
       mockSession = { user: { id: adminId, role: 'ADMIN' } };
-      const init = await initiateDocumentUpload({ resourceId: premiumResourceId, expectedSize: 999 * 1024 * 1024 });
+      const init = await initiateDocumentUpload({ resourceId: premiumResourceId, expectedSize: 999 * 1024 * 1024, expectedMimeType: 'application/pdf' });
       expect(init.success).toBe(false);
     });
 
     it('7. Successful R2 upload can be confirmed & 8. Document is only finalized after successful verification', async () => {
       mockSession = { user: { id: adminId, role: 'ADMIN' } };
-      const init = await initiateDocumentUpload({ resourceId: freeResourceId, expectedSize: 1024 });
+      const init = await initiateDocumentUpload({ resourceId: freeResourceId, expectedSize: 1024, expectedMimeType: 'application/pdf' });
       if (!init.success) throw new Error('Init failed');
 
       const conf = await confirmDocumentUpload({ resourceId: freeResourceId, uploadIntentId: init.data.uploadIntentId });
@@ -189,7 +189,7 @@ describe('Milestone 3A Integration Tests', () => {
 
     it('9. Failed/abandoned upload cannot produce a usable Document', async () => {
       mockSession = { user: { id: adminId, role: 'ADMIN' } };
-      const init = await initiateDocumentUpload({ resourceId: premiumResourceId, expectedSize: 1024 });
+      const init = await initiateDocumentUpload({ resourceId: premiumResourceId, expectedSize: 1024, expectedMimeType: 'application/pdf' });
       if (!init.success) throw new Error('Init failed');
 
       const resRecord = await prisma.resource.findUnique({ where: { id: premiumResourceId }, include: { document: true } });
@@ -198,7 +198,7 @@ describe('Milestone 3A Integration Tests', () => {
 
     it('10. Client cannot provide an arbitrary storage key', async () => {
       mockSession = { user: { id: adminId, role: 'ADMIN' } };
-      const init = await initiateDocumentUpload({ resourceId: premiumResourceId, expectedSize: 1024 });
+      const init = await initiateDocumentUpload({ resourceId: premiumResourceId, expectedSize: 1024, expectedMimeType: 'application/pdf' });
       if (!init.success) throw new Error('Init failed');
 
       const conf = await confirmDocumentUpload({ resourceId: premiumResourceId, uploadIntentId: "00000000-0000-0000-0000-000000000000" });
@@ -214,7 +214,7 @@ describe('Milestone 3A Integration Tests', () => {
         data: { title: 'Concurrency Test', isPremium: false, subjectId: testSub!.id }
       });
 
-      const init = await initiateDocumentUpload({ resourceId: testRes.id, expectedSize: 1024 });
+      const init = await initiateDocumentUpload({ resourceId: testRes.id, expectedSize: 1024, expectedMimeType: 'application/pdf' });
       if (!init.success) throw new Error('Init failed');
 
       // Attempt concurrent confirmations
@@ -244,7 +244,7 @@ describe('Milestone 3A Integration Tests', () => {
       mockSession = { user: { id: adminId, role: 'ADMIN' } };
 
       const testRes = await prisma.resource.findFirst();
-      const init = await initiateDocumentUpload({ resourceId: testRes!.id, expectedSize: 1024 });
+      const init = await initiateDocumentUpload({ resourceId: testRes!.id, expectedSize: 1024, expectedMimeType: 'application/pdf' });
       if (!init.success) throw new Error('Init failed');
 
       // Manually expire it in DB
@@ -263,7 +263,7 @@ describe('Milestone 3A Integration Tests', () => {
     beforeAll(async () => {
       mockSession = { user: { id: adminId, role: 'ADMIN' } };
       for (const resId of [premiumResourceId, premiumResource2Id]) {
-        const init = await initiateDocumentUpload({ resourceId: resId, expectedSize: 1024 });
+        const init = await initiateDocumentUpload({ resourceId: resId, expectedSize: 1024, expectedMimeType: 'application/pdf' });
         if (!init.success) throw new Error('Init failed');
         const conf = await confirmDocumentUpload({ resourceId: resId, uploadIntentId: init.data.uploadIntentId });
         if (!conf.success) throw new Error('Conf failed');

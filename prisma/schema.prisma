@@ -303,6 +303,7 @@ model Event {
 }
 
 model FAQ {
+  language String        @default("en")
   id       String        @id @default(uuid())
   question String
   answer   String
@@ -472,4 +473,29 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model TeamMember {
+  id             String   @id @default(uuid())
+  name           String
+  slug           String   @unique
+  designation    String
+  shortBio       String?
+  biography      String?
+  imageUrl       String?
+  phone          String?
+  email          String?
+  linkedinUrl    String?
+  facebookUrl    String?
+  websiteUrl     String?
+  qualifications String?  
+  experience     String?  
+  practiceAreas  String?  
+  languages      String?  
+  displayOrder   Int      @default(0)
+  isPublished    Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([isPublished, displayOrder])
 }

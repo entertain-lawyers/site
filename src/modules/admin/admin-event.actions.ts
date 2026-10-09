@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
+import { isRecordInUseError, isRecordNotFoundError } from '@/lib/prisma-errors';
 
 const createEventSchema = z.object({
   title: z.string().min(1),
@@ -71,7 +72,17 @@ export const deleteEventAction = createSafeAction(async (args: z.infer<typeof de
   const existing = await prisma.event.findUnique({ where: { id: args.id } });
   if (!existing) throw new Error('Event not found');
 
-  await prisma.event.delete({ where: { id: args.id } });
+  try {
+    await prisma.event.delete({ where: { id: args.id } });
+  } catch (error) {
+    if (isRecordInUseError(error)) {
+      throw new Error('This event is still referenced by related records and cannot be deleted. Please archive it instead.');
+    }
+    if (isRecordNotFoundError(error)) {
+      throw new Error('Event not found');
+    }
+    throw error;
+  }
 
   await prisma.auditLog.create({
     data: { userId: session.userId!, action: 'DELETE', entityType: 'EVENT', entityId: existing.id, details: { title: existing.title } }
