@@ -17,23 +17,27 @@ export function HomeSemesterCard({ order, href }: HomeSemesterCardProps) {
   const suffix = getOrdinalSuffix(order);
 
   return (
-    <Link href={href} className="group block h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy rounded-2xl">
-      <div className="h-32 sm:h-36 bg-gradient-to-br from-white to-slate-50/80 dark:from-surface dark:to-slate-900/60 px-5 sm:px-8 py-5 rounded-2xl border border-border/40 dark:border-white/5 shadow-[0_2px_12px_rgb(0,0,0,0.03)] transition-all duration-400 ease-out hover:shadow-[0_12px_36px_-10px_rgba(26,41,66,0.12)] dark:hover:shadow-[0_12px_36px_-10px_rgba(255,255,255,0.03)] hover:border-navy/30 dark:hover:border-white/10 motion-safe:hover:-translate-y-1 flex flex-row items-center justify-between relative overflow-hidden z-0">
+    <Link href={href} className="group block h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-2xl">
+      <div className="h-40 sm:h-48 bg-gradient-to-br from-navy to-navy/90 dark:from-navy dark:to-navy/80 px-5 sm:px-6 py-6 rounded-2xl border border-navy-800 shadow-lg transition-all duration-500 ease-out group-hover:shadow-[0_20px_40px_-15px_rgba(26,41,66,0.6)] dark:group-hover:shadow-[0_20px_40px_-15px_rgba(255,255,255,0.1)] group-hover:scale-[1.02] flex flex-col items-center justify-center relative overflow-hidden z-0">
         
-        {/* Left Premium Graphic Composition */}
-        <div className="absolute left-[-2rem] sm:left-[-2.5rem] top-1/2 -translate-y-1/2 w-[130px] h-[130px] sm:w-[180px] sm:h-[180px] rounded-full bg-navy/95 dark:bg-white/10 backdrop-blur-md border border-navy/80 dark:border-white/20 flex items-center justify-center pl-3 sm:pl-6 transition-all duration-500 ease-out group-hover:bg-navy dark:group-hover:bg-white/20 motion-reduce:transition-none pointer-events-none shadow-sm z-0">
-          <GraduationCap
-            className="w-9 h-9 sm:w-12 sm:h-12 text-white/50 dark:text-white/60 transition-all duration-500 ease-out group-hover:text-white group-hover:scale-[1.15] motion-reduce:group-hover:scale-100 drop-shadow-md"
-            strokeWidth={1.25}
-          />
+        {/* Giant Watermark Number */}
+        <div className="absolute right-[-5%] top-[-10%] text-[140px] sm:text-[180px] font-black text-white/5 dark:text-white/5 pointer-events-none select-none leading-none z-0 transition-transform duration-700 ease-out group-hover:scale-[1.15] group-hover:-rotate-6">
+          {order}
         </div>
-
-        {/* Right Text Content */}
-        <div className="flex flex-col items-end justify-center text-right relative z-10 w-[70%] sm:w-[65%] pl-2 h-full ml-auto">
-          <h3 className="text-[18px] sm:text-[20px] font-black text-navy dark:text-gray-100 tracking-tight leading-snug mb-1 transition-colors duration-400 ease-out group-hover:text-accent dark:group-hover:text-blue-400 line-clamp-4 capitalize">
+        
+        {/* Foreground Content */}
+        <div className="relative z-10 flex flex-col items-center text-center w-full h-full justify-center">
+          <div className="mb-3 sm:mb-4 bg-white/10 dark:bg-white/5 p-3 rounded-full backdrop-blur-sm border border-white/10 transition-transform duration-500 ease-out group-hover:-translate-y-1.5 group-hover:scale-110 group-hover:bg-accent/20 group-hover:border-accent/30 shadow-sm">
+            <GraduationCap
+              className="w-7 h-7 sm:w-9 sm:h-9 text-accent dark:text-accent group-hover:text-white transition-colors duration-500"
+              strokeWidth={1.5}
+            />
+          </div>
+          
+          <h3 className="text-[19px] sm:text-[22px] font-black text-white tracking-tight leading-snug mb-1 capitalize">
             {order}<sup>{suffix}</sup> Semester
           </h3>
-          <p className="text-[12px] sm:text-[13px] text-text-muted dark:text-gray-400 font-medium leading-snug line-clamp-1 uppercase tracking-wider">
+          <p className="text-[11px] sm:text-[12px] text-white/60 font-semibold leading-snug uppercase tracking-widest mt-0.5 transition-colors duration-400 group-hover:text-white/90">
             Explore Subjects
           </p>
         </div>
