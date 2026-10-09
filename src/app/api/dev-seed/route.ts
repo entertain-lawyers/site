@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { SYLLABUS_CONFIG } from '@/lib/syllabus-config';
-import { revalidateTag } from 'next/cache';
+import { revalidatePath } from 'next/cache';
 
 export async function GET(request: Request) {
   function normalize(s: string) {
@@ -45,9 +45,10 @@ export async function GET(request: Request) {
       }
     }
 
-    // Remove revalidateTag since it requires a profile argument in this Next.js version
-    // and causes a build failure. We rely on time-based revalidation (3600s) or manual flush.
-    return NextResponse.json({ success: true, createdSemesters, createdSubjects });
+    revalidatePath('/study');
+    revalidatePath('/', 'layout');
+    
+    return NextResponse.json({ success: true, createdSemesters, createdSubjects, cacheBusted: true });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message });
   }
