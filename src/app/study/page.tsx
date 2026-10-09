@@ -117,7 +117,7 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
         isPremium: true,
         priceAmount: true,
         order: true,
-        subject: { select: { name: true } },
+        subject: { select: { name: true, semester: { select: { name: true } } } },
         unit: { select: { name: true } },
       },
       orderBy: [
@@ -275,8 +275,18 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
                     </h3>
 
                     <div className="mt-auto space-y-2 mb-6">
+                      {resource.subject?.semester?.name && (
+                        <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
+                          <BookOpen className="w-4 h-4 mt-0.5 flex-shrink-0 text-text-muted" />
+                          <span className="line-clamp-1">{resource.subject.semester.name}</span>
+                        </div>
+                      )}
                       <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
-                        <BookOpen className="w-4 h-4 mt-0.5 flex-shrink-0 text-text-muted" />
+                        {resource.subject?.semester?.name ? (
+                          <div className="w-4 h-4 flex-shrink-0 ml-0.5 border-l-2 border-b-2 border-border rounded-bl-md" />
+                        ) : (
+                          <BookOpen className="w-4 h-4 mt-0.5 flex-shrink-0 text-text-muted" />
+                        )}
                         <span className="line-clamp-1">{resource.subject?.name || 'Uncategorized'}</span>
                       </div>
                       {resource.unit && (

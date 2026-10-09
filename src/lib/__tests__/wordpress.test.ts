@@ -13,6 +13,7 @@ import {
   mapCategoryToType,
   WordPressAuthError,
   WordPressApiError,
+  decodeHtmlEntities,
 } from '../wordpress';
 
 describe('WordPress REST API Client (src/lib/wordpress.ts)', () => {
@@ -89,8 +90,8 @@ describe('WordPress REST API Client (src/lib/wordpress.ts)', () => {
   describe('3. Public Read Helpers & Pagination', () => {
     it('should fetch posts with correct URL, params, and pagination headers', async () => {
       const mockPosts = [
-        { id: 1, title: { rendered: 'Post 1' }, slug: 'post-1' },
-        { id: 2, title: { rendered: 'Post 2' }, slug: 'post-2' },
+        { id: 1, title: { rendered: 'Post 1' }, slug: 'post-1', excerpt: { rendered: '' } },
+        { id: 2, title: { rendered: 'Post 2' }, slug: 'post-2', excerpt: { rendered: '' } },
       ];
 
       const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
@@ -130,7 +131,7 @@ describe('WordPress REST API Client (src/lib/wordpress.ts)', () => {
     });
 
     it('should handle getWordPressPostBySlug', async () => {
-      const mockPost = { id: 42, slug: 'test-post', title: { rendered: 'Test Post' } };
+      const mockPost = { id: 42, slug: 'test-post', title: { rendered: 'Test Post' }, excerpt: { rendered: 'Excerpt Test' } };
 
       vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
         ok: true,
@@ -225,4 +226,12 @@ describe('WordPress REST API Client (src/lib/wordpress.ts)', () => {
       expect(mapCategoryToType([64], 'ne')).toBe('NEPALI_AIN_KANUN');
     });
 });
+});
+
+describe('decodeHtmlEntities', () => {
+  it('should decode HTML entities correctly', () => {
+    expect(decodeHtmlEntities('&#8220;Test&#8221;')).toBe('“Test”');
+    expect(decodeHtmlEntities('&#8230;')).toBe('…');
+    expect(decodeHtmlEntities('&amp; &lt; &gt;')).toBe('& < >');
+  });
 });

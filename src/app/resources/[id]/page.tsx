@@ -219,6 +219,12 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
           </h1>
 
           <div className="flex flex-wrap items-center gap-6 text-sm text-text-secondary pb-8 border-b border-border/60">
+            {typedResource.subject?.semester?.name && (
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-text-muted uppercase tracking-wider">{dict.semester}:</span>
+                <span className="text-navy dark:text-white font-bold">{typedResource.subject.semester.name}</span>
+              </div>
+            )}
             <div className="flex items-center gap-2">
               <span className="font-bold text-text-muted uppercase tracking-wider">{dict.subject}:</span>
               <span className="text-navy dark:text-white font-bold">{typedResource.subject?.name}</span>

@@ -250,6 +250,21 @@ async function fetchWordPress<T>(
 }
 
 /**
+ * Decodes HTML entities commonly found in WordPress titles and excerpts.
+ */
+export function decodeHtmlEntities(str: string | undefined | null): string {
+  if (!str) return '';
+  return str.replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec))
+            .replace(/&#x([0-9a-f]+);/gi, (match, hex) => String.fromCharCode(parseInt(hex, 16)))
+            .replace(/&quot;/g, '"')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/&apos;/g, "'")
+            .replace(/&nbsp;/g, ' ');
+}
+
+/**
  * Safely invalidates Next.js cache tags
  */
 function invalidateCacheTags(lang: WordPressLanguage) {
@@ -269,7 +284,15 @@ function invalidateCacheTags(lang: WordPressLanguage) {
 export async function getWordPressPosts(
   options: WordPressQueryOptions = {}
 ): Promise<WordPressPaginatedResponse<WordPressPost>> {
-  return fetchWordPress<WordPressPost>('/posts', options);
+  const result = await fetchWordPress<WordPressPost>('/posts', options);
+  if (result.data) {
+    result.data = result.data.map((post) => ({
+      ...post,
+      title: { ...post.title, rendered: decodeHtmlEntities(post.title?.rendered) },
+      excerpt: { ...post.excerpt, rendered: decodeHtmlEntities(post.excerpt?.rendered) },
+    }));
+  }
+  return result;
 }
 
 /**
@@ -280,7 +303,13 @@ export async function getWordPressPostBySlug(
   lang: WordPressLanguage = 'en'
 ): Promise<WordPressPost | null> {
   const result = await fetchWordPress<WordPressPost>('/posts', { slug, lang, perPage: 1 });
-  return result.data[0] || null;
+  const post = result.data[0];
+  if (!post) return null;
+  return {
+    ...post,
+    title: { ...post.title, rendered: decodeHtmlEntities(post.title?.rendered) },
+    excerpt: { ...post.excerpt, rendered: decodeHtmlEntities(post.excerpt?.rendered) },
+  };
 }
 
 /**
@@ -292,7 +321,13 @@ export async function getWordPressPostById(
 ): Promise<WordPressPost | null> {
   try {
     const result = await fetchWordPress<WordPressPost>(`/posts/${id}`, { lang });
-    return result.data[0] || null;
+    const post = result.data[0];
+    if (!post) return null;
+    return {
+      ...post,
+      title: { ...post.title, rendered: decodeHtmlEntities(post.title?.rendered) },
+      excerpt: { ...post.excerpt, rendered: decodeHtmlEntities(post.excerpt?.rendered) },
+    };
   } catch (error: any) {
     if (error instanceof WordPressApiError && error.status === 404) {
       return null;
