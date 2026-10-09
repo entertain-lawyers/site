@@ -105,7 +105,7 @@ export default function StudyCardNavigator({
               {coreSubjects.map((s) => (
                 <HomeCategoryCard
                   key={s.id}
-                  title={s.name.toUpperCase()}
+                  title={s.name}
                   subtitle="VIEW UNITS"
                   href={buildHref('subject', s.id)}
                   icon={BookOpen}
@@ -122,7 +122,7 @@ export default function StudyCardNavigator({
               {electives.map((s) => (
                 <HomeCategoryCard
                   key={s.id}
-                  title={s.name.toUpperCase()}
+                  title={s.name}
                   subtitle="VIEW UNITS"
                   href={buildHref('subject', s.id)}
                   icon={BookOpen}
@@ -139,7 +139,7 @@ export default function StudyCardNavigator({
               {seminars.map((s) => (
                 <HomeCategoryCard
                   key={s.id}
-                  title={s.name.toUpperCase()}
+                  title={s.name}
                   subtitle="VIEW MATERIALS"
                   href={buildHref('subject', s.id)}
                   icon={BookOpen}
@@ -163,8 +163,8 @@ export default function StudyCardNavigator({
           {units.map((u) => (
             <HomeCategoryCard
               key={u.id}
-              title={u.name.toUpperCase()}
-              subtitle={(u.title || "Read Materials").toUpperCase()}
+              title={u.name}
+              subtitle={u.title || "Read Materials"}
               href={buildHref('unit', u.id)}
               icon={Layers}
             />
