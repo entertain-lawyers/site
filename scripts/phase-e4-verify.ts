@@ -12,7 +12,7 @@ async function main() {
     include: { subjects: true }
   });
   console.log(`Semesters Count: ${semesters.length}`);
-  semesters.forEach(s: any => console.log(`[Order: ${s.order}] ${s.name} (Subjects: ${s.subjects.length})`));
+  semesters.forEach((s: any) => console.log(`[Order: ${s.order}] ${s.name} (Subjects: ${s.subjects.length})`));
 
   // 2. Total Subjects
   const allSubjects = await prisma.subject.findMany({ include: { resources: true } });
@@ -20,14 +20,14 @@ async function main() {
 
   // 3. Duplicates Check
   const nameMap = new Map();
-  allSubjects.forEach(s: any => {
+  allSubjects.forEach((s: any) => {
     const norm = s.name.toLowerCase().replace(/[^a-z0-9]/g, '');
     if (!nameMap.has(norm)) nameMap.set(norm, []);
     nameMap.get(norm).push(s);
   });
   const duplicates = Array.from(nameMap.values()).filter(group => group.length > 1);
   console.log(`Duplicate Subjects Found: ${duplicates.length}`);
-  duplicates.forEach(d => console.log(` - ${d.map(s: any => s.name).join(', ')}`));
+  duplicates.forEach(d => console.log(` - ${d.map((s: any) => s.name).join(', ')}`));
 
   // 4. Sitaram Kedia check
   const sitaram = await prisma.resource.findFirst({
