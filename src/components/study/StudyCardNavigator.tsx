@@ -1,7 +1,7 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { HomeCategoryCard } from '@/components/home/HomeCategoryCard';
+import { SubjectCard } from '@/components/study/SubjectCard';
 import { HomeSemesterCard } from '@/components/home/HomeSemesterCard';
 import { BookOpen, Layers } from 'lucide-react';
 
@@ -103,7 +103,7 @@ export default function StudyCardNavigator({
             <h3 className="text-sm font-semibold text-text-muted mb-4 uppercase tracking-wider">Core Subjects</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 lg:gap-8">
               {coreSubjects.map((s) => (
-                <HomeCategoryCard
+                <SubjectCard
                   key={s.id}
                   title={s.name}
                   subtitle="VIEW UNITS"
@@ -120,7 +120,7 @@ export default function StudyCardNavigator({
             <h3 className="text-sm font-semibold text-text-muted mb-4 uppercase tracking-wider">Elective Subjects</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 lg:gap-8">
               {electives.map((s) => (
-                <HomeCategoryCard
+                <SubjectCard
                   key={s.id}
                   title={s.name}
                   subtitle="VIEW UNITS"
@@ -137,7 +137,7 @@ export default function StudyCardNavigator({
             <h3 className="text-sm font-semibold text-text-muted mb-4 uppercase tracking-wider">Seminars</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 lg:gap-8">
               {seminars.map((s) => (
-                <HomeCategoryCard
+                <SubjectCard
                   key={s.id}
                   title={s.name}
                   subtitle="VIEW MATERIALS"
@@ -161,7 +161,7 @@ export default function StudyCardNavigator({
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 lg:gap-8">
           {units.map((u) => (
-            <HomeCategoryCard
+            <SubjectCard
               key={u.id}
               title={u.name}
               subtitle={u.title || "Read Materials"}

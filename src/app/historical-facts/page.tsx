@@ -1,7 +1,7 @@
 import { getWordPressPosts } from '@/lib/wordpress';
 import Link from 'next/link';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
-import { HomeCategoryCard } from '@/components/home/HomeCategoryCard';
+import { SubjectCard } from '@/components/study/SubjectCard';
 import { Hourglass, Users } from 'lucide-react';
 
 export const revalidate = 60;
@@ -30,13 +30,13 @@ export default async function FactsPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 max-w-4xl mx-auto mb-16">
-          <HomeCategoryCard 
+          <SubjectCard 
             title="Historical Facts"
             subtitle=""
             href="/historical-facts?category=historical"
             icon={Hourglass}
           />
-          <HomeCategoryCard 
+          <SubjectCard 
             title="Legal Personalities"
             subtitle=""
             href="/historical-facts?category=personalities"

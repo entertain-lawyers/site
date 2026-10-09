@@ -5,7 +5,7 @@ import { Metadata } from 'next';
 import { formatBSDate } from '@/lib/nepali-date';
 import { Newspaper, Gavel, Zap, Scale, BookText, MessageSquare } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { HomeCategoryCard } from '@/components/home/HomeCategoryCard';
+import { SubjectCard } from '@/components/study/SubjectCard';
 
 const HomeSearchBar = dynamic(() => import('@/components/home/HomeSearchBar'), {
   loading: () => <div className="h-12 w-full max-w-3xl mx-auto bg-surface-alt animate-pulse rounded-full mb-12"></div>
@@ -108,7 +108,7 @@ export default async function NepaliLandingPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 lg:gap-8">
           {NEPALI_CARDS.map((card, idx) => (
-            <HomeCategoryCard key={idx} {...card} />
+            <SubjectCard key={idx} {...card} />
           ))}
         </div>
       </section>
