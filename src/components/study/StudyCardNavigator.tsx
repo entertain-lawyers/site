@@ -54,15 +54,15 @@ export default function StudyCardNavigator({
   if (!selectedSemesterId) {
     return (
       <div className="mb-12">
-        <h2 className="text-xl font-bold text-navy dark:text-white mb-6 tracking-tight">
+        <h2 className="text-xl font-bold text-navy dark:text-white mb-6 tracking-tight uppercase">
           Select Semester
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 lg:gap-8">
           {semesters.map((s) => (
             <HomeCategoryCard
               key={s.id}
-              title={s.name}
-              subtitle="Explore Subjects"
+              title={s.name.toUpperCase()}
+              subtitle="EXPLORE SUBJECTS"
               href={buildHref('semester', s.id)}
               icon={GraduationCap}
             />
@@ -76,15 +76,15 @@ export default function StudyCardNavigator({
   if (!selectedSubjectId) {
     return (
       <div className="mb-12">
-        <h2 className="text-xl font-bold text-navy dark:text-white mb-6 tracking-tight">
+        <h2 className="text-xl font-bold text-navy dark:text-white mb-6 tracking-tight uppercase">
           Select Subject
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 lg:gap-8">
           {subjects.map((s) => (
             <HomeCategoryCard
               key={s.id}
-              title={s.name}
-              subtitle="View Units"
+              title={s.name.toUpperCase()}
+              subtitle="VIEW UNITS"
               href={buildHref('subject', s.id)}
               icon={BookOpen}
             />
@@ -98,15 +98,15 @@ export default function StudyCardNavigator({
   if (!selectedUnitId) {
     return (
       <div className="mb-12">
-        <h2 className="text-xl font-bold text-navy dark:text-white mb-6 tracking-tight">
+        <h2 className="text-xl font-bold text-navy dark:text-white mb-6 tracking-tight uppercase">
           Select Unit
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 lg:gap-8">
           {units.map((u) => (
             <HomeCategoryCard
               key={u.id}
-              title={u.name}
-              subtitle={u.title || "Read Materials"}
+              title={u.name.toUpperCase()}
+              subtitle={(u.title || "Read Materials").toUpperCase()}
               href={buildHref('unit', u.id)}
               icon={Layers}
             />
