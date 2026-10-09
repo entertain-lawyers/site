@@ -14,8 +14,8 @@ export function HomeCategoryCard({ title, subtitle, href, icon: Icon }: HomeCate
       <div className="h-32 sm:h-36 bg-white dark:bg-surface px-5 sm:px-8 py-5 rounded-2xl border border-border/40 dark:border-white/5 shadow-[0_2px_12px_rgb(0,0,0,0.02)] transition-all duration-400 ease-out hover:shadow-[0_12px_36px_-10px_rgba(26,41,66,0.12)] dark:hover:shadow-[0_12px_36px_-10px_rgba(255,255,255,0.03)] hover:border-navy/20 dark:hover:border-white/10 motion-safe:hover:-translate-y-1 flex flex-row items-center justify-between relative overflow-hidden z-0">
 
         {/* Text Content */}
-        <div className="flex flex-col items-start justify-center text-left relative z-10 w-[60%] sm:w-[50%] pr-2 h-full">
-          <h3 className="text-[18px] sm:text-[20px] font-black text-navy dark:text-gray-100 tracking-tight leading-snug mb-1 transition-colors duration-400 ease-out group-hover:text-accent dark:group-hover:text-blue-400 line-clamp-3 uppercase">
+        <div className="flex flex-col items-start justify-center text-left relative z-10 w-[70%] sm:w-[65%] pr-2 h-full">
+          <h3 className="text-[18px] sm:text-[20px] font-black text-navy dark:text-gray-100 tracking-tight leading-snug mb-1 transition-colors duration-400 ease-out group-hover:text-accent dark:group-hover:text-blue-400 line-clamp-4 uppercase">
             {title}
           </h3>
           {subtitle && (
