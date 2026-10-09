@@ -30,8 +30,10 @@ export async function GET(request: Request) {
         });
         
         if (!existing) {
-          await prisma.subject.create({
-            data: {
+          await prisma.subject.upsert({
+            where: { slug: subSlug },
+            update: { name: subConfig.name, semesterId: semester.id, order: subConfig.order },
+            create: {
               name: subConfig.name,
               semesterId: semester.id,
               order: subConfig.order,
