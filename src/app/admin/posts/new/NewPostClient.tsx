@@ -128,6 +128,7 @@ export default function NewPostClient() {
                 <option value="NEWS">News</option>
                 <option value="BLOG">Blog</option>
                 <option value="FACT">Historical Fact</option>
+                <option value="PERSONALITY">Legal Personality</option>
                 <option value="NEPALI_SAMANYA_SAMACHAR">Nepali: सामान्य समाचार</option>
                 <option value="NEPALI_ADALAT_SAMACHAR">Nepali: अदालत समाचार</option>
                 <option value="NEPALI_MUKHYA_SAMACHAR">Nepali: मुख्य समाचार</option>
