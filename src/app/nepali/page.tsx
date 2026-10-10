@@ -5,7 +5,7 @@ import { Metadata } from 'next';
 import { formatBSDate } from '@/lib/nepali-date';
 import { Newspaper, Gavel, Zap, Scale, BookText, MessageSquare } from 'lucide-react';
 import dynamic from 'next/dynamic';
-import { SubjectCard } from '@/components/study/SubjectCard';
+import { HomeCategoryCard } from '@/components/home/HomeCategoryCard';
 
 const HomeSearchBar = dynamic(() => import('@/components/home/HomeSearchBar'), {
   loading: () => <div className="h-12 w-full max-w-3xl mx-auto bg-surface-alt animate-pulse rounded-full mb-12"></div>
@@ -108,7 +108,7 @@ export default async function NepaliLandingPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 lg:gap-8">
           {NEPALI_CARDS.map((card, idx) => (
-            <SubjectCard key={idx} {...card} />
+            <HomeCategoryCard key={idx} {...card} />
           ))}
         </div>
       </section>
@@ -124,7 +124,7 @@ export default async function NepaliLandingPage() {
         {recentPosts.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {recentPosts.map((post: any) => (
-              <article key={post.id} className="group bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-black/5 dark:border-white/5 flex flex-col h-full">
+              <article key={post.id} className="group relative bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-black/5 dark:border-white/5 flex flex-col h-full">
                 <div className="relative h-56 w-full overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 dark:from-zinc-800 dark:to-zinc-900 flex items-center justify-center">
                   {post.featuredImage ? (
                     // eslint-disable-next-line @next/next/no-img-element
