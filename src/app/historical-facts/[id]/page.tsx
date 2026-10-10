@@ -1,4 +1,4 @@
-import { getWordPressPostById, mapCategoryToType } from '@/lib/wordpress';
+import { getWordPressPostById, getWordPressPosts, mapCategoryToType } from '@/lib/wordpress';
 import { notFound } from 'next/navigation';
 import PostDetail from '@/components/posts/PostDetail';
 
@@ -13,14 +13,39 @@ export default async function FactDetailPage({ params }: { params: { id: string 
     notFound();
   }
 
+  const postType = mapCategoryToType(wpPost.categories, 'en');
   const post = {
     id: String(wpPost.id),
     title: wpPost.title.rendered,
     content: wpPost.content.rendered,
-    type: 'FACT' as const,
+    type: postType as any,
     createdAt: new Date(wpPost.date),
-    author: { email: `WP Author (${wpPost.author})` }
+    author: { email: `WP Author (${wpPost.author})` },
+    featuredImage: wpPost._embedded?.['wp:featuredmedia']?.[0]?.source_url || null
   };
 
-  return <PostDetail post={post as any} backUrl="/historical-facts" backLabel="Historical Facts" />;
+  const wpRelatedResponse = await getWordPressPosts({
+    categories: wpPost.categories,
+    status: 'publish',
+    lang: 'en',
+    perPage: 5,
+    embed: true
+  });
+
+  const relatedPosts = wpRelatedResponse.data
+    .filter(p => p.id !== wpPost.id)
+    .slice(0, 4)
+    .map(p => ({
+      id: String(p.id),
+      title: p.title.rendered,
+      type: mapCategoryToType(p.categories, 'en'),
+      createdAt: new Date(p.date),
+      featuredImage: (p as any)._embedded?.['wp:featuredmedia']?.[0]?.source_url || null,
+      url: `/historical-facts/${p.id}`
+    }));
+
+  const backUrl = postType === 'PERSONALITY' ? '/historical-facts/personalities' : '/historical-facts/historical';
+  const backLabel = postType === 'PERSONALITY' ? 'Legal Personalities' : 'Historical Facts';
+
+  return <PostDetail post={post as any} backUrl={backUrl} backLabel={backLabel} relatedPosts={relatedPosts} />;
 }

@@ -31,7 +31,7 @@ export default async function NewsPage() {
           {posts.map(post => {
             const thumbnail = post.featuredImage || extractFirstImage(post.content);
             return (
-            <div key={post.id} className="bg-surface border border-border rounded-2xl shadow-soft overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 flex flex-col">
+            <div key={post.id} className="group relative bg-surface border border-border rounded-2xl shadow-soft overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 flex flex-col">
               <div className="w-full h-48 bg-slate-100 dark:bg-zinc-800 flex items-center justify-center border-b border-border overflow-hidden">
                 {thumbnail ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -47,14 +47,17 @@ export default async function NewsPage() {
                   <div className="text-xs text-red-600 dark:text-red-400 mb-3 font-bold uppercase tracking-wider">
                     {post.type}
                   </div>
-                  <h3 className="text-xl font-bold text-navy dark:text-white mb-4 line-clamp-2 leading-tight">
-                    {post.title}
+                  <h3 className="text-xl font-bold text-navy dark:text-white mb-4 line-clamp-2 leading-tight group-hover:text-accent transition-colors">
+                    <Link href={`/news/${post.id}`} className="focus:outline-none">
+                      <span className="absolute inset-0" aria-hidden="true"></span>
+                      {post.title}
+                    </Link>
                   </h3>
                 </div>
                 <div className="mt-6">
-                  <Link href={`/news/${post.id}`} className="text-accent font-bold text-sm uppercase tracking-wider hover:text-accent-dark transition-colors flex items-center">
+                  <span className="text-accent font-bold text-sm uppercase tracking-wider group-hover:text-accent-dark transition-colors flex items-center">
                     READ MORE &raquo;
-                  </Link>
+                  </span>
                 </div>
               </div>
             </div>

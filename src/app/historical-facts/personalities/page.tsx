@@ -42,7 +42,7 @@ export default async function LegalPersonalitiesSubPage() {
                   </svg>
                 )}
               </div>
-              <div className="p-6 sm:p-8 flex flex-col flex-1 bg-white dark:bg-zinc-900 relative">
+              <div className="p-6 sm:p-8 flex flex-col flex-1 bg-white dark:bg-zinc-900">
                 <div className="flex-1">
                   <div className="text-xs text-red-600 dark:text-red-400 mb-3 font-bold uppercase tracking-wider">
                     {post.type}
