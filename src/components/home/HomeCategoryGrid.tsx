@@ -4,25 +4,25 @@ import { HomeCategoryCard } from "./HomeCategoryCard";
 export function HomeCategoryGrid() {
   const categories = [
     {
-      title: "Law Notes",
+      title: "LAW NOTES",
       subtitle: "Comprehensive Materials",
       href: "/study?type=LAW_NOTE",
       icon: BookOpen,
     },
     {
-      title: "Precedent / Case Laws",
+      title: "PRECEDENT / CASE LAWS",
       subtitle: "Supreme Court Decisions",
       href: "/study?type=CASE_LAW",
       icon: Landmark,
     },
     {
-      title: "News",
+      title: "NEWS",
       subtitle: "Read Latest Insights",
       href: "/news",
       icon: Newspaper,
     },
     {
-      title: "Old Questions",
+      title: "OLD QUESTIONS",
       subtitle: "Practice Past Exams",
       href: "/study?type=OLD_QUESTION",
       icon: Briefcase,
@@ -30,9 +30,9 @@ export function HomeCategoryGrid() {
     {
       title: (
         <div className="flex flex-col items-center justify-center text-center w-full leading-tight">
-          <span>Historical Facts</span>
+          <span>HISTORICAL FACTS</span>
           <span className="text-[15px] sm:text-[17px] leading-none my-0.5">&</span>
-          <span>Legal Personalities</span>
+          <span>LEGAL PERSONALITIES</span>
         </div>
       ),
       subtitle: "",
@@ -42,9 +42,9 @@ export function HomeCategoryGrid() {
     {
       title: (
         <div className="flex flex-col items-center justify-center text-center w-full leading-tight">
-          <span>Blog, Opinion</span>
+          <span>BLOG, OPINION</span>
           <span className="text-[15px] sm:text-[17px] leading-none my-0.5">&</span>
-          <span>Others</span>
+          <span>OTHERS</span>
         </div>
       ),
       subtitle: "",

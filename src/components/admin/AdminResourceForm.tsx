@@ -86,11 +86,12 @@ export function AdminResourceForm({
       const createRes = await createResourceAction({
         title,
         description,
-        subjectId,
+        subjectId: resourceType === ResourceType.OLD_QUESTION ? undefined : subjectId,
+        semesterId: resourceType === ResourceType.OLD_QUESTION ? semesterId : undefined,
         isPremium,
         priceAmount: isPremium ? parseFloat(priceAmount) * 100 : undefined,
         type: resourceType,
-        unitId: unitId || undefined,
+        unitId: (resourceType === ResourceType.OLD_QUESTION ? undefined : unitId) || undefined,
         content: uploadMode === 'NOTE' ? content : undefined,
               });
 
@@ -137,7 +138,7 @@ export function AdminResourceForm({
       }
 
       // Success
-      router.push('/admin/resources');
+      router.push('/admin/study/resources');
       router.refresh();
     } catch (err) {
       const message = err instanceof Error ? err.message : 'An error occurred during creation.';
@@ -224,39 +225,43 @@ export function AdminResourceForm({
           </select>
         </div>
 
-        <div>
-          <label className="block text-sm font-bold text-navy dark:text-white mb-2">Subject</label>
-          <select
-            required
-            value={subjectId}
-            onChange={e => {
-              setSubjectId(e.target.value);
-              setUnitId('');
-            }}
-            disabled={!semesterId}
-            className="w-full rounded-xl border border-black/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm disabled:opacity-50"
-          >
-            <option value="">Select Subject</option>
-            {filteredSubjects.map((s) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-        </div>
+        {resourceType !== ResourceType.OLD_QUESTION && (
+          <>
+            <div>
+              <label className="block text-sm font-bold text-navy dark:text-white mb-2">Subject</label>
+              <select
+                required
+                value={subjectId}
+                onChange={e => {
+                  setSubjectId(e.target.value);
+                  setUnitId('');
+                }}
+                disabled={!semesterId}
+                className="w-full rounded-xl border border-black/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm disabled:opacity-50"
+              >
+                <option value="">Select Subject</option>
+                {filteredSubjects.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
 
-        <div>
-          <label className="block text-sm font-bold text-navy dark:text-white mb-2">Unit (Optional)</label>
-          <select
-            value={unitId}
-            onChange={e => setUnitId(e.target.value)}
-            disabled={!subjectId}
-            className="w-full rounded-xl border border-black/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm disabled:opacity-50"
-          >
-            <option value="">Select Unit</option>
-            {filteredUnits.map((u) => (
-              <option key={u.id} value={u.id}>{u.name}</option>
-            ))}
-          </select>
-        </div>
+            <div>
+              <label className="block text-sm font-bold text-navy dark:text-white mb-2">Unit (Optional)</label>
+              <select
+                value={unitId}
+                onChange={e => setUnitId(e.target.value)}
+                disabled={!subjectId}
+                className="w-full rounded-xl border border-black/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm disabled:opacity-50"
+              >
+                <option value="">Select Unit</option>
+                {filteredUnits.map((u) => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </select>
+            </div>
+          </>
+        )}
 
         <div>
           <label className="block text-sm font-bold text-navy dark:text-white mb-2">Featured Image URL (Optional)</label>

@@ -101,7 +101,7 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
     selectedSubjectId ? getCachedUnits(selectedSubjectId) : Promise.resolve([]),
     prisma.resource.findMany({
       where: { status: 'PUBLISHED',
-        ...(selectedSemesterId && { subject: { semesterId: selectedSemesterId } }),
+        ...(selectedSemesterId && (selectedType === 'OLD_QUESTION' ? { semesterId: selectedSemesterId } : { subject: { semesterId: selectedSemesterId } })),
         ...(selectedSubjectId && { subjectId: selectedSubjectId }),
         ...(selectedUnitId && { unitId: selectedUnitId }),
         ...(selectedType && Object.values(ResourceType).includes(selectedType) && { type: selectedType }),
@@ -118,6 +118,7 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
         isPremium: true,
         priceAmount: true,
         order: true,
+        semester: { select: { name: true } },
         subject: { select: { name: true, semester: { select: { name: true } } } },
         unit: { select: { name: true } },
       },
@@ -132,12 +133,12 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
   // 3. Merge syllabus configuration
   const currentSemester = semesters.find(s => s.id === selectedSemesterId);
   const currentSemesterConfig = currentSemester ? SYLLABUS_CONFIG.find(c => c.order === currentSemester.order) : undefined;
-  
+
   const subjects = rawSubjects.map(sub => {
     // Exact or normalized match
     const subNameNorm = sub.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const config = currentSemesterConfig?.subjects.find(s => 
-      s.name.toLowerCase() === sub.name.toLowerCase() || 
+    const config = currentSemesterConfig?.subjects.find(s =>
+      s.name.toLowerCase() === sub.name.toLowerCase() ||
       s.name.toLowerCase().replace(/[^a-z0-9]/g, '') === subNameNorm
     );
     return {
@@ -161,14 +162,14 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
           units.push({ id: `virtual-unit-${i}`, name: `Unit ${i}`, title: null });
         }
       }
-      
+
       units.sort((a, b) => {
         const numA = parseInt(a.name.match(/\d+/)?.[0] || '999');
         const numB = parseInt(b.name.match(/\d+/)?.[0] || '999');
         return numA - numB;
       });
     }
-    
+
     if (currentSub?.hasPrescribedCases) {
       const existingCases = units.find(u => u.name.toLowerCase().includes('cases'));
       if (!existingCases) {
@@ -246,10 +247,10 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
           />
             </div>
             )}
-            
+
             {/* The new Drill-down Card Navigator */}
             {selectedType !== 'CASE_LAW' && (
-              <StudyCardNavigator 
+              <StudyCardNavigator
                 semesters={semesters}
                 subjects={subjects}
                 units={units}
@@ -324,20 +325,29 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
                     </h3>
 
                     <div className="mt-auto space-y-2 mb-6">
-                      {resource.subject?.semester?.name && (
+                      {resource.subject?.semester?.name ? (
                         <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
                           <BookOpen className="w-4 h-4 mt-0.5 flex-shrink-0 text-text-muted" />
                           <span className="line-clamp-1">{resource.subject.semester.name}</span>
                         </div>
-                      )}
-                      <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
-                        {resource.subject?.semester?.name ? (
-                          <div className="w-4 h-4 flex-shrink-0 ml-0.5 border-l-2 border-b-2 border-border rounded-bl-md" />
-                        ) : (
+                      ) : resource.semester?.name ? (
+                        <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
                           <BookOpen className="w-4 h-4 mt-0.5 flex-shrink-0 text-text-muted" />
-                        )}
-                        <span className="line-clamp-1">{resource.subject?.name || 'Uncategorized'}</span>
-                      </div>
+                          <span className="line-clamp-1">{resource.semester.name}</span>
+                        </div>
+                      ) : null}
+
+                      {resource.subject && (
+                        <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
+                          {resource.subject?.semester?.name ? (
+                            <div className="w-4 h-4 flex-shrink-0 ml-0.5 border-l-2 border-b-2 border-border rounded-bl-md" />
+                          ) : (
+                            <BookOpen className="w-4 h-4 mt-0.5 flex-shrink-0 text-text-muted" />
+                          )}
+                          <span className="line-clamp-1">{resource.subject.name}</span>
+                        </div>
+                      )}
+
                       {resource.unit && (
                         <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
                           <div className="w-4 h-4 flex-shrink-0 ml-0.5 border-l-2 border-b-2 border-border rounded-bl-md" />

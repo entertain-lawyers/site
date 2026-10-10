@@ -89,3 +89,8 @@ fix_media_integrity.js
 # Internal Opencode Handover Docs
 docs/OPENCODE_*.md
 
+
+# Local Test Artifacts
+.mock-s3-data/
+test.pdf
+scripts/mock-s3.js

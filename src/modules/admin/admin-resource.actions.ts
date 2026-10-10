@@ -9,17 +9,26 @@ import { isRecordInUseError, isRecordNotFoundError } from '@/lib/prisma-errors';
 const createResourceSchema = z.object({
   title: z.string().min(3),
   description: z.string().optional(),
-  subjectId: z.string().uuid(),
+  subjectId: z.string().uuid().optional(),
+  semesterId: z.string().uuid().optional(),
   isPremium: z.boolean(),
   priceAmount: z.number().optional(),
   type: z.nativeEnum(ResourceType).optional(),
   unitId: z.string().uuid().optional(),
+}).refine(data => {
+  if (data.type === ResourceType.OLD_QUESTION) {
+    return !!data.semesterId;
+  }
+  return !!data.subjectId;
+}, {
+  message: "Old Questions require a semester, other resources require a subject",
 });
 
 export const createResourceAction = createSafeAction(async (args: {
   title: string;
   description?: string;
-  subjectId: string;
+  subjectId?: string;
+  semesterId?: string;
   isPremium: boolean;
   priceAmount?: number;
   type?: ResourceType;
@@ -34,31 +43,36 @@ export const createResourceAction = createSafeAction(async (args: {
   const priceAmount = isPremium ? (args.priceAmount || 0) : null;
   const currency = isPremium ? 'NPR' : undefined;
 
-  const resource = await prisma.resource.create({
-    data: {
-      title: args.title,
-      subjectId: args.subjectId,
-      isPremium,
-      priceAmount,
-      currency,
-      type: args.type || ResourceType.LAW_NOTE,
-      unitId: args.unitId || null,
-    }
-  });
-
-  if (session.userId) {
-    await prisma.auditLog.create({
+  const resourceId = await prisma.$transaction(async (tx) => {
+    const resource = await tx.resource.create({
       data: {
-        userId: session.userId,
-        action: 'CREATE',
-        entityType: 'RESOURCE',
-        entityId: resource.id,
-        details: { title: resource.title, type: resource.type }
+        title: args.title,
+        subjectId: args.subjectId || null,
+        semesterId: args.semesterId || null,
+        isPremium,
+        priceAmount,
+        currency,
+        type: args.type || ResourceType.LAW_NOTE,
+        unitId: args.unitId || null,
       }
     });
-  }
 
-  return { resourceId: resource.id };
+    if (session.userId) {
+      await tx.auditLog.create({
+        data: {
+          userId: session.userId,
+          action: 'CREATE',
+          entityType: 'RESOURCE',
+          entityId: resource.id,
+          details: { title: resource.title, type: resource.type }
+        }
+      });
+    }
+
+    return resource.id;
+  });
+
+  return { resourceId };
 });
 
 const deleteResourceSchema = z.object({
@@ -98,8 +112,22 @@ export const deleteResourceAction = createSafeAction(async (args: z.infer<typeof
   // We will leave the Document orphaned for future async GC, ensuring total safety.
 
   try {
-    await prisma.resource.delete({
-      where: { id: args.id }
+    await prisma.$transaction(async (tx) => {
+      await tx.resource.delete({
+        where: { id: args.id }
+      });
+
+      if (resource && session.userId) {
+        await tx.auditLog.create({
+          data: {
+            userId: session.userId,
+            action: 'DELETE',
+            entityType: 'RESOURCE',
+            entityId: resource.id,
+            details: { title: resource.title, type: resource.type }
+          }
+        });
+      }
     });
   } catch (error) {
     if (isRecordInUseError(error)) {
@@ -111,18 +139,6 @@ export const deleteResourceAction = createSafeAction(async (args: z.infer<typeof
     throw error;
   }
 
-  if (resource && session.userId) {
-    await prisma.auditLog.create({
-      data: {
-        userId: session.userId,
-        action: 'DELETE',
-        entityType: 'RESOURCE',
-        entityId: resource.id,
-        details: { title: resource.title, type: resource.type }
-      }
-    });
-  }
-
   return { success: true };
 });
 
@@ -130,12 +146,20 @@ const updateResourceSchema = z.object({
   id: z.string().uuid(),
   title: z.string().min(3),
   description: z.string().optional(),
-  subjectId: z.string().uuid(),
+  subjectId: z.string().uuid().optional(),
+  semesterId: z.string().uuid().optional(),
   isPremium: z.boolean(),
   priceAmount: z.number().optional(),
   type: z.nativeEnum(ResourceType),
   unitId: z.string().uuid().optional(),
-      status: z.nativeEnum(ContentStatus),
+  status: z.nativeEnum(ContentStatus),
+}).refine(data => {
+  if (data.type === ResourceType.OLD_QUESTION) {
+    return !!data.semesterId;
+  }
+  return !!data.subjectId;
+}, {
+  message: "Old Questions require a semester, other resources require a subject",
 });
 
 export const updateResourceAction = createSafeAction(async (args: z.infer<typeof updateResourceSchema>, session) => {
@@ -150,31 +174,34 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
   const priceAmount = isPremium ? (args.priceAmount || 0) : null;
   const currency = isPremium ? 'NPR' : undefined;
 
-  const resource = await prisma.resource.update({
-    where: { id: args.id },
-    data: {
-      title: args.title,
-      subjectId: args.subjectId,
-      isPremium,
-      priceAmount,
-      currency,
-      type: args.type,
-      unitId: args.unitId || null,
-      status: args.status,
-    }
-  });
-
-  if (session.userId) {
-    await prisma.auditLog.create({
+  await prisma.$transaction(async (tx) => {
+    const resource = await tx.resource.update({
+      where: { id: args.id },
       data: {
-        userId: session.userId,
-        action: 'UPDATE',
-        entityType: 'RESOURCE',
-        entityId: resource.id,
-        details: { title: resource.title, type: resource.type, status: resource.status }
+        title: args.title,
+        subjectId: args.subjectId || null,
+        semesterId: args.semesterId || null,
+        isPremium,
+        priceAmount,
+        currency,
+        type: args.type,
+        unitId: args.unitId || null,
+        status: args.status,
       }
     });
-  }
+
+    if (session.userId) {
+      await tx.auditLog.create({
+        data: {
+          userId: session.userId,
+          action: 'UPDATE',
+          entityType: 'RESOURCE',
+          entityId: resource.id,
+          details: { title: resource.title, type: resource.type, status: resource.status }
+        }
+      });
+    }
+  });
 
   return { success: true };
 });

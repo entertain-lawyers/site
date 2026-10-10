@@ -76,13 +76,13 @@ export default async function AdminDashboardPage() {
 
           <div className="relative z-10 flex flex-wrap gap-4">
             <Link
-              href="/admin/resources"
+              href="/admin/study/resources"
               className="inline-flex items-center justify-center min-h-[48px] px-6 py-2.5 border border-border shadow-sm text-sm font-bold rounded-xl text-text-primary bg-white/50 dark:bg-zinc-800/50 hover:bg-white dark:hover:bg-zinc-800 backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent transition-all duration-300 hover:shadow-md hover:-translate-y-0.5"
             >
               View All Resources
             </Link>
             <Link
-              href="/admin/resources/new"
+              href="/admin/study/resources/new"
               className="inline-flex items-center justify-center min-h-[48px] px-6 py-2.5 border border-transparent shadow-[0_4px_14px_0_rgba(var(--color-accent),0.39)] hover:shadow-[0_6px_20px_rgba(var(--color-accent),0.23)] hover:bg-accent/90 text-sm font-bold rounded-xl text-white bg-accent focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent transition-all duration-300 hover:-translate-y-0.5"
             >
               <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">

@@ -19,7 +19,7 @@ export default async function FactDetailPage({ params }: { params: Promise<{ id:
     id: String(wpPost.id),
     title: wpPost.title.rendered,
     content: wpPost.content.rendered,
-    type: postType as any,
+    type: postType,
     createdAt: new Date(wpPost.date),
     author: { email: `WP Author (${wpPost.author})` },
     featuredImage: wpPost._embedded?.['wp:featuredmedia']?.[0]?.source_url || null
@@ -41,12 +41,12 @@ export default async function FactDetailPage({ params }: { params: Promise<{ id:
       title: p.title.rendered,
       type: mapCategoryToType(p.categories, 'en'),
       createdAt: new Date(p.date),
-      featuredImage: (p as any)._embedded?.['wp:featuredmedia']?.[0]?.source_url || null,
+      featuredImage: p._embedded?.['wp:featuredmedia']?.[0]?.source_url || null,
       url: `/historical-facts/${p.id}`
     }));
 
   const backUrl = postType === 'PERSONALITY' ? '/historical-facts/personalities' : '/historical-facts/historical';
   const backLabel = postType === 'PERSONALITY' ? 'Legal Personalities' : 'Historical Facts';
 
-  return <PostDetail post={post as any} backUrl={backUrl} backLabel={backLabel} relatedPosts={relatedPosts} />;
+  return <PostDetail post={post} backUrl={backUrl} backLabel={backLabel} relatedPosts={relatedPosts} />;
 }

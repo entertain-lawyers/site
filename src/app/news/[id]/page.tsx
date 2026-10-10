@@ -1,11 +1,12 @@
-import { getWordPressPostById, mapCategoryToType } from '@/lib/wordpress';
+import { getWordPressPostById, getWordPressPosts, mapCategoryToType } from '@/lib/wordpress';
 import { notFound } from 'next/navigation';
 import PostDetail from '@/components/posts/PostDetail';
 
 export const revalidate = 60;
 
-export default async function NewsDetailPage({ params }: { params: { id: string } }) {
-  const wpId = Number(params.id);
+export default async function NewsDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const wpId = Number(id);
   if (isNaN(wpId)) notFound();
 
   const wpPost = await getWordPressPostById(wpId, 'en');
@@ -19,8 +20,29 @@ export default async function NewsDetailPage({ params }: { params: { id: string 
     content: wpPost.content.rendered,
     type: 'NEWS' as const,
     createdAt: new Date(wpPost.date),
-    author: { email: `WP Author (${wpPost.author})` }
+    author: { email: `WP Author (${wpPost.author})` },
+    featuredImage: wpPost._embedded?.['wp:featuredmedia']?.[0]?.source_url || null
   };
 
-  return <PostDetail post={post as any} backUrl="/news" backLabel="News" />;
+  const wpRelatedResponse = await getWordPressPosts({
+    categories: wpPost.categories,
+    status: 'publish',
+    lang: 'en',
+    perPage: 5,
+    embed: true
+  });
+
+  const relatedPosts = wpRelatedResponse.data
+    .filter(p => p.id !== wpPost.id)
+    .slice(0, 4)
+    .map(p => ({
+      id: String(p.id),
+      title: p.title.rendered,
+      type: 'NEWS',
+      createdAt: new Date(p.date),
+      featuredImage: p._embedded?.['wp:featuredmedia']?.[0]?.source_url || null,
+      url: `/news/${p.id}`
+    }));
+
+  return <PostDetail post={post} backUrl="/news" backLabel="News" relatedPosts={relatedPosts} />;
 }

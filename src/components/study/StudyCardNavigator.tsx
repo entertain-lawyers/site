@@ -39,8 +39,14 @@ export default function StudyCardNavigator({
 }: StudyCardNavigatorProps) {
   const searchParams = useSearchParams();
 
-  // If a unit is already selected, we don't need to show drill-down cards (they can just see the resources)
+  // If a unit is already selected, we don't need to show drill-down cards
   if (selectedUnitId) return null;
+
+  const isOldQuestion = searchParams.get('type') === 'OLD_QUESTION';
+
+  // For Old Questions, we don't need subject/unit drill-down.
+  // If semester is selected, the resources are already displayed.
+  if (isOldQuestion && selectedSemesterId) return null;
 
   const buildHref = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
