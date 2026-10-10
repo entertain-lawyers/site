@@ -26,9 +26,11 @@ export default function TeamMemberFormClient({ member }: TeamMemberFormClientPro
   const [email, setEmail] = useState(member?.email || '');
   const [linkedinUrl, setLinkedinUrl] = useState(member?.linkedinUrl || '');
   const [facebookUrl, setFacebookUrl] = useState(member?.facebookUrl || '');
+  const [instagramUrl, setInstagramUrl] = useState(member?.instagramUrl || '');
   const [websiteUrl, setWebsiteUrl] = useState(member?.websiteUrl || '');
   const [qualifications, setQualifications] = useState(member?.qualifications || '');
   const [experience, setExperience] = useState(member?.experience || '');
+  const [achievements, setAchievements] = useState(member?.achievements || '');
   const [practiceAreas, setPracticeAreas] = useState(member?.practiceAreas || '');
   const [languages, setLanguages] = useState(member?.languages || '');
   const [displayOrder, setDisplayOrder] = useState(member?.displayOrder || 0);
@@ -50,27 +52,34 @@ export default function TeamMemberFormClient({ member }: TeamMemberFormClientPro
       email,
       linkedinUrl,
       facebookUrl,
+      instagramUrl,
       websiteUrl,
       qualifications,
       experience,
+      achievements,
       practiceAreas,
       languages,
       displayOrder: Number(displayOrder),
       isPublished,
     };
 
-    let res;
-    if (member?.id) {
-      res = await updateTeamMemberAction({ id: member.id, ...payload });
-    } else {
-      res = await createTeamMemberAction(payload);
-    }
+    try {
+      let res;
+      if (member?.id) {
+        res = await updateTeamMemberAction({ id: member.id, ...payload });
+      } else {
+        res = await createTeamMemberAction(payload);
+      }
 
-    if (res?.success) {
-      router.push('/admin/team');
-      router.refresh();
-    } else {
-      setError((res as any)?.error || 'An error occurred while saving.');
+      if (res?.success) {
+        router.push('/admin/team');
+        router.refresh();
+      } else {
+        setError((res as any)?.error || 'An error occurred while saving.');
+      }
+    } catch (err) {
+      setError('A network error occurred while communicating with the server. Please check your connection and try again.');
+    } finally {
       setLoading(false);
     }
   };
@@ -121,12 +130,16 @@ export default function TeamMemberFormClient({ member }: TeamMemberFormClientPro
             <textarea value={practiceAreas} onChange={e => setPracticeAreas(e.target.value)} className="w-full border p-3 rounded-xl dark:bg-zinc-950 dark:border-white/10 min-h-[80px]" />
           </div>
           <div>
-            <label className="block text-sm font-bold text-navy dark:text-white mb-2">Qualifications (comma or newline separated)</label>
+            <label className="block text-sm font-bold text-navy dark:text-white mb-2">Academic Details (comma or newline separated)</label>
             <textarea value={qualifications} onChange={e => setQualifications(e.target.value)} className="w-full border p-3 rounded-xl dark:bg-zinc-950 dark:border-white/10 min-h-[80px]" />
           </div>
           <div>
             <label className="block text-sm font-bold text-navy dark:text-white mb-2">Experience (comma or newline separated)</label>
             <textarea value={experience} onChange={e => setExperience(e.target.value)} className="w-full border p-3 rounded-xl dark:bg-zinc-950 dark:border-white/10 min-h-[80px]" />
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-navy dark:text-white mb-2">Achievements (comma or newline separated)</label>
+            <textarea value={achievements} onChange={e => setAchievements(e.target.value)} className="w-full border p-3 rounded-xl dark:bg-zinc-950 dark:border-white/10 min-h-[80px]" />
           </div>
           <div>
             <label className="block text-sm font-bold text-navy dark:text-white mb-2">Languages</label>
@@ -151,6 +164,10 @@ export default function TeamMemberFormClient({ member }: TeamMemberFormClientPro
           <div>
             <label className="block text-sm font-bold text-navy dark:text-white mb-2">Facebook URL</label>
             <input type="url" value={facebookUrl} onChange={e => setFacebookUrl(e.target.value)} className="w-full border p-3 rounded-xl dark:bg-zinc-950 dark:border-white/10" placeholder="https://facebook.com/..." />
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-navy dark:text-white mb-2">Instagram URL</label>
+            <input type="url" value={instagramUrl} onChange={e => setInstagramUrl(e.target.value)} className="w-full border p-3 rounded-xl dark:bg-zinc-950 dark:border-white/10" placeholder="https://instagram.com/..." />
           </div>
         </div>
       </div>

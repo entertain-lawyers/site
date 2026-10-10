@@ -1,26 +1,24 @@
 import { StorageAdapter } from './index';
 import crypto from 'crypto';
+import { env } from '@/env';
 
-// DEVELOPMENT ONLY: In-memory store for upload intents.
-// Production uses stateless R2 presigned URLs.
-export const localUploadIntents = new Map<string, {
-  key: string;
-  mimeType: string;
-  expiresAt: number;
-  userId: string;
-}>();
+// DEVELOPMENT ONLY: Cryptographically signed, purpose-bound, expiring tokens.
+// This replaces the in-memory Map to natively support Next.js App Router multi-worker environments (Turbopack/Server Actions vs API Routes).
 
 export class LocalStorageAdapter implements StorageAdapter {
   async generateUploadUrl(key: string, mimeType: string, expiresInSeconds: number = 600, userId?: string): Promise<string> {
     if (!userId) throw new Error("userId required for local storage intents");
 
-    const token = crypto.randomBytes(32).toString('hex');
-    localUploadIntents.set(token, {
-      key,
-      mimeType,
-      expiresAt: Date.now() + expiresInSeconds * 1000,
-      userId
-    });
+    const expiresAt = Date.now() + expiresInSeconds * 1000;
+    const payload = JSON.stringify({ key, mimeType, expiresAt, userId });
+    const payloadBase64 = Buffer.from(payload).toString('base64url');
+
+    const signature = crypto
+      .createHmac('sha256', env.AUTH_SECRET)
+      .update(payloadBase64)
+      .digest('base64url');
+
+    const token = `${payloadBase64}.${signature}`;
 
     return `/api/admin/media/local-upload-proxy?token=${token}`;
   }

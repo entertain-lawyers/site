@@ -492,8 +492,10 @@ model TeamMember {
   linkedinUrl    String?
   facebookUrl    String?
   websiteUrl     String?
+  instagramUrl   String?
   qualifications String?  
   experience     String?  
+  achievements   String?
   practiceAreas  String?  
   languages      String?  
   displayOrder   Int      @default(0)

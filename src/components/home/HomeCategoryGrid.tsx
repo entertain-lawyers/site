@@ -1,4 +1,4 @@
-import { BookOpen, Landmark, Newspaper, Briefcase, ScrollText, MessageSquare } from "lucide-react";
+import { BookOpen, Landmark, Newspaper, Briefcase, ScrollText, MessageSquare, Scale, Calculator, Users, Gavel } from "lucide-react";
 import { HomeCategoryCard } from "./HomeCategoryCard";
 
 export function HomeCategoryGrid() {
@@ -31,7 +31,11 @@ export function HomeCategoryGrid() {
       title: (
         <div className="flex flex-col items-center justify-center text-center w-full leading-tight">
           <span>HISTORICAL FACTS</span>
-          <span className="text-[15px] sm:text-[17px] leading-none my-0.5">&</span>
+          <div className="flex items-center gap-2 my-1.5 opacity-60">
+            <div className="w-6 h-[1px] bg-navy dark:bg-white" />
+            <Scale className="w-4 h-4" />
+            <div className="w-6 h-[1px] bg-navy dark:bg-white" />
+          </div>
           <span>LEGAL PERSONALITIES</span>
         </div>
       ),
@@ -40,16 +44,28 @@ export function HomeCategoryGrid() {
       icon: ScrollText,
     },
     {
-      title: (
-        <div className="flex flex-col items-center justify-center text-center w-full leading-tight">
-          <span>BLOG, OPINION</span>
-          <span className="text-[15px] sm:text-[17px] leading-none my-0.5">&</span>
-          <span>OTHERS</span>
-        </div>
-      ),
-      subtitle: "",
+      title: "BLOG, OPINION, OTHERS",
+      subtitle: "Legal insights and opinions",
       href: "/blogs",
       icon: MessageSquare,
+    },
+    {
+      title: "ACTS AND LAWS",
+      subtitle: "Browse Nepal's acts and laws",
+      href: "#",
+      icon: Gavel,
+    },
+    {
+      title: "COURT FEE CALCULATOR",
+      subtitle: "Estimate court fees",
+      href: "#",
+      icon: Calculator,
+    },
+    {
+      title: "CONSULT A LAWYER",
+      subtitle: "Get legal guidance",
+      href: "#",
+      icon: Users,
     },
   ];
 

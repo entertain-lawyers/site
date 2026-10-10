@@ -3,7 +3,7 @@ import { env } from '@/env';
 import fs from 'fs';
 import path from 'path';
 import { auth } from '@/lib/auth';
-import { localUploadIntents } from '@/lib/storage/local';
+import crypto from 'crypto';
 
 export async function PUT(request: Request) {
   // STRICT DEVELOPMENT-ONLY ENFORCEMENT
@@ -21,9 +21,25 @@ export async function PUT(request: Request) {
   const token = searchParams.get('token');
   if (!token) return new NextResponse('Missing upload token', { status: 400 });
 
-  const intent = localUploadIntents.get(token);
-  if (!intent) {
-    return new NextResponse('Invalid or expired upload token', { status: 403 });
+  const [payloadBase64, providedSignature] = token.split('.');
+  if (!payloadBase64 || !providedSignature) {
+    return new NextResponse('Malformed token', { status: 400 });
+  }
+
+  const expectedSignature = crypto
+    .createHmac('sha256', env.AUTH_SECRET)
+    .update(payloadBase64)
+    .digest('base64url');
+
+  if (expectedSignature !== providedSignature) {
+    return new NextResponse('Invalid token signature', { status: 403 });
+  }
+
+  let intent: { key: string; mimeType: string; expiresAt: number; userId: string };
+  try {
+    intent = JSON.parse(Buffer.from(payloadBase64, 'base64url').toString('utf8'));
+  } catch (err) {
+    return new NextResponse('Invalid token payload', { status: 400 });
   }
 
   // Verify intent ownership
@@ -33,7 +49,6 @@ export async function PUT(request: Request) {
 
   // Verify expiration
   if (Date.now() > intent.expiresAt) {
-    localUploadIntents.delete(token);
     return new NextResponse('Upload token expired', { status: 403 });
   }
 
@@ -77,8 +92,7 @@ export async function PUT(request: Request) {
     // Write file
     fs.writeFileSync(targetFilePath, buffer);
 
-    // Consume intent
-    localUploadIntents.delete(token);
+    // Consume intent (Stateless token, no delete needed)
 
     return new NextResponse('OK', { status: 200 });
   } catch (err) {
