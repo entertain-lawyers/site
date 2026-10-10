@@ -9,7 +9,7 @@ export default async function FactDetailPage({ params }: { params: { id: string 
   if (isNaN(wpId)) notFound();
 
   const wpPost = await getWordPressPostById(wpId, 'en');
-  if (!wpPost || wpPost.status !== 'publish' || mapCategoryToType(wpPost.categories, 'en') !== 'FACT') {
+  if (!wpPost || wpPost.status !== 'publish' || mapCategoryToType(wpPost.categories, 'en') !== 'FACT' && mapCategoryToType(wpPost.categories, 'en') !== 'PERSONALITY') {
     notFound();
   }
 

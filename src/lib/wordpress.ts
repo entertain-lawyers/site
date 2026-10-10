@@ -49,6 +49,13 @@ export interface WordPressPost {
   categories: number[];
   tags: number[];
   meta?: Record<string, unknown>;
+  _embedded?: {
+    'wp:featuredmedia'?: Array<{
+      source_url: string;
+      [key: string]: unknown;
+    }>;
+    [key: string]: unknown;
+  };
 }
 
 export interface WordPressCategory {
@@ -320,13 +327,14 @@ export async function getWordPressPostById(
   lang: WordPressLanguage = 'en'
 ): Promise<WordPressPost | null> {
   try {
-    const result = await fetchWordPress<WordPressPost>(`/posts/${id}`, { lang });
+    const result = await fetchWordPress<WordPressPost>(`/posts/${id}`, { lang, embed: true });
     const post = result.data[0];
     if (!post) return null;
     return {
       ...post,
       title: { ...post.title, rendered: decodeHtmlEntities(post.title?.rendered) },
       excerpt: { ...post.excerpt, rendered: decodeHtmlEntities(post.excerpt?.rendered) },
+      content: { ...post.content, rendered: post.content?.rendered?.split('<div class="wpra-reactions-wrap')[0] || '' }
     };
   } catch (error: any) {
     if (error instanceof WordPressApiError && error.status === 404) {
@@ -549,6 +557,7 @@ const EN_WP_CATEGORIES = {
   NEWS: 58,
   BLOG: 61,
   FACT: 78,
+  PERSONALITY: 81,
   OPINION: 61,
 };
 
@@ -587,6 +596,7 @@ export function mapCategoryToType(categories: number[] | undefined, lang: 'en' |
   }
   if (categories.includes(61)) return 'BLOG';
   if (categories.includes(78)) return 'FACT';
+  if (categories.includes(81)) return 'PERSONALITY';
   
   if (categories.includes(58)) return 'NEWS';
   return 'UNKNOWN';
