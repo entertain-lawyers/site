@@ -4,8 +4,9 @@ import PostDetail from '@/components/posts/PostDetail';
 
 export const revalidate = 60;
 
-export default async function FactDetailPage({ params }: { params: { id: string } }) {
-  const wpId = Number(params.id);
+export default async function FactDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const wpId = Number(id);
   if (isNaN(wpId)) notFound();
 
   const wpPost = await getWordPressPostById(wpId, 'en');
