@@ -1,90 +1,69 @@
-import { prisma } from '@/lib/prisma';
-import Link from 'next/link';
-import { extractFirstImage } from '@/lib/media/extract-first-image';
-import { HomeCategoryCard } from '@/components/home/HomeCategoryCard';
+import { SubjectCard } from '@/components/study/SubjectCard';
 import { Hourglass, Users } from 'lucide-react';
+import Image from 'next/image';
+import dynamic from 'next/dynamic';
 
-export const revalidate = 60;
-
-export default async function FactsPage() {
-  const posts = await prisma.post.findMany({
-    where: { type: 'FACT', status: 'PUBLISHED' },
-    orderBy: { createdAt: 'desc' },
-    select: { id: true, title: true, type: true, content: true, createdAt: true },
-  });
-
+const HomeSearchBar = dynamic(() => import('@/components/home/HomeSearchBar'), {
+  loading: () => <div className="h-12 w-full bg-surface-alt animate-pulse rounded-full"></div>
+});
+export default function HistoricalFactsLandingPage() {
   return (
-    <div className="min-h-screen bg-background py-16">
+    <div className="min-h-screen bg-background py-8 sm:py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+        {/* Restored Hero Logo & Search */}
+        <section className="pt-2 pb-4 sm:pt-3 sm:pb-6 flex flex-col items-center justify-center text-center relative z-10">
+          <div className="relative w-full max-w-[280px] sm:max-w-[480px] md:max-w-[600px] h-24 sm:h-32 md:h-36 mb-0 drop-shadow-sm">
+            <Image
+              src="/wordmark_navy.png"
+              alt="Entertain Lawyers - Connecting with Legal Updates"
+              fill
+              className="object-contain dark:hidden"
+              priority
+            />
+            <Image
+              src="/wordmark_white.png"
+              alt="Entertain Lawyers - Connecting with Legal Updates"
+              fill
+              className="object-contain hidden dark:block"
+              priority
+            />
+          </div>
+        </section>
+
+        <div className="w-full max-w-3xl mx-auto px-6 mb-6 sm:mb-8 relative z-10">
+          <hr className="border-t-2 border-border-strong dark:border-white/20" />
+        </div>
+
+        <section className="max-w-7xl mx-auto mb-12 sm:mb-16 relative z-10">
+          <div className="w-full max-w-3xl mx-auto relative">
+            <div className="absolute -inset-1 bg-gradient-to-r from-accent/20 to-blue-500/20 rounded-full blur opacity-70"></div>
+            <HomeSearchBar />
+          </div>
+        </section>
+
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h1 className="text-4xl md:text-5xl font-black text-navy dark:text-white tracking-tight mb-6">
-            Historical Facts
+            Historical Facts & Legal Personalities
           </h1>
           <p className="text-lg text-text-secondary leading-relaxed">
-            Discover interesting historical facts, events, and trivia about the Nepalese legal system.
+            Discover interesting historical facts, events, trivia, and prominent legal personalities in the Nepalese legal system.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 max-w-4xl mx-auto mb-16">
-          <HomeCategoryCard 
+          <SubjectCard 
             title="Historical Facts"
             subtitle=""
-            href="/historical-facts?category=historical"
+            href="/historical-facts/historical"
             icon={Hourglass}
           />
-          <HomeCategoryCard 
+          <SubjectCard 
             title="Legal Personalities"
             subtitle=""
-            href="/historical-facts?category=personalities"
+            href="/historical-facts/personalities"
             icon={Users}
           />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {posts.map(post => {
-            const thumbnail = extractFirstImage(post.content);
-            return (
-            <div key={post.id} className="bg-surface border border-border rounded-2xl shadow-soft overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 flex flex-col">
-              <div className="w-full h-48 bg-slate-100 dark:bg-zinc-800 flex items-center justify-center border-b border-border overflow-hidden">
-                {thumbnail ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={thumbnail} alt={post.title} className="w-full h-full object-cover" />
-                ) : (
-                  <svg className="w-12 h-12 text-black/10 dark:text-white/10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                )}
-              </div>
-              <div className="p-6 sm:p-8 flex flex-col flex-1 bg-white dark:bg-zinc-900">
-                <div className="flex-1">
-                  <div className="text-xs text-red-600 dark:text-red-400 mb-3 font-bold uppercase tracking-wider">
-                    {post.type}
-                  </div>
-                  <h3 className="text-xl font-bold text-navy dark:text-white mb-4 line-clamp-2 leading-tight">
-                    {post.title}
-                  </h3>
-                </div>
-                <div className="mt-6">
-                  <Link href={`/historical-facts/${post.id}`} className="text-accent font-bold text-sm uppercase tracking-wider hover:text-accent-dark transition-colors flex items-center">
-                    READ MORE &raquo;
-                  </Link>
-                </div>
-              </div>
-            </div>
-            );
-          })}
-
-          {posts.length === 0 && (
-            <div className="col-span-full py-20 text-center">
-              <div className="w-16 h-16 bg-surface-alt rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-navy dark:text-white mb-2">No facts found</h3>
-              <p className="text-text-secondary">Check back later for interesting historical facts.</p>
-            </div>
-          )}
         </div>
       </div>
     </div>

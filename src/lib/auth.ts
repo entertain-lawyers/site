@@ -12,7 +12,11 @@ const credentialsSchema = z.object({
   password: z.string().min(1),
 });
 
-export async function testAuthorize(credentials: any) {
+const googleClientId = process.env.AUTH_GOOGLE_ID;
+const googleClientSecret = process.env.AUTH_GOOGLE_SECRET;
+const googleProviderEnabled = Boolean(googleClientId && googleClientSecret);
+
+export async function testAuthorize(credentials: unknown) {
   const parsed = credentialsSchema.safeParse(credentials);
   if (!parsed.success) return null;
 
@@ -60,8 +64,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   adapter: PrismaAdapter(prisma),
   providers: [
-    ...(process.env.AUTH_GOOGLE_ID
+    ...(googleProviderEnabled
       ? [GoogleProvider({
+          clientId: googleClientId,
+          clientSecret: googleClientSecret,
         })]
       : []),
     CredentialsProvider({

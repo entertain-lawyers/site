@@ -4,7 +4,7 @@ import { deletePostAction } from '@/modules/admin/admin-post.actions';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-export default function DeletePostButton({ id }: { id: string }) {
+export default function DeletePostButton({ id, type }: { id: string, type?: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
@@ -13,7 +13,7 @@ export default function DeletePostButton({ id }: { id: string }) {
 
     setLoading(true);
     try {
-      const res = await deletePostAction({ id });
+      const res = await deletePostAction({ id: Number(id), type });
       if (!res.success) {
         alert(res.error);
       } else {

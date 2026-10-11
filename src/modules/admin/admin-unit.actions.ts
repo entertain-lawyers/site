@@ -3,8 +3,9 @@
 import { createSafeAction } from '@/lib/safe-action';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { Role, Prisma } from '@prisma/client';
+import { Role } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
+import { isRecordInUseError } from '@/lib/prisma-errors';
 
 const createUnitSchema = z.object({
   name: z.string().min(1, 'Unit name is required'),
@@ -119,8 +120,8 @@ export const deleteUnitAction = createSafeAction(async (args: z.infer<typeof del
     await prisma.unit.delete({
       where: { id: args.id },
     });
-  } catch (error: any) {
-    if (error?.code === 'P2003' || (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003')) {
+  } catch (error) {
+    if (isRecordInUseError(error)) {
       throw new Error('Cannot delete this unit because it contains study resources. Please delete or reassign them first.');
     }
     throw error;

@@ -34,7 +34,7 @@ export default async function ProfilePage() {
         <ProfileClient user={{
           id: user.id,
           email: user.email,
-          name: user.email,
+          name: user.name ?? '',
           phone: '',
           education: '',
           university: '',

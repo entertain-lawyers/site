@@ -1,4 +1,4 @@
-import { prisma } from '@/lib/prisma';
+import { getWordPressPosts } from '@/lib/wordpress';
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound } from 'next/navigation';
@@ -31,16 +31,24 @@ export default async function NepaliCategoryPage({ params }: { params: { categor
     notFound();
   }
 
-  const posts = await prisma.post.findMany({
-    where: {
-      type: categoryInfo.type,
-      status: 'PUBLISHED',
-    },
-    orderBy: { createdAt: 'desc' },
-    include: {
-      author: { select: { email: true } }
-    }
-  });
+  const categoryMapToWp: Record<PostType, number[]> = {
+    NEPALI_SAMANYA_SAMACHAR: [58],
+    NEPALI_ADALAT_SAMACHAR: [56],
+    NEPALI_MUKHYA_SAMACHAR: [58],
+    NEPALI_NAJIRHARU: [57],
+    NEPALI_AIN_KANUN: [64],
+    NEPALI_BLOG_BICHAR: [61, 60],
+    NEWS: [], BLOG: [], FACT: [], OPINION: []
+  };
+  const wpCats = categoryMapToWp[categoryInfo.type];
+
+  const wpRes = await getWordPressPosts({ categories: wpCats, status: 'publish', lang: 'ne', perPage: 20 });
+  const posts = wpRes.data.map(p => ({
+    id: String(p.id),
+    title: p.title.rendered,
+    createdAt: new Date(p.date),
+    author: { email: `WP Author (${p.author})` }
+  }));
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 pb-20">
@@ -71,7 +79,7 @@ export default async function NepaliCategoryPage({ params }: { params: { categor
         {posts.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {posts.map((post) => (
-              <article key={post.id} className="group bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-black/5 dark:border-white/5 flex flex-col h-full">
+              <article key={post.id} className="group relative bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-black/5 dark:border-white/5 flex flex-col h-full">
                 <div className="relative h-56 w-full overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 dark:from-zinc-800 dark:to-zinc-900 flex items-center justify-center">
                   <span className="text-6xl text-black/5 dark:text-white/5 font-serif italic">EL</span>
                 </div>

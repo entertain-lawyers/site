@@ -1,4 +1,4 @@
-import { HomeCategoryCard } from '@/components/home/HomeCategoryCard';
+import { SubjectCard } from '@/components/study/SubjectCard';
 import { Scale, Landmark } from 'lucide-react';
 
 function PrisonerIcon(props: any) {
@@ -58,7 +58,7 @@ export default function CaseLawLanding() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
       {categories.map((cat) => (
-        <HomeCategoryCard 
+        <SubjectCard 
           key={cat.id}
           title={cat.title}
           subtitle={cat.subtitle}

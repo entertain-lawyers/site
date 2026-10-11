@@ -25,20 +25,30 @@ const NEPALI_CARDS = [
   { title: 'ब्लग, बिचार, अन्य', href: '/nepali/blog-bichar', icon: MessageSquare, subtitle: 'विभिन्न लेखकका लेख, विचार, र अन्य' },
 ];
 
+import { getWordPressPosts } from '@/lib/wordpress';
+
 export default async function NepaliLandingPage() {
-  // Fetch recent posts from specific categories
-  const recentPosts = await prisma.post.findMany({
-    where: {
-      status: 'PUBLISHED',
-      type: {
-        in: ['NEPALI_SAMANYA_SAMACHAR', 'NEPALI_ADALAT_SAMACHAR', 'NEPALI_BLOG_BICHAR']
-      }
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 10,
-    include: {
-      author: { select: { email: true } }
-    }
+  const wpRes = await getWordPressPosts({ 
+    categories: [58, 56, 61], 
+    status: 'publish', 
+    lang: 'ne', 
+    perPage: 10,
+    embed: true
+  });
+  
+  const recentPosts = wpRes.data.map((p: any) => {
+    let mappedType = 'NEPALI_SAMANYA_SAMACHAR';
+    if (p.categories.includes(56)) mappedType = 'NEPALI_ADALAT_SAMACHAR';
+    else if (p.categories.includes(61) || p.categories.includes(60)) mappedType = 'NEPALI_BLOG_BICHAR';
+    
+    return {
+      id: String(p.id),
+      title: p.title.rendered,
+      type: mappedType,
+      createdAt: new Date(p.date),
+      author: { email: `WP Author (${p.author})` },
+      featuredImage: p._embedded?.['wp:featuredmedia']?.[0]?.source_url || null
+    };
   });
 
   const getTypeLabel = (type: string) => {
@@ -114,9 +124,14 @@ export default async function NepaliLandingPage() {
         {recentPosts.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {recentPosts.map((post: any) => (
-              <article key={post.id} className="group bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-black/5 dark:border-white/5 flex flex-col h-full">
+              <article key={post.id} className="group relative bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-black/5 dark:border-white/5 flex flex-col h-full">
                 <div className="relative h-56 w-full overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 dark:from-zinc-800 dark:to-zinc-900 flex items-center justify-center">
-                  <span className="text-6xl text-black/5 dark:text-white/5 font-serif italic">EL</span>
+                  {post.featuredImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={post.featuredImage} alt={post.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-6xl text-black/5 dark:text-white/5 font-serif italic">EL</span>
+                  )}
                 </div>
                 <div className="p-6 flex flex-col flex-grow">
                   <div className="flex items-center gap-3 mb-4">

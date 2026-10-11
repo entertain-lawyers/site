@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
+import { isRecordInUseError } from '@/lib/prisma-errors';
 
 const createPublicationSchema = z.object({
   title: z.string().min(1),
@@ -74,8 +75,8 @@ export const deletePublicationAction = createSafeAction(async (args: z.infer<typ
   // Publication might have a document attached. Schema says `document Document? @relation(onDelete: Restrict)`
   try {
     await prisma.publication.delete({ where: { id: args.id } });
-  } catch (err: any) {
-    if (err.code === 'P2003') {
+  } catch (err) {
+    if (isRecordInUseError(err)) {
       throw new Error('This publication has an attached secure document. You must detach or archive it first.');
     }
     throw err;

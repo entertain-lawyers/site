@@ -16,12 +16,22 @@ export const updateProfile = createSafeAction(
   async (data: z.infer<typeof updateProfileSchema>, ctx) => {
     if (!ctx.userId) throw new Error("Unauthorized");
 
-    const user = await prisma.user.update({
+    const parsed = updateProfileSchema.safeParse(data);
+    if (!parsed.success) {
+      throw new Error(parsed.error.issues[0]?.message || "Invalid profile data");
+    }
+
+    // NOTE: The User model currently only has a `name` column. `phone`,
+    // `education`, and `university` are accepted from the form but cannot be
+    // persisted until the pending additive migration adds those columns.
+    // Passing them to Prisma would throw "Unknown argument", so only `name`
+    // is written. See docs/OPENCODE_PROGRESS.md (profile fields migration).
+    const updated = await prisma.user.update({
       where: { id: ctx.userId },
-      data,
+      data: parsed.data.name !== undefined ? { name: parsed.data.name } : {},
     });
 
-    return { success: true };
+    return { success: true, name: updated.name };
   }
 );
 
@@ -33,6 +43,11 @@ const changePasswordSchema = z.object({
 export const changePassword = createSafeAction(
   async ({ currentPassword, newPassword }: z.infer<typeof changePasswordSchema>, ctx) => {
     if (!ctx.userId) throw new Error("Unauthorized");
+
+    const parsed = changePasswordSchema.safeParse({ currentPassword, newPassword });
+    if (!parsed.success) {
+      throw new Error(parsed.error.issues[0]?.message || "Invalid password data");
+    }
 
     const user = await prisma.user.findUnique({
       where: { id: ctx.userId }

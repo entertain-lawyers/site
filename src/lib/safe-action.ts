@@ -48,9 +48,13 @@ export function createSafeAction<TArgs, TReturn>(
 
       const data = await action(args, { userId, role });
       return { success: true, data };
-    } catch (error: any) {
+    } catch (error) {
       console.error("Action error:", error);
-      return { success: false, error: error.message || "An unexpected error occurred." };
+      // Return a generic message to avoid leaking internal error details
+      const message = error instanceof Error ? error.message : "An unexpected error occurred.";
+      // Only return safe, user-facing error messages. Database/internal errors get a generic message.
+      const isSafeMessage = message.includes('Unauthorized') || message.includes('Forbidden') || message.includes('not found') || message.includes('already') || message.includes('Cannot') || message.includes('Invalid') || message.includes('must') || message.includes('required') || message.includes('expired') || message.includes('Too many');
+      return { success: false, error: isSafeMessage ? message : "An unexpected error occurred. Please try again." };
     }
   };
 }

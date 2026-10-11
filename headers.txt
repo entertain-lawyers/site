@@ -1,0 +1,12 @@
+HTTP/2 302 
+cache-control: no-store, max-age=0
+content-type: text/plain
+date: Fri, 09 Oct 2026 17:03:25 GMT
+location: https://vercel.com/sso-api?url=https%3A%2F%2Fentertainlawyers-ej89ufrev-entertain-lawyers.vercel.app%2F&nonce=0418227fe740de2f0f31b388b7ca6bfb0336ab23e24a62e782ff7bea750a1771
+server: Vercel
+set-cookie: _vercel_sso_nonce=ec9d5a1a0bae1de86754cd6b637a42e1df4dd057bdca1db2; Max-Age=3600; Path=/; Secure; HttpOnly; SameSite=Lax
+strict-transport-security: max-age=63072000; includeSubDomains; preload
+x-frame-options: DENY
+x-robots-tag: noindex
+x-vercel-id: bom1::7wt78-1791565405031-01b6ec5be145
+

@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
-import { IPaymentProviderService, PaymentProvider, PaymentInitiationResult } from './payment.types';
-import { createPendingTransaction, finalizeSuccessfulPayment, markTransactionFailed, markTransactionCancelled } from './payment.repository';
+import { IPaymentProviderService, PaymentProvider } from './payment.types';
+import { createPendingTransaction, finalizeSuccessfulPayment, markTransactionFailed } from './payment.repository';
 import { IdempotencyError, PaymentVerificationError, PaymentError } from './payment.errors';
 import { esewaProvider } from '../providers/esewa/esewa.provider';
 import { khaltiProvider } from '../providers/khalti/khalti.provider';
@@ -85,7 +85,7 @@ export class PaymentCoreService {
 
   async verifyAndFinalizePayment(
     providerName: PaymentProvider,
-    payload: any,
+    payload: Record<string, unknown>,
     idempotencyKey: string
   ) {
     // 1. Look up the transaction in our DB
@@ -138,7 +138,7 @@ export class PaymentCoreService {
         transaction.targetId,
         durationDays
       );
-    } catch (e: any) {
+    } catch (e) {
       if (e instanceof IdempotencyError) {
         // Safe to ignore, already finalized by concurrent request
         return { success: true, message: "Already processed" };

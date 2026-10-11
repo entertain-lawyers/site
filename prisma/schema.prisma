@@ -145,7 +145,8 @@ model Semester {
   name     String
   order    Int       @default(0)
   slug     String?   @unique
-  subjects Subject[]
+  subjects  Subject[]
+  resources Resource[]
 }
 
 model Subject {
@@ -180,6 +181,7 @@ model Resource {
   order         Int?           @default(0)
   type          ResourceType   @default(LAW_NOTE)
   unitId        String?
+  semesterId    String?
   metaDesc      String?
   metaTitle     String?
   status        ContentStatus  @default(PUBLISHED)
@@ -189,12 +191,14 @@ model Resource {
   document      Document?      @relation(fields: [documentId], references: [id], onDelete: Restrict)
   subject       Subject?       @relation(fields: [subjectId], references: [id])
   unit          Unit?          @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  semester      Semester?      @relation(fields: [semesterId], references: [id], onDelete: Restrict)
   uploadIntents UploadIntent[]
   Category      Category[]
   Tag           Tag[]
 
   @@index([subjectId, type])
   @@index([unitId])
+  @@index([semesterId])
 }
 
 model Document {
@@ -303,6 +307,7 @@ model Event {
 }
 
 model FAQ {
+  language String        @default("en")
   id       String        @id @default(uuid())
   question String
   answer   String
@@ -472,4 +477,31 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model TeamMember {
+  id             String   @id @default(uuid())
+  name           String
+  slug           String   @unique
+  designation    String
+  shortBio       String?
+  biography      String?
+  imageUrl       String?
+  phone          String?
+  email          String?
+  linkedinUrl    String?
+  facebookUrl    String?
+  websiteUrl     String?
+  instagramUrl   String?
+  qualifications String?  
+  experience     String?  
+  achievements   String?
+  practiceAreas  String?  
+  languages      String?  
+  displayOrder   Int      @default(0)
+  isPublished    Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([isPublished, displayOrder])
 }

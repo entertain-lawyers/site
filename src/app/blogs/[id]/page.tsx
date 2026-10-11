@@ -1,18 +1,48 @@
-import { prisma } from '@/lib/prisma';
+import { getWordPressPostById, getWordPressPosts, mapCategoryToType } from '@/lib/wordpress';
 import { notFound } from 'next/navigation';
 import PostDetail from '@/components/posts/PostDetail';
 
 export const revalidate = 60;
 
-export default async function BlogDetailPage({ params }: { params: { id: string } }) {
-  const post = await prisma.post.findUnique({
-    where: { id: params.id, type: 'BLOG', status: 'PUBLISHED' },
-    include: { author: { select: { email: true } } }
-  });
+export default async function BlogDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const wpId = Number(id);
+  if (isNaN(wpId)) notFound();
 
-  if (!post) {
+  const wpPost = await getWordPressPostById(wpId, 'en');
+  if (!wpPost || wpPost.status !== 'publish' || mapCategoryToType(wpPost.categories, 'en') !== 'BLOG') {
     notFound();
   }
 
-  return <PostDetail post={{...post, author: post.author || { email: 'Unknown' }}} backUrl="/blogs" backLabel="Blogs" />;
+  const post = {
+    id: String(wpPost.id),
+    title: wpPost.title.rendered,
+    content: wpPost.content.rendered,
+    type: 'BLOG' as const,
+    createdAt: new Date(wpPost.date),
+    author: { email: `WP Author (${wpPost.author})` },
+    featuredImage: wpPost._embedded?.['wp:featuredmedia']?.[0]?.source_url || null
+  };
+
+  const wpRelatedResponse = await getWordPressPosts({
+    categories: wpPost.categories,
+    status: 'publish',
+    lang: 'en',
+    perPage: 5,
+    embed: true
+  });
+
+  const relatedPosts = wpRelatedResponse.data
+    .filter(p => p.id !== wpPost.id)
+    .slice(0, 4)
+    .map(p => ({
+      id: String(p.id),
+      title: p.title.rendered,
+      type: 'BLOG',
+      createdAt: new Date(p.date),
+      featuredImage: p._embedded?.['wp:featuredmedia']?.[0]?.source_url || null,
+      url: `/blogs/${p.id}`
+    }));
+
+  return <PostDetail post={post} backUrl="/blogs" backLabel="Blogs" relatedPosts={relatedPosts} />;
 }

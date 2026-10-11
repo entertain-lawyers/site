@@ -1,7 +1,9 @@
 const fs = require('fs');
 
-const media = JSON.parse(fs.readFileSync('migration-staging-recovered/media.json', 'utf8'));
-const docs = JSON.parse(fs.readFileSync('migration-staging-recovered/documents.json', 'utf8'));
+const mediaFile = process.argv[2] || 'migration-staging-recovered/media.json';
+const docsFile = process.argv[3] || 'migration-staging-recovered/documents.json';
+const media = JSON.parse(fs.readFileSync(mediaFile, 'utf8'));
+const docs = JSON.parse(fs.readFileSync(docsFile, 'utf8'));
 const all = [...media, ...docs];
 
 let physicalFiles = 0;
@@ -14,6 +16,7 @@ let originalImagesCount = 0;
 let derivativesCount = 0;
 let pdfsCount = 0;
 let missingReferenceCount = 0;
+let externalReferenceCount = 0;
 
 const targetIdentitySet = new Set();
 const filenameToHashes = new Map(); // filename -> Set of hashes
@@ -22,7 +25,16 @@ const hashToSizeExt = new Map(); // hash -> { size, ext }
 let hashValidationFailed = false;
 
 for (const m of all) {
+    if (m.isExternal) {
+        externalReferenceCount++;
+        continue;
+    }
     if (m.isMissing) {
+        // Fallback for non-deduped file testing where isExternal isn't set yet
+        if (m.originalRelativePath && m.originalRelativePath.startsWith('http')) {
+            externalReferenceCount++;
+            continue;
+        }
         missingReferenceCount++;
         continue; // Do not count missing as physical
     }
@@ -60,9 +72,10 @@ for (const m of all) {
     // Step 5: Hash Group Validation Prep
     if (hashToSizeExt.has(m.sha256)) {
         const existing = hashToSizeExt.get(m.sha256);
-        if (existing.size !== m.byteSize || existing.ext !== m.extension) {
+        // Only fail if size differs, OR if it's > 0 and extension differs
+        if (existing.size !== m.byteSize || (m.byteSize > 0 && existing.ext !== m.extension)) {
             hashValidationFailed = true;
-            console.error(`Hash validation failed for ${m.sha256}`);
+            console.error(`Hash validation failed for ${m.sha256} (Existing: size ${existing.size}, ext ${existing.ext} | Current: size ${m.byteSize}, ext ${m.extension})`);
         }
     } else {
         hashToSizeExt.set(m.sha256, { size: m.byteSize, ext: m.extension });
@@ -102,6 +115,7 @@ console.log(`Unique PDF targets: ${uniquePdfTargets}`);
 console.log(`Total unique targets: ${totalUniqueTargets}`);
 console.log(`Exact duplicates: ${exactDuplicates}`);
 console.log(`Missing reference: ${missingReferenceCount}`);
+console.log(`External reference: ${externalReferenceCount}`);
 
 console.log("\n=== SOURCE RECONCILIATION ===");
 console.log(`Original Images: ${originalImagesCount}`);

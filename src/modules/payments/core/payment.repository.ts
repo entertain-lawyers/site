@@ -1,7 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { PaymentTransactionStatus } from './payment.types';
 import { IdempotencyError } from './payment.errors';
-import { PaymentTransaction, Subscription, Purchase, Entitlement } from '@prisma/client';
 
 export async function createPendingTransaction(data: {
   userId: string;
@@ -60,7 +58,7 @@ export async function finalizeSuccessfulPayment(
 ) {
   return await prisma.$transaction(async (tx) => {
     // 1. Lock the row to prevent concurrent processing
-    const lockedRows = await tx.$queryRaw<any[]>`
+    const lockedRows = await tx.$queryRaw<Array<{ id: string }>>`
       SELECT id FROM "PaymentTransaction" 
       WHERE id = ${transactionId} AND status = 'PENDING' 
       FOR UPDATE

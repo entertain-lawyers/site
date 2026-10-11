@@ -59,13 +59,13 @@ export class EsewaProvider implements IPaymentProviderService {
     };
   }
 
-  async verifyPayment(payload: any, idempotencyKey: string, expectedAmount: number): Promise<PaymentVerificationResult> {
+  async verifyPayment(payload: Record<string, unknown>, idempotencyKey: string, expectedAmount: number): Promise<PaymentVerificationResult> {
     // eSewa returns a base64 encoded string in `data` query param
     const encodedData = payload.data;
-    if (!encodedData) throw new Error("Missing data payload from eSewa");
+    if (typeof encodedData !== 'string' || !encodedData) throw new Error("Missing data payload from eSewa");
 
     const decodedString = Buffer.from(encodedData, 'base64').toString('utf-8');
-    const data = JSON.parse(decodedString);
+    const data = JSON.parse(decodedString) as Record<string, unknown>;
 
     // {
     //   "transaction_code": "000AMB2",
@@ -78,9 +78,12 @@ export class EsewaProvider implements IPaymentProviderService {
     // }
 
     // 1. Verify response signature
-    const signedFieldNames = data.signed_field_names as string;
+    const signedFieldNames = data.signed_field_names;
+    if (typeof signedFieldNames !== 'string' || !signedFieldNames) {
+      throw new Error("Invalid signed field names from eSewa");
+    }
     const fields = signedFieldNames.split(',');
-    const messageToSign = fields.map(f => `${f}=${data[f]}`).join(',');
+    const messageToSign = fields.map(f => `${f}=${String(data[f])}`).join(',');
     
     const expectedSignature = this.generateSignature(messageToSign);
     if (expectedSignature !== data.signature) {
@@ -91,14 +94,20 @@ export class EsewaProvider implements IPaymentProviderService {
       throw new Error("Transaction UUID mismatch");
     }
 
+    const transactionCode = typeof data.transaction_code === 'string' ? data.transaction_code : '';
+
     // eSewa amount is in Rupees
     const expectedAmountRs = (expectedAmount / 100).toFixed(2);
+    const totalAmount = data.total_amount;
+    if (typeof totalAmount !== 'string' && typeof totalAmount !== 'number') {
+      throw new Error("Invalid total amount from eSewa");
+    }
     // Be careful with float comparisons in JS, parse as float to compare reliably
-    if (parseFloat(data.total_amount) !== parseFloat(expectedAmountRs)) {
+    if (parseFloat(String(totalAmount)) !== parseFloat(expectedAmountRs)) {
       return {
         success: false,
-        providerRef: data.transaction_code,
-        amountPaid: parseFloat(data.total_amount) * 100, // back to paisa
+        providerRef: transactionCode,
+        amountPaid: parseFloat(String(totalAmount)) * 100, // back to paisa
         currency: "NPR",
         isComplete: false,
       };
@@ -118,8 +127,8 @@ export class EsewaProvider implements IPaymentProviderService {
     if (statusData.status !== 'COMPLETE') {
       return {
         success: false,
-        providerRef: data.transaction_code,
-        amountPaid: parseFloat(data.total_amount) * 100,
+        providerRef: transactionCode,
+        amountPaid: parseFloat(String(totalAmount)) * 100,
         currency: "NPR",
         isComplete: false,
       };
@@ -127,7 +136,7 @@ export class EsewaProvider implements IPaymentProviderService {
 
     return {
       success: true,
-      providerRef: data.transaction_code,
+      providerRef: transactionCode,
       amountPaid: expectedAmount,
       currency: "NPR",
       isComplete: true,

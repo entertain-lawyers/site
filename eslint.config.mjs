@@ -12,6 +12,12 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "wordpress-migration-source/**",
+    "migration-staging*/**",
+    "scripts/**",
+    "scripts-recovered/**",
+    "scratch/**",
+    "*.js",
   ]),
 ]);
 

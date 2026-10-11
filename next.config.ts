@@ -27,7 +27,7 @@ const getB2EndpointDomain = () => {
 
 const dynamicCspHeader = cspHeader.replace(
   "img-src 'self' blob: data:;",
-  `img-src 'self' blob: data: ${getB2EndpointDomain()};`
+  `img-src 'self' blob: data: ${getB2EndpointDomain()} https://entertainlawyers.com https://www.entertainlawyers.com;`
 );
 
 const nextConfig: NextConfig = {

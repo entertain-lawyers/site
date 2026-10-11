@@ -61,6 +61,9 @@ export default function StudySelector({
     [router, searchParams]
   );
 
+  const selectedType = searchParams.get('type');
+  const isOldQuestion = selectedType === 'OLD_QUESTION';
+
   // Map options for CustomSelect
   const semesterOptions = [
     { value: '', label: dict.allSemesters },
@@ -92,7 +95,7 @@ export default function StudySelector({
 
   return (
     <div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+      <div className={`grid grid-cols-1 ${isOldQuestion ? 'sm:grid-cols-1 lg:grid-cols-1 max-w-sm mx-auto' : 'sm:grid-cols-2 lg:grid-cols-3'} gap-6 md:gap-8`}>
         {/* Semester */}
         <div>
           <label className="block text-[10px] font-semibold text-text-muted uppercase tracking-[0.15em] mb-3">
@@ -107,38 +110,42 @@ export default function StudySelector({
         </div>
 
         {/* Subject */}
-        <div>
-          <label className="block text-[10px] font-semibold text-text-muted uppercase tracking-[0.15em] mb-3">
-            {dict.subject}
-          </label>
-          <CustomSelect
-            value={selectedSubjectId || ''}
-            onChange={(val) => updateParams('subject', val, ['unit'])}
-            options={subjectOptions}
-            disabled={!selectedSemesterId}
-            placeholder={selectedSemesterId ? dict.allSubjects : dict.selectSemesterFirst}
-          />
-        </div>
+        {!isOldQuestion && (
+          <div>
+            <label className="block text-[10px] font-semibold text-text-muted uppercase tracking-[0.15em] mb-3">
+              {dict.subject}
+            </label>
+            <CustomSelect
+              value={selectedSubjectId || ''}
+              onChange={(val) => updateParams('subject', val, ['unit'])}
+              options={subjectOptions}
+              disabled={!selectedSemesterId}
+              placeholder={selectedSemesterId ? dict.allSubjects : dict.selectSemesterFirst}
+            />
+          </div>
+        )}
 
         {/* Unit */}
-        <div>
-          <label className="block text-[10px] font-semibold text-text-muted uppercase tracking-[0.15em] mb-3">
-            {dict.unit}
-          </label>
-          <CustomSelect
-            value={selectedUnitId || ''}
-            onChange={(val) => updateParams('unit', val)}
-            options={unitOptions}
-            disabled={!selectedSubjectId || units.length === 0}
-            placeholder={
-              !selectedSubjectId
-                ? dict.selectSubjectFirst
-                : units.length === 0
-                ? dict.noUnitsAvailable
-                : dict.allUnits
-            }
-          />
-        </div>
+        {!isOldQuestion && (
+          <div>
+            <label className="block text-[10px] font-semibold text-text-muted uppercase tracking-[0.15em] mb-3">
+              {dict.unit}
+            </label>
+            <CustomSelect
+              value={selectedUnitId || ''}
+              onChange={(val) => updateParams('unit', val)}
+              options={unitOptions}
+              disabled={!selectedSubjectId || units.length === 0}
+              placeholder={
+                !selectedSubjectId
+                  ? dict.selectSubjectFirst
+                  : units.length === 0
+                  ? dict.noUnitsAvailable
+                  : dict.allUnits
+              }
+            />
+          </div>
+        )}
       </div>
     </div>
   );

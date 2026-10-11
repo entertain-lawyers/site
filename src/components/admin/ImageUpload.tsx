@@ -6,8 +6,15 @@ import { initiateMediaUploadAction } from '@/modules/admin/admin-media.actions';
 interface ImageUploadProps {
   value: string;
   onChange: (url: string) => void;
-  type: 'POST' | 'EVENT' | 'GALLERY' | 'PUBLICATION';
+  type: 'POST' | 'EVENT' | 'GALLERY' | 'PUBLICATION' | 'TEAM';
   label?: string;
+}
+
+type AllowedImageMimeType = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
+const ALLOWED_IMAGE_MIME_TYPES = new Set<string>(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+
+function isAllowedImageMimeType(mimeType: string): mimeType is AllowedImageMimeType {
+  return ALLOWED_IMAGE_MIME_TYPES.has(mimeType);
 }
 
 export default function ImageUpload({ value, onChange, type, label = 'Featured Image' }: ImageUploadProps) {
@@ -23,16 +30,20 @@ export default function ImageUpload({ value, onChange, type, label = 'Featured I
     setError('');
 
     try {
+      if (!isAllowedImageMimeType(file.type)) {
+        throw new Error('Only JPG, PNG, WebP, and GIF images are allowed');
+      }
+
       // 1. Get presigned URL
       const res = await initiateMediaUploadAction({
         filename: file.name,
-        mimeType: file.type as any,
+        mimeType: file.type,
         size: file.size,
         type,
       });
 
-      if (!res?.success || !res.data) {
-        throw new Error((res as any)?.error || 'Failed to initialize upload');
+      if (!res.success) {
+        throw new Error(res.error || 'Failed to initialize upload');
       }
 
       // 2. Upload file directly to R2 (or local proxy)
@@ -50,8 +61,9 @@ export default function ImageUpload({ value, onChange, type, label = 'Featured I
 
       // 3. Update the form state with the final public URL
       onChange(res.data.publicUrl);
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred during upload');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'An unexpected error occurred during upload';
+      setError(message);
     } finally {
       setLoading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

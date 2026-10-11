@@ -1,28 +1,28 @@
-import { BookOpen, Landmark, Newspaper, Briefcase, ScrollText, MessageSquare } from "lucide-react";
+import { BookOpen, Landmark, Newspaper, Briefcase, ScrollText, MessageSquare, Scale, Calculator, Users, Gavel } from "lucide-react";
 import { HomeCategoryCard } from "./HomeCategoryCard";
 
 export function HomeCategoryGrid() {
   const categories = [
     {
-      title: "Law Notes",
+      title: "LAW NOTES",
       subtitle: "Comprehensive Materials",
       href: "/study?type=LAW_NOTE",
       icon: BookOpen,
     },
     {
-      title: "Precedent / Case Laws",
+      title: "PRECEDENT / CASE LAWS",
       subtitle: "Supreme Court Decisions",
       href: "/study?type=CASE_LAW",
       icon: Landmark,
     },
     {
-      title: "News",
+      title: "NEWS",
       subtitle: "Read Latest Insights",
       href: "/news",
       icon: Newspaper,
     },
     {
-      title: "Old Questions",
+      title: "OLD QUESTIONS",
       subtitle: "Practice Past Exams",
       href: "/study?type=OLD_QUESTION",
       icon: Briefcase,
@@ -30,9 +30,13 @@ export function HomeCategoryGrid() {
     {
       title: (
         <div className="flex flex-col items-center justify-center text-center w-full leading-tight">
-          <span>Historical Facts</span>
-          <span className="text-[15px] sm:text-[17px] leading-none my-0.5">&</span>
-          <span>Legal Personalities</span>
+          <span>HISTORICAL FACTS</span>
+          <div className="flex items-center gap-2 my-1.5 opacity-60">
+            <div className="w-6 h-[1px] bg-navy dark:bg-white" />
+            <Scale className="w-4 h-4" />
+            <div className="w-6 h-[1px] bg-navy dark:bg-white" />
+          </div>
+          <span>LEGAL PERSONALITIES</span>
         </div>
       ),
       subtitle: "",
@@ -40,16 +44,28 @@ export function HomeCategoryGrid() {
       icon: ScrollText,
     },
     {
-      title: (
-        <div className="flex flex-col items-center justify-center text-center w-full leading-tight">
-          <span>Blog, Opinion</span>
-          <span className="text-[15px] sm:text-[17px] leading-none my-0.5">&</span>
-          <span>Others</span>
-        </div>
-      ),
-      subtitle: "",
+      title: "BLOG, OPINION, OTHERS",
+      subtitle: "Legal insights and opinions",
       href: "/blogs",
       icon: MessageSquare,
+    },
+    {
+      title: "ACTS AND LAWS",
+      subtitle: "Browse Nepal's acts and laws",
+      href: "#",
+      icon: Gavel,
+    },
+    {
+      title: "COURT FEE CALCULATOR",
+      subtitle: "Estimate court fees",
+      href: "#",
+      icon: Calculator,
+    },
+    {
+      title: "CONSULT A LAWYER",
+      subtitle: "Get legal guidance",
+      href: "#",
+      icon: Users,
     },
   ];
 

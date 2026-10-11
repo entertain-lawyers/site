@@ -129,6 +129,7 @@ export default function EditPostClient({ post }: { post: any }) {
                 <option value="NEWS">News</option>
                 <option value="BLOG">Blog</option>
                 <option value="FACT">Historical Fact</option>
+                <option value="PERSONALITY">Legal Personality</option>
                 <option value="NEPALI_SAMANYA_SAMACHAR">Nepali: सामान्य समाचार</option>
                 <option value="NEPALI_ADALAT_SAMACHAR">Nepali: अदालत समाचार</option>
                 <option value="NEPALI_MUKHYA_SAMACHAR">Nepali: मुख्य समाचार</option>
@@ -139,6 +140,12 @@ export default function EditPostClient({ post }: { post: any }) {
             </div>
           </div>
 
+          <div className="bg-slate-50 dark:bg-zinc-950 p-6 rounded-2xl border border-black/5 dark:border-white/5 space-y-4">
+            <h3 className="font-bold text-navy dark:text-white border-b border-black/5 dark:border-white/10 pb-3">Featured Image</h3>
+            <p className="text-sm text-text-secondary">
+              Featured image uploads are currently disabled in this panel. Please upload and set the featured image directly in the <a href="https://entertainlawyers.com/wp-admin" target="_blank" rel="noreferrer" className="text-accent hover:underline">WordPress Dashboard</a>.
+            </p>
+          </div>
 
 
         </div>

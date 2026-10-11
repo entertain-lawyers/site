@@ -8,13 +8,21 @@ import { z } from "zod";
 const initiateUploadSchema = z.object({
   resourceId: z.string().uuid(),
   expectedSize: z.number().positive().max(50 * 1024 * 1024), // Max 50MB
+  expectedMimeType: z.enum(["application/pdf"]),
 });
 
+async function markUploadIntentFailed(intentId: string) {
+  await prisma.uploadIntent.update({
+    where: { id: intentId },
+    data: { status: "FAILED" }
+  });
+}
+
 export const initiateDocumentUpload = createSafeAction(
-  async ({ resourceId, expectedSize }: { resourceId: string; expectedSize: number }, { userId, role }) => {
+  async ({ resourceId, expectedSize, expectedMimeType }: z.infer<typeof initiateUploadSchema>, { userId, role }) => {
     if (!userId || (role !== "ADMIN" && role !== "EDITOR")) throw new Error("Unauthorized");
 
-    const parsed = initiateUploadSchema.safeParse({ resourceId, expectedSize });
+    const parsed = initiateUploadSchema.safeParse({ resourceId, expectedSize, expectedMimeType });
     if (!parsed.success) {
       throw new Error("Invalid parameters");
     }
@@ -37,9 +45,6 @@ export const initiateDocumentUpload = createSafeAction(
 
     // Generate internal storage key
     const storageKey = `documents/${resourceId}-${Date.now()}.pdf`;
-
-    // Hardcode MIME type to PDF for this phase
-    const expectedMimeType = "application/pdf";
 
     // Generate the PUT URL (expires in 10 minutes)
     const uploadUrl = await generatePresignedPutUrl(storageKey, expectedMimeType, 600);
@@ -104,19 +109,30 @@ export const confirmDocumentUpload = createSafeAction(
       throw new Error("Upload intent has expired");
     }
 
-    // 3. Verify R2 object existence and metadata
+    // 3. Verify B2 object existence and metadata
     let metadata;
     try {
       metadata = await getObjectMetadata(intent.storageKey);
-    } catch (error) {
-      throw new Error("Failed to verify file upload in R2. The file may not have been uploaded yet.");
+    } catch {
+      throw new Error("Failed to verify file upload in storage. The file may not have been uploaded yet.");
     }
 
     const actualSize = metadata.ContentLength ?? 0;
+    const actualMimeType = metadata.ContentType;
 
-    // Optional: we can loosely verify size if needed, but R2 metadata is trustworthy
     if (actualSize === 0) {
+      await markUploadIntentFailed(intent.id);
       throw new Error("Uploaded file is empty");
+    }
+
+    if (actualSize !== intent.expectedSize) {
+      await markUploadIntentFailed(intent.id);
+      throw new Error("Uploaded file size does not match the authorized upload size.");
+    }
+
+    if (actualMimeType && actualMimeType !== intent.expectedMimeType) {
+      await markUploadIntentFailed(intent.id);
+      throw new Error("Uploaded file MIME type does not match the authorized upload type.");
     }
 
     // 4. Verify Magic Bytes (%PDF-)
@@ -124,15 +140,12 @@ export const confirmDocumentUpload = createSafeAction(
       // '%PDF-' is exactly 5 bytes
       const magicBytes = await getObjectHeadBytes(intent.storageKey, 5);
       if (!magicBytes.startsWith("%PDF-")) {
-        // Mark failed
-        await prisma.uploadIntent.update({
-          where: { id: intent.id },
-          data: { status: "FAILED" }
-        });
+        await markUploadIntentFailed(intent.id);
         throw new Error("Invalid file content. Expected a valid PDF document.");
       }
-    } catch (error: any) {
-      throw new Error(`Failed to verify PDF signature: ${error.message}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown PDF verification error";
+      throw new Error(`Failed to verify PDF signature: ${message}`);
     }
 
     // 5. Finalize Document Record
@@ -150,7 +163,7 @@ export const confirmDocumentUpload = createSafeAction(
 
       const doc = await tx.document.create({
         data: {
-          storageProvider: "R2",
+          storageProvider: "B2",
           storageKey: intent.storageKey,
           fileSize: actualSize,
           mimeType: intent.expectedMimeType,

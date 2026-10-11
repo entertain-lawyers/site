@@ -1,5 +1,5 @@
 import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { getWordPressPosts, mapCategoryToType } from '@/lib/wordpress';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import DeletePostButton from './DeletePostButton';
@@ -11,10 +11,25 @@ export default async function AdminPostsPage() {
     redirect('/');
   }
 
-  const posts = await prisma.post.findMany({
-    orderBy: { createdAt: 'desc' },
-    include: { author: { select: { email: true } } }
+  // Fetch from both WordPress instances
+  const [enRes, neRes] = await Promise.all([
+    getWordPressPosts({ lang: 'en', perPage: 50 }).catch(() => ({ data: [] })),
+    getWordPressPosts({ lang: 'ne', perPage: 50 }).catch(() => ({ data: [] }))
+  ]);
+
+  const mapPost = (p: any, lang: 'en' | 'ne') => ({
+    id: String(p.id),
+    title: p.title.rendered,
+    type: mapCategoryToType(p.categories, lang),
+    status: p.status === 'publish' ? 'PUBLISHED' : 'DRAFT',
+    author: { email: `WP Author (${p.author})` },
+    createdAt: new Date(p.date),
   });
+
+  const posts = [
+    ...enRes.data.map(p => mapPost(p, 'en')),
+    ...neRes.data.map(p => mapPost(p, 'ne'))
+  ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
   return (
     <div className="py-10 px-4 sm:px-6 lg:px-8 max-w-[1400px] mx-auto">
@@ -53,8 +68,7 @@ export default async function AdminPostsPage() {
             {posts.length > 0 ? (
               posts.map((post) => (
                 <tr key={post.id} className="hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors group">
-                  <td className="px-8 py-5 text-sm font-bold text-navy dark:text-white min-w-[300px]">
-                    {post.title}
+                  <td className="px-8 py-5 text-sm font-bold text-navy dark:text-white min-w-[300px]" dangerouslySetInnerHTML={{ __html: post.title }}>
                   </td>
                   <td className="px-8 py-5 whitespace-nowrap text-sm font-medium text-text-secondary">
                     <span className="inline-flex items-center gap-1.5">
@@ -77,12 +91,12 @@ export default async function AdminPostsPage() {
                   </td>
                   <td className="px-8 py-5 whitespace-nowrap text-right text-sm font-medium">
                     { (session?.user?.role === 'ADMIN' || session?.user?.role === 'EDITOR') && (
-                      <Link href={`/admin/posts/${post.id}/edit`} className="inline-flex items-center justify-center px-4 py-2 border border-black/5 dark:border-white/5 rounded-lg text-navy dark:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors shadow-sm">
+                      <Link href={`/admin/posts/${post.id}/edit?lang=${post.type.startsWith('NEPALI_') ? 'ne' : 'en'}`} className="inline-flex items-center justify-center px-4 py-2 border border-black/5 dark:border-white/5 rounded-lg text-navy dark:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors shadow-sm">
                         Edit
                       </Link>
                     )}
                     { (session?.user?.role === 'ADMIN' || session?.user?.role === 'EDITOR') && (
-                      <DeletePostButton id={post.id} />
+                      <DeletePostButton id={post.id} type={post.type} />
                     )}
                   </td>
                 </tr>

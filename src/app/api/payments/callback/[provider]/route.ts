@@ -36,7 +36,7 @@ async function handleCallback(request: NextRequest, providerParam: string) {
     if (request.method === 'POST') {
       try {
         body = await request.json();
-      } catch (e) {
+      } catch {
         // Not JSON
       }
     }
@@ -46,17 +46,22 @@ async function handleCallback(request: NextRequest, providerParam: string) {
     // Determine idempotencyKey based on provider
     if (provider === 'ESEWA') {
       // eSewa data is base64 encoded in 'data'
-      if ((payload as any).data) {
-        const decoded = JSON.parse(Buffer.from((payload as any).data as string, 'base64').toString());
-        idempotencyKey = decoded.transaction_uuid;
+      const data = (payload as Record<string, unknown>).data;
+      if (typeof data === 'string') {
+        const decoded = JSON.parse(Buffer.from(data, 'base64').toString()) as Record<string, unknown>;
+        idempotencyKey = typeof decoded.transaction_uuid === 'string' ? decoded.transaction_uuid : null;
       }
     } else if (provider === 'KHALTI') {
-      idempotencyKey = (payload as any).purchase_order_id as string;
-      if (!idempotencyKey && (payload as any).pidx) {
-        const tx = await prisma.paymentTransaction.findUnique({
-          where: { providerRef: (payload as any).pidx as string }
-        });
-        if (tx) idempotencyKey = tx.idempotencyKey;
+      const purchaseOrderId = (payload as Record<string, unknown>).purchase_order_id;
+      idempotencyKey = typeof purchaseOrderId === 'string' ? purchaseOrderId : null;
+      if (!idempotencyKey) {
+        const pidx = (payload as Record<string, unknown>).pidx;
+        if (typeof pidx === 'string') {
+          const tx = await prisma.paymentTransaction.findUnique({
+            where: { providerRef: pidx }
+          });
+          if (tx) idempotencyKey = tx.idempotencyKey;
+        }
       }
     }
 
@@ -69,11 +74,11 @@ async function handleCallback(request: NextRequest, providerParam: string) {
 
     // Redirect to success
     return NextResponse.redirect(new URL(`/payment/success?txId=${idempotencyKey}`, request.url));
-  } catch (error: any) {
+  } catch (error) {
     console.error('Payment callback error:', error);
-    // Safe failure redirect
+    // Safe failure redirect — do not expose internal error details to the client
     const failUrl = new URL(`/payment/failure`, request.url);
-    failUrl.searchParams.set('reason', error.message || 'unknown');
+    failUrl.searchParams.set('reason', 'processing_error');
     if (idempotencyKey) {
       failUrl.searchParams.set('txId', idempotencyKey);
     }
