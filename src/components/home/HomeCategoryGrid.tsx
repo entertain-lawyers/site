@@ -58,21 +58,21 @@ export function HomeCategoryGrid() {
     {
       title: "COURT FEE CALCULATOR",
       subtitle: "Estimate court fees",
-      href: "#",
+      href: "/calculator",
       icon: Calculator,
     },
     {
       title: "CONSULT A LAWYER",
       subtitle: "Get legal guidance",
-      href: "#",
+      href: "/consultation",
       icon: Users,
     },
   ];
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 lg:gap-8">
-      {categories.map((category) => (
-        <HomeCategoryCard key={category.href} {...category} />
+      {categories.map((category, idx) => (
+        <HomeCategoryCard key={typeof category.title === 'string' ? category.title : idx} {...category} />
       ))}
     </div>
   );

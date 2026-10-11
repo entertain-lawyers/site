@@ -505,3 +505,49 @@ model TeamMember {
 
   @@index([isPublished, displayOrder])
 }
+
+enum ConsultationStatus {
+  NEW
+  CONTACTED
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum ContactMethod {
+  PHONE
+  EMAIL
+  WHATSAPP
+}
+
+enum ConsultationMode {
+  PHYSICAL
+  ONLINE
+  EITHER
+}
+
+model ConsultationRequest {
+  id                     String             @id @default(uuid())
+  fullName               String
+  email                  String
+  phone                  String
+  preferredContactMethod ContactMethod      @default(PHONE)
+  consultationMode       ConsultationMode   @default(PHYSICAL)
+  practiceArea           String
+  preferredTime          String?
+  claimAmount            Float?
+  courtFeeEstimated      Float?
+  subject                String
+  description            String
+  referralSource         String?
+  status                 ConsultationStatus @default(NEW)
+  adminNotes             String?
+  ipAddress              String?
+  userAgent              String?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  @@index([status, createdAt])
+  @@index([email])
+  @@index([phone])
+}

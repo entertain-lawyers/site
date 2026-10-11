@@ -151,6 +151,12 @@ export default function MobileMenu({ links, session, dict, semesters, isNepaliMo
                 Explore
               </div>
               <div className="space-y-1 mt-1 pl-4 border-l-2 border-border ml-6">
+                <Link href="/calculator" onClick={closeMenu} className="flex items-center px-4 py-3 min-h-[44px] text-sm font-semibold text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all">
+                  Court Fee Calculator
+                </Link>
+                <Link href="/consultation" onClick={closeMenu} className="flex items-center px-4 py-3 min-h-[44px] text-sm font-semibold text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all">
+                  Consult a Lawyer
+                </Link>
                 <Link href="/events" onClick={closeMenu} className="flex items-center px-4 py-3 min-h-[44px] text-sm font-semibold text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all">
                   Events
                 </Link>

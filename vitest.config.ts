@@ -3,6 +3,9 @@ import path from 'path';
 
 export default defineConfig({
   test: {
+    env: {
+      SKIP_ENV_VALIDATION: '1',
+    },
     poolOptions: {
       threads: {
         singleThread: true,
