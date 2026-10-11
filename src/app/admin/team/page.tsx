@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { Edit, Eye, Plus } from 'lucide-react';
 import DeleteTeamMemberButton from './DeleteTeamMemberButton';
+import BulkImportTeamDialog from './BulkImportTeamDialog';
 import Image from 'next/image';
 
 export const metadata = { title: 'Manage Team | Admin' };
@@ -29,13 +30,16 @@ export default async function AdminTeamPage() {
           <h1 className="text-3xl font-extrabold text-navy dark:text-white">Team Members</h1>
           <p className="text-text-secondary mt-1">Manage the public team directory.</p>
         </div>
-        <Link
-          href="/admin/team/new"
-          className="bg-accent hover:bg-accent-dark text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-colors"
-        >
-          <Plus size={20} />
-          Add Member
-        </Link>
+        <div className="flex items-center gap-3">
+          <BulkImportTeamDialog />
+          <Link
+            href="/admin/team/new"
+            className="bg-accent hover:bg-accent-dark text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-colors"
+          >
+            <Plus size={20} />
+            Add Member
+          </Link>
+        </div>
       </div>
 
       <div className="bg-white dark:bg-zinc-900 shadow-sm border border-black/10 dark:border-white/10 rounded-2xl overflow-hidden">
