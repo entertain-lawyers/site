@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, FileText, Database, Users, Settings, LogOut, Globe, History, Menu, X } from 'lucide-react';
+import { LayoutDashboard, FileText, Database, Users, Settings, LogOut, Globe, History, Menu, X, MessageSquare } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 
 export default function AdminSidebar({ userRole }: { userRole: string }) {
@@ -36,6 +36,7 @@ export default function AdminSidebar({ userRole }: { userRole: string }) {
 
   const navItems = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard, roles: ['ADMIN', 'EDITOR'] },
+    { name: 'Consultations', href: '/admin/consultations', icon: MessageSquare, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Posts', href: '/admin/posts', icon: FileText, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Events', href: '/admin/events', icon: FileText, roles: ['ADMIN', 'EDITOR'] },
 
