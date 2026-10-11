@@ -52,16 +52,21 @@ export const initiateMediaUploadAction = createSafeAction(async (args: z.infer<t
 
   const key = `editorial/${prefix}/${dateStr}-${uuid}.${ext}`;
 
-  // Generate the upload URL
-  const uploadUrl = await mediaStorage.generateUploadUrl(key, input.mimeType, 300, session.userId);
+  try {
+    // Generate the upload URL
+    const uploadUrl = await mediaStorage.generateUploadUrl(key, input.mimeType, 300, session.userId);
 
-  // We do NOT use UploadIntent table here because editorial images don't require
-  // strict rollback transactions like Private Documents.
-  // If an editor abandons an upload, it's just an orphaned file in R2, which is acceptable for Batch 3.
+    // We do NOT use UploadIntent table here because editorial images don't require
+    // strict rollback transactions like Private Documents.
+    // If an editor abandons an upload, it's just an orphaned file in R2, which is acceptable for Batch 3.
 
-  return {
-    uploadUrl,
-    key,
-    publicUrl: mediaStorage.getPublicUrl(key),
-  };
+    return {
+      uploadUrl,
+      key,
+      publicUrl: mediaStorage.getPublicUrl(key),
+    };
+  } catch (err: any) {
+    console.error(`[AdminMediaUpload] Failed to generate upload URL for type=${input.type}:`, err instanceof Error ? err.name : 'StorageError');
+    throw new Error('Failed to generate upload URL. Please verify storage configuration.');
+  }
 });
