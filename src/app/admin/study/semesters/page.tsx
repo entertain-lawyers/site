@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Metadata } from 'next';
 import { Plus, Edit2, Layers } from 'lucide-react';
 import DeleteSemesterButton from './DeleteSemesterButton';
+import SemesterMergeDialog from './SemesterMergeDialog';
 
 export const metadata: Metadata = {
   title: 'Manage Semesters - Admin - Entertain Lawyers',
@@ -36,7 +37,14 @@ export default async function AdminSemestersPage() {
             Manage academic semester structures, display ordering, and URLs.
           </p>
         </div>
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 flex items-center gap-3">
+          <SemesterMergeDialog
+            semesters={semesters.map((s) => ({
+              id: s.id,
+              name: s.name,
+              order: s.order,
+            }))}
+          />
           <Link
             href="/admin/study/semesters/new"
             className="inline-flex items-center justify-center gap-2 px-6 py-2.5 border border-transparent shadow-[0_4px_14px_0_rgba(var(--color-accent),0.39)] text-sm font-bold rounded-xl text-white bg-accent hover:bg-accent/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent transition-all duration-300 hover:-translate-y-0.5"

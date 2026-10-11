@@ -7,6 +7,7 @@ export interface SyllabusSubject {
   isElective?: boolean;
   isSeminar?: boolean;
   syllabusVersion?: 'old' | 'new' | 'both';
+  notes?: string;
 }
 
 export interface SyllabusSemester {
@@ -27,8 +28,8 @@ export const SYLLABUS_CONFIG: SyllabusSemester[] = [
       { name: 'Political Theory', order: 5, unitStart: 1, unitEnd: 7 },
       { name: 'Nepali History', order: 6, unitStart: 1, unitEnd: 5 },
       { name: 'Sociology', order: 7, unitStart: 1, unitEnd: 7 },
-      { name: 'Economics - I', order: 8, unitStart: 1, unitEnd: 5 }
-    ]
+      { name: 'Economics - I', order: 8, unitStart: 1, unitEnd: 5 },
+    ],
   },
   {
     order: 2,
@@ -41,8 +42,8 @@ export const SYLLABUS_CONFIG: SyllabusSemester[] = [
       { name: 'Political Thoughts', order: 5, unitStart: 1, unitEnd: 5 },
       { name: 'Global History', order: 6, unitStart: 1, unitEnd: 5 },
       { name: 'Anthropology', order: 7, unitStart: 1, unitEnd: 9 },
-      { name: 'Economics - II', order: 8, unitStart: 1, unitEnd: 6 }
-    ]
+      { name: 'Economics - II', order: 8, unitStart: 1, unitEnd: 6 },
+    ],
   },
   {
     order: 3,
@@ -53,9 +54,9 @@ export const SYLLABUS_CONFIG: SyllabusSemester[] = [
       { name: 'International Relations and Diplomacy', order: 3, unitStart: 1, unitEnd: 7 },
       { name: 'Criminal Law - I', order: 4, unitStart: 1, unitEnd: 7, hasPrescribedCases: true },
       { name: 'Public International Law - I', order: 5, unitStart: 1, unitEnd: 9 },
-      { name: 'Property Law', order: 6, unitStart: 1, unitEnd: 13, hasPrescribedCases: true, syllabusVersion: 'both' },
-      { name: 'Comparative Law', order: 7, unitStart: 1, unitEnd: 7 }
-    ]
+      { name: 'Property Law', order: 6, unitStart: 1, unitEnd: 13, hasPrescribedCases: true, syllabusVersion: 'both', notes: 'Old Syllabus & New Syllabus' },
+      { name: 'Comparative Law', order: 7, unitStart: 1, unitEnd: 7 },
+    ],
   },
   {
     order: 4,
@@ -67,8 +68,8 @@ export const SYLLABUS_CONFIG: SyllabusSemester[] = [
       { name: 'Family Law', order: 4, unitStart: 1, unitEnd: 7, hasPrescribedCases: true },
       { name: 'Law of Contract - I', order: 5, unitStart: 1, unitEnd: 8, hasPrescribedCases: true },
       { name: 'Procedural Law - I', order: 6, unitStart: 1, unitEnd: 5, hasPrescribedCases: true },
-      { name: 'Nepali Legal System', order: 7, unitStart: 1, unitEnd: 5 }
-    ]
+      { name: 'Nepali Legal System', order: 7, unitStart: 1, unitEnd: 5 },
+    ],
   },
   {
     order: 5,
@@ -83,8 +84,8 @@ export const SYLLABUS_CONFIG: SyllabusSemester[] = [
       { name: 'Juvenile Delinquency', order: 7, unitStart: 1, unitEnd: 6, hasPrescribedCases: true, isElective: true },
       { name: 'Election Law', order: 8, unitStart: 1, unitEnd: 7, hasPrescribedCases: true, isElective: true },
       { name: 'Securities Law', order: 9, unitStart: 1, unitEnd: 11, hasPrescribedCases: true, isElective: true },
-      { name: 'International Air and Space Law', order: 10, unitStart: 1, unitEnd: 8, isElective: true }
-    ]
+      { name: 'International Air and Space Law', order: 10, unitStart: 1, unitEnd: 8, isElective: true },
+    ],
   },
   {
     order: 6,
@@ -99,8 +100,8 @@ export const SYLLABUS_CONFIG: SyllabusSemester[] = [
       { name: 'Insurance Law', order: 7, unitStart: 1, unitEnd: 7, hasPrescribedCases: true, isElective: true },
       { name: 'Socio Economic Crime', order: 8, unitStart: 1, unitEnd: 5, hasPrescribedCases: true, isElective: true },
       { name: 'International Humanitarian Law', order: 9, unitStart: 1, unitEnd: 5, isElective: true },
-      { name: 'Forensic Science', order: 10, unitStart: 1, unitEnd: 11, hasPrescribedCases: true, isElective: true }
-    ]
+      { name: 'Forensic Science', order: 10, unitStart: 1, unitEnd: 11, hasPrescribedCases: true, isElective: true },
+    ],
   },
   {
     order: 7,
@@ -115,8 +116,8 @@ export const SYLLABUS_CONFIG: SyllabusSemester[] = [
       { name: 'Forensic Medicine', order: 7, unitStart: 1, unitEnd: 8, hasPrescribedCases: true },
       { name: 'Fiscal Law', order: 8, unitStart: 1, unitEnd: 6, hasPrescribedCases: true },
       { name: 'International Refugee Law', order: 9, unitStart: 1, unitEnd: 7, hasPrescribedCases: true },
-      { name: 'Media Law', order: 10, unitStart: 1, unitEnd: 8, hasPrescribedCases: true }
-    ]
+      { name: 'Media Law', order: 10, unitStart: 1, unitEnd: 8, hasPrescribedCases: true },
+    ],
   },
   {
     order: 8,
@@ -131,8 +132,8 @@ export const SYLLABUS_CONFIG: SyllabusSemester[] = [
       { name: 'International Rivers and Sea Law', order: 7, unitStart: 1, unitEnd: 11, hasPrescribedCases: true, isElective: true },
       { name: 'Natural Resources Law', order: 8, unitStart: 1, unitEnd: 6, hasPrescribedCases: true, isElective: true },
       { name: 'Investment Law', order: 9, unitStart: 1, unitEnd: 6, hasPrescribedCases: true, isElective: true },
-      { name: 'Business and Human Rights Law', order: 10, unitStart: 1, unitEnd: 7, isElective: true }
-    ]
+      { name: 'Business and Human Rights Law', order: 10, unitStart: 1, unitEnd: 7, isElective: true },
+    ],
   },
   {
     order: 9,
@@ -146,17 +147,92 @@ export const SYLLABUS_CONFIG: SyllabusSemester[] = [
       { name: 'Energy Law', order: 6, unitStart: 1, unitEnd: 7, hasPrescribedCases: true, isElective: true },
       { name: 'Victimology', order: 7, unitStart: 1, unitEnd: 5, hasPrescribedCases: true, isElective: true },
       { name: 'Population Law', order: 8, unitStart: 1, unitEnd: 9, hasPrescribedCases: true, isElective: true },
-      { name: 'Competition Law', order: 9, unitStart: 1, unitEnd: 8, hasPrescribedCases: true, isElective: true }
-    ]
+      { name: 'Competition Law', order: 9, unitStart: 1, unitEnd: 8, hasPrescribedCases: true, isElective: true },
+    ],
   },
   {
     order: 10,
     name: '10th Semester',
     subjects: [
-      { name: 'Clinical Law - III (Placement)', order: 1 },
+      { name: 'Clinical Law-III (Placement)', order: 1 },
       { name: 'Social Work and Social Welfare Law', order: 2, unitStart: 1, unitEnd: 7, hasPrescribedCases: true },
       { name: 'Professional Ethics and Lawyering Skills', order: 3, unitStart: 1, unitEnd: 6, hasPrescribedCases: true },
-      { name: 'Dissertation', order: 4 }
-    ]
-  }
+      { name: 'Dissertation', order: 4 },
+    ],
+  },
 ];
+
+/**
+ * Normalizes a subject name for flexible string comparison:
+ * lowercase, removes non-alphanumeric characters.
+ */
+export function normalizeSubjectName(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Retrieves the authoritative semester configuration by chronological order (1..10).
+ */
+export function getAuthoritativeSemester(semesterOrder: number): SyllabusSemester | undefined {
+  return SYLLABUS_CONFIG.find((s) => s.order === semesterOrder);
+}
+
+/**
+ * Finds the authoritative subject configuration given a semester order and subject name.
+ * Checks exact match first, then normalized alphanumeric match, then prefix match for disambiguated legacy names.
+ */
+export function findAuthoritativeSubject(
+  semesterOrder: number,
+  subjectName: string
+): SyllabusSubject | undefined {
+  const semester = getAuthoritativeSemester(semesterOrder);
+  if (!semester) return undefined;
+
+  // 1. Exact match
+  const exact = semester.subjects.find((s) => s.name === subjectName);
+  if (exact) return exact;
+
+  // 2. Normalized match
+  const norm = normalizeSubjectName(subjectName);
+  const normMatch = semester.subjects.find((s) => normalizeSubjectName(s.name) === norm);
+  if (normMatch) return normMatch;
+
+  // 3. Disambiguated legacy pattern: e.g. "Alternative English ... (Semester 1)"
+  if (norm.startsWith('alternativeenglishforforeignersinlieuoflegalnepali')) {
+    return semester.subjects.find(
+      (s) => normalizeSubjectName(s.name) === 'alternativeenglishforforeignersinlieuoflegalnepali'
+    );
+  }
+
+  return undefined;
+}
+
+/**
+ * Checks whether a subject name belongs to the client's authoritative curriculum for that semester.
+ */
+export function isAuthoritativeSubject(semesterOrder: number, subjectName: string): boolean {
+  return !!findAuthoritativeSubject(semesterOrder, subjectName);
+}
+
+/**
+ * Sorts an array of subjects according to the client's explicit 1..N order.
+ * Unmatched subjects are placed after authoritative subjects.
+ */
+export function sortSubjectsByCurriculum<T extends { name: string; order?: number }>(
+  semesterOrder: number,
+  subjects: T[]
+): T[] {
+  return [...subjects].sort((a, b) => {
+    const authA = findAuthoritativeSubject(semesterOrder, a.name);
+    const authB = findAuthoritativeSubject(semesterOrder, b.name);
+
+    if (authA && authB) {
+      return authA.order - authB.order;
+    }
+    if (authA && !authB) return -1;
+    if (!authA && authB) return 1;
+
+    // Fallback to order property or name
+    return (a.order ?? 999) - (b.order ?? 999);
+  });
+}

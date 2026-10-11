@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { getDictionary } from '@/lib/i18n';
 import ResourceTypeFilter from '@/components/study/ResourceTypeFilter';
 import { BookOpen, ChevronRight, Lock, Library, GraduationCap, ChevronLeft } from 'lucide-react';
+import { SYLLABUS_CONFIG, isAuthoritativeSubject, findAuthoritativeSubject } from '@/lib/syllabus-config';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -57,6 +58,7 @@ export default async function SemesterPage({ params }: PageProps) {
     where: { id },
     include: {
       subjects: {
+        orderBy: { order: 'asc' },
         include: {
           units: {
             orderBy: { order: 'asc' },
@@ -77,6 +79,29 @@ export default async function SemesterPage({ params }: PageProps) {
   if (!semester) {
     notFound();
   }
+
+  // Filter out empty legacy subjects (0 units and 0 resources) and sort in authoritative 1..N order
+  const semesterConfig = SYLLABUS_CONFIG.find((c) => c.order === semester.order);
+  const activeSubjects = semester.subjects
+    .filter((sub) => {
+      if (semesterConfig) {
+        const isAuth = isAuthoritativeSubject(semester.order, sub.name);
+        if (isAuth) return true;
+        // Keep if it has attached resources
+        return sub.resources.length > 0 || sub.units.some((u) => u.resources.length > 0);
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (semesterConfig) {
+        const authA = findAuthoritativeSubject(semester.order, a.name);
+        const authB = findAuthoritativeSubject(semester.order, b.name);
+        if (authA && authB) return authA.order - authB.order;
+        if (authA && !authB) return -1;
+        if (!authA && authB) return 1;
+      }
+      return a.order - b.order;
+    });
 
   return (
     <div className="bg-background min-h-screen pb-20">
@@ -124,14 +149,14 @@ export default async function SemesterPage({ params }: PageProps) {
             </div>
             <div>
               <h1 className="text-3xl sm:text-4xl font-bold text-navy dark:text-white tracking-tight">{semester.name}</h1>
-              <p className="text-lg text-text-secondary mt-1">{semester.subjects.length} {dict.subjects} • {dict.unitsAndResources}</p>
+              <p className="text-lg text-text-secondary mt-1">{activeSubjects.length} {dict.subjects} • {dict.unitsAndResources}</p>
             </div>
           </div>
         </div>
       </div>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {semester.subjects.some(s => s.resources.length > 0) && (
+        {activeSubjects.some(s => s.resources.length > 0) && (
           <div className="mb-10">
             <ResourceTypeFilter 
               dict={{
@@ -145,9 +170,9 @@ export default async function SemesterPage({ params }: PageProps) {
           </div>
         )}
 
-        {semester.subjects.length > 0 ? (
+        {activeSubjects.length > 0 ? (
           <div className="space-y-10">
-            {semester.subjects.map((subject) => {
+            {activeSubjects.map((subject) => {
               const hasUnits = subject.units.length > 0;
               const unassignedResources = subject.resources.filter(r => !r.unitId);
 

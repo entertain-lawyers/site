@@ -16,7 +16,7 @@ export const revalidate = 300;
 export default async function SemestersPage() {
   const dict = await getDictionary();
 
-  const semesters = await prisma.semester.findMany({
+  const allSemesters = await prisma.semester.findMany({
     orderBy: { order: 'asc' },
     include: {
       subjects: {
@@ -28,6 +28,10 @@ export default async function SemestersPage() {
       },
     },
   });
+
+  const semesters = allSemesters
+    .filter((s) => s.name.toLowerCase().includes('semester'))
+    .sort((a, b) => a.order - b.order);
 
   return (
     <div className="bg-background min-h-screen pb-20 transition-colors duration-300">

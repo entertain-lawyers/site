@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { ResourceType } from '@prisma/client';
 import { getDictionary } from '@/lib/i18n';
 import { BookOpen, Scale, FileQuestion, Library, ArrowRight, Lock } from 'lucide-react';
-import { SYLLABUS_CONFIG } from '@/lib/syllabus-config';
+import { SYLLABUS_CONFIG, normalizeSubjectName } from '@/lib/syllabus-config';
 
 export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
   const params = await searchParams;
@@ -66,21 +66,27 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
 
   // 1. Fetch reference data for selectors
   const getCachedSemesters = unstable_cache(
-    async () => prisma.semester.findMany({
-      orderBy: { order: 'asc' },
-      select: { id: true, name: true, order: true },
-    }),
-    ['study-semesters'],
+    async () => {
+      const allSemesters = await prisma.semester.findMany({
+        orderBy: { order: 'asc' },
+        select: { id: true, name: true, order: true },
+      });
+      // Filter out duplicate / legacy semester labels like "S1" and guarantee 1..10 chronological
+      return allSemesters
+        .filter((s) => s.name.toLowerCase().includes('semester'))
+        .sort((a, b) => a.order - b.order);
+    },
+    ['study-semesters-canonical'],
     { revalidate: 3600 }
   );
 
   const getCachedSubjects = unstable_cache(
     async (semesterId: string) => prisma.subject.findMany({
       where: { semesterId },
-      orderBy: { name: 'asc' },
-      select: { id: true, name: true },
+      orderBy: { order: 'asc' },
+      select: { id: true, name: true, order: true },
     }),
-    ['study-subjects'],
+    ['study-subjects-ordered'],
     { revalidate: 3600 }
   );
 
@@ -123,33 +129,58 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
         unit: { select: { name: true } },
       },
       orderBy: [
-        { subject: { name: 'asc' } },
+        { subject: { order: 'asc' } },
         { order: 'asc' },
         { title: 'asc' },
       ],
     })
   ]);
 
-  // 3. Merge syllabus configuration
+  // 3. Merge syllabus configuration & filter to authoritative curriculum in exact 1..N order
   const currentSemester = semesters.find(s => s.id === selectedSemesterId);
   const currentSemesterConfig = currentSemester ? SYLLABUS_CONFIG.find(c => c.order === currentSemester.order) : undefined;
 
-  const subjects = rawSubjects.map(sub => {
-    // Exact or normalized match
-    const subNameNorm = sub.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const config = currentSemesterConfig?.subjects.find(s =>
-      s.name.toLowerCase() === sub.name.toLowerCase() ||
-      s.name.toLowerCase().replace(/[^a-z0-9]/g, '') === subNameNorm
-    );
-    return {
-      ...sub,
-      isElective: config?.isElective,
-      isSeminar: config?.isSeminar,
-      unitStart: config?.unitStart,
-      unitEnd: config?.unitEnd,
-      hasPrescribedCases: config?.hasPrescribedCases
-    };
-  });
+  let subjects: Array<{
+    id: string;
+    name: string;
+    order: number;
+    isElective?: boolean;
+    isSeminar?: boolean;
+    unitStart?: number;
+    unitEnd?: number;
+    hasPrescribedCases?: boolean;
+  }> = [];
+
+  if (currentSemesterConfig) {
+    // Law Notes: filter strictly to authoritative subjects in exact 1..N client order (excluding legacy subjects)
+    subjects = currentSemesterConfig.subjects.map(authSub => {
+      const authNorm = normalizeSubjectName(authSub.name);
+      const dbMatch = rawSubjects.find(s =>
+        s.name === authSub.name ||
+        normalizeSubjectName(s.name) === authNorm ||
+        normalizeSubjectName(s.name).startsWith(authNorm) ||
+        authNorm.startsWith(normalizeSubjectName(s.name))
+      );
+
+      return {
+        id: dbMatch?.id || `auth-${currentSemesterConfig.order}-${authSub.order}`,
+        name: authSub.name,
+        order: authSub.order,
+        isElective: authSub.isElective,
+        isSeminar: authSub.isSeminar,
+        unitStart: authSub.unitStart,
+        unitEnd: authSub.unitEnd,
+        hasPrescribedCases: authSub.hasPrescribedCases
+      };
+    });
+  } else {
+    // Fallback if semester not in config
+    subjects = rawSubjects.map(sub => ({
+      id: sub.id,
+      name: sub.name,
+      order: sub.order ?? 0,
+    }));
+  }
 
   const units = [...rawUnits];
   if (selectedSubjectId) {
@@ -276,7 +307,13 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
 
         <div>
           {/* If the user is browsing normally, force them to drill down to at least a subject or unit before showing resource results, UNLESS they searched */}
-          {(!selectedUnitId && !searchQuery && selectedType !== 'CASE_LAW') ? null : resources.length === 0 ? (
+          {(
+            selectedType === 'CASE_LAW'
+              ? false
+              : selectedType === 'OLD_QUESTION'
+                ? (!selectedSemesterId && !searchQuery)
+                : (!selectedUnitId && !searchQuery)
+          ) ? null : resources.length === 0 ? (
             <div className="bg-surface border border-border rounded-2xl p-8 sm:p-16 text-center shadow-soft flex flex-col items-center justify-center">
               <div className="w-16 h-16 bg-surface border border-border rounded-full flex items-center justify-center mb-6 text-text-muted shadow-sm">
                 {selectedType === 'CASE_LAW' ? <Scale className="w-8 h-8" /> : <Library className="w-8 h-8" />}
