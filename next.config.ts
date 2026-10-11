@@ -6,6 +6,7 @@ const cspHeader = `
     style-src 'self' 'unsafe-inline';
     img-src 'self' blob: data:;
     font-src 'self';
+    connect-src 'self';
     object-src 'none';
     base-uri 'self';
     form-action 'self';
@@ -17,18 +18,32 @@ const getB2EndpointDomain = () => {
   if (process.env.B2_ENDPOINT) {
     try {
       const url = new URL(process.env.B2_ENDPOINT);
-      return url.origin;
+      if (url.protocol === 'https:' && /^https:\/\/[a-zA-Z0-9.-]+(?::[0-9]+)?$/.test(url.origin)) {
+        return url.origin;
+      }
+      return '';
     } catch {
-      return 'https://*.backblazeb2.com';
+      return '';
     }
   }
-  return 'https://*.backblazeb2.com';
+  return '';
 };
 
-const dynamicCspHeader = cspHeader.replace(
-  "img-src 'self' blob: data:;",
-  `img-src 'self' blob: data: ${getB2EndpointDomain()} https://entertainlawyers.com https://www.entertainlawyers.com;`
-);
+function buildCspHeader(): string {
+  const b2Origin = getB2EndpointDomain();
+  const b2OriginPart = b2Origin ? ` ${b2Origin}` : '';
+
+  return cspHeader
+    .replace(
+      "img-src 'self' blob: data:;",
+      `img-src 'self' blob: data:${b2OriginPart} https://entertainlawyers.com https://www.entertainlawyers.com;`
+    )
+    .replace(
+      "connect-src 'self';",
+      `connect-src 'self'${b2OriginPart};`
+    )
+    .replace(/\n/g, '');
+}
 
 const nextConfig: NextConfig = {
   experimental: {
@@ -43,7 +58,7 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: 'Content-Security-Policy',
-            value: dynamicCspHeader.replace(/\n/g, ''),
+            value: buildCspHeader(),
           },
           {
             key: 'X-Content-Type-Options',

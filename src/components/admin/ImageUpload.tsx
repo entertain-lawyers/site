@@ -56,13 +56,21 @@ export default function ImageUpload({ value, onChange, type, label = 'Featured I
       });
 
       if (!uploadRes.ok) {
-        throw new Error('Failed to upload file to storage');
+        throw new Error(`Storage upload failed with status ${uploadRes.status}`);
       }
 
       // 3. Update the form state with the final public URL
       onChange(res.data.publicUrl);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'An unexpected error occurred during upload';
+      console.error('Image upload failed:', err instanceof Error ? err.message : 'Unknown upload error');
+      let message = 'An unexpected error occurred during upload';
+      if (err instanceof Error) {
+        if (err.message.includes('Failed to fetch') || err.message.includes('fetch failed')) {
+          message = 'Unable to connect to storage service. Check network connection, CSP, or CORS settings.';
+        } else {
+          message = err.message;
+        }
+      }
       setError(message);
     } finally {
       setLoading(false);
