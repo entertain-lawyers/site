@@ -1,4 +1,5 @@
 import { getWordPressPostById, getWordPressPosts, mapCategoryToType } from '@/lib/wordpress';
+import { getLatestPosts } from '@/lib/latest-posts';
 import { notFound } from 'next/navigation';
 import PostDetail from '@/components/posts/PostDetail';
 
@@ -20,7 +21,7 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ id:
     content: wpPost.content.rendered,
     type: 'BLOG' as const,
     createdAt: new Date(wpPost.date),
-    author: { email: `WP Author (${wpPost.author})` },
+    author: { email: `WP Author (${wpPost.author})`, name: (wpPost._embedded?.['author'] as Array<{ name?: string }> | undefined)?.[0]?.name },
     featuredImage: wpPost._embedded?.['wp:featuredmedia']?.[0]?.source_url || null
   };
 
@@ -44,5 +45,7 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ id:
       url: `/blogs/${p.id}`
     }));
 
-  return <PostDetail post={post} backUrl="/blogs" backLabel="Blogs" relatedPosts={relatedPosts} />;
+  const latestPosts = await getLatestPosts(wpId);
+
+  return <PostDetail post={post} backUrl="/blogs" backLabel="Blogs" relatedPosts={relatedPosts} latestPosts={latestPosts} />;
 }

@@ -1,4 +1,5 @@
 import { getWordPressPostById, getWordPressPosts, mapCategoryToType } from '@/lib/wordpress';
+import { getLatestPosts } from '@/lib/latest-posts';
 import { notFound } from 'next/navigation';
 import PostDetail from '@/components/posts/PostDetail';
 
@@ -21,7 +22,7 @@ export default async function FactDetailPage({ params }: { params: Promise<{ id:
     content: wpPost.content.rendered,
     type: postType,
     createdAt: new Date(wpPost.date),
-    author: { email: `WP Author (${wpPost.author})` },
+    author: { email: `WP Author (${wpPost.author})`, name: (wpPost._embedded?.['author'] as Array<{ name?: string }> | undefined)?.[0]?.name },
     featuredImage: wpPost._embedded?.['wp:featuredmedia']?.[0]?.source_url || null
   };
 
@@ -45,8 +46,10 @@ export default async function FactDetailPage({ params }: { params: Promise<{ id:
       url: `/historical-facts/${p.id}`
     }));
 
+  const latestPosts = await getLatestPosts(wpId);
+
   const backUrl = postType === 'PERSONALITY' ? '/historical-facts/personalities' : '/historical-facts/historical';
   const backLabel = postType === 'PERSONALITY' ? 'Legal Personalities' : 'Historical Facts';
 
-  return <PostDetail post={post} backUrl={backUrl} backLabel={backLabel} relatedPosts={relatedPosts} />;
+  return <PostDetail post={post} backUrl={backUrl} backLabel={backLabel} relatedPosts={relatedPosts} latestPosts={latestPosts} />;
 }

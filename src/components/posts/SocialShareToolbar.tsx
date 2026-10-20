@@ -128,7 +128,7 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal' }
           target="_blank"
           rel="noopener noreferrer"
           aria-label={`Share on ${p.name}`}
-          className={`p-2 rounded-full transition-colors flex items-center justify-center ${p.color}`}
+          className={`min-w-[44px] min-h-[44px] p-2 rounded-full transition-colors flex items-center justify-center ${p.color}`}
           title={`Share on ${p.name}`}
         >
           {p.icon}
@@ -138,7 +138,7 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal' }
         onClick={handleCopyLink}
         aria-label="Copy Link"
         title="Copy Link"
-        className="p-2 rounded-full transition-colors flex items-center justify-center bg-slate-200 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-zinc-700 text-navy dark:text-white relative group"
+        className="min-w-[44px] min-h-[44px] p-2 rounded-full transition-colors flex items-center justify-center bg-slate-200 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-zinc-700 text-navy dark:text-white relative group"
       >
         <Link className="w-4 h-4" />
         {copied && (

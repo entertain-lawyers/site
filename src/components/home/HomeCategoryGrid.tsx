@@ -16,16 +16,34 @@ export function HomeCategoryGrid() {
       icon: Landmark,
     },
     {
-      title: "NEWS",
-      subtitle: "Read Latest Insights",
-      href: "/news",
-      icon: Newspaper,
-    },
-    {
       title: "OLD QUESTIONS",
       subtitle: "Practice Past Exams",
       href: "/study?type=OLD_QUESTION",
       icon: Briefcase,
+    },
+    {
+      title: "COURT FEE CALCULATOR",
+      subtitle: "Estimate court fees",
+      href: "/calculator",
+      icon: Calculator,
+    },
+    {
+      title: "CONSULT A LAWYER",
+      subtitle: "Get legal guidance",
+      href: "/consultation",
+      icon: Users,
+    },
+    {
+      title: "ACTS AND LAWS",
+      subtitle: "Browse Nepal's acts and laws",
+      href: "#",
+      icon: Gavel,
+    },
+    {
+      title: "NEWS",
+      subtitle: "Read Latest Insights",
+      href: "/news",
+      icon: Newspaper,
     },
     {
       title: (
@@ -48,24 +66,6 @@ export function HomeCategoryGrid() {
       subtitle: "Legal insights and opinions",
       href: "/blogs",
       icon: MessageSquare,
-    },
-    {
-      title: "ACTS AND LAWS",
-      subtitle: "Browse Nepal's acts and laws",
-      href: "#",
-      icon: Gavel,
-    },
-    {
-      title: "COURT FEE CALCULATOR",
-      subtitle: "Estimate court fees",
-      href: "/calculator",
-      icon: Calculator,
-    },
-    {
-      title: "CONSULT A LAWYER",
-      subtitle: "Get legal guidance",
-      href: "/consultation",
-      icon: Users,
     },
   ];
 
