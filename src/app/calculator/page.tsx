@@ -18,24 +18,44 @@ export const metadata: Metadata = {
 
 const FAQS = [
   {
-    q: 'कोर्ट फी (Court Fee / अदालती दस्तुर) भनेको के हो?',
-    a: 'नेपालका अदालतहरूमा फिरादपत्र, प्रतिउत्तरपत्र, पुनरावेदन वा निवेदन दर्ता गर्दा ऐन कानुन बमोजिम सरकारी राजस्व खातामा बुझाउनुपर्ने न्यायिक दस्तुरलाई कोर्ट फी भनिन्छ। देवानी मुद्दामा बिगो दाबीको अनुपातमा मुलुकी देवानी कार्यविधि संहिता, २०७४ को दफा ६९ बमोजिम progressive दरमा दस्तुर निर्धारण हुन्छ।',
+    qEn: 'What is Court Fee?',
+    qNp: 'अदालती दस्तुरभनेको के हो?',
+    aEn:
+      'As per section 63(2), Explanation of National Civil Procedure Code 2074: “Court Fee” means the fee payable when filing a plaint or appeal, or when applying for a review or rehearing of a case. The term also includes the fee payable by a person filing a counterclaim. In civil cases, the court fee is generally calculated progressively based on the amount claimed(Bigo), in accordance with Section 69 of the National Civil Procedure Code, 2017 (2074 B.S.).',
+    aNp:
+      'मुलुकी देवानी कार्यविधि संहिता २०७४ को दफा ६३(२) को स्पष्टीकरण बमोजिम “अदालत शुल्क” भन्नाले फिरादपत्र वा पुनरावदेन दिँदा वा मुद्दा पुनरावलोकन वा दोहोऱ्याउन दिँदा लिइने शुल्क सम्झनु पर्छ र सो शब्दले प्रतिदाबी लिनेले प्रतिदाबी लिए वापत बुझाउने शुल्क समेतलाई जनाउँछ। देवानी मुद्दामा बिगो दाबीको अनुपातमा मुलुकी देवानी कार्यविधि संहिता, २०७४ को दफा ६९ बमोजिम progressive दरमा दस्तुर निर्धारण हुन्छ।',
   },
   {
-    q: 'मुद्दा जितेमा बुझाएको कोर्ट फी फिर्ता पाइन्छ?',
-    a: 'हो, मुलुकी देवानी कार्यविधि संहिता, २०७४ को दफा ७५ तथा सम्बन्धित कानूनी व्यवस्था बमोजिम मुद्दा जित्ने पक्षले हार्ने पक्षबाट आफूले तिरेको अदालती दस्तुर (कोर्ट फी) भराई लिन पाउने कानूनी व्यवस्था रहेको छ। फैसला कार्यान्वयनको प्रक्रियामार्फत यो रकम असुल गर्न सकिन्छ।',
+    qEn: 'Can the court fee be recovered if a party wins the case?',
+    qNp: 'मुद्दा जितेमा बुझाएको कोर्ट फी फिर्ता पाइन्छ ?',
+    aEn:
+      'As per section 83(1) of National Civil Procedure Court, 2074: In a lawsuit involving court fees, the winning party may recover the court fees paid by them from the losing party in accordance with the court judgment.',
+    aNp:
+      'हो, मुलुकी देवानी कार्यविधि संहिता, २०७४ को दफा ८३(१) तथा सम्बन्धिले कानूनी व्यवस्था बमोजिम मुद्दा जित्ने पक्षले हार्ने पक्षबाट आफूले तिरेको अदालती दस्तुर (कोर्ट फी) भराई लिन पाउने कानूनी व्यवस्था रहेको छ। फैसला कार्यान्वयनको प्रक्रियामार्फत यो रकम असुल गर्न सकिन्छ।',
   },
   {
-    q: 'बिगो (दाबी रकम) नखुलेको मुद्दामा कति दस्तुर लाग्छ?',
-    a: 'सम्बन्धविच्छेद, मानाचामल, हककायम, बाटो खुलाउने, वा अन्य बिगो निर्धारण हुन नसक्ने देवानी मुद्दाहरूमा ऐनको दफा ७० तथा अन्य दफाहरू बमोजिम तोकिएको निश्चित दस्तुर (Flat Statutory Fee) लाग्दछ।',
+    qEn: 'How much court fee is payable in cases where the claim amount cannot be determined?',
+    qNp: 'बिगो (दाबी रकम) नखुलेको मुद्दामा कति दस्तुर लाग्छ?',
+    aEn:
+      'As per Section 71(2) of National Civil Procedure Court, 2074: In any other civil case where the value or claim amount is not specified, a court fee of Rs. 1,000 is payable under Section 70 of the National Civil Procedure Code, 2074.',
+    aNp:
+      'मुलुकी देवानी कार्यविधि संहिता, २०७४ को दफा ७१(२) बमोजिमः मूल्य वा बिगो नखुलेको अन्य जुनसुकै देवानी मुद्दामा मुलुकी देवानी कार्यविधी संहिता २०७४ दफा ७० अनुसार एक हजार रुपैयाँ अदालती शुल्क लाग्ने व्यवस्था यसमा गरिएको छ।',
   },
   {
-    q: 'पुनरावेदन (Appeal) गर्दा कोर्ट फी कसरी लाग्छ?',
-    a: 'सुरु अदालतको फैसला उपर उच्च अदालत वा सर्वोच्च अदालतमा पुनरावेदन गर्दा सुरुमा लागेको अदालती दस्तुरको कानुन बमोजिम निश्चित प्रतिशत वा ऐनको दफा ७१ बमोजिम पुनरावेदन दस्तुर बुझाउनुपर्ने हुन्छ।',
+    qEn: 'How is the court fee charged when filing an appeal?',
+    qNp: 'पुनरावेदन गर्दा कोर्ट फी कसरी लाग्छ ?',
+    aEn:
+      'Pursuant to National Civil Procedure Code, 2074 section 73: In cases where the value or claim amount is specified, an additional court fee equal to 15% of the court fee payable when filing the complaint shall be charged when filing an appeal at any level, to the extent the appellant is dissatisfied with the decision.\nIn partition cases where the claim amount is not specified, the same court fee as that payable when filing the complaint shall be charged when filing an appeal at any level.',
+    aNp:
+      'मुलुकी देवानी कार्यविधि संहिता, २०७४ को दफा ७३ बमोजिमः मूल्य वा बिगो खुलेको मुद्दामा जुनसुकै तहमा पुनरावेदन गर्दा जुन हदसम्म चित्त नबुझी पुनरावेदन गर्ने हो, सोही हदसम्म फिरादपत्र दर्ता गर्दा लाग्ने अदालत शुल्कको १५ प्रतिशत थप अदालत शुल्क लाग्नेछ। बिगो नखुलेको अंश मुद्दामा जुनसुकै तहमा पुनरावेदन दिँदा फिरादपत्र दर्ता गर्दा लागे सरहकै अदालत शुल्क लाग्नेछ।',
   },
   {
-    q: 'अदालती दस्तुर कसरी र कहाँ बुझाइन्छ?',
-    a: 'सम्बन्धित अदालतको राजस्व खाता (Nepal Government Judicial Revenue Account) मा तोकिएको भौचरमार्फत बैंकमा रकम दाखिला गरी सोको सक्कल भौचर फिरादपत्र वा निवेदनसाथ अदालतको दर्ता शाखामा पेश गर्नुपर्दछ।',
+    qEn: 'How and where is the court fee paid?',
+    qNp: 'अदालती दस्तुर कसरी र कहाँ बुझाइन्छ?',
+    aEn:
+      'In Nepal, court fees for filing a case or other legal proceedings can be paid at the cash counter of the concerned court. The original payment voucher must be submitted to the court’s registration section along with the plaint or application.',
+    aNp:
+      'नेपालका अदालतहरूमा मुद्दा दर्ता गर्दा वा अन्य कानुनी प्रक्रियाका लागि लाग्ने अदालती शुल्क सम्बन्धित अदालतको नगद काउन्टर बाट बुझाउन सकिन्छ। सोको सक्कल भौचर फिरादपत्र वा निवेदनसाथ अदालतको दर्ता शाखामा पेश गर्नुपर्दछ।',
   },
 ];
 
@@ -53,7 +73,7 @@ export default function CalculatorPage() {
             Nepal Court Fee Calculator
           </h1>
           <p className="text-text-secondary text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
-            नेपालका अदालतहरूमा देवानी मुद्दा दर्ता गर्दा लाग्ने कानूनी दस्तुरको यकिन हिसाब। Based on Section 69 of the National Civil Procedure (Code) Act, 2017.
+            नेपालका अदालतहरूमा देवानी मुद्दा दर्ता गर्दा लाग्ने अदालती दस्तुरको यकिन हिसाब। Exact, correct, authentic calculation of the court fees that need to be submitted before the court in Nepal in civil cases, as per Section 69 of the National Civil Procedure Code, 2074.
           </p>
         </div>
 
@@ -76,15 +96,39 @@ export default function CalculatorPage() {
             {FAQS.map((faq, idx) => (
               <div
                 key={idx}
-                className="bg-surface rounded-2xl p-6 border border-border space-y-2 transition-all hover:border-accent/40"
+                className="bg-surface rounded-2xl border border-border overflow-hidden transition-all hover:border-accent/40 hover:shadow-sm"
               >
-                <h3 className="text-base font-bold text-text-primary flex items-start gap-2.5">
-                  <span className="text-accent font-black">Q{idx + 1}.</span>
-                  <span>{faq.q}</span>
-                </h3>
-                <p className="text-sm text-text-secondary leading-relaxed pl-7">
-                  {faq.a}
-                </p>
+                <div className="p-6 sm:p-7 space-y-4">
+                  {/* Question — English and Nepali on separate lines */}
+                  <div className="flex items-start gap-3.5">
+                    <span className="shrink-0 w-8 h-8 rounded-lg bg-navy dark:bg-accent text-white flex items-center justify-center text-xs font-black">
+                      Q{idx + 1}
+                    </span>
+                    <div className="space-y-1 min-w-0">
+                      <h3 className="text-base sm:text-[17px] font-bold text-navy dark:text-white leading-snug">
+                        {faq.qEn}
+                      </h3>
+                      <p className="text-sm font-semibold text-accent leading-snug">
+                        {faq.qNp}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Answer — English prose, then Nepali in a distinct tinted panel */}
+                  <div className="pl-11 sm:pl-[46px] space-y-3">
+                    <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-line">
+                      {faq.aEn}
+                    </p>
+                    <div className="rounded-xl bg-surface-alt border-l-[3px] border-accent/50 p-4">
+                      <div className="text-[10px] font-black uppercase tracking-widest text-text-muted mb-1.5">
+                        नेपाली
+                      </div>
+                      <p className="text-sm text-text-secondary leading-relaxed">
+                        {faq.aNp}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
