@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Dictionary } from '@/lib/i18n';
-import { Menu, X, Home, BookOpen, CreditCard, Info, Mail, LayoutDashboard, Shield, LogOut, LogIn, User, FileEdit } from 'lucide-react';
+import { Menu, X, Home, BookOpen, CreditCard, Info, Mail, LayoutDashboard, Shield, LogOut, LogIn, User, FileEdit, Calculator, Users } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 
 interface NavLink {
@@ -183,6 +183,8 @@ export default function MobileMenu({ links, session, dict, semesters, isNepaliMo
               const isActive = pathname?.startsWith(link.href);
               let Icon = Info;
               if (link.href.includes('pricing')) Icon = CreditCard;
+              if (link.href.includes('calculator')) Icon = Calculator;
+              if (link.href.includes('team')) Icon = Users;
               if (link.href.includes('contact')) Icon = Mail;
 
               return (

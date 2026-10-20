@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import MobileMenu from './MobileMenu';
+import NavbarSearch from './NavbarSearch';
 import { Dictionary, Locale } from '@/lib/i18n';
 import { usePathname } from 'next/navigation';
 import { BookOpen, User, LogIn, LayoutDashboard, Shield, LogOut, FileEdit, ChevronDown, ChevronRight } from 'lucide-react';
@@ -61,7 +61,7 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
     };
   }, [isStudyOpen]);
 
-  const navLinks = isNepaliPage
+  const navLinks: { href: string; label: string; title?: string }[] = isNepaliPage
     ? [
         { href: '/nepali', label: dict.home },
         { href: '/contact', label: dict.contact },
@@ -69,6 +69,8 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
     : [
         { href: '/', label: dict.home },
         { href: '/pricing', label: dict.pricing },
+        { href: '/calculator', label: 'Calculator', title: 'Nepal Court Fee Calculator' },
+        { href: '/team', label: 'Team' },
         { href: '/contact', label: dict.contact },
       ];
 
@@ -109,7 +111,7 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
         <div className="relative flex items-center justify-between h-12 sm:h-14 px-3 sm:px-5 bg-white/95 dark:bg-surface/95 backdrop-blur-xl border border-border/50 shadow-[0_8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] rounded-full pointer-events-auto">
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-1" aria-label="Main navigation">
+          <nav className="hidden lg:flex items-center space-x-1 flex-1 min-w-0" aria-label="Main navigation">
             <Link
               href={navLinks[0].href}
               className={`px-5 py-2 rounded-full text-[14px] font-bold transition-all duration-300 ${
@@ -227,7 +229,7 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
                   onClick={() => { setIsExploreOpen(!isExploreOpen); setIsStudyOpen(false); }}
                   onKeyDown={handleExploreKeyDown}
                   className={`flex items-center gap-1 px-5 py-2 rounded-full text-[14px] font-bold transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-                    ['/events', '/faqs', '/blogs', '/news', '/historical-facts', '/calculator', '/consultation'].some(p => pathname?.startsWith(p))
+                    ['/events', '/faqs', '/blogs', '/news', '/historical-facts', '/consultation'].some(p => pathname?.startsWith(p))
                       ? 'text-accent bg-accent/10 shadow-sm'
                       : 'text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5'
                   }`}
@@ -261,7 +263,8 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`px-5 py-2 rounded-full text-[14px] font-bold transition-all duration-300 ${
+                  title={link.title || undefined}
+                  className={`px-4 py-2 rounded-full text-[14px] font-bold transition-all duration-300 ${
                     isActive
                       ? 'text-accent bg-accent/10 shadow-sm'
                       : 'text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5'
@@ -274,6 +277,11 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
           </nav>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Global search — desktop */}
+            <div className="hidden lg:flex items-center">
+              <NavbarSearch variant="desktop" />
+            </div>
+
             {/* Auth — Desktop */}
             <div className="hidden lg:flex items-center gap-3">
             {session ? (
@@ -328,8 +336,9 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
             )}
           </div>
 
-          {/* Mobile Menu Button */}
+          {/* Mobile: search + menu */}
           <div className="flex items-center lg:hidden">
+            <NavbarSearch variant="mobile" />
             <MobileMenu links={navLinks} session={session} dict={dict} semesters={semesters} isNepaliMode={isNepaliPage} />
           </div>
           </div>

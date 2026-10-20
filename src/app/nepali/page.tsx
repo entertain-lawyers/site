@@ -69,7 +69,11 @@ export default async function NepaliLandingPage() {
 
       {/* Hero Section */}
       <section className="pt-2 pb-4 sm:pt-3 sm:pb-6 flex flex-col items-center justify-center text-center px-4 relative z-10">
-        <div className="relative w-full max-w-[280px] sm:max-w-[480px] md:max-w-[600px] h-24 sm:h-32 md:h-36 mb-0 drop-shadow-sm">
+        <Link
+          href="/nepali"
+          aria-label="Entertain Lawyers — मुख्य पृष्ठ"
+          className="relative w-full max-w-[280px] sm:max-w-[480px] md:max-w-[600px] h-24 sm:h-32 md:h-36 mb-0 drop-shadow-sm rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent overflow-hidden"
+        >
           {/* Light Mode Logo */}
           <Image
             src="/wordmark_navy.png"
@@ -86,7 +90,7 @@ export default async function NepaliLandingPage() {
             className="object-contain hidden dark:block"
             priority
           />
-        </div>
+        </Link>
         <h1 className="sr-only">Entertain Lawyers - नेपाली संस्करण</h1>
         <p className="max-w-2xl text-text-secondary text-fluid-base font-medium tracking-wide mt-1 font-nepali">
           नेपालको प्रमुख अनलाइन प्लेटफर्म - <span className="text-accent font-bold">कानूनी समाचार</span>, <span className="text-accent font-bold">नजिरहरु</span>, र <span className="text-accent font-bold">अध्ययन सामग्रीहरु</span>।

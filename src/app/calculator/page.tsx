@@ -73,7 +73,8 @@ export default function CalculatorPage() {
             Nepal Court Fee Calculator
           </h1>
           <p className="text-text-secondary text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
-            नेपालका अदालतहरूमा देवानी मुद्दा दर्ता गर्दा लाग्ने अदालती दस्तुरको यकिन हिसाब। Exact, correct, authentic calculation of the court fees that need to be submitted before the court in Nepal in civil cases, as per Section 69 of the National Civil Procedure Code, 2074.
+            Exact, correct, authentic calculation of the court fees that need to be submitted before the court in Nepal in civil cases, as per Section 69 of the National Civil Procedure Code, 2074.
+            <span className="block text-sm text-text-muted">नेपालका अदालतहरूमा देवानी मुद्दा दर्ता गर्दा लाग्ने अदालती दस्तुरको यकिन हिसाब।</span>
           </p>
         </div>
 
@@ -88,8 +89,11 @@ export default function CalculatorPage() {
               <span>Frequently Asked Questions</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-black text-navy dark:text-white">
-              कोर्ट फी सम्बन्धी महत्वपूर्ण कानूनी जानकारीहरू
+              Important Legal Information About Court Fee
             </h2>
+            <p className="text-sm text-text-muted font-semibold">
+              कोर्ट फी सम्बन्धी महत्वपूर्ण कानूनी जानकारीहरू
+            </p>
           </div>
 
           <div className="space-y-4">
