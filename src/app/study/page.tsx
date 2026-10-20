@@ -10,6 +10,7 @@ import { ResourceType } from '@prisma/client';
 import { getDictionary } from '@/lib/i18n';
 import { BookOpen, Scale, FileQuestion, Library, ArrowRight, Lock } from 'lucide-react';
 import { SYLLABUS_CONFIG, normalizeSubjectName } from '@/lib/syllabus-config';
+import { searchMatches } from '@/lib/translit-search';
 
 export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
   const params = await searchParams;
@@ -101,7 +102,7 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
   );
 
   // 2. Fetch in parallel
-  const [semesters, rawSubjects, rawUnits, resources] = await Promise.all([
+  const [semesters, rawSubjects, rawUnits, rawAllResources] = await Promise.all([
     getCachedSemesters(),
     selectedSemesterId ? getCachedSubjects(selectedSemesterId) : Promise.resolve([]),
     selectedSubjectId ? getCachedUnits(selectedSubjectId) : Promise.resolve([]),
@@ -111,11 +112,8 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
         ...(selectedSubjectId && { subjectId: selectedSubjectId }),
         ...(selectedUnitId && { unitId: selectedUnitId }),
         ...(selectedType && Object.values(ResourceType).includes(selectedType) && { type: selectedType }),
-        ...(searchQuery && {
-          OR: [
-            { title: { contains: searchQuery, mode: 'insensitive' } },
-          ],
-        }),
+        // NOTE: text search is applied post-fetch via searchMatches() below so
+        // roman-lipi queries can match Devanagari titles (and vice versa).
       },
       select: {
         id: true,
@@ -135,6 +133,12 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
       ],
     })
   ]);
+
+  // 2b. Transliteration-aware search: roman-lipi input matches Devanagari
+  // titles (and Devanagari input matches roman titles) with fuzzy tolerance.
+  const resources = searchQuery
+    ? rawAllResources.filter((r) => searchMatches(r.title, searchQuery))
+    : rawAllResources;
 
   // 3. Merge syllabus configuration & filter to authoritative curriculum in exact 1..N order
   const currentSemester = semesters.find(s => s.id === selectedSemesterId);

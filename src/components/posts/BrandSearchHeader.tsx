@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import Link from 'next/link';
 import dynamic from 'next/dynamic';
 
 // Shared client search implementation, loaded lazily with the same
@@ -16,7 +17,11 @@ export default function BrandSearchHeader() {
   return (
     <>
       <section className="pt-2 pb-4 sm:pt-3 sm:pb-6 flex flex-col items-center justify-center text-center relative z-10">
-        <div className="relative w-full max-w-[280px] sm:max-w-[480px] md:max-w-[600px] h-24 sm:h-32 md:h-36 mb-0 drop-shadow-sm">
+        <Link
+          href="/"
+          aria-label="Entertain Lawyers — Home"
+          className="relative w-full max-w-[280px] sm:max-w-[480px] md:max-w-[600px] h-24 sm:h-32 md:h-36 mb-0 drop-shadow-sm rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent overflow-hidden"
+        >
           <Image
             src="/wordmark_navy.png"
             alt="Entertain Lawyers - Connecting with Legal Updates"
@@ -31,7 +36,7 @@ export default function BrandSearchHeader() {
             className="object-contain hidden dark:block"
             priority
           />
-        </div>
+        </Link>
       </section>
 
       <div className="w-full max-w-3xl mx-auto px-6 mb-6 sm:mb-8 relative z-10">
