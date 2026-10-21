@@ -8,7 +8,6 @@ import {
   Mail,
   Clock,
   MessageCircle,
-  PhoneCall,
   ShieldCheck,
   Navigation,
   Building2,
@@ -41,12 +40,6 @@ const QUICK_CONTACTS = [
     external: true,
   },
   {
-    href: 'viber://chat?number=%2B9779822010737',
-    label: 'Viber',
-    icon: PhoneCall,
-    className: 'bg-violet-600 text-white hover:bg-violet-700',
-  },
-  {
     href: 'mailto:contact@entertainlawyers.com',
     label: 'Email',
     icon: Mail,
@@ -56,8 +49,14 @@ const QUICK_CONTACTS = [
 
 export default function ConsultationPage() {
   return (
-    <div className="w-full bg-background min-h-screen py-10 sm:py-14">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 sm:space-y-10">
+    <div className="relative w-full bg-background min-h-screen py-10 sm:py-14">
+      {/* Decorative background — subtle, cheap on GPU */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-72 sm:h-96 overflow-hidden" aria-hidden="true">
+        <div className="absolute left-1/2 -translate-x-1/2 -top-32 w-[36rem] h-[36rem] bg-accent/8 rounded-full blur-3xl" />
+        <div className="absolute left-[15%] top-6 w-56 h-56 bg-gold/10 dark:bg-gold/5 rounded-full blur-3xl" />
+      </div>
+
+      <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 sm:space-y-10">
 
         {/* Hero — title, one line, direct contact actions */}
         <div className="space-y-4 max-w-2xl mx-auto text-center">
@@ -65,21 +64,23 @@ export default function ConsultationPage() {
             <Scale className="w-4 h-4" />
             <span>Professional Legal Counsel</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-black text-navy dark:text-white tracking-tight">
-            Consult Our Legal Advocates
+          <h1 className="text-[1.75rem] leading-tight sm:text-4xl sm:leading-tight lg:text-5xl lg:leading-[1.1] font-black text-navy dark:text-white tracking-tight">
+            Consult Our Legal{' '}
+            <span className="bg-gradient-to-r from-accent to-accent-hover bg-clip-text text-transparent">Advocates</span>
           </h1>
           <p className="text-text-secondary text-sm sm:text-base leading-relaxed">
             In-person or online — tell us your matter and get a clear assessment of your position and the next legal steps.
           </p>
+          <p className="text-sm text-text-muted font-medium -mt-1">परामर्शका लागि तलको फारम भर्नुहोस् — हामी तपाईंको मुद्दा गोप्य राखेर अध्ययन गर्छौँ।</p>
 
           {/* Quick contact — how Nepali clients reach a chambers */}
-          <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
+          <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1 [&_a]:flex-1 [&_a]:sm:flex-none [&_a]:w-full [&_a]:sm:w-auto">
             {QUICK_CONTACTS.map((qc) => (
               <a
                 key={qc.label}
                 href={qc.href}
                 {...('external' in qc && qc.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                className={`inline-flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-full text-xs font-bold shadow-sm transition-colors ${qc.className}`}
+                className={`inline-flex items-center justify-center gap-2 px-5 py-3 min-h-[48px] rounded-full text-sm font-bold shadow-sm active:scale-[0.98] transition-all ${qc.className}`}
               >
                 <qc.icon className="w-4 h-4" />
                 {qc.label}
@@ -89,20 +90,33 @@ export default function ConsultationPage() {
         </div>
 
         {/* Two-column: Form (primary) + compact contact card */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 items-start">
+          {/* Primary action — the booking form (first on mobile) */}
+          <div className="lg:col-span-7 order-1 lg:order-2">
+            <Suspense fallback={
+              <div className="bg-surface rounded-3xl border border-border p-12 text-center animate-pulse space-y-4">
+                <div className="w-12 h-12 bg-accent/20 rounded-full mx-auto" />
+                <div className="h-4 bg-surface-alt rounded w-1/2 mx-auto" />
+                <div className="h-3 bg-surface-alt rounded w-3/4 mx-auto" />
+              </div>
+            }>
+              <ConsultationForm />
+            </Suspense>
+          </div>
+
           {/* Sidebar — everything to reach the chambers, on one card */}
-          <aside className="lg:col-span-5 order-2 lg:order-1">
+          <aside className="lg:col-span-5 order-2 lg:order-1 lg:sticky lg:top-24">
             <div className="bg-surface rounded-3xl border border-border shadow-sm overflow-hidden">
               {/* Location map */}
               <iframe
                 title="Entertain Lawyers — Office Location Map"
-                src="https://www.google.com/maps?q=Pokhara%20Metropolitan%20City-1%2C%20Kaski%2C%20Gandaki%20Province%2C%20Nepal&output=embed"
-                className="w-full h-44 sm:h-52 border-0"
+                src="https://www.google.com/maps?q=Prithvi%20Narayan%20Campus%2C%20Pokhara%2C%20Kaski%2C%20Nepal&output=embed"
+                className="w-full h-40 sm:h-52 border-0"
                 loading="lazy"
                 referrerPolicy="no-referrer-when-downgrade"
               />
 
-              <div className="p-6 space-y-5">
+              <div className="p-5 sm:p-6 space-y-5">
                 <h2 className="text-sm font-black text-navy dark:text-white uppercase tracking-wider flex items-center gap-2">
                   <Building2 className="w-4 h-4 text-accent" />
                   <span>Law Chambers</span>
@@ -111,7 +125,7 @@ export default function ConsultationPage() {
                 <ul className="space-y-3.5 text-sm text-text-secondary">
                   <li className="flex items-start gap-3">
                     <MapPin className="w-4 h-4 text-accent shrink-0 mt-0.5" />
-                    <span className="leading-snug">Pokhara Metropolitan City-1, Kaski, Gandaki Province</span>
+                    <span className="leading-snug">Prithvi Narayan Law Campus, Pokhara — Kaski, Gandaki Province</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <Phone className="w-4 h-4 text-accent shrink-0 mt-0.5" />
@@ -137,10 +151,10 @@ export default function ConsultationPage() {
                     Strictly confidential — handled only by our authorized advocates.
                   </p>
                   <a
-                    href="https://www.google.com/maps/search/?api=1&query=Pokhara+Metropolitan+City-1,+Kaski,+Gandaki+Province,+Nepal"
+                    href="https://www.google.com/maps/search/?api=1&query=Prithvi+Narayan+Campus,+Pokhara,+Kaski,+Nepal"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-border text-[11px] font-bold text-text-secondary hover:text-accent hover:border-accent/40 transition-colors"
+                    className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-accent/10 text-xs font-bold text-accent hover:bg-accent hover:text-white transition-colors"
                   >
                     <Navigation className="w-3 h-3" />
                     Directions
@@ -149,19 +163,6 @@ export default function ConsultationPage() {
               </div>
             </div>
           </aside>
-
-          {/* Primary action — the booking form */}
-          <div className="lg:col-span-7 order-1 lg:order-2">
-            <Suspense fallback={
-              <div className="bg-surface rounded-3xl border border-border p-12 text-center animate-pulse space-y-4">
-                <div className="w-12 h-12 bg-accent/20 rounded-full mx-auto" />
-                <div className="h-4 bg-surface-alt rounded w-1/2 mx-auto" />
-                <div className="h-3 bg-surface-alt rounded w-3/4 mx-auto" />
-              </div>
-            }>
-              <ConsultationForm />
-            </Suspense>
-          </div>
         </div>
       </div>
     </div>
