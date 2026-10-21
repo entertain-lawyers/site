@@ -1,34 +1,39 @@
 'use client';
 
-import { useState, useId } from 'react';
+import { useState, useId, useTransition } from 'react';
 import Link from 'next/link';
-import { Info, ArrowRight, Calculator } from 'lucide-react';
+import { Info, ArrowRight } from 'lucide-react';
 import { calculateCourtFee, formatNpr, parseClaimAmount } from '@/lib/court-fee';
+
+// Roman (English) first per client rule — Devanagari kept as a secondary hint.
+const PRESET_AMOUNTS = [
+  { label: 'Rs. 25,000', value: 25000 },
+  { label: 'Rs. 1,00,000', value: 100000 },
+  { label: 'Rs. 5,00,000', value: 500000 },
+  { label: 'Rs. 25,00,000', value: 2500000 },
+  { label: 'Rs. 1,00,00,000', value: 10000000 },
+];
 
 export default function CourtFeeCalculator() {
   const [inputValue, setInputValue] = useState<string>('25000');
-  // Results reflect the last committed (Calculate-pressed) amount, following
-  // the client's input → calculate → breakdown flow.
-  const [committedValue, setCommittedValue] = useState<string | null>(null);
   const inputId = useId();
+  const [, startTransition] = useTransition();
 
   const parsed = parseClaimAmount(inputValue);
-  const committed = committedValue !== null ? parseClaimAmount(committedValue) : null;
-  const calculation =
-    committed?.valid && committed.value !== null ? calculateCourtFee(committed.value) : null;
+  const calculation = parsed.valid && parsed.value !== null ? calculateCourtFee(parsed.value) : null;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputValue(e.target.value);
+    const val = e.target.value;
+    startTransition(() => {
+      setInputValue(val);
+    });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (parsed.valid && parsed.value !== null) {
-      setCommittedValue(inputValue);
-    }
+  const handlePresetClick = (amount: number) => {
+    startTransition(() => {
+      setInputValue(amount.toString());
+    });
   };
-
-  const canCalculate = parsed.valid && parsed.value !== null;
 
   const consultationHref = calculation
     ? `/consultation?claimAmount=${calculation.claimAmount}&courtFee=${calculation.totalFee}&source=calculator`
@@ -51,8 +56,8 @@ export default function CourtFeeCalculator() {
             </p>
           </div>
 
-          {/* Claim Amount Input + Calculate action */}
-          <form onSubmit={handleSubmit}>
+          {/* Claim Amount Input */}
+          <div>
             <label htmlFor={inputId} className="block text-sm font-bold text-text-primary mb-2">
               Claim Amount (NPR) <span className="text-text-muted font-semibold">/ बिगो वा दाबी रकम</span>
             </label>
@@ -84,17 +89,25 @@ export default function CourtFeeCalculator() {
               </p>
             )}
 
-            {/* Explicit Calculate action — per client's input → calculate flow */}
-            <button
-              type="submit"
-              disabled={!canCalculate}
-              className="mt-4 w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 min-h-[48px] rounded-xl bg-navy dark:bg-accent text-white text-sm sm:text-base font-bold shadow-md hover:opacity-90 active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-            >
-              <Calculator className="w-5 h-5" />
-              Calculate Court Fee
-              <span className="text-sm font-semibold opacity-80">(कोर्ट फी गणना)</span>
-            </button>
-          </form>
+            {/* Quick presets */}
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="text-xs font-medium text-text-muted mr-1">Quick presets:</span>
+              {PRESET_AMOUNTS.map((preset) => (
+                <button
+                  key={preset.value}
+                  type="button"
+                  onClick={() => handlePresetClick(preset.value)}
+                  className={`px-3 py-1.5 min-h-[32px] rounded-lg text-xs font-bold transition-all border ${
+                    parsed.valid && parsed.value === preset.value
+                      ? 'bg-accent text-white border-accent shadow-sm'
+                      : 'bg-surface-alt hover:bg-black/5 dark:hover:bg-white/5 text-text-secondary border-border'
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* Result */}
           {calculation && (
@@ -103,7 +116,7 @@ export default function CourtFeeCalculator() {
               <div className="rounded-xl bg-navy text-white px-5 sm:px-6 py-4 sm:py-5 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <div className="text-[11px] font-bold uppercase tracking-wider text-[#ddba76]">
-                    Total Court Fee (जम्मा कोर्ट फी)
+                    Total Court Fee <span className="font-semibold normal-case">(जम्मा कोर्ट फी)</span>
                   </div>
                   <div className="text-2xl sm:text-3xl font-black">
                     रु. {formatNpr(calculation.totalFee)}
@@ -124,10 +137,10 @@ export default function CourtFeeCalculator() {
                   <table className="w-full text-left text-xs sm:text-sm border-collapse">
                     <thead>
                       <tr className="bg-surface-alt border-b border-border text-text-muted font-bold text-xs">
-                        <th className="py-2.5 px-4">Slab Range (दायरा)</th>
-                        <th className="py-2.5 px-4">Statutory Rate (दर)</th>
-                        <th className="py-2.5 px-4">Claim in Slab (बिगो रकम)</th>
-                        <th className="py-2.5 px-4 text-right">Fee Charged (दस्तुर)</th>
+                        <th className="py-2.5 px-4">Range (दायरा)</th>
+                        <th className="py-2.5 px-4">Rate (दर)</th>
+                        <th className="py-2.5 px-4">Amount in Slab</th>
+                        <th className="py-2.5 px-4 text-right">Court Fee (दस्तुर)</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
@@ -148,7 +161,7 @@ export default function CourtFeeCalculator() {
                     <tfoot>
                       <tr className="bg-surface-alt font-black text-text-primary border-t-2 border-border">
                         <td colSpan={3} className="py-3 px-4 text-right">
-                          Total <span className="font-semibold text-text-muted">(जम्मा)</span>
+                          Total (जम्मा)
                         </td>
                         <td className="py-3 px-4 text-right font-mono text-navy dark:text-[#ddba76]">
                           रु. {formatNpr(calculation.totalFee)}
@@ -158,9 +171,7 @@ export default function CourtFeeCalculator() {
                   </table>
                 </div>
                 <p className="text-[11px] text-text-muted leading-relaxed">
-                  This is an indicative fee only. Deadline/stamp charges, copy fees, and the final court fee determined by the court&apos;s registrar or srasta-dar may differ depending on the nature of the case.
-                  <span className="block">उक्त रकम अनुमानित दस्तुर मात्र हो। म्याद तामेली खर्च, नक्कल दस्तुर तथा मुद्दाको प्रकृति अनुसार अदालतको रजिष्ट्रार वा स्रेस्तेदारले तोक्ने अन्तिम कोर्ट फी फरक पर्न सक्दछ।</span>
-                  Reference:{' '}
+                  This is an estimated fee only. Timeliness costs (म्याद तामेली खर्च), copy charges, and the final court fee fixed by the court registrar (रजिष्ट्रार) or srestdar per the nature of the case may differ. Reference:{' '}
                   <a
                     href="https://lawcommission.gov.np"
                     target="_blank"

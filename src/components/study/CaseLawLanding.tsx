@@ -57,14 +57,21 @@ export default function CaseLawLanding() {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
-      {categories.map((cat) => (
-        <SubjectCard 
+      {categories.map((cat, i) => (
+        <div
           key={cat.id}
-          title={cat.title}
-          subtitle={cat.subtitle}
-          href={cat.href}
-          icon={cat.icon}
-        />
+          style={{ animationDelay: `${i * 160}ms` }}
+          className="motion-safe:animate-[el-card-in_0.7s_ease-out_both] focus-within:animate-none"
+        >
+          <SubjectCard
+            title={cat.title}
+            subtitle={cat.subtitle}
+            href={cat.href}
+            icon={cat.icon}
+            effects
+            effectsDelay={i * 160}
+          />
+        </div>
       ))}
     </div>
   );

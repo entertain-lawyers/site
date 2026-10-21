@@ -3,9 +3,9 @@
 import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { 
-  submitConsultationRequestAction, 
-  PRACTICE_AREAS 
+  submitConsultationRequestAction
 } from '@/modules/consultation/consultation.actions';
+import { PRACTICE_AREAS } from '@/modules/consultation/practice-areas';
 import { 
   Send, 
   CheckCircle2, 
@@ -171,6 +171,16 @@ export default function ConsultationForm() {
 
   return (
     <form onSubmit={handleSubmit} className="bg-surface rounded-3xl border border-border p-6 sm:p-10 shadow-xl space-y-8">
+      {/* Header */}
+      <div className="space-y-1.5">
+        <h2 className="text-xl sm:text-2xl font-black text-navy dark:text-white tracking-tight">
+          Book a Consultation
+        </h2>
+        <p className="text-sm text-text-muted font-semibold">
+          परामर्शका लागि आफ्नो जानकारी भर्नुहोस् — हामी समय मिलाएर सम्पर्क गर्नेछौँ।
+        </p>
+      </div>
+
       {/* Banner if redirected from Court Fee Calculator */}
       {prefilledClaim && (
         <div className="p-4 rounded-2xl bg-accent/10 border border-accent/20 flex items-start gap-3 text-xs sm:text-sm">
