@@ -100,25 +100,41 @@ interface VectorRow {
 }
 
 export async function loadEmbeddings(): Promise<SemanticDoc[]> {
-  const rows = await prisma.$queryRaw<VectorRow[]>`
-    SELECT "source","refId","title","meta","url","category","lang","summary","vector"
-    FROM "AIEmbedding"
-    LIMIT ${MAX_LOAD}
-  `;
-  return rows
-    .map((r) => ({ row: r, vector: r.vector as unknown as number[] }))
-    .filter(({ vector }) => Array.isArray(vector) && vector.every((n) => typeof n === 'number' && Number.isFinite(n)))
-    .map(({ row, vector }) => ({
-      source: row.source,
-      refId: row.refId,
-      title: row.title,
-      meta: row.meta,
-      url: row.url,
-      category: row.category,
-      lang: row.lang,
-      summary: row.summary ?? '',
-      vector,
-    }));
+  try {
+    await ensureTableOnInit();
+    const rows = await prisma.$queryRaw<VectorRow[]>`
+      SELECT "source","refId","title","meta","url","category","lang","summary","vector"
+      FROM "AIEmbedding"
+      LIMIT ${MAX_LOAD}
+    `;
+    return rows
+      .map((r) => ({ row: r, vector: r.vector as unknown as number[] }))
+      .filter(({ vector }) => Array.isArray(vector) && vector.every((n) => typeof n === 'number' && Number.isFinite(n)))
+      .map(({ row, vector }) => ({
+        source: row.source,
+        refId: row.refId,
+        title: row.title,
+        meta: row.meta,
+        url: row.url,
+        category: row.category,
+        lang: row.lang,
+        summary: row.summary ?? '',
+        vector,
+      }));
+  } catch (error) {
+    // A missing/broken table must never take search or the chatbot down —
+    // features degrade to heuristics / grounded fallback replies instead.
+    console.error('[ai/semantic] embedding load failed:', error instanceof Error ? error.message : error);
+    return [];
+  }
+}
+
+/** Memoized per-lambda so the index route and search share one check. */
+let tableReady = false;
+async function ensureTableOnInit(): Promise<void> {
+  if (tableReady) return;
+  await ensureEmbeddingTable();
+  tableReady = true;
 }
 
 /** Cosine-ranked nearest docs above `minScore`. */
