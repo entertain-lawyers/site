@@ -34,6 +34,17 @@ export const envSchema = z.object({
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
 
+  // AI (Google Gemini — embeddings + chat fallback; query normalization, semantic search, chatbot)
+  GEMINI_API_KEY: z.string().min(20).optional(),
+  GEMINI_CHAT_MODEL: z.string().optional(),
+  GEMINI_EMBED_MODEL: z.string().optional(),
+  // Groq — primary chat provider (generous free tier, OpenAI-compatible)
+  GROQ_API_KEY: z.string().min(20).optional(),
+  GROQ_CHAT_MODEL: z.string().optional(),
+  // OpenRouter — last-resort chat fallback (free ":free" models, tight daily caps)
+  OPENROUTER_API_KEY: z.string().min(20).optional(),
+  OPENROUTER_MODEL: z.string().optional(),
+
   // Payments Flag
   STORAGE_ENABLED: z.enum(["true", "false"]).default("false"),
   RATE_LIMITING_ENABLED: z.enum(["true", "false"]).default("false"),
@@ -81,6 +92,13 @@ const _env = envSchema.safeParse({
   B2_BUCKET_NAME: process.env.B2_BUCKET_NAME,
   UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
   UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
+  GEMINI_API_KEY: process.env.GEMINI_API_KEY,
+  GEMINI_CHAT_MODEL: process.env.GEMINI_CHAT_MODEL,
+  GEMINI_EMBED_MODEL: process.env.GEMINI_EMBED_MODEL,
+  GROQ_API_KEY: process.env.GROQ_API_KEY,
+  GROQ_CHAT_MODEL: process.env.GROQ_CHAT_MODEL,
+  OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY,
+  OPENROUTER_MODEL: process.env.OPENROUTER_MODEL,
   STORAGE_ENABLED: process.env.STORAGE_ENABLED || 'false',
   RATE_LIMITING_ENABLED: process.env.RATE_LIMITING_ENABLED || 'false',
   PAYMENTS_ENABLED: process.env.PAYMENTS_ENABLED || 'false',

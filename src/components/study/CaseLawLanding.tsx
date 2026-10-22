@@ -70,6 +70,7 @@ export default function CaseLawLanding() {
             icon={cat.icon}
             effects
             effectsDelay={i * 160}
+            variant={cat.id as 'civil' | 'criminal' | 'writs'}
           />
         </div>
       ))}

@@ -1,62 +1,24 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Search, X, ArrowRight, Loader2, FileQuestion, BookOpen, Scale, Library, Newspaper, PenLine, Landmark, BookMarked, CalendarDays, Languages, Sparkles, GraduationCap } from 'lucide-react';
-
-interface SearchHit {
-  id: string;
-  title: string;
-  meta?: string;
-  url: string;
-  category: string;
-}
-
-interface SearchGroup {
-  label: string;
-  items: SearchHit[];
-}
-
-interface SearchResult {
-  query: string;
-  total: number;
-  groups: SearchGroup[];
-}
-
-/** Icon per result category. */
-function hitIcon(category: string) {
-  const c = category.toLowerCase();
-  if (c.startsWith('resource-law_note') || c.startsWith('law_note')) return BookOpen;
-  if (c.startsWith('resource-case_law') || c.startsWith('case_law')) return Scale;
-  if (c.startsWith('resource-old_question') || c.startsWith('old_question')) return FileQuestion;
-  if (c.startsWith('resource')) return Library;
-  if (c === 'news' || c.includes('samachar') || c.includes('news')) return Newspaper;
-  if (c === 'blog' || c.includes('blog')) return PenLine;
-  if (c === 'fact' || c === 'personality') return Landmark;
-  if (c === 'publication') return BookMarked;
-  if (c === 'event') return CalendarDays;
-  return Library;
-}
-
-/** Chip tint per result family (light + dark). */
-function hitChip(category: string) {
-  const c = category.toLowerCase();
-  if (c.startsWith('resource')) return 'bg-accent/10 text-accent';
-  if (c.startsWith('nepali')) return 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400';
-  return 'bg-navy/10 text-navy dark:bg-white/10 dark:text-white/80';
-}
+import { Search, X, ArrowRight, Loader2, FileQuestion, Languages, Sparkles, GraduationCap } from 'lucide-react';
+import { hitIcon, hitChip, type SearchHit } from '@/components/search/search-results';
+import { useLiveSearch } from '@/hooks/use-live-search';
 
 /**
  * Global navbar search: an icon button on every page that opens a large
- * overlay with live results. Matching is transliteration-aware on the server
- * (roman lipi "ram" surfaces Devanagari "राम" and vice versa) across study
- * materials, blogs, news, historical facts, publications and events.
+ * overlay with LIVE results — they update as you type, no Enter needed.
+ * Matching is transliteration-aware on the server (roman lipi "ram" surfaces
+ * Devanagari "राम" and vice versa) across study materials, blogs, news,
+ * historical facts, publications and events.
+ * The overlay is portaled to <body> so it is never clipped or de-stacked by
+ * the sticky header's own stacking context.
  */
 export default function NavbarSearch({ variant = 'desktop' }: { variant?: 'desktop' | 'mobile' }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const [result, setResult] = useState<SearchResult | null>(null);
-  const [loading, setLoading] = useState(false);
   const [highlighted, setHighlighted] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -71,35 +33,8 @@ export default function NavbarSearch({ variant = 'desktop' }: { variant?: 'deskt
   // Close on route change
   useEffect(() => () => setOpen(false), []);
 
-  // Live search with debounce + abort (state updates deferred into the timer
-  // to avoid synchronous setState inside the effect body)
-  useEffect(() => {
-    if (!open) return;
-    const q = query.trim();
-    const controller = new AbortController();
-    const t = setTimeout(() => {
-      if (q.length < 2) {
-        setResult(null);
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      fetch(`/api/search?q=${encodeURIComponent(q)}`, { signal: controller.signal })
-        .then((res) => res.json())
-        .then((data: SearchResult) => {
-          setResult(data);
-          setHighlighted(0);
-        })
-        .catch((err) => {
-          if (err?.name !== 'AbortError') setResult(null);
-        })
-        .finally(() => setLoading(false));
-    }, 250);
-    return () => {
-      clearTimeout(t);
-      controller.abort();
-    };
-  }, [query, open]);
+  // Live search as you type (debounced + aborted per keystroke).
+  const { result, loading } = useLiveSearch(query, open);
 
   const flatItems: SearchHit[] = result?.groups.flatMap((g) => g.items) ?? [];
 
@@ -111,8 +46,10 @@ export default function NavbarSearch({ variant = 'desktop' }: { variant?: 'deskt
   const runSearch = () => {
     const q = query.trim();
     if (!q) return;
+    // With results, Enter opens the highlighted hit; otherwise land on the
+    // full results page (never the study page — that was misleading).
     if (flatItems.length > 0) go(flatItems[Math.min(highlighted, flatItems.length - 1)].url);
-    else go(`/study?q=${encodeURIComponent(q)}`);
+    else go(`/search?q=${encodeURIComponent(q)}`);
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -149,12 +86,13 @@ export default function NavbarSearch({ variant = 'desktop' }: { variant?: 'deskt
         <Search className={variant === 'mobile' ? 'w-5 h-5' : 'w-[18px] h-[18px]'} strokeWidth={2.4} />
       </button>
 
-      {showPanel && (
-        <div
-          className="fixed inset-0 z-[70] flex items-start justify-center bg-navy/50 dark:bg-black/70 backdrop-blur-sm px-4 pt-20 sm:pt-32 animate-in fade-in duration-150"
-          onClick={() => setOpen(false)}
-          role="presentation"
-        >
+      {showPanel &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[70] flex items-start justify-center bg-navy/50 dark:bg-black/70 backdrop-blur-sm px-4 pt-20 sm:pt-32 animate-in fade-in duration-150"
+            onClick={() => setOpen(false)}
+            role="presentation"
+          >
           <div
             className="w-full max-w-xl bg-surface rounded-2xl shadow-2xl border border-border overflow-hidden"
             onClick={(e) => e.stopPropagation()}
@@ -289,16 +227,17 @@ export default function NavbarSearch({ variant = 'desktop' }: { variant?: 'deskt
               </p>
               <button
                 type="button"
-                onClick={() => { const q = query.trim(); if (q) go(`/study?q=${encodeURIComponent(q)}`); }}
+                onClick={() => { const q = query.trim(); if (q) go(`/search?q=${encodeURIComponent(q)}`); }}
                 disabled={!query.trim()}
                 className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-navy dark:bg-accent text-white text-[11px] font-bold hover:opacity-90 disabled:opacity-40 transition-all"
               >
                 <Search className="w-3.5 h-3.5" />
-                All Study Results
+                View All Results
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+          document.body
       )}
     </>
   );

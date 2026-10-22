@@ -337,16 +337,8 @@
   from { opacity: 0; transform: translateY(16px) scale(0.985); }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
-@keyframes el-title-line-grow {
-  from { transform: scaleX(0); }
-  to   { transform: scaleX(1); }
-}
 /* Text gently tightens into place as it fades in (one-time, elegant) */
 @keyframes el-title-settle {
   from { opacity: 0; letter-spacing: 0.09em; }
   to   { opacity: 1; letter-spacing: -0.025em; }
-}
-@keyframes el-title-shine {
-  0%   { transform: translateX(-130%) skewX(-14deg); }
-  100% { transform: translateX(240%) skewX(-14deg); }
 }
