@@ -11,6 +11,7 @@ import { prisma } from '@/lib/prisma';
 import { unstable_cache } from 'next/cache';
 import NextTopLoader from 'nextjs-toploader';
 import PublicOnly from '@/components/layout/PublicOnly';
+import AskAI from '@/components/ai/AskAI';
 
 const mukta = Mukta({ weight: ['400', '500', '600', '700', '800'], subsets: ['devanagari', 'latin'], variable: '--font-mukta' });
 
@@ -63,6 +64,12 @@ export default async function RootLayout({
   );
 
   const semesters = await getCachedSemesters();
+  // Defensive guard: collapse any duplicate semester rows (bad seeds/scripts
+  // have leaked 'S1' stubs into this table before) to a single entry each.
+  const uniqueSemesters = semesters.filter((s, i) => {
+    const key = s.name.trim().toLowerCase();
+    return semesters.findIndex((x) => x.name.trim().toLowerCase() === key) === i;
+  });
 
   // A lightweight script to apply the theme before hydration, preventing FOUC.
   // It checks localStorage, then defaults to 'light' (as it's the primary brand).
@@ -120,13 +127,14 @@ export default async function RootLayout({
         <ContentProtection />
         <PublicOnly>
           <TopUtilityBar locale={locale} dict={dict} />
-          <Navbar dict={dict} session={session} semesters={semesters} locale={locale} />
+          <Navbar dict={dict} session={session} semesters={uniqueSemesters} locale={locale} />
         </PublicOnly>
         <main className="flex-grow flex flex-col">
           {children}
         </main>
         <PublicOnly>
           <Footer dict={dict} />
+          <AskAI />
         </PublicOnly>
       </body>
     </html>

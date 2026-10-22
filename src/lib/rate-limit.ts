@@ -10,11 +10,14 @@ export async function rateLimit(
   limit: number = 10,
   windowSeconds: number = 60
 ): Promise<{ success: boolean; limit: number; remaining: number; reset: number }> {
-  // Use Upstash Redis if we are in production/staging or if credentials exist
-  // We check for NODE_ENV strictly to prevent memory cache in production
+  // Treat placeholder credentials as "not configured"
+  const upstashConfigured =
+    Boolean(env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN) &&
+    typeof env.UPSTASH_REDIS_REST_URL === 'string' &&
+    !env.UPSTASH_REDIS_REST_URL.includes("dummy");
+
   const useMemoryFallback =
-    (env.NODE_ENV === "development" || env.NODE_ENV === "test") &&
-    (!env.UPSTASH_REDIS_REST_URL || !env.UPSTASH_REDIS_REST_TOKEN);
+    (env.NODE_ENV === "development" || env.NODE_ENV === "test") && !upstashConfigured;
 
   if (useMemoryFallback) {
     const now = Date.now();
@@ -43,7 +46,7 @@ export async function rateLimit(
   }
 
   // Ensure production doesn't accidentally use the fallback if vars are missing
-  if (!env.UPSTASH_REDIS_REST_URL || !env.UPSTASH_REDIS_REST_TOKEN) {
+  if (!upstashConfigured) {
     console.error("🚨 CRITICAL SECURITY ERROR: Upstash Redis credentials (UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN) are missing in a non-development environment. Distributed rate limiting is disabled. Failing safely (denying operation).");
     throw new Error("Upstash Redis credentials are required in non-development environments to enforce secure rate limiting.");
   }
@@ -59,7 +62,26 @@ export async function rateLimit(
     analytics: false,
   });
 
-  const res = await ratelimit.limit(identifier);
+  let res;
+  try {
+    res = await ratelimit.limit(identifier);
+  } catch (error) {
+    // Transient Upstash failure: degrade to local memory limiting in dev,
+    // but keep the original fail-closed behavior elsewhere.
+    if (env.NODE_ENV === "development" || env.NODE_ENV === "test") {
+      console.warn("⚠️ Upstash rate limit failed, using in-memory fallback:", (error as Error)?.message);
+      const now = Date.now();
+      const windowMs = windowSeconds * 1000;
+      const key = `${identifier}_${Math.floor(now / windowMs)}`;
+      const current = memoryCache.get(key) ?? 0;
+      if (current >= limit) {
+        return { success: false, limit, remaining: 0, reset: now + windowMs };
+      }
+      memoryCache.set(key, current + 1);
+      return { success: true, limit, remaining: limit - current - 1, reset: now + windowMs };
+    }
+    throw error;
+  }
 
   return {
     success: res.success,
