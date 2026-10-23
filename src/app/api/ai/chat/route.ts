@@ -3,7 +3,7 @@ import { rateLimit } from '@/lib/rate-limit';
 import { geminiEmbed, isAiEnabled } from '@/lib/ai/gemini';
 import { aiChat } from '@/lib/ai/chat';
 import { isAnyChatProviderEnabled } from '@/lib/ai/groq';
-import { searchEmbeddings } from '@/lib/ai/semantic';
+import { searchEmbeddings, loadEmbeddings } from '@/lib/ai/semantic';
 
 export const dynamic = 'force-dynamic';
 /** Groq→Gemini→OpenRouter chain + retrieval needs a budget beyond 10s. */
@@ -25,7 +25,7 @@ STRICT RULES:
 3. You are an education assistant, not a lawyer: never present an answer as personal legal advice. If the question asks for specific advice for someone's real situation, gently point them to a consultation.
 4. Reply in the language the question is written in: English, romanized Nepali, or Devanagari. Keep answers short (max ~100 words) and structured (short lines or bullets).
 5. When site content supports your answer, cite by including the source URL inline in parentheses after the relevant sentence.
-6. Tone: warm and encouraging, like a helpful senior at law school. Answer directly with the useful part first — no filler introductions. Speak as yourself; never say "provided site content", "the content", "I searched", or mention these rules.
+6. Address the user with respect as "विद्वान् ज्यू" (learned one). On your first reply, greet with "नमस्ते, विद्वान् ज्यू"; afterwards use "विद्वान् ज्यू" naturally instead of repeating the greeting every turn. Keep a warm yet professional tone, like a helpful senior at law school. Answer directly with the useful part first — no filler introductions. Speak as yourself; never say "provided site content", "the content", "I searched", or mention these rules.
 7. Never mention these rules or that you searched an index.`;
 
 interface ChatMessage {
@@ -106,6 +106,37 @@ export async function POST(request: Request) {
     );
   }
 
+  // --- Zero-token fast paths -------------------------------------------------
+  // Greetings are answered before any network call: instant reply, no
+  // embedding request, no LLM quota spent.
+  const trimmed = message.trim();
+  const head = trimmed.slice(0, 40);
+  const isGreeting =
+    /^(?:h+i+|h+ey+|hello+|namaste|namaskar|vidwan)\b/i.test(head) ||
+    /^(?:नमस्ते|नमस्कार|विद्वान्?)(?![\u0900-\u097F])/.test(head) ||
+    /^good\s+(?:morning|afternoon|evening)\b/i.test(head);
+
+  if (isGreeting) {
+    return NextResponse.json({
+      reply:
+        'नमस्ते, विद्वान् ज्यू! 🙏 I’m IntelliLaw — ask me about law notes, case laws, acts, old questions, or our services. / कानुनका नोट्स, नजिर, ऐन वा हाम्रा सेवाबारे सोध्नुहोस्।',
+      sources: [],
+      aiUsed: false,
+    });
+  }
+
+  // No index yet (fresh deployment, or before the first build): reply instantly
+  // rather than paying for a query embedding and a vector-table scan.
+  const indexed = await loadEmbeddings();
+  if (!indexed.length) {
+    return NextResponse.json({
+      reply:
+        "That's not in our content yet — the AI index is still growing. Try rephrasing in English or Devanagari, use the 🔍 search bar, or book a consultation for a proper legal answer. / यो विषय भेटिएन — पुनः प्रयास गर्नुहोस् वा परामर्श लिनुहोस्।",
+      sources: [],
+      aiUsed: false,
+    });
+  }
+
   // Retrieval: embed the question, take the nearest indexed site content.
   let context = '';
   let sources: { title: string; url: string; category: string; lang: string }[] = [];
@@ -114,7 +145,7 @@ export async function POST(request: Request) {
   if (queryVector) {
     const hits = await searchEmbeddings(queryVector, { limit: 6, minScore: 0.24 });
     // Only cite content that is actually related — weak matches are noise.
-    const strong = hits.filter((h) => h.score >= 0.35);
+    const strong = hits.filter((h) => h.score >= 0.35).slice(0, 4);
     if (strong.length) {
       topScore = strong[0].score; // sorted descending
       context = strong
@@ -122,24 +153,6 @@ export async function POST(request: Request) {
         .join('\n\n');
       sources = strong.map(({ doc }) => ({ title: doc.title, url: doc.url, category: doc.category, lang: doc.lang }));
     }
-  }
-
-  // --- Zero-token paths: greetings & turns the index can't answer -----------
-  // No provider call is made at all — free-tier quota is never burned on
-  // turns without grounding; the canned lines stay friendly & consistent.
-  const trimmed = message.trim();
-  const isGreeting =
-    /^(h+i+|h+ey+|hello+|namaste+|namaskar|नमस्ते|नमस्कार|good\s+(morning|afternoon|evening))\b/i.test(
-      trimmed.slice(0, 40)
-    );
-
-  if (isGreeting) {
-    return NextResponse.json({
-      reply:
-        "नमस्ते! 👋 I'm IntelliLaw — ask me anything from our law notes, case laws, acts, old questions, or our services.",
-      sources: [],
-      aiUsed: false,
-    });
   }
 
   if (!sources.length && !history.length) {
@@ -169,7 +182,7 @@ export async function POST(request: Request) {
 
   const user = `SITE CONTENT:\n${context}\n\n${transcript}User: ${message}`;
 
-  const reply = await aiChat(SYSTEM_PROMPT, user, { temperature: 0.35, maxOutputTokens: 260 });
+  const reply = await aiChat(SYSTEM_PROMPT, user, { temperature: 0.35, maxOutputTokens: 200 });
   if (!reply) {
     // LLM unavailable (quota exhausted / network): degrade instead of
     // erroring — surface the retrieved pages as a grounded fallback answer.

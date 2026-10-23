@@ -21,8 +21,11 @@ interface Speed {
 
 /** Search-query normalization must never stall typing. */
 const FAST: Speed = { retries: 1, timeoutMs: 8_000 };
-/** Chatbot replies get the full retry budget. */
-const FULL: Speed = { retries: 2, timeoutMs: 20_000 };
+/** Chatbot replies: one retry per leg keeps resilience without stalling. */
+const FULL: Speed = { retries: 1, timeoutMs: 10_000 };
+/** Hard ceiling for the whole chain so a bad provider day can't stall the chat. */
+const TOTAL_BUDGET_MS = 15_000;
+const MIN_USEFUL_MS = 2_000;
 
 interface AiChatOptions {
   temperature?: number;
@@ -40,30 +43,43 @@ export async function aiChat(
 
   if (!isAnyChatProviderEnabled() && !isAiEnabled()) return null;
 
+  // Shared deadline: every leg only receives the time still left in the budget.
+  const deadline = Date.now() + TOTAL_BUDGET_MS;
+  const budget = (cap: number): number => {
+    const remaining = deadline - Date.now();
+    return remaining < MIN_USEFUL_MS ? 0 : Math.min(cap, remaining);
+  };
+
   // 1. Groq
-  const groq = await groqChat(system, user, {
-    temperature,
-    retries: speed.retries,
-    timeoutMs: speed.timeoutMs,
-    maxOutputTokens: opts.maxOutputTokens,
-  });
-  if (groq) return groq;
+  if (budget(10_000)) {
+    const groq = await groqChat(system, user, {
+      temperature,
+      retries: speed.retries,
+      timeoutMs: budget(10_000),
+      maxOutputTokens: opts.maxOutputTokens,
+    });
+    if (groq) return groq;
+  }
 
   // 2. Gemini
-  const gemini = await geminiChat(system, user, {
-    temperature,
-    timeoutMs: speed.timeoutMs,
-    retries: speed.retries,
-  });
-  if (gemini) return gemini;
+  if (budget(8_000)) {
+    const gemini = await geminiChat(system, user, {
+      temperature,
+      timeoutMs: budget(8_000),
+      retries: speed.retries,
+    });
+    if (gemini) return gemini;
+  }
 
-  // 3. OpenRouter (last resort) — same latency budget as the other legs so a
-  //    full chain failure can never blow past serverless function limits.
-  const openRouter = await openRouterChat(system, user, {
-    temperature,
-    timeoutMs: speed.timeoutMs,
-  });
-  if (openRouter) return openRouter;
+  // 3. OpenRouter (last resort) — only if time remains in the shared budget.
+  const openRouterBudget = budget(6_000);
+  if (openRouterBudget) {
+    const openRouter = await openRouterChat(system, user, {
+      temperature,
+      timeoutMs: openRouterBudget,
+    });
+    if (openRouter) return openRouter;
+  }
 
   return null;
 }

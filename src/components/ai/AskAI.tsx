@@ -33,7 +33,7 @@ const QUICK_PROMPTS = [
 const GREETING: ChatMessage = {
   role: 'assistant',
   content:
-    "Hello! I'm IntelliLaw. Ask me anything about Nepali law, study material, or our services — I answer from this site's own content. / नमस्ते! यस वेबसाइटको सामग्रीबारे कुनै पनि प्रश्न सोध्नुहोस्।",
+    'नमस्ते, विद्वान् ज्यू! 🙏 I’m IntelliLaw — ask me about law notes, case laws, acts, old questions, or our services. / कानुनसम्बन्धी जिज्ञासा सोध्नुहोस्।',
 };
 
 export default function AskAI() {
