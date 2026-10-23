@@ -135,16 +135,16 @@ export default function Comments({ postId, postType = 'NEWS' }: { postId: string
   };
 
   return (
-    <section aria-labelledby="comments-heading" className="mt-8 scroll-mt-24 overflow-hidden rounded-2xl border border-border bg-surface">
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 pt-4">
+    <section aria-labelledby="comments-heading" className="mt-8 scroll-mt-24 border border-border bg-surface">
+      <div className="flex items-center justify-between gap-3 bg-navy px-4 py-2.5 dark:bg-navy-light">
         <h2
           id="comments-heading"
-          className="inline-flex items-center gap-2 rounded-full bg-navy px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-white dark:bg-navy-light"
+          className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.14em] text-white"
         >
-          <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
+          <MessageSquare className="h-4 w-4" aria-hidden="true" />
           Comments
         </h2>
-        <span className="rounded-full border border-border bg-surface-alt px-3 py-1 text-xs font-bold text-navy dark:text-white">
+        <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold text-white">
           {loading ? '…' : comments.length}
         </span>
       </div>
@@ -162,7 +162,7 @@ export default function Comments({ postId, postType = 'NEWS' }: { postId: string
               maxLength={MAX_LENGTH}
               rows={3}
               placeholder="Share your thoughts, questions, or corrections…"
-              className="w-full resize-y rounded-xl border border-border bg-background px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30"
+              className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:border-gold focus:outline-none focus:ring-2 focus:ring-gold/30"
             />
             <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs text-text-muted">
@@ -183,7 +183,7 @@ export default function Comments({ postId, postType = 'NEWS' }: { postId: string
             </p>
           </form>
         ) : (
-          <div className="mb-6 flex flex-col items-start gap-3 rounded-xl border border-dashed border-border bg-surface-alt p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mb-6 flex flex-col items-start gap-3 rounded-lg border border-dashed border-border bg-surface-alt p-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-sm font-semibold text-navy dark:text-white">Sign in to join the discussion</p>
               <p className="mt-0.5 text-xs text-text-muted">
@@ -201,12 +201,12 @@ export default function Comments({ postId, postType = 'NEWS' }: { postId: string
         )}
 
         {error && (
-          <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+          <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
             {error}
           </p>
         )}
         {notice && (
-          <p role="status" className="mb-4 rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300">
+          <p role="status" className="mb-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300">
             {notice}
           </p>
         )}

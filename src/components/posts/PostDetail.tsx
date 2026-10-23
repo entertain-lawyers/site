@@ -84,12 +84,8 @@ function buildTableOfContents(html: string): { html: string; items: TocItem[] } 
 /** Navy section bar used by About Author / Related Post / Latest Post. */
 function SectionBar({ id, children }: { id?: string; children: React.ReactNode }) {
   return (
-    <div className="px-4 pt-4">
-      <h2
-        id={id}
-        className="inline-flex items-center gap-2 rounded-full bg-navy px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-white dark:bg-navy-light"
-      >
-        <span className="h-1.5 w-1.5 rounded-full bg-gold" aria-hidden="true" />
+    <div className="bg-navy px-4 py-2.5 dark:bg-navy-light">
+      <h2 id={id} className="text-[13px] font-bold uppercase tracking-[0.14em] text-white">
         {children}
       </h2>
     </div>
@@ -145,11 +141,14 @@ export default function PostDetail({
             </Link>
 
             <header className="pt-1">
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-gold">
-                {post.type}
-              </p>
+              <div className="flex items-center gap-3">
+                <span className="h-[3px] w-8 bg-gold" aria-hidden="true" />
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-gold">
+                  {post.type}
+                </p>
+              </div>
 
-              <h1 className="mt-2 text-[clamp(1.75rem,3.4vw,2.6rem)] font-black leading-[1.15] tracking-tight text-navy dark:text-white">
+              <h1 className="mt-3 text-balance text-[clamp(1.9rem,4vw,3rem)] font-black leading-[1.06] tracking-[-0.02em] text-navy dark:text-white">
                 {post.title}
               </h1>
 
@@ -172,11 +171,13 @@ export default function PostDetail({
                   {readingMinutes} min read
                 </span>
               </div>
+
+              <div className="mb-5 h-[3px] w-16 bg-gold" aria-hidden="true" />
             </header>
 
             {/* Hero image */}
             {featuredImage && (
-              <figure className="overflow-hidden rounded-2xl border border-border bg-surface-alt">
+              <figure className="border border-border bg-surface-alt">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={featuredImage}
@@ -188,9 +189,8 @@ export default function PostDetail({
             )}
 
             {/* Share bar — icon + label on every button so it reads clearly */}
-            <div id="share" className="mt-3 rounded-2xl border border-border bg-surface p-3 sm:p-4">
-              <p className="mb-2 inline-flex items-center gap-2 rounded-full bg-surface-alt px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted">
-                <span className="h-1.5 w-1.5 rounded-full bg-gold" aria-hidden="true" />
+            <div id="share" className="mt-3 border border-border bg-surface p-3 sm:p-4">
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted">
                 Share this story
               </p>
               <SocialShareToolbar title={post.title} labels />
@@ -201,13 +201,13 @@ export default function PostDetail({
             {tocItems.length >= 2 && (
               <nav
                 aria-labelledby="toc-heading"
-                className="mt-3 rounded-2xl border border-border bg-surface p-4"
+                className="mt-3 border border-border bg-surface p-4"
               >
                 <h2
                   id="toc-heading"
-                  className="inline-flex items-center gap-2 rounded-full bg-surface-alt px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted"
+                  className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted"
                 >
-                  <ListTree className="h-3.5 w-3.5" aria-hidden="true" />
+                  <ListTree className="h-3.5 w-3.5 text-gold" aria-hidden="true" />
                   In this article
                 </h2>
                 <ul className="mt-3 space-y-1.5">
@@ -234,7 +234,7 @@ export default function PostDetail({
             <ArticleBody html={articleHtml} />
 
             {/* About Author */}
-            <section aria-labelledby="about-author-heading" className="mt-8 overflow-hidden rounded-2xl border border-border bg-surface">
+            <section aria-labelledby="about-author-heading" className="mt-8 border border-border bg-surface">
               <SectionBar id="about-author-heading">About Author</SectionBar>
               <div className="flex items-start gap-4 p-5">
                 <div
@@ -252,11 +252,11 @@ export default function PostDetail({
 
             {/* Related Post */}
             {relatedPosts.length > 0 && (
-              <section aria-labelledby="related-heading" className="mt-8 overflow-hidden rounded-2xl border border-border bg-surface">
+              <section aria-labelledby="related-heading" className="mt-8 border border-border bg-surface">
                 <SectionBar id="related-heading">Related Post</SectionBar>
                 <ul className="mt-3 grid gap-3 p-4 sm:grid-cols-2">
                   {relatedPosts.map((rp) => (
-                    <li key={rp.id} className="overflow-hidden rounded-xl border border-border bg-surface">
+                    <li key={rp.id} className="border border-border bg-surface">
                       <Link
                         href={rp.url}
                         className="group flex h-full flex-col transition-colors hover:border-gold/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gold"
@@ -297,7 +297,7 @@ export default function PostDetail({
             <div className="mt-10 text-center">
               <Link
                 href={backUrl}
-                className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-full border border-border bg-surface px-7 text-sm font-bold text-navy transition-colors hover:border-gold hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:text-white"
+                className="inline-flex min-h-[46px] items-center justify-center gap-2 border border-border bg-surface px-7 text-sm font-bold text-navy transition-colors hover:border-gold hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:text-white"
               >
                 <span aria-hidden="true">&larr;</span> Back to {backLabel}
               </Link>
