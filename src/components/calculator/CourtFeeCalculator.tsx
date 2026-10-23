@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useId, useTransition } from 'react';
+import { useState, useId } from 'react';
 import {
   Calculator,
   Scale,
@@ -41,17 +41,15 @@ function RangeLabel({ label, className = '' }: { label: string; className?: stri
 export default function CourtFeeCalculator() {
   const [inputValue, setInputValue] = useState<string>('500000');
   const inputId = useId();
-  const [, startTransition] = useTransition();
 
   const parsed = parseClaimAmount(inputValue);
   const calculation = parsed.valid && parsed.value !== null ? calculateCourtFee(parsed.value) : null;
   const hasError = !parsed.valid && inputValue.trim() !== '';
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    startTransition(() => {
-      setInputValue(val);
-    });
+    // Keep the controlled input synchronous so typing stays responsive on
+    // low-end phones; the slab calculation itself is cheap enough to run inline.
+    setInputValue(e.target.value);
   };
 
   const handlePresetClick = (amount: number) => {
@@ -128,7 +126,7 @@ export default function CourtFeeCalculator() {
             )}
 
             {/* Presets — one swipeable row on phones, wrapped row on desktop */}
-            <div className="mt-3 sm:mt-4 -mx-4 sm:mx-0 overflow-x-auto px-4 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="mt-3 sm:mt-4 -mx-4 sm:mx-0 overflow-x-auto overscroll-x-contain scroll-px-4 sm:scroll-px-0 snap-x snap-mandatory px-4 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-webkit-overflow-scrolling:touch]">
               <div className="flex items-center gap-2 min-w-max" role="group" aria-label="Quick preset claim amounts">
                 <span className="text-[11px] sm:text-xs font-medium text-text-muted mr-1 shrink-0">Quick Presets:</span>
                 {PRESET_AMOUNTS.map((preset) => (
@@ -137,7 +135,7 @@ export default function CourtFeeCalculator() {
                     type="button"
                     onClick={() => handlePresetClick(preset.value)}
                     aria-pressed={parsed.valid && parsed.value === preset.value}
-                    className={`shrink-0 min-h-[44px] px-3.5 py-2 rounded-lg text-[13px] sm:text-xs font-bold tabular-nums transition-all border touch-manipulation active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                    className={`snap-start shrink-0 min-h-[44px] px-3.5 py-2 rounded-lg text-[13px] sm:text-xs font-bold tabular-nums transition-all border touch-manipulation active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                       parsed.valid && parsed.value === preset.value
                         ? 'bg-accent text-white border-accent shadow-sm'
                         : 'bg-surface-alt hover:bg-black/5 dark:hover:bg-white/5 text-text-secondary border-border'
@@ -155,8 +153,8 @@ export default function CourtFeeCalculator() {
           {calculation && (
             <div className="space-y-5 sm:space-y-6 pt-1 sm:pt-2">
               {/* Highlight summary card — fee first on phones, middle on desktop */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 p-4 sm:p-6 rounded-2xl bg-gradient-to-br from-surface-alt to-surface border border-border">
-                <div className="col-span-2 md:col-span-1 md:order-2 rounded-xl bg-accent/[0.04] ring-1 ring-accent/10 p-3 md:p-0 md:bg-transparent md:ring-0 md:border-l md:border-border md:pl-6">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 p-4 sm:p-6 rounded-2xl bg-gradient-to-br from-surface-alt to-surface border border-border">
+                <div className="col-span-2 lg:col-span-1 lg:order-2 rounded-xl bg-accent/[0.04] ring-1 ring-accent/10 p-3 lg:p-0 lg:bg-transparent lg:ring-0 lg:border-l lg:border-border lg:pl-6">
                   <div className="text-[11px] sm:text-xs font-bold uppercase tracking-wide sm:tracking-wider text-accent leading-tight">
                     Total Court Fee (जम्मा कोर्ट फी)
                   </div>
@@ -173,7 +171,7 @@ export default function CourtFeeCalculator() {
                   </div>
                 </div>
 
-                <div className="md:order-1 min-w-0">
+                <div className="lg:order-1 min-w-0">
                   <div className="text-[11px] sm:text-xs font-bold uppercase tracking-wide sm:tracking-wider text-text-muted leading-tight">
                     Total Claim (बिगो रकम)
                   </div>
@@ -183,7 +181,7 @@ export default function CourtFeeCalculator() {
                   <div className="mt-0.5 text-[11px] sm:text-xs text-text-muted">Assessed Valuation</div>
                 </div>
 
-                <div className="md:order-3 min-w-0">
+                <div className="lg:order-3 min-w-0">
                   <div className="text-[11px] sm:text-xs font-bold uppercase tracking-wide sm:tracking-wider text-text-muted leading-tight">
                     Effective Rate (प्रभावकारी दर)
                   </div>
