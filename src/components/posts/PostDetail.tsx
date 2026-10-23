@@ -4,6 +4,7 @@ import SocialShareToolbar from './SocialShareToolbar';
 import LatestPostsSidebar from './LatestPostsSidebar';
 import BrandSearchHeader from './BrandSearchHeader';
 import Comments from './Comments';
+import { articleFont } from './article-font';
 import type { LatestPost } from './LatestPostsSidebar';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
 
@@ -137,9 +138,10 @@ export default function PostDetail({
               <SocialShareToolbar title={post.title} labels />
             </div>
 
-            {/* Article body — serif reading column, centred for balanced margins */}
+            {/* Article body — old-site reading face (Roboto), justified so
+                both edges line up, centred column for balanced margins */}
             <div
-              className="article-body article-body--reading mt-7 font-serif"
+              className={`article-body article-body--reading mt-7 ${articleFont.variable}`}
               dangerouslySetInnerHTML={{ __html: post.content }}
             />
 

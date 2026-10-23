@@ -212,20 +212,36 @@
   .article-body p {
     margin: 0 0 1.6em;
   }
-  /* Article-detail reading column: narrower measure, slightly larger serif,
-     centred so the left/right margins are equal. */
+  /* Article-detail reading column: the previous site's reading face (Roboto,
+     18px desktop / 16px mobile) with justified text so both edges line up.
+     Scoped to the reading page — the rest of the site keeps its own font. */
   .article-body--reading {
     max-width: 72ch;
     margin-inline: auto;
-    font-size: 1.1875rem; /* 19px */
-    line-height: 1.9;
+    font-family:
+      var(--font-article, Roboto),
+      Roboto,
+      'Noto Sans Devanagari',
+      var(--font-chat-devanagari),
+      Tahoma,
+      sans-serif;
+    font-size: 1rem;      /* 16px — matches the old site on mobile */
+    line-height: 2.25;    /* 36px */
+    text-align: justify;
+    text-justify: inter-word;
+    hyphens: none;
     color: var(--text-primary);
   }
-  @media (min-width: 1024px) {
+  @media (min-width: 768px) {
     .article-body--reading {
-      font-size: 1.21875rem; /* ~19.5px for comfortable desktop reading */
+      font-size: 1.125rem; /* 18px — old-site desktop size */
+      line-height: 2.14;   /* 38.5px */
     }
   }
+  /* Headings keep the old site's scale (28 / 24 / 20px). */
+  .article-body--reading h2 { font-size: 1.75rem; }
+  .article-body--reading h3 { font-size: 1.5rem; }
+  .article-body--reading :is(h4, h5, h6) { font-size: 1.25rem; }
   .article-body > :last-child {
     margin-bottom: 0;
   }
