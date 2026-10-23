@@ -101,7 +101,7 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Write y
     <div className="editor-wrapper space-y-3">
       <style dangerouslySetInnerHTML={{ __html: `
         .editor-wrapper .ql-editor {
-          font-family: ${editorFont === 'nepali' ? '"Mukta", sans-serif' : 'inherit'} !important;
+          font-family: ${editorFont === 'nepali' ? 'var(--font-chat-devanagari), "Noto Sans Devanagari", sans-serif' : 'inherit'} !important;
         }
         .editor-wrapper .ql-toolbar {
           display: flex;
@@ -133,7 +133,7 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Write y
             onClick={() => setEditorFont('nepali')}
             className={`px-4 py-1.5 min-h-[44px] inline-flex items-center justify-center rounded-md text-sm font-bold transition-all ${editorFont === 'nepali' ? 'bg-white dark:bg-zinc-800 text-accent shadow-sm' : 'text-text-muted hover:text-navy dark:hover:text-white'}`}
           >
-            नेपाली (Mukta)
+            नेपाली (Noto)
           </button>
         </div>
       </div>

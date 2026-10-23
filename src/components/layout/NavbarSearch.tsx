@@ -40,7 +40,9 @@ export default function NavbarSearch({ variant = 'desktop' }: { variant?: 'deskt
 
   const go = (url: string) => {
     setOpen(false);
-    router.push(url);
+    // WP-only posts link to their canonical permalink (absolute URL).
+    if (/^https?:\/\//i.test(url)) window.location.assign(url);
+    else router.push(url);
   };
 
   const runSearch = () => {
@@ -157,7 +159,7 @@ export default function NavbarSearch({ variant = 'desktop' }: { variant?: 'deskt
               {!loading && query.trim().length < 2 && (
                 <div className="px-4 sm:px-5 py-8 text-center">
                   <Sparkles className="w-6 h-6 text-accent mx-auto mb-2" />
-                  <p className="text-sm font-bold text-text-primary">Search everything</p>
+                  <p className="text-sm font-bold text-text-primary">Search the site</p>
                   <p className="text-xs text-text-muted mt-1 leading-relaxed">
                     Law notes, case laws, old questions, blogs, news, historical facts, publications &amp; events.
                   </p>
@@ -204,9 +206,11 @@ export default function NavbarSearch({ variant = 'desktop' }: { variant?: 'deskt
                               <span className="block text-sm font-semibold text-text-primary truncate">
                                 {hit.title}
                               </span>
-                              {hit.meta && (
+                              {hit.snippet ? (
+                                <span className="block text-[11px] text-text-muted truncate">{hit.snippet}</span>
+                              ) : hit.meta ? (
                                 <span className="block text-[11px] text-text-muted truncate">{hit.meta}</span>
-                              )}
+                              ) : null}
                             </span>
                             <ArrowRight className="w-3.5 h-3.5 text-text-muted shrink-0" />
                           </button>

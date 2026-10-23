@@ -1,14 +1,21 @@
 /**
  * Transliteration-aware search matching.
  *
- * Converts Devanagari text to a normalized romanized (roman-lipi) key so a
- * user typing "sambandha", "adhivesan", "kort fee"... in Roman script finds
- * Devanagari titles ("सम्बन्ध", "अधिवेशन", "कोर्ट फी") — and Devanagari
- * queries still hit romanized titles. Matching passes:
- *   1. direct case-insensitive contains
- *   2. romanized-key contains (both directions)
- *   3. consonant skeleton contains (ignores all vowel variation)
- *   4. fuzzy windows on the romanized keys (typo/spelling-variant tolerance)
+ * Every title/query pair is reduced to a normalized roman key so a user typing
+ * "sambandha", "adalati dastur" or "kort fee" in Roman script finds Devanagari
+ * titles ("सम्बन्ध", "अदालती दस्तुर", "कोर्ट फी") — and Devanagari queries still
+ * find Latin titles.
+ *
+ * Matching is intentionally *strict*: a result must share a real word with the
+ * query. Earlier versions compared fuzzy sliding windows over the whole
+ * romanized string, which matched almost any long title ("contract" surfaced
+ * unrelated Nepali blog posts). Now matching happens at word level:
+ *   1. word-boundary phrase match (same script)
+ *   2. word-level roman/Devanagari comparison (exact, prefix while typing,
+ *      vowel/plural folding, and one-edit typos with the same consonant
+ *      skeleton)
+ *   3. compound folding — a spaced query ("मानव अधिकार") matches a joined
+ *      title word ("मानवअधिकारको") and vice versa.
  */
 
 // Consonants emit their base roman (no inherent 'a'); the 'a' is appended by
@@ -72,18 +79,54 @@ function romanizeDevanagari(text: string): string {
     }
 
     if (/[A-Za-z0-9]/.test(ch)) out += ch.toLowerCase();
-    // spaces, punctuation, symbols → dropped
+    else out += ' '; // word boundary (spaces, punctuation, danda)
   }
-  return out;
+  return out.replace(/\s+/g, ' ').trim();
 }
 
-/** Normalize any string (Latin, Devanagari, or mixed) into a comparable search key. */
+/** Memoized romanization — live search re-romanizes the same titles per keystroke. */
+const romanCache = new Map<string, string>();
+const ROMAN_CACHE_MAX = 5000;
+
+/**
+ * Normalize any string (Latin, Devanagari, or mixed) into a comparable,
+ * word-separated search key.
+ *
+ * Loanword/transliteration equivalences folded on both sides of every
+ * comparison (so they stay symmetric): c→k, q→k ("court" ↔ "कोर्ट") and
+ * v→b ("vivah" ↔ "bibaha").
+ */
 export function romanize(input: string): string {
   if (!input) return '';
-  // c→k, q→k roman-loanword equivalence ("court" ↔ "कोर्ट"), applied to both
-  // sides of every comparison so it stays symmetric.
-  return romanizeDevanagari(input).replace(/[cq]/g, 'k');
+  const cached = romanCache.get(input);
+  if (cached !== undefined) return cached;
+
+  const key = romanizeDevanagari(input)
+    // Devanagari transliterations of English words often insert "य" for the
+    // vowel after a consonant cluster: कन्ट्रयाक्ट → "kantraakt" (contract),
+    // प्रयाक्टिस → "praaktis" (practice). Fold it on both sides.
+    .replace(/([bcdfghjklmnpqrstvwxyz])aya/g, '$1a')
+    .replace(/([bcdfghjklmnpqrstvwxyz])ya/g, '$1a')
+    // Diphthong folding: romanized Nepali writes औ as "au" or "o"
+    // ("samjhauta" ↔ "सम्झौता" / "samjhota").
+    .replace(/au/g, 'o')
+    .replace(/[cq]/g, 'k')
+    .replace(/v/g, 'b');
+
+  if (romanCache.size >= ROMAN_CACHE_MAX) {
+    romanCache.delete(romanCache.keys().next().value as string);
+  }
+  romanCache.set(input, key);
+  return key;
 }
+
+/** Function words that should not decide whether a result matches. */
+const STOPWORDS = new Set([
+  'how', 'what', 'where', 'when', 'which', 'who', 'why', 'is', 'are', 'was', 'were',
+  'the', 'a', 'an', 'of', 'in', 'on', 'at', 'to', 'for', 'and', 'or', 'with', 'do',
+  'does', 'did', 'can', 'i', 'my', 'me', 'about', 'from', 'by', 'please', 'find', 'search',
+  'ko', 'ka', 'ki', 'le', 'lai', 'ma', 'ra', 'ho', 'hola', 'garna', 'garne', 'kasari', 'k', 'ke',
+]);
 
 function levenshtein(a: string, b: string): number {
   const m = a.length;
@@ -102,59 +145,147 @@ function levenshtein(a: string, b: string): number {
   return prev[n];
 }
 
-/** Fuzzy sliding-window containment with typo tolerance. Needs len ≥ 4. */
-function fuzzyContains(hay: string, needle: string): boolean {
-  const len = needle.length;
-  const hlen = hay.length;
-  if (!len || !hlen) return false;
-  if (hay.includes(needle) || needle.includes(hay)) return true;
-
-  if (len < 4) return false; // short keys: keep exact
-  const tol = Math.min(3, Math.max(1, Math.ceil(len / 3)));
-
-  // quick guard: most chars of the needle should exist in the hay
-  let shared = 0;
-  for (const c of needle) if (hay.includes(c)) shared++;
-  if (shared < Math.ceil(len * 0.5)) return false;
-
-  for (let start = 0; start <= hlen - len; start++) {
-    for (let extra = 0; extra <= tol; extra++) {
-      const window = hay.slice(start, start + len + extra);
-      if (levenshtein(needle, window) <= tol) return true;
-    }
-  }
-  return false;
+/** Fold inflection so "contracts"/"contract", "companies"/"company" compare equal. */
+function baseForm(token: string): string {
+  let t = token;
+  if (t.length >= 5 && t.endsWith('ies')) t = `${t.slice(0, -3)}y`;
+  else if (t.length >= 4 && t.endsWith('s') && !t.endsWith('ss')) t = t.slice(0, -1);
+  // Romanized Nepali often drops the final inherent "a" (bibaha → bibah).
+  if (t.length >= 4 && t.endsWith('a')) t = t.slice(0, -1);
+  return t;
 }
 
 /**
- * True when `title` matches `query` (direct case-insensitive hit, or a
- * transliteration-fuzzy hit either way: roman↔Devanagari, both directions).
+ * Compare two romanized words. Returns 0 when they are not the same word.
+ * `allowPrefix` lets a still-being-typed query ("adala") match a longer title
+ * word ("adalati"); it is never used in the other direction.
+ */
+function tokenScore(a: string, b: string, allowPrefix: boolean): number {
+  if (!a || !b) return 0;
+  if (a === b) return 1;
+
+  const ba = baseForm(a);
+  const bb = baseForm(b);
+  if (ba === bb) return 0.95;
+
+  if (allowPrefix && a.length >= 4 && b.startsWith(a)) return 0.85;
+
+  // Typos must keep the same consonant skeleton and the same first/last
+  // consonant shape — this rejects "shram" → "shyam", "kanun" → "kanu", etc.
+  if (ba[0] !== bb[0] || ba[ba.length - 1] !== bb[bb.length - 1]) return 0;
+
+  const min = Math.min(ba.length, bb.length);
+  if (min < 4) return 0;
+
+  const tol = min >= 8 ? 2 : 1;
+  if (Math.abs(ba.length - bb.length) > tol + 1) return 0;
+  if (levenshtein(ba, bb) > tol) return 0;
+
+  const skeletonA = ba.replace(/[aeiou]/g, '');
+  const skeletonB = bb.replace(/[aeiou]/g, '');
+  if (skeletonA.length < 3 || skeletonA !== skeletonB) return 0;
+
+  return 0.75;
+}
+
+function tokenize(key: string): string[] {
+  return key.split(' ').filter(Boolean);
+}
+
+/** Join adjacent words so a spaced query matches a compounded title word. */
+function joinedPairs(tokens: string[]): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < tokens.length - 1; i++) {
+    const left = tokens[i];
+    const right = tokens[i + 1];
+    out.push(left + right);
+    // Sandhi: "manaba" + "adhikara" is written "manabadhikara" in Devanagari.
+    if (left.endsWith('a') && /^[aeiou]/.test(right)) {
+      out.push(left.slice(0, -1) + right);
+    }
+  }
+  return out;
+}
+
+/** Normalize for phrase matching: lowercase, punctuation → single spaces. */
+function normalizePhrase(input: string): string {
+  return input
+    .toLowerCase()
+    .replace(/[.,;:!?'"“”‘’()\[\]{}\/\\|@#$%^&*_+=~`<>…–—-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const WORD_CHAR = '\\p{L}\\p{M}\\p{N}';
+
+/** Word-boundary phrase match (no mid-word hits like "fir" → "first"). */
+function phraseMatch(title: string, query: string): boolean {
+  const t = normalizePhrase(title);
+  const q = normalizePhrase(query);
+  if (!t || !q) return false;
+  if (t === q) return true;
+
+  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  // Short queries must hit a whole word; longer ones may take a suffix
+  // ("contract" → "contracts").
+  const end = q.length < 5 ? `(?=$|[^${WORD_CHAR}])` : '';
+  return new RegExp(`(^|[^${WORD_CHAR}])${escaped}${end}`, 'u').test(t);
+}
+
+/**
+ * Relevance score (0 = no match, 1 = exact phrase). Scores ≥ 0.7 are real
+ * word-level matches; anything below is treated as "no match".
+ */
+export function searchScore(title: string, query: string): number {
+  if (!title || !query) return 0;
+  if (phraseMatch(title, query)) return 1;
+
+  const queryKey = romanize(query);
+  if (!queryKey) return 0;
+
+  const titleTokens = tokenize(romanize(title));
+  if (!titleTokens.length) return 0;
+
+  const queryTokens = tokenize(queryKey).filter(
+    (t) => t.length >= 2 && !STOPWORDS.has(t),
+  );
+  if (!queryTokens.length) return 0;
+
+  // Compound query ("मानव अधिकार" → manabadhikar) against one title word.
+  if (queryTokens.length > 1) {
+    const titleJoined = joinedPairs(titleTokens);
+    for (const compound of joinedPairs(queryTokens)) {
+      if (compound.length < 6) continue;
+      for (const tt of titleTokens) {
+        if (tt.length >= 6 && (tt.startsWith(compound) || compound.startsWith(tt))) {
+          return 0.85;
+        }
+      }
+      if (titleJoined.includes(compound)) return 0.9;
+    }
+  }
+
+  // Every meaningful query word must match a title word.
+  const titleJoined = joinedPairs(titleTokens);
+  let weakest = 1;
+
+  for (const qt of queryTokens) {
+    let best = 0;
+    for (const tt of titleTokens) best = Math.max(best, tokenScore(qt, tt, true));
+    if (best === 0) {
+      for (const tj of titleJoined) best = Math.max(best, tokenScore(qt, tj, false));
+    }
+    if (best === 0) return 0;
+    weakest = Math.min(weakest, best);
+  }
+
+  return 0.5 + weakest * 0.3;
+}
+
+/**
+ * True when `title` genuinely matches `query` in either script. Strict by
+ * design: unrelated titles never pass.
  */
 export function searchMatches(title: string, query: string): boolean {
-  if (!title || !query) return false;
-
-  const q = query.trim();
-  if (!q) return false;
-
-  // 1) direct, case-insensitive literal match (Latin or Devanagari, either way)
-  const tLower = title.toLowerCase();
-  const qLower = q.toLowerCase();
-  if (tLower.includes(qLower)) return true;
-
-  // 2) romanized-key containment (handles roman ↔ Devanagari)
-  const titleKey = romanize(title);
-  const queryKey = romanize(q);
-  if (!titleKey || !queryKey) return false;
-  if (titleKey.includes(queryKey) || queryKey.includes(titleKey)) return true;
-
-  // 3) consonant skeleton — ignores all vowel variation entirely
-  //    (great for "samjhauta" ↔ "samjhota" style variance)
-  const titleSkel = titleKey.replace(/[aeiou]/g, '');
-  const querySkel = queryKey.replace(/[aeiou]/g, '');
-  if (titleSkel && querySkel &&
-      (titleSkel.includes(querySkel) || querySkel.includes(titleSkel) ||
-       fuzzyContains(titleSkel, querySkel) || fuzzyContains(querySkel, titleSkel))) return true;
-
-  // 4) fuzzy windows on the full keys (typos, ch/chh, final-a dropped, ...)
-  return fuzzyContains(titleKey, queryKey) || fuzzyContains(queryKey, titleKey);
+  return searchScore(title, query) >= 0.7;
 }

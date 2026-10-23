@@ -60,6 +60,8 @@
 
   html {
     scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -76,10 +78,18 @@
   body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-family: var(--font-mukta), Inter, Tahoma, sans-serif;
+    font-family: var(--font-jakarta), var(--font-chat-devanagari), Tahoma, sans-serif;
+    font-optical-sizing: auto;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
     color: var(--text-primary);
     background-color: var(--bg-primary);
     transition: background-color 0.2s ease, color 0.2s ease;
+  }
+
+  /* Display headings wrap more evenly on narrow and mid-size screens. */
+  h1, h2, h3, h4, h5, h6 {
+    text-wrap: balance;
   }
 
   /* Smooth links */
@@ -341,4 +351,61 @@
 @keyframes el-title-settle {
   from { opacity: 0; letter-spacing: 0.09em; }
   to   { opacity: 1; letter-spacing: -0.025em; }
+}
+
+/* Floating "Kanun Saathi" launcher — periodic pop + gold glow so the
+   button catches the eye without spinning or bouncing constantly.
+   The global prefers-reduced-motion rule disables these automatically. */
+@keyframes el-ai-pop {
+  0%, 68%, 100% { transform: scale(1); }
+  76%           { transform: scale(1.09); }
+  84%           { transform: scale(0.98); }
+  91%           { transform: scale(1.03); }
+}
+
+@keyframes el-ai-glow {
+  0%, 68%, 100% {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.12), 0 4px 6px -4px rgba(0, 0, 0, 0.12);
+  }
+  78% {
+    box-shadow: 0 0 0 9px rgba(201, 162, 39, 0.3), 0 16px 32px -8px rgba(22, 50, 90, 0.5);
+  }
+  94% {
+    box-shadow: 0 0 0 0 rgba(201, 162, 39, 0), 0 10px 15px -3px rgba(0, 0, 0, 0.12);
+  }
+}
+
+@keyframes el-ai-ring {
+  0%, 68%, 100% { transform: scale(1); opacity: 0; }
+  70%           { transform: scale(1); opacity: 0.8; }
+  92%           { transform: scale(1.45); opacity: 0; }
+}
+
+@layer utilities {
+  /* Chatbot typography: Inter for Latin + Noto Sans Devanagari for Nepali.
+     The browser picks per-glyph, so mixed EN/NE replies render consistently. */
+  .chat-font {
+    font-family:
+      var(--font-chat-latin),
+      var(--font-chat-devanagari),
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      'Segoe UI',
+      sans-serif;
+    font-optical-sizing: auto;
+    letter-spacing: 0.005em;
+    text-rendering: optimizeLegibility;
+  }
+
+  .el-ai-float {
+    animation:
+      el-ai-pop 3.2s ease-in-out infinite,
+      el-ai-glow 3.2s ease-in-out infinite;
+    will-change: transform;
+  }
+
+  .el-ai-ring {
+    animation: el-ai-ring 3.2s ease-out infinite;
+  }
 }

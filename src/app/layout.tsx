@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Mukta } from 'next/font/google';
+import { Plus_Jakarta_Sans, Inter, Noto_Sans_Devanagari } from 'next/font/google';
 import './globals.css';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
@@ -13,7 +13,30 @@ import NextTopLoader from 'nextjs-toploader';
 import PublicOnly from '@/components/layout/PublicOnly';
 import AskAI from '@/components/ai/AskAI';
 
-const mukta = Mukta({ weight: ['400', '500', '600', '700', '800'], subsets: ['devanagari', 'latin'], variable: '--font-mukta' });
+/**
+ * Site-wide typography. Plus Jakarta Sans is a modern, high-legibility
+ * geometric sans for Latin, paired with Noto Sans Devanagari for Nepali.
+ * The tall x-height and open letterforms keep long legal prose comfortable
+ * to read, while the Devanagari face preserves correct conjunct rendering.
+ */
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  variable: '--font-jakarta',
+  display: 'swap',
+});
+
+/**
+ * Chatbot typography. Inter is the de-facto standard for modern chat UIs
+ * (Latin), with Noto Sans Devanagari for Nepali — the most widely used
+ * Devanagari webfont. Both keep tall x-heights so mixed EN/NE replies at
+ * 15px stay legible. Scoped to the AskAI widget via `.chat-font`.
+ */
+const inter = Inter({ subsets: ['latin'], variable: '--font-chat-latin', display: 'swap' });
+const notoDevanagari = Noto_Sans_Devanagari({
+  subsets: ['devanagari'],
+  variable: '--font-chat-devanagari',
+  display: 'swap',
+});
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -122,7 +145,7 @@ export default async function RootLayout({
           }}
         />
       </head>
-      <body className={`${mukta.variable} bg-background text-text-primary flex flex-col min-h-screen transition-colors duration-200`}>
+      <body className={`${jakarta.variable} ${inter.variable} ${notoDevanagari.variable} bg-background text-text-primary flex flex-col min-h-screen transition-colors duration-200`}>
         <NextTopLoader color="var(--color-accent)" showSpinner={false} shadow="0 0 10px var(--color-accent),0 0 5px var(--color-accent)" />
         <ContentProtection />
         <PublicOnly>

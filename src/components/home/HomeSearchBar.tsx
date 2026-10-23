@@ -35,7 +35,9 @@ export default function HomeSearchBar() {
   const go = (url: string) => {
     setQuery('');
     setOpen(false);
-    router.push(url);
+    // WP-only posts link to their canonical permalink (absolute URL).
+    if (/^https?:\/\//i.test(url)) window.location.assign(url);
+    else router.push(url);
   };
 
   const runSearch = () => {
@@ -158,9 +160,11 @@ export default function HomeSearchBar() {
                           <span className="block text-sm font-semibold text-text-primary truncate">
                             {hit.title}
                           </span>
-                          {hit.meta && (
+                          {hit.snippet ? (
+                            <span className="block text-[11px] text-text-muted truncate">{hit.snippet}</span>
+                          ) : hit.meta ? (
                             <span className="block text-[11px] text-text-muted truncate">{hit.meta}</span>
-                          )}
+                          ) : null}
                         </span>
                         <ArrowRight className="w-3.5 h-3.5 text-text-muted shrink-0" />
                       </button>

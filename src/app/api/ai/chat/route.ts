@@ -17,7 +17,7 @@ export const maxDuration = 30;
  * fallback. Per-IP caps via the shared rate limiter.
  */
 
-const SYSTEM_PROMPT = `You are IntelliLaw, the AI assistant of Entertain Lawyers (entertainlawyers.com), a Nepali legal-education platform and law firm in Pokhara.
+const SYSTEM_PROMPT = `You are Kanun Saathi (कानुन साथी), the AI assistant of Entertain Lawyers (entertainlawyers.com), a Nepali legal-education platform and law firm in Pokhara.
 
 STRICT RULES:
 1. Answer ONLY from the provided site content or the conversation so far. Never invent laws, article numbers, procedures, fees, or case citations.
@@ -119,7 +119,7 @@ export async function POST(request: Request) {
   if (isGreeting) {
     return NextResponse.json({
       reply:
-        'नमस्ते, विद्वान् ज्यू! 🙏 I’m IntelliLaw — ask me about law notes, case laws, acts, old questions, or our services. / कानुनका नोट्स, नजिर, ऐन वा हाम्रा सेवाबारे सोध्नुहोस्।',
+        'नमस्ते, विद्वान् ज्यू! 🙏 I’m Kanun Saathi (कानुन साथी) — ask me about law notes, case laws, acts, old questions, or our services. / कानुनका नोट्स, नजिर, ऐन वा हाम्रा सेवाबारे सोध्नुहोस्।',
       sources: [],
       aiUsed: false,
     });
