@@ -1,9 +1,10 @@
 import Link from 'next/link';
-import { Clock, User } from 'lucide-react';
+import { Clock, Share2, User } from 'lucide-react';
 import SocialShareToolbar from './SocialShareToolbar';
 import LatestPostsSidebar from './LatestPostsSidebar';
 import BrandSearchHeader from './BrandSearchHeader';
-import ArticleReactions from './ArticleReactions';
+import Comments from './Comments';
+import { articleFont } from './article-font';
 import type { LatestPost } from './LatestPostsSidebar';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
 
@@ -32,7 +33,8 @@ const AUTHOR_BIO =
 /** Navy section bar used by About Author / Related Post / Latest Post. */
 function SectionBar({ id, children }: { id?: string; children: React.ReactNode }) {
   return (
-    <div className="bg-navy dark:bg-navy-light px-4 py-2.5">
+    <div className="flex items-center gap-2 border-b-2 border-gold/70 bg-navy px-4 py-2.5 dark:bg-navy-light">
+      <span className="h-1.5 w-1.5 rounded-full bg-gold" aria-hidden="true" />
       <h2 id={id} className="text-[13px] font-bold uppercase tracking-[0.14em] text-white">
         {children}
       </h2>
@@ -62,17 +64,26 @@ export default function PostDetail({
   const formatShortDate = (d: Date) =>
     d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
+  // Rough reading-time estimate from the rendered article text.
+  const wordCount = post.content
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&[a-z]+;/gi, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+  const readingMinutes = Math.max(1, Math.round(wordCount / 200));
+
   return (
     <div className="min-h-screen bg-background pb-14">
       <div className="mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-8">
         {/* Masthead: brand + search */}
         <BrandSearchHeader />
 
-        <div className="grid grid-cols-1 items-start gap-8 pt-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-10">
+        <div className="grid grid-cols-1 items-start gap-8 pt-6 lg:grid-cols-[minmax(0,680px)_320px] lg:justify-center lg:gap-10">
           <article className="min-w-0">
             <Link
               href={backUrl}
-              className="inline-flex min-h-[44px] items-center gap-2 rounded text-sm font-semibold text-text-muted transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-full px-3 text-sm font-semibold text-text-muted transition-colors hover:bg-surface hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               <span aria-hidden="true">&larr;</span> Back to {backLabel}
             </Link>
@@ -86,10 +97,10 @@ export default function PostDetail({
                 {post.title}
               </h1>
 
-              <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 pb-5 text-sm text-text-muted">
+              <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-border pb-5 text-sm text-text-muted">
                 <span className="inline-flex items-center gap-2">
                   <span
-                    className="flex h-7 w-7 items-center justify-center rounded-full bg-navy text-[11px] font-bold text-white"
+                    className="flex h-8 w-8 items-center justify-center rounded-full bg-navy text-[11px] font-bold text-white ring-2 ring-gold/30"
                     aria-hidden="true"
                   >
                     {authorInitial}
@@ -100,12 +111,16 @@ export default function PostDetail({
                   <Clock className="h-4 w-4" aria-hidden="true" />
                   <time dateTime={post.createdAt.toISOString()}>{formatLongDate(post.createdAt)}</time>
                 </span>
+                <span className="inline-flex items-center gap-1.5" title={`About ${readingMinutes} min read`}>
+                  <span className="h-1 w-1 rounded-full bg-text-muted" aria-hidden="true" />
+                  {readingMinutes} min read
+                </span>
               </div>
             </header>
 
-            {/* Hero with overlaid share strip, like the news-site article page */}
+            {/* Hero image */}
             {featuredImage && (
-              <figure className="relative border border-border bg-surface-alt">
+              <figure className="overflow-hidden rounded-xl border border-border bg-surface-alt shadow-sm">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={featuredImage}
@@ -113,24 +128,33 @@ export default function PostDetail({
                   className="aspect-[16/9] w-full object-cover"
                   loading="eager"
                 />
-                <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-navy-dark/90 via-navy-dark/45 to-transparent px-3 pb-3 pt-8">
-                  <div className="[&_.social-share-toolbar>span]:text-white/80">
-                    <SocialShareToolbar title={post.title} orientation="horizontal" compact />
-                  </div>
-                </figcaption>
               </figure>
             )}
 
-            {/* Article body — serif reading column */}
+            {/* Share bar — rounded pills with a visible label on every button */}
             <div
-              className="article-body mt-7 font-serif"
+              id="share"
+              className="mt-4 rounded-xl border border-border bg-surface p-4 shadow-sm sm:p-5"
+            >
+              <p className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted">
+                <Share2 className="h-3.5 w-3.5 text-gold" aria-hidden="true" />
+                Share this story
+              </p>
+              <SocialShareToolbar title={post.title} labels />
+            </div>
+
+            {/* Article body — old-site reading face (Roboto), justified so
+                both edges line up, centred column for balanced margins */}
+            <div
+              className={`article-body article-body--reading mt-8 ${articleFont.variable}`}
               dangerouslySetInnerHTML={{ __html: post.content }}
             />
 
-            <ArticleReactions articleId={post.id} />
-
             {/* About Author */}
-            <section aria-labelledby="about-author-heading" className="mt-8 border border-border bg-surface">
+            <section
+              aria-labelledby="about-author-heading"
+              className="mt-8 overflow-hidden rounded-xl border border-border bg-surface shadow-sm"
+            >
               <SectionBar id="about-author-heading">About Author</SectionBar>
               <div className="flex items-start gap-4 p-5">
                 <div
@@ -148,16 +172,19 @@ export default function PostDetail({
 
             {/* Related Post */}
             {relatedPosts.length > 0 && (
-              <section aria-labelledby="related-heading" className="mt-8">
+              <section
+                aria-labelledby="related-heading"
+                className="mt-8 overflow-hidden rounded-xl border border-border bg-surface shadow-sm"
+              >
                 <SectionBar id="related-heading">Related Post</SectionBar>
-                <ul className="divide-y divide-border border border-t-0 border-border bg-surface">
+                <ul className="divide-y divide-border">
                   {relatedPosts.map((rp) => (
                     <li key={rp.id}>
                       <Link
                         href={rp.url}
                         className="group flex items-start gap-4 p-3 transition-colors hover:bg-surface-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gold"
                       >
-                        <div className="h-[72px] w-[120px] shrink-0 overflow-hidden border border-border bg-surface-alt sm:h-[88px] sm:w-[150px]">
+                        <div className="h-[72px] w-[120px] shrink-0 overflow-hidden rounded-lg border border-border bg-surface-alt sm:h-[88px] sm:w-[150px]">
                           {rp.featuredImage ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
                             <img
@@ -193,7 +220,7 @@ export default function PostDetail({
             <div className="mt-10 text-center">
               <Link
                 href={backUrl}
-                className="inline-flex min-h-[46px] items-center justify-center gap-2 border border-border bg-surface px-7 text-sm font-bold text-navy transition-colors hover:border-gold hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:text-white"
+                className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-full border border-border bg-surface px-7 text-sm font-bold text-navy shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-gold hover:text-gold hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:text-white"
               >
                 <span aria-hidden="true">&larr;</span> Back to {backLabel}
               </Link>
@@ -204,6 +231,11 @@ export default function PostDetail({
           <aside className="h-fit lg:sticky lg:top-24" aria-label="Latest posts">
             <LatestPostsSidebar posts={latestPosts} currentPostId={post.id} />
           </aside>
+
+          {/* Comments sit at the very bottom, aligned with the article column */}
+          <div className="mt-2 lg:col-start-1 lg:mt-4">
+            <Comments postId={post.id} postType={post.type === 'BLOG' ? 'BLOG' : 'NEWS'} />
+          </div>
         </div>
       </div>
     </div>
