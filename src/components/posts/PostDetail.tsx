@@ -33,8 +33,12 @@ const AUTHOR_BIO =
 /** Navy section bar used by About Author / Related Post / Latest Post. */
 function SectionBar({ id, children }: { id?: string; children: React.ReactNode }) {
   return (
-    <div className="bg-navy dark:bg-navy-light px-4 py-2.5">
-      <h2 id={id} className="text-[13px] font-bold uppercase tracking-[0.14em] text-white">
+    <div className="px-4 pt-4">
+      <h2
+        id={id}
+        className="inline-flex items-center gap-2 rounded-full bg-navy px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-white dark:bg-navy-light"
+      >
+        <span className="h-1.5 w-1.5 rounded-full bg-gold" aria-hidden="true" />
         {children}
       </h2>
     </div>
@@ -119,7 +123,7 @@ export default function PostDetail({
 
             {/* Hero image */}
             {featuredImage && (
-              <figure className="border border-border bg-surface-alt">
+              <figure className="overflow-hidden rounded-2xl border border-border bg-surface-alt">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={featuredImage}
@@ -131,8 +135,9 @@ export default function PostDetail({
             )}
 
             {/* Share bar — icon + label on every button so it reads clearly */}
-            <div id="share" className="mt-3 border border-border bg-surface p-3 sm:p-4">
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted">
+            <div id="share" className="mt-3 rounded-2xl border border-border bg-surface p-3 sm:p-4">
+              <p className="mb-2 inline-flex items-center gap-2 rounded-full bg-surface-alt px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted">
+                <span className="h-1.5 w-1.5 rounded-full bg-gold" aria-hidden="true" />
                 Share this story
               </p>
               <SocialShareToolbar title={post.title} labels />
@@ -146,7 +151,7 @@ export default function PostDetail({
             />
 
             {/* About Author */}
-            <section aria-labelledby="about-author-heading" className="mt-8 border border-border bg-surface">
+            <section aria-labelledby="about-author-heading" className="mt-8 overflow-hidden rounded-2xl border border-border bg-surface">
               <SectionBar id="about-author-heading">About Author</SectionBar>
               <div className="flex items-start gap-4 p-5">
                 <div
@@ -164,16 +169,16 @@ export default function PostDetail({
 
             {/* Related Post */}
             {relatedPosts.length > 0 && (
-              <section aria-labelledby="related-heading" className="mt-8">
+              <section aria-labelledby="related-heading" className="mt-8 overflow-hidden rounded-2xl border border-border bg-surface">
                 <SectionBar id="related-heading">Related Post</SectionBar>
-                <ul className="divide-y divide-border border border-t-0 border-border bg-surface">
+                <ul className="mt-3 divide-y divide-border">
                   {relatedPosts.map((rp) => (
                     <li key={rp.id}>
                       <Link
                         href={rp.url}
                         className="group flex items-start gap-4 p-3 transition-colors hover:bg-surface-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gold"
                       >
-                        <div className="h-[72px] w-[120px] shrink-0 overflow-hidden border border-border bg-surface-alt sm:h-[88px] sm:w-[150px]">
+                        <div className="h-[72px] w-[120px] shrink-0 overflow-hidden rounded-xl border border-border bg-surface-alt sm:h-[88px] sm:w-[150px]">
                           {rp.featuredImage ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
                             <img
@@ -209,7 +214,7 @@ export default function PostDetail({
             <div className="mt-10 text-center">
               <Link
                 href={backUrl}
-                className="inline-flex min-h-[46px] items-center justify-center gap-2 border border-border bg-surface px-7 text-sm font-bold text-navy transition-colors hover:border-gold hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:text-white"
+                className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-full border border-border bg-surface px-7 text-sm font-bold text-navy transition-colors hover:border-gold hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:text-white"
               >
                 <span aria-hidden="true">&larr;</span> Back to {backLabel}
               </Link>

@@ -28,24 +28,25 @@ export default function LatestPostsSidebar({
   if (items.length === 0) return null;
 
   return (
-    <nav aria-labelledby="latest-posts-heading" className="border border-border bg-surface">
-      <div className="bg-navy px-4 py-2.5 dark:bg-navy-light">
+    <nav aria-labelledby="latest-posts-heading" className="overflow-hidden rounded-2xl border border-border bg-surface">
+      <div className="px-4 pt-4">
         <h2
           id="latest-posts-heading"
-          className="text-[13px] font-bold uppercase tracking-[0.14em] text-white"
+          className="inline-flex items-center gap-2 rounded-full bg-navy px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-white dark:bg-navy-light"
         >
+          <span className="h-1.5 w-1.5 rounded-full bg-gold" aria-hidden="true" />
           Latest Post
         </h2>
       </div>
 
-      <ul className="divide-y divide-border">
+      <ul className="mt-3 divide-y divide-border">
         {items.map((p) => (
           <li key={p.id}>
             <Link
               href={p.url}
               className="group flex items-start gap-3 p-3 transition-colors hover:bg-surface-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gold"
             >
-              <div className="h-16 w-[92px] shrink-0 overflow-hidden border border-border bg-surface-alt">
+              <div className="h-16 w-[92px] shrink-0 overflow-hidden rounded-xl border border-border bg-surface-alt">
                 {p.featuredImage ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
