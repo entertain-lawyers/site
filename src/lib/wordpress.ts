@@ -108,6 +108,8 @@ export interface WordPressQueryOptions {
   revalidate?: number | false;
   tags?: string[];
   embed?: boolean;
+  /** Comma-separated WP `_fields` allow-list (keeps search-index fetches small). */
+  fields?: string;
 }
 
 export interface WordPressCreatePostInput {
@@ -191,6 +193,7 @@ async function fetchWordPress<T>(
   if (options.order) url.searchParams.set('order', options.order);
   if (options.orderBy) url.searchParams.set('orderby', options.orderBy);
   if (options.embed) url.searchParams.set('_embed', 'true');
+  if (options.fields) url.searchParams.set('_fields', options.fields);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);

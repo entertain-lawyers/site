@@ -139,7 +139,7 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
             rel="noopener noreferrer"
             aria-label={`Share on ${p.name}`}
             title={`Share on ${p.name}`}
-            className={`flex min-h-[40px] items-center justify-center gap-2 rounded-full px-2 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-surface ${p.color}`}
+            className={`flex min-h-[42px] items-center justify-center gap-2 rounded-full px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-surface ${p.color}`}
           >
             {p.icon}
             <span>{p.label}</span>
@@ -150,7 +150,7 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
           onClick={handleCopyLink}
           aria-label="Copy article link"
           title="Copy article link"
-          className="relative flex min-h-[40px] items-center justify-center gap-2 rounded-full border border-border bg-surface-alt px-2 text-xs font-semibold text-navy transition-colors hover:border-gold hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-surface dark:text-white"
+          className="relative flex min-h-[42px] items-center justify-center gap-2 rounded-full border border-border bg-surface-alt px-3 text-xs font-semibold text-navy transition-colors hover:border-gold hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-surface dark:text-white"
         >
           <Link className="w-4 h-4" aria-hidden="true" />
           <span>{copied ? 'Copied!' : 'Copy link'}</span>

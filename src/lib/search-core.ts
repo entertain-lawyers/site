@@ -1,12 +1,12 @@
 import { prisma } from '@/lib/prisma';
 import {
   getWordPressPosts,
+  getWordPressCategories,
   mapCategoryToType,
   decodeHtmlEntities,
-  WordPressPost,
   WordPressLanguage,
 } from '@/lib/wordpress';
-import { searchMatches } from '@/lib/translit-search';
+import { searchMatches, searchScore } from '@/lib/translit-search';
 import { rateLimit } from '@/lib/rate-limit';
 import { geminiEmbed, isAiEnabled } from '@/lib/ai/gemini';
 import { normalizeSearchQuery } from '@/lib/ai/normalize';
@@ -23,6 +23,8 @@ export interface SearchHit {
   id: string;
   title: string;
   meta?: string;
+  /** Why a full-text hit matched, when the title alone doesn't show it. */
+  snippet?: string;
   url: string;
   category: string;
 }
@@ -65,47 +67,314 @@ function wpUrl(type: string, id: number): string {
   return `/blogs/${id}`;
 }
 
-/** Search one WP language site: native search first, translit fallback for roman↔Devanagari. */
+/**
+ * Absolute permalink for WordPress posts that have no in-app detail route
+ * (case laws, subject notes, question papers...). Those live only on the WP
+ * site, so linking straight to the canonical URL beats hiding them.
+ */
+function absoluteWpUrl(link: string | undefined): string | null {
+  if (!link) return null;
+  try {
+    const url = new URL(link);
+    if (url.hostname === 'entertainlawyers.com') url.hostname = 'www.entertainlawyers.com';
+    return url.toString();
+  } catch {
+    return null;
+  }
+}
+
+/** Strip HTML/entities into plain text for snippets and title matching. */
+function plainText(html: string | undefined): string {
+  if (!html) return '';
+  return decodeHtmlEntities(
+    html
+      .replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ')
+      .replace(/<[^>]*>/g, ' ')
+  )
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Escape a literal string for use inside a RegExp. */
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * All occurrences of a query word in the body text (capped). Latin words use
+ * word boundaries plus an optional plural ("fee" matches "fees" but not
+ * "feels"); Devanagari words use plain substrings because suffixes are glued
+ * to the stem ("अधिकार" inside "अधिकारमा").
+ */
+function findOccurrences(haystack: string, word: string): number[] {
+  const out: number[] = [];
+  if (/^[a-z0-9]+$/i.test(word)) {
+    const re = new RegExp(
+      `(?<![\\p{L}\\p{N}])${escapeRegExp(word)}(?:s|es)?(?![\\p{L}\\p{N}])`,
+      'giu'
+    );
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(haystack)) && out.length < 40) {
+      out.push(m.index);
+      re.lastIndex = m.index + 1;
+    }
+    return out;
+  }
+
+  let i = haystack.indexOf(word);
+  while (i >= 0 && out.length < 40) {
+    out.push(i);
+    i = haystack.indexOf(word, i + 1);
+  }
+  return out;
+}
+
+/**
+ * Short excerpt that shows *why* a body-only hit matched. Every word of the
+ * query must appear in the post (WP's own search is a loose full-text match
+ * and happily returns posts sharing a single word), and the window is chosen
+ * to cover as many of those words as possible.
+ */
+function buildSnippet(html: string | undefined, q: string): string | undefined {
+  const text = plainText(html);
+  if (!text) return undefined;
+
+  const lower = text.toLowerCase();
+  const words = [...new Set(q.toLowerCase().split(/\s+/).filter((t) => t.length >= 2))];
+  if (!words.length) return undefined;
+
+  // Every query word must occur somewhere in the body; collect all (capped)
+  // occurrences so the window can find the closest cluster rather than just
+  // the first mention of each word.
+  const occurrences: number[][] = words.map((w) => findOccurrences(lower, w));
+  if (occurrences.some((at) => at.length === 0)) return undefined;
+
+  const WINDOW = 220;
+  let bestAt = Math.min(...occurrences.map((at) => at[0]));
+  let bestCover = 0;
+  for (const at of occurrences.flat()) {
+    const start = Math.max(0, at - 60);
+    const end = start + WINDOW;
+    const cover = occurrences.filter((wordAt) => wordAt.some((p) => p >= start && p < end)).length;
+    if (cover > bestCover) {
+      bestCover = cover;
+      bestAt = at;
+    }
+  }
+
+  // Two-word queries must show both words together — a post that mentions
+  // "court" in one paragraph and "fee" five paragraphs later isn't a match
+  // worth surfacing (and its snippet reads as random).
+  const minCover = words.length <= 2 ? words.length : Math.max(2, words.length - 1);
+  if (bestCover < minCover) return undefined;
+
+  const start = Math.max(0, bestAt - 60);
+  const end = Math.min(text.length, start + WINDOW);
+  return `${start > 0 ? '…' : ''}${text.slice(start, end).trim()}${end < text.length ? '…' : ''}`;
+}
+
+interface WpIndexPost {
+  id: number;
+  title: string;
+  date?: string;
+  /** Canonical WP permalink — used for posts with no in-app route. */
+  link?: string;
+  categories: number[];
+}
+
+/**
+ * Cached title index for one WP site. Roman and Devanagari queries both need
+ * to see every title (WP's own `search` is full-text and returns 0 for roman
+ * queries against Devanagari titles), so we keep a compact list in memory.
+ * 5 pages × 100 posts covers the archive; older posts still appear through
+ * WP's native full-text search.
+ */
+const WP_INDEX_TTL_MS = 5 * 60 * 1000;
+const WP_INDEX_MAX_PAGES = 5;
+const wpIndexCache = new Map<WordPressLanguage, { at: number; posts: WpIndexPost[] }>();
+
+async function getWpTitleIndex(lang: WordPressLanguage): Promise<WpIndexPost[]> {
+  const cached = wpIndexCache.get(lang);
+  if (cached && Date.now() - cached.at < WP_INDEX_TTL_MS) return cached.posts;
+
+  try {
+    const fetchPage = (page: number) =>
+      getWordPressPosts({
+        status: 'publish',
+        lang,
+        perPage: 100,
+        page,
+        orderBy: 'date',
+        order: 'desc',
+        fields: 'id,title,date,link,categories',
+        timeoutMs: 7000,
+      });
+
+    const first = await fetchPage(1);
+    const pages = Math.min(first.totalPages || 1, WP_INDEX_MAX_PAGES);
+    const rest =
+      pages > 1
+        ? await Promise.allSettled(
+            Array.from({ length: pages - 1 }, (_, i) => fetchPage(i + 2))
+          )
+        : [];
+
+    const posts = [first, ...rest.flatMap((r) => (r.status === 'fulfilled' ? [r.value] : []))]
+      .flatMap((r) => (Array.isArray(r.data) ? r.data : []))
+      .map((p) => ({
+        id: p.id,
+        title: cleanTitle(p.title?.rendered ?? ''),
+        date: p.date,
+        link: p.link,
+        categories: p.categories ?? [],
+      }))
+      .filter((p) => p.title);
+
+    wpIndexCache.set(lang, { at: Date.now(), posts });
+    return posts;
+  } catch {
+    return cached?.posts ?? [];
+  }
+}
+
+/**
+ * WP category id → display name, cached for an hour. Used to label posts that
+ * fall outside the app's own taxonomy (e.g. "Contract Law-I", "Writs").
+ */
+const WP_CATEGORY_TTL_MS = 60 * 60 * 1000;
+const wpCategoryCache = new Map<WordPressLanguage, { at: number; names: Map<number, string> }>();
+
+async function getWpCategoryNames(lang: WordPressLanguage): Promise<Map<number, string>> {
+  const cached = wpCategoryCache.get(lang);
+  if (cached && Date.now() - cached.at < WP_CATEGORY_TTL_MS) return cached.names;
+
+  try {
+    const res = await getWordPressCategories({ lang, perPage: 100, fields: 'id,name', timeoutMs: 7000 });
+    const names = new Map((res.data ?? []).map((c) => [c.id, c.name]));
+    wpCategoryCache.set(lang, { at: Date.now(), names });
+    return names;
+  } catch {
+    return cached?.names ?? new Map();
+  }
+}
+
+/** Best display category for a post the app's own taxonomy doesn't cover. */
+const GENERIC_CATEGORIES = new Set(['uncategorized', 'others', 'other', 'general']);
+
+function articleCategory(categories: number[], names: Map<number, string>): string {
+  const usable: string[] = [];
+  for (const id of categories) {
+    const name = names.get(id)?.trim();
+    if (name && !GENERIC_CATEGORIES.has(name.toLowerCase())) usable.push(name);
+  }
+  // Prefer the most specific (longest) label — "Contract Law-I" beats "Civil".
+  usable.sort((a, b) => b.length - a.length);
+  return usable.length ? `WP_${usable[0]}` : 'WP_Article';
+}
+
+/**
+ * Search one WP language site.
+ *
+ * Two passes, both relevance-gated:
+ *  1. Title index — strict, transliteration-aware title matching. This is what
+ *     makes "adalati dastur" find "अदालती दस्तुर" (and vice versa).
+ *  2. WP native full-text search — keeps body matches, but only when the term
+ *     appears in the title or in a snippet we can show the user.
+ *
+ * Posts outside the app's taxonomy (case laws, subject notes, question
+ * papers) are still included: they have no in-app detail route, so they link
+ * to their canonical WordPress permalink instead of being dropped.
+ */
 async function searchWordPress(
   lang: WordPressLanguage,
   q: string,
   limit: number
 ): Promise<SearchHit[]> {
-  const res = await getWordPressPosts({ search: q, status: 'publish', lang, perPage: 12, embed: false });
-  let posts: WordPressPost[] = Array.isArray(res?.data) ? res.data : [];
+  const [native, index, categoryNames] = await Promise.allSettled([
+    getWordPressPosts({ search: q, status: 'publish', lang, perPage: 12, embed: false }),
+    getWpTitleIndex(lang),
+    getWpCategoryNames(lang),
+  ]);
 
-  // Transliteration fallback: "ram" must surface "राम" and vice versa.
-  // WP's own search is plain LIKE, so when it finds nothing we match titles locally.
-  if (posts.length === 0 && q.trim().length >= 3) {
-    try {
-      const all = await getWordPressPosts({ status: 'publish', lang, perPage: 100, embed: false });
-      posts = (Array.isArray(all?.data) ? all.data : []).filter((p) =>
-        searchMatches(cleanTitle(p.title?.rendered ?? ''), q)
-      );
-    } catch {
-      // silent — WP unavailability must not break the search endpoint
+  const names = categoryNames.status === 'fulfilled' ? categoryNames.value : new Map<number, string>();
+  const scored = new Map<string, { hit: SearchHit; score: number; date: string }>();
+
+  const makeHit = (
+    id: string,
+    wpId: number,
+    title: string,
+    date: string | undefined,
+    type: string,
+    categories: number[],
+    link: string | undefined,
+    snippet?: string
+  ): { hit: SearchHit; score: number; date: string } | null => {
+    const external = type === 'UNKNOWN' ? absoluteWpUrl(link) : null;
+    if (type === 'UNKNOWN' && !external) return null;
+    return {
+      hit: {
+        id,
+        title,
+        meta: date
+          ? new Date(date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+          : undefined,
+        snippet,
+        url: external ?? wpUrl(type, wpId),
+        category: type === 'UNKNOWN' ? articleCategory(categories, names) : type,
+      },
+      score: 0,
+      date: date ?? '',
+    };
+  };
+
+  if (index.status === 'fulfilled') {
+    for (const p of index.value) {
+      const score = searchScore(p.title, q);
+      if (score < 0.7) continue;
+      const type = mapCategoryToType(p.categories, lang);
+      const entry = makeHit(`wp-${p.id}`, p.id, p.title, p.date, type, p.categories, p.link);
+      if (!entry) continue;
+      entry.score = score;
+      scored.set(`wp-${p.id}`, entry);
     }
   }
 
-  return posts.slice(0, limit).map((p): SearchHit | null => {
-    const type = mapCategoryToType(p.categories, lang);
-    // Posts outside the app's public taxonomy (e.g. WP-only case documents)
-    // would 404 on their detail pages — exclude them from results.
-    if (type === 'UNKNOWN') return null;
-    return {
-      id: `wp-${p.id}`,
-      title: cleanTitle(p.title?.rendered ?? ''),
-      meta: p.date ? new Date(p.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : undefined,
-      url: wpUrl(type, p.id),
-      category: type,
-    };
-  }).filter((h): h is SearchHit => Boolean(h && h.title));
+  if (native.status === 'fulfilled') {
+    for (const p of native.value.data) {
+      const title = cleanTitle(p.title?.rendered ?? '');
+      if (!title) continue;
+      const type = mapCategoryToType(p.categories, lang);
+
+      const score = searchScore(title, q);
+      // A body-only match is kept only when we can show the matching text.
+      const snippet = score >= 0.7 ? undefined : buildSnippet(p.content?.rendered || p.excerpt?.rendered, q);
+      if (score < 0.7 && !snippet) continue;
+
+      const id = `wp-${p.id}`;
+      const existing = scored.get(id);
+      if (existing && existing.score >= score) continue;
+
+      const entry = makeHit(id, p.id, title, p.date, type, p.categories ?? [], p.link, snippet);
+      if (!entry) continue;
+      entry.score = score;
+      scored.set(id, entry);
+    }
+  }
+
+  return [...scored.values()]
+    .sort((a, b) => b.score - a.score || b.date.localeCompare(a.date))
+    .slice(0, limit)
+    .map((entry) => entry.hit);
 }
 
 function groupWpHits(hits: SearchHit[]) {
   const byLabel = new Map<string, SearchHit[]>();
   for (const hit of hits) {
-    const label = WP_LABELS[hit.category] ?? WP_LABELS.UNKNOWN;
+    // `WP_<category name>` = a WP post outside the app's taxonomy; the label
+    // is its real WordPress category (e.g. "Contract Law-I").
+    const label =
+      WP_LABELS[hit.category] ??
+      (hit.category.startsWith('WP_') ? hit.category.slice(3) : WP_LABELS.UNKNOWN);
     const list = byLabel.get(label) ?? [];
     list.push(hit);
     byLabel.set(label, list);
@@ -240,12 +509,20 @@ export async function runSearch(q: string, ip: string): Promise<SearchResponse> 
     const keywords = baseTotal < 3 ? await normalizeSearchQuery(q) : null;
 
     if (keywords?.length) {
-      // Broaden the keyword scope: normalized terms feed the same DB/WP
-      // passes the raw query ran.
-      const [wpEn2, wpNe2] = await Promise.allSettled([
-        searchWordPress('en' as WordPressLanguage, keywords[0], 4),
-        searchWordPress('ne' as WordPressLanguage, keywords[0], 4),
-      ]);
+      // Normalized keywords feed the same DB/WP passes the raw query ran, but
+      // only the single most specific one: a generic term like "अदालत" would
+      // drag in every post that mentions court — exactly the noise this
+      // search is meant to avoid.
+      const extraKeywords = keywords
+        .filter((k) => k.includes(' ') || k.trim().length >= 6)
+        .slice(0, 1);
+
+      const wpExtraResults = await Promise.allSettled(
+        extraKeywords.flatMap((k) => [
+          searchWordPress('en' as WordPressLanguage, k, 4),
+          searchWordPress('ne' as WordPressLanguage, k, 4),
+        ])
+      );
       const matchesExtra = (title: string): boolean =>
         !searchMatches(title, q) && keywords.some((k) => searchMatches(title, k));
 
@@ -280,18 +557,24 @@ export async function runSearch(q: string, ip: string): Promise<SearchResponse> 
           category: 'event',
         }));
 
-      extraWp = [
-        ...(wpEn2.status === 'fulfilled' ? wpEn2.value : []),
-        ...(wpNe2.status === 'fulfilled' ? wpNe2.value : []),
-      ];
+      // A snippet is already proof of a real body match for the normalized
+      // keyword, so keep those too (e.g. "kort fee" → "court fee" case law).
+      extraWp = wpExtraResults
+        .flatMap((r) => (r.status === 'fulfilled' ? r.value : []))
+        .filter((h) => Boolean(h.snippet) || matchesExtra(h.title));
       aiUsed = true;
     }
 
-    // 2) Semantic pass — runs even when normalization failed (better than
-    //    nothing; embeddings are the most reliable part of the AI layer).
+    // 2) Semantic pass. Embeddings are only a *recall* aid: a vector hit is
+    //    kept only when it also shares a real word with the query. Without
+    //    that gate the index surfaces unrelated posts — the same handful for
+    //    every query, whatever the user typed.
     const qvec = await embedQueryCached(keywords?.length ? [q, ...keywords].join(' ') : q);
     if (qvec) {
-      semanticDocs = await searchEmbeddings(qvec, { limit: 6, minScore: 0.27 });
+      const candidates = await searchEmbeddings(qvec, { limit: 60, minScore: 0.2 });
+      semanticDocs = candidates
+        .filter(({ doc }) => searchMatches(`${doc.title} ${doc.summary}`, q))
+        .slice(0, 4);
       if (semanticDocs.length) aiUsed = true;
     }
   }
@@ -306,7 +589,7 @@ export async function runSearch(q: string, ip: string): Promise<SearchResponse> 
 
   const aiHits: SearchHit[] = [];
   for (const { doc } of semanticDocs) {
-    if (aiHits.length >= 6) break;
+    if (aiHits.length >= 4) break;
     if (seenUrls.has(doc.url)) continue;
     seenUrls.add(doc.url);
     aiHits.push({

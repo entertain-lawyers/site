@@ -50,7 +50,7 @@ export default async function SearchPage({
         {!result && (
           <div className="py-16 text-center">
             <Search className="w-10 h-10 text-text-muted mx-auto mb-3 opacity-60" />
-            <p className="text-base font-bold text-text-primary">Search everything</p>
+            <p className="text-base font-bold text-text-primary">Search the site</p>
             <p className="text-sm text-text-muted mt-1">
               Law notes, case laws, old questions, blogs, news, historical facts, publications &amp; events.
             </p>
@@ -104,9 +104,11 @@ export default async function SearchPage({
                           <span className="block text-[15px] font-semibold text-text-primary group-hover:text-accent transition-colors truncate">
                             {hit.title}
                           </span>
-                          {hit.meta && (
+                          {hit.snippet ? (
+                            <span className="block text-xs text-text-muted line-clamp-2">{hit.snippet}</span>
+                          ) : hit.meta ? (
                             <span className="block text-xs text-text-muted truncate">{hit.meta}</span>
-                          )}
+                          ) : null}
                         </span>
                         <ArrowRight className="w-4 h-4 text-text-muted opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all shrink-0" />
                       </Link>

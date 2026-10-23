@@ -32,6 +32,7 @@ export interface SearchHit {
   id: string;
   title: string;
   meta?: string;
+  snippet?: string;
   url: string;
   category: string;
 }
