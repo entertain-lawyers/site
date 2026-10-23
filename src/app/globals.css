@@ -78,10 +78,7 @@
   body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-family: var(--font-jakarta), var(--font-chat-devanagari), Tahoma, sans-serif;
-    font-optical-sizing: auto;
-    text-rendering: optimizeLegibility;
-    font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+    font-family: var(--font-mukta), Inter, Tahoma, sans-serif;
     color: var(--text-primary);
     background-color: var(--bg-primary);
     transition: background-color 0.2s ease, color 0.2s ease;
@@ -382,6 +379,20 @@
 }
 
 @layer utilities {
+  /* Refreshed typography (Plus Jakarta Sans + Noto Sans Devanagari), scoped to
+     the calculator and the news reading page only — those pages keep the new
+     face, while the rest of the site stays on the legacy Mukta. */
+  .el-type-modern {
+    font-family:
+      var(--font-jakarta),
+      var(--font-chat-devanagari),
+      Tahoma,
+      sans-serif;
+    font-optical-sizing: auto;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  }
+
   /* Chatbot typography: Inter for Latin + Noto Sans Devanagari for Nepali.
      The browser picks per-glyph, so mixed EN/NE replies render consistently. */
   .chat-font {

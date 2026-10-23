@@ -46,12 +46,15 @@ export default function PostDetail({
   backLabel,
   relatedPosts = [],
   latestPosts = [],
+  modernType = false,
 }: {
   post: Post;
   backUrl: string;
   backLabel: string;
   relatedPosts?: RelatedPost[];
   latestPosts?: LatestPost[];
+  /** Opt in to the refreshed typography (scoped so other sections stay on the legacy face). */
+  modernType?: boolean;
 }) {
   const featuredImage = post.featuredImage || extractFirstImage(post.content);
   const authorName = post.author.name?.trim() || 'Entertain Lawyers';
@@ -63,7 +66,7 @@ export default function PostDetail({
     d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
   return (
-    <div className="min-h-screen bg-background pb-14">
+    <div className={`min-h-screen bg-background pb-14${modernType ? ' el-type-modern' : ''}`}>
       <div className="mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-8">
         {/* Masthead: brand + search */}
         <BrandSearchHeader />

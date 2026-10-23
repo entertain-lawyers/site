@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Plus_Jakarta_Sans, Inter, Noto_Sans_Devanagari } from 'next/font/google';
+import { Plus_Jakarta_Sans, Inter, Noto_Sans_Devanagari, Mukta } from 'next/font/google';
 import './globals.css';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
@@ -14,11 +14,12 @@ import PublicOnly from '@/components/layout/PublicOnly';
 import AskAI from '@/components/ai/AskAI';
 
 /**
- * Site-wide typography. Plus Jakarta Sans is a modern, high-legibility
- * geometric sans for Latin, paired with Noto Sans Devanagari for Nepali.
- * The tall x-height and open letterforms keep long legal prose comfortable
- * to read, while the Devanagari face preserves correct conjunct rendering.
+ * Site-wide typography. Restored Mukta as the requested legacy face
+ * (Latin + Devanagari). Plus Jakarta Sans remains loaded and scoped to the
+ * calculator and news reading page via `.el-type-modern` in globals.css.
  */
+const mukta = Mukta({ weight: ['400', '500', '600', '700', '800'], subsets: ['devanagari', 'latin'], variable: '--font-mukta' });
+
 const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
   variable: '--font-jakarta',
@@ -145,7 +146,7 @@ export default async function RootLayout({
           }}
         />
       </head>
-      <body className={`${jakarta.variable} ${inter.variable} ${notoDevanagari.variable} bg-background text-text-primary flex flex-col min-h-screen transition-colors duration-200`}>
+      <body className={`${mukta.variable} ${jakarta.variable} ${inter.variable} ${notoDevanagari.variable} bg-background text-text-primary flex flex-col min-h-screen transition-colors duration-200`}>
         <NextTopLoader color="var(--color-accent)" showSpinner={false} shadow="0 0 10px var(--color-accent),0 0 5px var(--color-accent)" />
         <ContentProtection />
         <PublicOnly>

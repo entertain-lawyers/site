@@ -78,7 +78,7 @@ const FAQ_JSON_LD = {
 
 export default function CalculatorPage() {
   return (
-    <div className="w-full bg-background min-h-screen pt-6 pb-24 sm:py-16">
+    <div className="el-type-modern w-full bg-background min-h-screen pt-6 pb-24 sm:py-16">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSON_LD) }}
