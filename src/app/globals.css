@@ -247,6 +247,13 @@
   .article-body--reading :is(h2, h3, h4) {
     scroll-margin-top: 6rem;
   }
+  /* Inline images open in a lightbox; linked images keep the pointer. */
+  .article-body--reading img {
+    cursor: zoom-in;
+  }
+  .article-body--reading a img {
+    cursor: pointer;
+  }
   .article-body > :last-child {
     margin-bottom: 0;
   }

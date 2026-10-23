@@ -5,7 +5,7 @@ import LatestPostsSidebar from './LatestPostsSidebar';
 import BrandSearchHeader from './BrandSearchHeader';
 import Comments from './Comments';
 import ReadingProgress from './ReadingProgress';
-import { articleFont } from './article-font';
+import ArticleBody from './ArticleBody';
 import type { LatestPost } from './LatestPostsSidebar';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
 
@@ -231,11 +231,7 @@ export default function PostDetail({
 
             {/* Article body — old-site reading face (Roboto), justified so
                 both edges line up, centred column for balanced margins */}
-            <div
-              id="article-body"
-              className={`article-body article-body--reading mt-7 ${articleFont.variable}`}
-              dangerouslySetInnerHTML={{ __html: articleHtml }}
-            />
+            <ArticleBody html={articleHtml} />
 
             {/* About Author */}
             <section aria-labelledby="about-author-heading" className="mt-8 overflow-hidden rounded-2xl border border-border bg-surface">
