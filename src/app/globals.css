@@ -243,6 +243,10 @@
   .article-body--reading h2 { font-size: 1.75rem; }
   .article-body--reading h3 { font-size: 1.5rem; }
   .article-body--reading :is(h4, h5, h6) { font-size: 1.25rem; }
+  /* TOC jumps must clear the sticky header. */
+  .article-body--reading :is(h2, h3, h4) {
+    scroll-margin-top: 6rem;
+  }
   .article-body > :last-child {
     margin-bottom: 0;
   }

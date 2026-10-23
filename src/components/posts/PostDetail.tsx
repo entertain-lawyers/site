@@ -1,9 +1,10 @@
 import Link from 'next/link';
-import { Clock, User } from 'lucide-react';
+import { Clock, ListTree, Scale } from 'lucide-react';
 import SocialShareToolbar from './SocialShareToolbar';
 import LatestPostsSidebar from './LatestPostsSidebar';
 import BrandSearchHeader from './BrandSearchHeader';
 import Comments from './Comments';
+import ReadingProgress from './ReadingProgress';
 import { articleFont } from './article-font';
 import type { LatestPost } from './LatestPostsSidebar';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
@@ -29,6 +30,56 @@ export interface RelatedPost {
 
 const AUTHOR_BIO =
   'Entertain Lawyers is Nepal\u2019s trusted legal news platform, dedicated to delivering unbiased legal updates, court news, and informative content for legal professionals and the general public.';
+
+interface TocItem {
+  id: string;
+  text: string;
+  level: number;
+}
+
+/**
+ * Give every article heading a stable anchor and collect them for the
+ * "In this article" card. Long court/legal explainers benefit from a jump
+ * list, and the anchors make individual sections linkable from elsewhere.
+ */
+function buildTableOfContents(html: string): { html: string; items: TocItem[] } {
+  const items: TocItem[] = [];
+  const used = new Set<string>();
+
+  const withIds = html.replace(
+    /<h([23])([^>]*)>([\s\S]*?)<\/h\1>/gi,
+    (match, level: string, attrs: string, inner: string) => {
+      const text = inner
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/&#8217;|&rsquo;/gi, '\u2019')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (!text) return match;
+
+      let id = attrs.match(/\bid=["']([^"']+)["']/i)?.[1];
+      let nextAttrs = attrs;
+      if (!id) {
+        const base =
+          text
+            .toLowerCase()
+            .replace(/[^a-z0-9\u0900-\u097F]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .slice(0, 60) || `section-${items.length + 1}`;
+        id = base;
+        let suffix = 2;
+        while (used.has(id)) id = `${base}-${suffix++}`;
+        nextAttrs = ` id="${id}"${attrs}`;
+      }
+      used.add(id);
+      items.push({ id, text, level: Number(level) });
+      return `<h${level}${nextAttrs}>${inner}</h${level}>`;
+    }
+  );
+
+  return { html: withIds, items };
+}
 
 /** Navy section bar used by About Author / Related Post / Latest Post. */
 function SectionBar({ id, children }: { id?: string; children: React.ReactNode }) {
@@ -61,6 +112,7 @@ export default function PostDetail({
   const featuredImage = post.featuredImage || extractFirstImage(post.content);
   const authorName = post.author.name?.trim() || 'Entertain Lawyers';
   const authorInitial = authorName.charAt(0).toUpperCase();
+  const { html: articleHtml, items: tocItems } = buildTableOfContents(post.content);
 
   const formatLongDate = (d: Date) =>
     d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -78,6 +130,7 @@ export default function PostDetail({
 
   return (
     <div className="min-h-screen bg-background pb-14">
+      <ReadingProgress targetId="article-body" />
       <div className="mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-8">
         {/* Masthead: brand + search */}
         <BrandSearchHeader />
@@ -143,11 +196,45 @@ export default function PostDetail({
               <SocialShareToolbar title={post.title} labels />
             </div>
 
+            {/* In-article navigation — only for posts that actually have
+                sections, so short news items stay uncluttered */}
+            {tocItems.length >= 2 && (
+              <nav
+                aria-labelledby="toc-heading"
+                className="mt-3 rounded-2xl border border-border bg-surface p-4"
+              >
+                <h2
+                  id="toc-heading"
+                  className="inline-flex items-center gap-2 rounded-full bg-surface-alt px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted"
+                >
+                  <ListTree className="h-3.5 w-3.5" aria-hidden="true" />
+                  In this article
+                </h2>
+                <ul className="mt-3 space-y-1.5">
+                  {tocItems.map((item) => (
+                    <li key={item.id} className={item.level === 3 ? 'pl-5' : undefined}>
+                      <a
+                        href={`#${item.id}`}
+                        className="group flex items-start gap-2 text-sm font-medium text-text-secondary transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                      >
+                        <span
+                          className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-gold/70"
+                          aria-hidden="true"
+                        />
+                        <span className="underline-offset-4 group-hover:underline">{item.text}</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            )}
+
             {/* Article body — old-site reading face (Roboto), justified so
                 both edges line up, centred column for balanced margins */}
             <div
+              id="article-body"
               className={`article-body article-body--reading mt-7 ${articleFont.variable}`}
-              dangerouslySetInnerHTML={{ __html: post.content }}
+              dangerouslySetInnerHTML={{ __html: articleHtml }}
             />
 
             {/* About Author */}
@@ -171,14 +258,14 @@ export default function PostDetail({
             {relatedPosts.length > 0 && (
               <section aria-labelledby="related-heading" className="mt-8 overflow-hidden rounded-2xl border border-border bg-surface">
                 <SectionBar id="related-heading">Related Post</SectionBar>
-                <ul className="mt-3 divide-y divide-border">
+                <ul className="mt-3 grid gap-3 p-4 sm:grid-cols-2">
                   {relatedPosts.map((rp) => (
-                    <li key={rp.id}>
+                    <li key={rp.id} className="overflow-hidden rounded-xl border border-border bg-surface">
                       <Link
                         href={rp.url}
-                        className="group flex items-start gap-4 p-3 transition-colors hover:bg-surface-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gold"
+                        className="group flex h-full flex-col transition-colors hover:border-gold/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gold"
                       >
-                        <div className="h-[72px] w-[120px] shrink-0 overflow-hidden rounded-xl border border-border bg-surface-alt sm:h-[88px] sm:w-[150px]">
+                        <div className="aspect-[16/9] w-full overflow-hidden bg-surface-alt">
                           {rp.featuredImage ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
                             <img
@@ -188,18 +275,18 @@ export default function PostDetail({
                               loading="lazy"
                             />
                           ) : (
-                            <div className="flex h-full w-full items-center justify-center">
-                              <User className="h-6 w-6 text-black/10 dark:text-white/10" aria-hidden="true" />
+                            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-navy to-navy-light">
+                              <Scale className="h-8 w-8 text-gold/50" aria-hidden="true" />
                             </div>
                           )}
                         </div>
-                        <div className="min-w-0">
-                          <h3 className="text-sm font-bold leading-snug text-navy transition-colors group-hover:text-gold dark:text-white sm:text-[15px]">
+                        <div className="flex flex-1 flex-col p-3">
+                          <h3 className="text-sm font-bold leading-snug text-navy transition-colors group-hover:text-gold dark:text-white">
                             {rp.title}
                           </h3>
                           <time
                             dateTime={rp.createdAt.toISOString()}
-                            className="mt-1.5 block text-xs font-medium text-text-muted"
+                            className="mt-auto block pt-2 text-xs font-medium text-text-muted"
                           >
                             {formatShortDate(rp.createdAt)}
                           </time>

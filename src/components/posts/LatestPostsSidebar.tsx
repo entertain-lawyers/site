@@ -61,7 +61,7 @@ export default function LatestPostsSidebar({
                   </div>
                 )}
               </div>
-              <h3 className="text-[13px] font-bold leading-snug text-navy transition-colors group-hover:text-gold dark:text-white">
+              <h3 className="text-sm font-bold leading-snug text-navy transition-colors group-hover:text-gold dark:text-white">
                 {p.title}
               </h3>
             </Link>
