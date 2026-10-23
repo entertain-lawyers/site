@@ -212,6 +212,20 @@
   .article-body p {
     margin: 0 0 1.6em;
   }
+  /* Article-detail reading column: narrower measure, slightly larger serif,
+     centred so the left/right margins are equal. */
+  .article-body--reading {
+    max-width: 72ch;
+    margin-inline: auto;
+    font-size: 1.1875rem; /* 19px */
+    line-height: 1.9;
+    color: var(--text-primary);
+  }
+  @media (min-width: 1024px) {
+    .article-body--reading {
+      font-size: 1.21875rem; /* ~19.5px for comfortable desktop reading */
+    }
+  }
   .article-body > :last-child {
     margin-bottom: 0;
   }

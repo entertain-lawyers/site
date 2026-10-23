@@ -3,7 +3,6 @@ import { Clock, User } from 'lucide-react';
 import SocialShareToolbar from './SocialShareToolbar';
 import LatestPostsSidebar from './LatestPostsSidebar';
 import BrandSearchHeader from './BrandSearchHeader';
-import ArticleReactions from './ArticleReactions';
 import Comments from './Comments';
 import type { LatestPost } from './LatestPostsSidebar';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
@@ -63,13 +62,22 @@ export default function PostDetail({
   const formatShortDate = (d: Date) =>
     d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
+  // Rough reading-time estimate from the rendered article text.
+  const wordCount = post.content
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&[a-z]+;/gi, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+  const readingMinutes = Math.max(1, Math.round(wordCount / 200));
+
   return (
     <div className="min-h-screen bg-background pb-14">
       <div className="mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-8">
         {/* Masthead: brand + search */}
         <BrandSearchHeader />
 
-        <div className="grid grid-cols-1 items-start gap-8 pt-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-10">
+        <div className="grid grid-cols-1 items-start gap-8 pt-6 lg:grid-cols-[minmax(0,680px)_320px] lg:justify-center lg:gap-10">
           <article className="min-w-0">
             <Link
               href={backUrl}
@@ -101,6 +109,10 @@ export default function PostDetail({
                   <Clock className="h-4 w-4" aria-hidden="true" />
                   <time dateTime={post.createdAt.toISOString()}>{formatLongDate(post.createdAt)}</time>
                 </span>
+                <span className="inline-flex items-center gap-1.5" title={`About ${readingMinutes} min read`}>
+                  <span className="h-1 w-1 rounded-full bg-text-muted" aria-hidden="true" />
+                  {readingMinutes} min read
+                </span>
               </div>
             </header>
 
@@ -125,13 +137,11 @@ export default function PostDetail({
               <SocialShareToolbar title={post.title} labels />
             </div>
 
-            {/* Article body — serif reading column */}
+            {/* Article body — serif reading column, centred for balanced margins */}
             <div
-              className="article-body mt-7 font-serif"
+              className="article-body article-body--reading mt-7 font-serif"
               dangerouslySetInnerHTML={{ __html: post.content }}
             />
-
-            <ArticleReactions articleId={post.id} />
 
             {/* About Author */}
             <section aria-labelledby="about-author-heading" className="mt-8 border border-border bg-surface">
@@ -194,9 +204,6 @@ export default function PostDetail({
               </section>
             )}
 
-            {/* Comments — sign-in required to post */}
-            <Comments postId={post.id} postType={post.type === 'BLOG' ? 'BLOG' : 'NEWS'} />
-
             <div className="mt-10 text-center">
               <Link
                 href={backUrl}
@@ -211,6 +218,11 @@ export default function PostDetail({
           <aside className="h-fit lg:sticky lg:top-24" aria-label="Latest posts">
             <LatestPostsSidebar posts={latestPosts} currentPostId={post.id} />
           </aside>
+
+          {/* Comments sit at the very bottom, aligned with the article column */}
+          <div className="mt-2 lg:col-start-1 lg:mt-4">
+            <Comments postId={post.id} postType={post.type === 'BLOG' ? 'BLOG' : 'NEWS'} />
+          </div>
         </div>
       </div>
     </div>
