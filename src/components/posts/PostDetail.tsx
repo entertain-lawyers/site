@@ -4,6 +4,7 @@ import SocialShareToolbar from './SocialShareToolbar';
 import LatestPostsSidebar from './LatestPostsSidebar';
 import BrandSearchHeader from './BrandSearchHeader';
 import ArticleReactions from './ArticleReactions';
+import Comments from './Comments';
 import type { LatestPost } from './LatestPostsSidebar';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
 
@@ -103,9 +104,9 @@ export default function PostDetail({
               </div>
             </header>
 
-            {/* Hero with overlaid share strip, like the news-site article page */}
+            {/* Hero image */}
             {featuredImage && (
-              <figure className="relative border border-border bg-surface-alt">
+              <figure className="border border-border bg-surface-alt">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={featuredImage}
@@ -113,13 +114,16 @@ export default function PostDetail({
                   className="aspect-[16/9] w-full object-cover"
                   loading="eager"
                 />
-                <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-navy-dark/90 via-navy-dark/45 to-transparent px-3 pb-3 pt-8">
-                  <div className="[&_.social-share-toolbar>span]:text-white/80">
-                    <SocialShareToolbar title={post.title} orientation="horizontal" compact />
-                  </div>
-                </figcaption>
               </figure>
             )}
+
+            {/* Share bar — icon + label on every button so it reads clearly */}
+            <div id="share" className="mt-3 border border-border bg-surface p-3 sm:p-4">
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted">
+                Share this story
+              </p>
+              <SocialShareToolbar title={post.title} labels />
+            </div>
 
             {/* Article body — serif reading column */}
             <div
@@ -189,6 +193,9 @@ export default function PostDetail({
                 </ul>
               </section>
             )}
+
+            {/* Comments — sign-in required to post */}
+            <Comments postId={post.id} postType={post.type === 'BLOG' ? 'BLOG' : 'NEWS'} />
 
             <div className="mt-10 text-center">
               <Link
