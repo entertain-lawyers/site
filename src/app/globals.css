@@ -222,7 +222,8 @@
       var(--font-article, Roboto),
       Roboto,
       'Noto Sans Devanagari',
-      var(--font-chat-devanagari),
+      var(--font-mukta, Mukta),
+      var(--font-chat-devanagari, Mukta),
       Tahoma,
       sans-serif;
     font-size: 1rem;      /* 16px — matches the old site on mobile */
