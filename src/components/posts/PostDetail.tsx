@@ -127,11 +127,11 @@ export default function PostDetail({
   return (
     <div className="min-h-screen bg-background pb-14">
       <ReadingProgress targetId="article-body" />
-      <div className="mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8">
         {/* Masthead: brand + search */}
         <BrandSearchHeader />
 
-        <div className="grid grid-cols-1 items-start gap-8 pt-6 lg:grid-cols-[minmax(0,680px)_320px] lg:justify-center lg:gap-10">
+        <div className="grid grid-cols-1 items-start gap-8 pt-6 lg:grid-cols-[minmax(0,860px)_340px] lg:justify-center lg:gap-12">
           <article className="min-w-0">
             <Link
               href={backUrl}

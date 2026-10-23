@@ -216,7 +216,8 @@
      18px desktop / 16px mobile) with justified text so both edges line up.
      Scoped to the reading page — the rest of the site keeps its own font. */
   .article-body--reading {
-    max-width: 72ch;
+    /* Fill the article column: the old site ran ~830px wide (≈91ch). */
+    max-width: 92ch;
     margin-inline: auto;
     font-family:
       var(--font-article, Roboto),
