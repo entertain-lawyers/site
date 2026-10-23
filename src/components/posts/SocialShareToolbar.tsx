@@ -7,6 +7,8 @@ import { Link, Mail } from 'lucide-react';
 interface SocialShareToolbarProps {
   title: string;
   orientation?: 'horizontal' | 'vertical';
+  /** Tight single-row variant for image overlays (hides secondary icons on mobile). */
+  compact?: boolean;
 }
 
 const FacebookIcon = () => (
@@ -45,7 +47,7 @@ const RedditIcon = () => (
   </svg>
 );
 
-export default function SocialShareToolbar({ title, orientation = 'horizontal' }: SocialShareToolbarProps) {
+export default function SocialShareToolbar({ title, orientation = 'horizontal', compact = false }: SocialShareToolbarProps) {
   const [copied, setCopied] = useState(false);
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
@@ -114,13 +116,19 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal' }
     }
   ];
 
-  const containerClass = orientation === 'horizontal' 
-    ? 'flex flex-wrap items-center gap-2' 
-    : 'flex flex-col gap-2';
+  const containerClass = compact
+    ? 'flex flex-nowrap items-center gap-1.5'
+    : orientation === 'horizontal'
+      ? 'flex flex-wrap items-center gap-2'
+      : 'flex flex-col gap-2';
+
+  const secondary = new Set(['Reddit', 'Email']);
 
   return (
     <div className={`social-share-toolbar ${containerClass}`}>
-      <span className="text-sm font-bold text-text-muted mr-2">Share:</span>
+      <span className={`text-sm font-bold text-text-muted mr-2 ${compact ? 'hidden sm:inline' : ''}`}>
+        Share:
+      </span>
       {platforms.map((p) => (
         <a
           key={p.name}
@@ -128,7 +136,9 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal' }
           target="_blank"
           rel="noopener noreferrer"
           aria-label={`Share on ${p.name}`}
-          className={`min-w-[44px] min-h-[44px] p-2 rounded-full transition-colors flex items-center justify-center ${p.color}`}
+          className={`${compact ? 'min-w-[36px] min-h-[36px] p-1.5' : 'min-w-[44px] min-h-[44px] p-2'} rounded-full transition-colors flex items-center justify-center ${p.color} ${
+            compact && secondary.has(p.name) ? 'hidden sm:flex' : ''
+          }`}
           title={`Share on ${p.name}`}
         >
           {p.icon}
@@ -138,7 +148,7 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal' }
         onClick={handleCopyLink}
         aria-label="Copy Link"
         title="Copy Link"
-        className="min-w-[44px] min-h-[44px] p-2 rounded-full transition-colors flex items-center justify-center bg-slate-200 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-zinc-700 text-navy dark:text-white relative group"
+        className={`${compact ? 'min-w-[36px] min-h-[36px] p-1.5' : 'min-w-[44px] min-h-[44px] p-2'} rounded-full transition-colors flex items-center justify-center bg-slate-200 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-zinc-700 text-navy dark:text-white relative group`}
       >
         <Link className="w-4 h-4" />
         {copied && (
