@@ -11,6 +11,8 @@ interface CompatOptions {
   timeoutMs?: number;
   retries?: number;
   maxOutputTokens?: number;
+  /** Passed to reasoning-capable models (gpt-oss/qwen) to cut latency. */
+  reasoningEffort?: 'low' | 'medium' | 'high';
 }
 
 interface ChatMessage {
@@ -37,6 +39,10 @@ async function chatOnce(
         messages,
         temperature: opts.temperature ?? 0.2,
         max_tokens: opts.maxOutputTokens ?? 768,
+        // gpt-oss / qwen are reasoning models: without this they burn most of
+        // the token budget on hidden reasoning (slower, and with small
+        // max_tokens the visible answer can come back empty).
+        ...(opts.reasoningEffort ? { reasoning_effort: opts.reasoningEffort } : {}),
       }),
       signal: AbortSignal.timeout(opts.timeoutMs ?? 20_000),
     });
@@ -69,11 +75,18 @@ export async function groqChat(
   const apiKey = env.GROQ_API_KEY;
   if (!apiKey) return null;
   const model = env.GROQ_CHAT_MODEL || 'openai/gpt-oss-120b';
+  // Reasoning models think before answering; "low" keeps replies snappy and
+  // leaves the small max_tokens budget for the visible answer.
+  const configured = (process.env.GROQ_REASONING_EFFORT || 'low').toLowerCase();
+  const reasoningEffort: CompatOptions['reasoningEffort'] =
+    /gpt-oss|qwen/i.test(model) && /^(low|medium|high)$/.test(configured)
+      ? (configured as 'low' | 'medium' | 'high')
+      : undefined;
   return withRetry(
     () => chatOnce(GROQ_URL, apiKey, model, [
       { role: 'system', content: system },
       { role: 'user', content: user },
-    ], opts),
+    ], { ...opts, reasoningEffort }),
     opts.retries ?? 2,
     400
   );

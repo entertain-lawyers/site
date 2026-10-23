@@ -79,12 +79,14 @@ export async function upsertEmbedding(doc: UpsertDoc): Promise<void> {
       "summary" = EXCLUDED."summary",
       "vector" = EXCLUDED."vector"
   `;
+  invalidateEmbeddingCache();
 }
 
 export async function deleteEmbedding(source: string, refId: string): Promise<void> {
   await prisma.$executeRaw`
     DELETE FROM "AIEmbedding" WHERE "source" = ${source} AND "refId" = ${refId}
   `;
+  invalidateEmbeddingCache();
 }
 
 interface VectorRow {
@@ -99,7 +101,16 @@ interface VectorRow {
   vector: unknown;
 }
 
+/** In-process cache: the vector table is small and changes only during index builds. */
+const CACHE_TTL_MS = 5 * 60 * 1000;
+let cache: { docs: SemanticDoc[]; at: number } | null = null;
+
+export function invalidateEmbeddingCache(): void {
+  cache = null;
+}
+
 export async function loadEmbeddings(): Promise<SemanticDoc[]> {
+  if (cache && Date.now() - cache.at < CACHE_TTL_MS) return cache.docs;
   try {
     await ensureTableOnInit();
     const rows = await prisma.$queryRaw<VectorRow[]>`
@@ -107,7 +118,7 @@ export async function loadEmbeddings(): Promise<SemanticDoc[]> {
       FROM "AIEmbedding"
       LIMIT ${MAX_LOAD}
     `;
-    return rows
+    const docs = rows
       .map((r) => ({ row: r, vector: r.vector as unknown as number[] }))
       .filter(({ vector }) => Array.isArray(vector) && vector.every((n) => typeof n === 'number' && Number.isFinite(n)))
       .map(({ row, vector }) => ({
@@ -121,6 +132,8 @@ export async function loadEmbeddings(): Promise<SemanticDoc[]> {
         summary: row.summary ?? '',
         vector,
       }));
+    cache = { docs, at: Date.now() };
+    return docs;
   } catch (error) {
     // A missing/broken table must never take search or the chatbot down —
     // features degrade to heuristics / grounded fallback replies instead.
