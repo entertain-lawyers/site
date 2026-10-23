@@ -1,8 +1,8 @@
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
-import { canAccessResource } from '@/modules/entitlements/entitlement.service';
+import { canAccessResource, requiresSignIn } from '@/modules/entitlements/entitlement.service';
 import { CheckoutButtons } from '@/components/payments/CheckoutButtons';
 import { env } from '@/env';
 import { Metadata } from 'next';
@@ -65,6 +65,14 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
 
   if (!resource) {
     notFound();
+  }
+
+  // RBAC: sign-in gate — Law Notes, Case Laws and Old Questions require
+  // authentication before the content page is served. Anonymous visitors are
+  // asked to sign in and are returned here after login.
+  if (!session?.user && requiresSignIn(resource.type)) {
+    const callbackUrl = encodeURIComponent(`/resources/${id}`);
+    redirect(`/login?callbackUrl=${callbackUrl}`);
   }
 
   const typedResource = resource as any;

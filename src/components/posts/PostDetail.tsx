@@ -1,10 +1,11 @@
 import Link from 'next/link';
-import { Clock, Share2, User } from 'lucide-react';
+import { Clock, ListTree, Scale } from 'lucide-react';
 import SocialShareToolbar from './SocialShareToolbar';
 import LatestPostsSidebar from './LatestPostsSidebar';
 import BrandSearchHeader from './BrandSearchHeader';
 import Comments from './Comments';
-import { articleFont } from './article-font';
+import ReadingProgress from './ReadingProgress';
+import ArticleBody from './ArticleBody';
 import type { LatestPost } from './LatestPostsSidebar';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
 
@@ -30,11 +31,60 @@ export interface RelatedPost {
 const AUTHOR_BIO =
   'Entertain Lawyers is Nepal\u2019s trusted legal news platform, dedicated to delivering unbiased legal updates, court news, and informative content for legal professionals and the general public.';
 
+interface TocItem {
+  id: string;
+  text: string;
+  level: number;
+}
+
+/**
+ * Give every article heading a stable anchor and collect them for the
+ * "In this article" card. Long court/legal explainers benefit from a jump
+ * list, and the anchors make individual sections linkable from elsewhere.
+ */
+function buildTableOfContents(html: string): { html: string; items: TocItem[] } {
+  const items: TocItem[] = [];
+  const used = new Set<string>();
+
+  const withIds = html.replace(
+    /<h([23])([^>]*)>([\s\S]*?)<\/h\1>/gi,
+    (match, level: string, attrs: string, inner: string) => {
+      const text = inner
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
+        .replace(/&#8217;|&rsquo;/gi, '\u2019')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (!text) return match;
+
+      let id = attrs.match(/\bid=["']([^"']+)["']/i)?.[1];
+      let nextAttrs = attrs;
+      if (!id) {
+        const base =
+          text
+            .toLowerCase()
+            .replace(/[^a-z0-9\u0900-\u097F]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .slice(0, 60) || `section-${items.length + 1}`;
+        id = base;
+        let suffix = 2;
+        while (used.has(id)) id = `${base}-${suffix++}`;
+        nextAttrs = ` id="${id}"${attrs}`;
+      }
+      used.add(id);
+      items.push({ id, text, level: Number(level) });
+      return `<h${level}${nextAttrs}>${inner}</h${level}>`;
+    }
+  );
+
+  return { html: withIds, items };
+}
+
 /** Navy section bar used by About Author / Related Post / Latest Post. */
 function SectionBar({ id, children }: { id?: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2 border-b-2 border-gold/70 bg-navy px-4 py-2.5 dark:bg-navy-light">
-      <span className="h-1.5 w-1.5 rounded-full bg-gold" aria-hidden="true" />
+    <div className="bg-navy px-4 py-2.5 dark:bg-navy-light">
       <h2 id={id} className="text-[13px] font-bold uppercase tracking-[0.14em] text-white">
         {children}
       </h2>
@@ -58,6 +108,7 @@ export default function PostDetail({
   const featuredImage = post.featuredImage || extractFirstImage(post.content);
   const authorName = post.author.name?.trim() || 'Entertain Lawyers';
   const authorInitial = authorName.charAt(0).toUpperCase();
+  const { html: articleHtml, items: tocItems } = buildTableOfContents(post.content);
 
   const formatLongDate = (d: Date) =>
     d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -75,32 +126,36 @@ export default function PostDetail({
 
   return (
     <div className="min-h-screen bg-background pb-14">
-      <div className="mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-8">
+      <ReadingProgress targetId="article-body" />
+      <div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8">
         {/* Masthead: brand + search */}
         <BrandSearchHeader />
 
-        <div className="grid grid-cols-1 items-start gap-8 pt-6 lg:grid-cols-[minmax(0,680px)_320px] lg:justify-center lg:gap-10">
+        <div className="grid grid-cols-1 items-start gap-8 pt-6 lg:grid-cols-[minmax(0,860px)_340px] lg:justify-center lg:gap-12">
           <article className="min-w-0">
             <Link
               href={backUrl}
-              className="inline-flex min-h-[44px] items-center gap-2 rounded-full px-3 text-sm font-semibold text-text-muted transition-colors hover:bg-surface hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded text-sm font-semibold text-text-muted transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             >
               <span aria-hidden="true">&larr;</span> Back to {backLabel}
             </Link>
 
             <header className="pt-1">
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-gold">
-                {post.type}
-              </p>
+              <div className="flex items-center gap-3">
+                <span className="h-[3px] w-8 bg-gold" aria-hidden="true" />
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-gold">
+                  {post.type}
+                </p>
+              </div>
 
-              <h1 className="mt-2 text-[clamp(1.75rem,3.4vw,2.6rem)] font-black leading-[1.15] tracking-tight text-navy dark:text-white">
+              <h1 className="mt-3 text-balance text-[clamp(1.9rem,4vw,3rem)] font-black leading-[1.06] tracking-[-0.02em] text-navy dark:text-white">
                 {post.title}
               </h1>
 
-              <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-border pb-5 text-sm text-text-muted">
+              <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 pb-5 text-sm text-text-muted">
                 <span className="inline-flex items-center gap-2">
                   <span
-                    className="flex h-8 w-8 items-center justify-center rounded-full bg-navy text-[11px] font-bold text-white ring-2 ring-gold/30"
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-navy text-[11px] font-bold text-white"
                     aria-hidden="true"
                   >
                     {authorInitial}
@@ -116,11 +171,13 @@ export default function PostDetail({
                   {readingMinutes} min read
                 </span>
               </div>
+
+              <div className="mb-5 h-[3px] w-16 bg-gold" aria-hidden="true" />
             </header>
 
             {/* Hero image */}
             {featuredImage && (
-              <figure className="overflow-hidden rounded-xl border border-border bg-surface-alt shadow-sm">
+              <figure className="border border-border bg-surface-alt">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={featuredImage}
@@ -131,30 +188,53 @@ export default function PostDetail({
               </figure>
             )}
 
-            {/* Share bar — rounded pills with a visible label on every button */}
-            <div
-              id="share"
-              className="mt-4 rounded-xl border border-border bg-surface p-4 shadow-sm sm:p-5"
-            >
-              <p className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted">
-                <Share2 className="h-3.5 w-3.5 text-gold" aria-hidden="true" />
+            {/* Share bar — icon + label on every button so it reads clearly */}
+            <div id="share" className="mt-3 border border-border bg-surface p-3 sm:p-4">
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted">
                 Share this story
               </p>
               <SocialShareToolbar title={post.title} labels />
             </div>
 
+            {/* In-article navigation — only for posts that actually have
+                sections, so short news items stay uncluttered */}
+            {tocItems.length >= 2 && (
+              <nav
+                aria-labelledby="toc-heading"
+                className="mt-3 border border-border bg-surface p-4"
+              >
+                <h2
+                  id="toc-heading"
+                  className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted"
+                >
+                  <ListTree className="h-3.5 w-3.5 text-gold" aria-hidden="true" />
+                  In this article
+                </h2>
+                <ul className="mt-3 space-y-1.5">
+                  {tocItems.map((item) => (
+                    <li key={item.id} className={item.level === 3 ? 'pl-5' : undefined}>
+                      <a
+                        href={`#${item.id}`}
+                        className="group flex items-start gap-2 text-sm font-medium text-text-secondary transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                      >
+                        <span
+                          className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-gold/70"
+                          aria-hidden="true"
+                        />
+                        <span className="underline-offset-4 group-hover:underline">{item.text}</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            )}
+
             {/* Article body — old-site reading face (Roboto), justified so
                 both edges line up, centred column for balanced margins */}
-            <div
-              className={`article-body article-body--reading mt-8 ${articleFont.variable}`}
-              dangerouslySetInnerHTML={{ __html: post.content }}
-            />
+            <ArticleBody html={articleHtml} />
 
             {/* About Author */}
-            <section
-              aria-labelledby="about-author-heading"
-              className="mt-8 overflow-hidden rounded-xl border border-border bg-surface shadow-sm"
-            >
+            <section aria-labelledby="about-author-heading" className="mt-8 border border-border bg-surface">
               <SectionBar id="about-author-heading">About Author</SectionBar>
               <div className="flex items-start gap-4 p-5">
                 <div
@@ -172,19 +252,16 @@ export default function PostDetail({
 
             {/* Related Post */}
             {relatedPosts.length > 0 && (
-              <section
-                aria-labelledby="related-heading"
-                className="mt-8 overflow-hidden rounded-xl border border-border bg-surface shadow-sm"
-              >
+              <section aria-labelledby="related-heading" className="mt-8 border border-border bg-surface">
                 <SectionBar id="related-heading">Related Post</SectionBar>
-                <ul className="divide-y divide-border">
+                <ul className="mt-3 grid gap-3 p-4 sm:grid-cols-2">
                   {relatedPosts.map((rp) => (
-                    <li key={rp.id}>
+                    <li key={rp.id} className="border border-border bg-surface">
                       <Link
                         href={rp.url}
-                        className="group flex items-start gap-4 p-3 transition-colors hover:bg-surface-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gold"
+                        className="group flex h-full flex-col transition-colors hover:border-gold/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gold"
                       >
-                        <div className="h-[72px] w-[120px] shrink-0 overflow-hidden rounded-lg border border-border bg-surface-alt sm:h-[88px] sm:w-[150px]">
+                        <div className="aspect-[16/9] w-full overflow-hidden bg-surface-alt">
                           {rp.featuredImage ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
                             <img
@@ -194,18 +271,18 @@ export default function PostDetail({
                               loading="lazy"
                             />
                           ) : (
-                            <div className="flex h-full w-full items-center justify-center">
-                              <User className="h-6 w-6 text-black/10 dark:text-white/10" aria-hidden="true" />
+                            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-navy to-navy-light">
+                              <Scale className="h-8 w-8 text-gold/50" aria-hidden="true" />
                             </div>
                           )}
                         </div>
-                        <div className="min-w-0">
-                          <h3 className="text-sm font-bold leading-snug text-navy transition-colors group-hover:text-gold dark:text-white sm:text-[15px]">
+                        <div className="flex flex-1 flex-col p-3">
+                          <h3 className="text-sm font-bold leading-snug text-navy transition-colors group-hover:text-gold dark:text-white">
                             {rp.title}
                           </h3>
                           <time
                             dateTime={rp.createdAt.toISOString()}
-                            className="mt-1.5 block text-xs font-medium text-text-muted"
+                            className="mt-auto block pt-2 text-xs font-medium text-text-muted"
                           >
                             {formatShortDate(rp.createdAt)}
                           </time>
@@ -220,7 +297,7 @@ export default function PostDetail({
             <div className="mt-10 text-center">
               <Link
                 href={backUrl}
-                className="inline-flex min-h-[46px] items-center justify-center gap-2 rounded-full border border-border bg-surface px-7 text-sm font-bold text-navy shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-gold hover:text-gold hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:text-white"
+                className="inline-flex min-h-[46px] items-center justify-center gap-2 border border-border bg-surface px-7 text-sm font-bold text-navy transition-colors hover:border-gold hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:text-white"
               >
                 <span aria-hidden="true">&larr;</span> Back to {backLabel}
               </Link>

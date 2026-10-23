@@ -135,16 +135,13 @@ export default function Comments({ postId, postType = 'NEWS' }: { postId: string
   };
 
   return (
-    <section
-      aria-labelledby="comments-heading"
-      className="mt-8 scroll-mt-24 overflow-hidden rounded-xl border border-border bg-surface shadow-sm"
-    >
-      <div className="flex items-center justify-between gap-3 border-b-2 border-gold/70 bg-navy px-4 py-2.5 dark:bg-navy-light">
+    <section aria-labelledby="comments-heading" className="mt-8 scroll-mt-24 border border-border bg-surface">
+      <div className="flex items-center justify-between gap-3 bg-navy px-4 py-2.5 dark:bg-navy-light">
         <h2
           id="comments-heading"
           className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.14em] text-white"
         >
-          <MessageSquare className="h-4 w-4 text-gold" aria-hidden="true" />
+          <MessageSquare className="h-4 w-4" aria-hidden="true" />
           Comments
         </h2>
         <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold text-white">

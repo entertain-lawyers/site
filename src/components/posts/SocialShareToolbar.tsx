@@ -55,6 +55,8 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
   const pathname = usePathname();
   
   useEffect(() => {
+    // The share URL needs window.location, which is unavailable during SSR.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 

@@ -41,7 +41,7 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
   const session = await auth();
 
   if (!session?.user?.id) {
-    redirect(`/api/auth/signin?callbackUrl=/read/${resourceId}`);
+    redirect(`/login?callbackUrl=${encodeURIComponent(`/read/${resourceId}`)}`);
   }
 
   const resource = await prisma.resource.findUnique({
