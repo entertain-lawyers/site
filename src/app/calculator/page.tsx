@@ -166,7 +166,7 @@ export default function CalculatorPage() {
           {/* Need Consultation Bottom Banner */}
           <div className="rounded-2xl sm:rounded-3xl bg-gradient-to-br from-surface-alt to-surface border border-border p-6 sm:p-8 text-center space-y-3 sm:space-y-4">
             <h3 className="text-[clamp(1.125rem,2.5vw,1.5rem)] font-black text-navy dark:text-white text-balance">
-              Have any Question about court fee or want to suit a file?
+              Have any questions about court fees or want to file a suit?
             </h3>
             <p className="text-sm text-text-secondary max-w-lg mx-auto text-pretty">
               Our advocates assist in evaluating claim valuation, drafting civil plaints, defending counter-claims, and representing clients in courts across Nepal.
