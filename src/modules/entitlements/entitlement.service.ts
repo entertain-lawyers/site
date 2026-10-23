@@ -1,9 +1,24 @@
 import { prisma } from "@/lib/prisma";
 
 /**
- * Core Entitlement Evaluation Service
- * Evaluates whether an authenticated user has access to a specific resource.
+ * Core Access Control Policy (RBAC)
+ *
+ * 1. LAW_NOTE, CASE_LAW and OLD_QUESTION content is sign-in gated:
+ *    anonymous visitors are asked to sign in before the content page is served.
+ * 2. Once signed in, RBAC decides content access:
+ *    - resource type OTHER is browsable by anyone
+ *    - free resources are open to any authenticated user (USER / EDITOR / ADMIN)
+ *    - premium resources require an active purchase or subscription entitlement;
+ *      EDITOR and ADMIN roles get lifetime access for review and administration.
  */
+
+/** Resource types that require sign-in before the content page is served. */
+export const SIGN_IN_GATED_RESOURCE_TYPES = ["LAW_NOTE", "CASE_LAW", "OLD_QUESTION"] as const;
+
+/** Whether a resource type must be gated behind sign-in. */
+export function requiresSignIn(resourceType: string): boolean {
+  return (SIGN_IN_GATED_RESOURCE_TYPES as readonly string[]).includes(resourceType);
+}
 export async function canAccessResource(userId: string, resourceId: string): Promise<boolean> {
   const resource = await prisma.resource.findUnique({
     where: { id: resourceId },
@@ -16,13 +31,13 @@ export async function canAccessResource(userId: string, resourceId: string): Pro
   // 2. Free resources are accessible to any authenticated user
   if (!resource.isPremium) return true;
 
-  // 3. Admin users have lifetime access to all premium resources
+  // Privileged roles (EDITOR / ADMIN) have lifetime access to all premium resources
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { role: true }
   });
 
-  if (user?.role === "ADMIN") return true;
+  if (user?.role === "ADMIN" || user?.role === "EDITOR") return true;
 
   const now = new Date();
 
