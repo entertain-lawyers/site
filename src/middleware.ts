@@ -9,7 +9,19 @@ export default auth((req) => {
   const nextUrl = req.nextUrl;
 
   const isAuthRoute = nextUrl.pathname.startsWith('/login') || nextUrl.pathname.startsWith('/register');
-  const isProtectedRoute = nextUrl.pathname.startsWith('/dashboard') || nextUrl.pathname.startsWith('/admin');
+  // Law notes, case laws and old questions are member content: the study
+  // listing and the secure reader require an account. Resource detail pages
+  // apply the same type-aware check server-side (see /resources/[id]).
+  const studyType = nextUrl.searchParams.get('type');
+  const isStudyContent =
+    nextUrl.pathname.startsWith('/study') &&
+    !!studyType &&
+    ['LAW_NOTE', 'CASE_LAW', 'OLD_QUESTION'].includes(studyType);
+  const isProtectedRoute =
+    nextUrl.pathname.startsWith('/dashboard') ||
+    nextUrl.pathname.startsWith('/admin') ||
+    nextUrl.pathname.startsWith('/read') ||
+    isStudyContent;
   const isAdminRoute = nextUrl.pathname.startsWith('/admin');
 
   if (isAuthRoute) {

@@ -180,6 +180,24 @@ Variables should be configured in `.env.local`. Refer to `.env.example`:
 | `npm run build` | Build the Next.js production app |
 | `npm run start` | Start the production server |
 | `npm run lint` | Run ESLint |
+| `npm run ai:index` | Rebuild the Kanun Saathi AI index (`-- --reset`, `-- --only=team`) |
+
+### AI Assistant (Kanun Saathi)
+
+The floating chatbot is a grounded RAG assistant, not a fine-tuned model. It answers from:
+
+- a **deterministic site-facts layer** (team profiles, contact details, services, pricing, billing,
+  downloads, privacy, navigation, semester subjects and follow-up questions, answered directly
+  from the database in English or Nepali), and
+- a **vector index** of site pages, team profiles, FAQs, plans, semesters, study resources,
+  posts, publications, events and WordPress content, with hybrid title/name retrieval and a
+  relevance gate so unrelated pages are never cited.
+
+Legal answers stay grounded: if a topic is not in the index, the assistant says so instead of
+answering from the model's general knowledge.
+
+Rebuild the index from **Admin → System → AI Index** (`/admin/ai`) or with `npm run ai:index`.
+Full details, content sources and testing questions: [`docs/AI_KNOWLEDGE_BASE.md`](docs/AI_KNOWLEDGE_BASE.md).
 
 **Internal Migration Scripts (`scripts/`):**
 - `migration.js` / `migration-media.js` / `migration-redirects.js` / `migration-report.js`: Tooling built to migrate legacy WordPress data into the new Prisma schema.

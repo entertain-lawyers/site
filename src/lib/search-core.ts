@@ -11,6 +11,7 @@ import { rateLimit } from '@/lib/rate-limit';
 import { geminiEmbed, isAiEnabled } from '@/lib/ai/gemini';
 import { normalizeSearchQuery } from '@/lib/ai/normalize';
 import { searchEmbeddings } from '@/lib/ai/semantic';
+import { SITE_KNOWLEDGE } from '@/lib/ai/site-knowledge';
 
 /**
  * Core site-wide search, shared by the /api/search endpoint and the
@@ -407,7 +408,7 @@ export async function runSearch(q: string, ip: string): Promise<SearchResponse> 
     return { query: q, total: 0, groups: [], aiUsed: false };
   }
 
-  const [resources, publications, events, wpEn, wpNe] = await Promise.allSettled([
+  const [resources, publications, events, teamMembers, wpEn, wpNe] = await Promise.allSettled([
     // 1. Study materials (Prisma) — translit-matched in memory
     prisma.resource.findMany({
       where: { status: 'PUBLISHED' },
@@ -432,7 +433,13 @@ export async function runSearch(q: string, ip: string): Promise<SearchResponse> 
       orderBy: { eventDate: 'desc' },
       take: 200,
     }),
-    // 4. WordPress (both EN and NP sites)
+    // 4. Team members (so "Sushma Acharya" finds her profile)
+    prisma.teamMember.findMany({
+      where: { isPublished: true },
+      select: { id: true, name: true, slug: true, designation: true },
+      orderBy: { displayOrder: 'asc' },
+    }),
+    // 5. WordPress (both EN and NP sites)
     searchWordPress('en' as WordPressLanguage, q, 6),
     searchWordPress('ne' as WordPressLanguage, q, 6),
   ]);
@@ -477,6 +484,33 @@ export async function runSearch(q: string, ip: string): Promise<SearchResponse> 
           }))
       : [];
 
+  const teamHits: SearchHit[] =
+    teamMembers.status === 'fulfilled'
+      ? teamMembers.value
+          .filter((m) => searchMatches(m.name, q) || searchMatches(m.designation, q))
+          .slice(0, 6)
+          .map((m) => ({
+            id: m.id,
+            title: m.name,
+            meta: m.designation,
+            url: `/team/${m.slug}`,
+            category: 'team',
+          }))
+      : [];
+
+  // Static site pages (about, contact, pricing…) benefit from search too.
+  const siteHits: SearchHit[] = SITE_KNOWLEDGE.filter(
+    (d) => d.refId !== 'site-team-roster' && searchMatches(d.title, q)
+  )
+    .slice(0, 3)
+    .map((d) => ({
+      id: d.refId,
+      title: d.title,
+      meta: 'Entertain Lawyers',
+      url: d.url,
+      category: d.category,
+    }));
+
   // ---- AI layer: LLM query normalization + semantic matching --------------
   // Degrades gracefully — without a Gemini key everything here is a no-op and
   // the response keeps exactly the same shape as before.
@@ -503,7 +537,7 @@ export async function runSearch(q: string, ip: string): Promise<SearchResponse> 
     //    search results are weak — strong result sets skip the LLM pass
     //    (the free-tier chat budget is shared with the chatbot).
     const baseTotal =
-      studyHits.length + publicationHits.length + eventHits.length +
+      studyHits.length + publicationHits.length + eventHits.length + teamHits.length + siteHits.length +
       (wpEn.status === 'fulfilled' ? wpEn.value.length : 0) +
       (wpNe.status === 'fulfilled' ? wpNe.value.length : 0);
     const keywords = baseTotal < 3 ? await normalizeSearchQuery(q) : null;
@@ -571,7 +605,7 @@ export async function runSearch(q: string, ip: string): Promise<SearchResponse> 
     //    every query, whatever the user typed.
     const qvec = await embedQueryCached(keywords?.length ? [q, ...keywords].join(' ') : q);
     if (qvec) {
-      const candidates = await searchEmbeddings(qvec, { limit: 60, minScore: 0.2 });
+      const candidates = await searchEmbeddings(qvec, { limit: 60, minScore: 0.2, queryText: q });
       semanticDocs = candidates
         .filter(({ doc }) => searchMatches(`${doc.title} ${doc.summary}`, q))
         .slice(0, 4);
@@ -581,7 +615,7 @@ export async function runSearch(q: string, ip: string): Promise<SearchResponse> 
 
   // ---- Merge AI extras into the base groups (deduped by URL) ---------------
   const seenUrls = new Set<string>();
-  for (const hit of [...studyHits, ...publicationHits, ...eventHits, ...(wpEn.status === 'fulfilled' ? wpEn.value : []), ...(wpNe.status === 'fulfilled' ? wpNe.value : [])]) {
+  for (const hit of [...studyHits, ...publicationHits, ...eventHits, ...teamHits, ...siteHits, ...(wpEn.status === 'fulfilled' ? wpEn.value : []), ...(wpNe.status === 'fulfilled' ? wpNe.value : [])]) {
     seenUrls.add(hit.url);
   }
   const dedupe = (hits: SearchHit[]): SearchHit[] =>
@@ -612,6 +646,8 @@ export async function runSearch(q: string, ip: string): Promise<SearchResponse> 
 
   const groups: { label: string; items: SearchHit[] }[] = [
     ...(studyGroup.length ? [{ label: 'Study Materials', items: studyGroup }] : []),
+    ...(teamHits.length ? [{ label: 'Team', items: teamHits }] : []),
+    ...(siteHits.length ? [{ label: 'Entertain Lawyers', items: siteHits }] : []),
     ...(wpMerged.length ? groupWpHits(wpMerged) : []),
     ...(publicationGroup.length ? [{ label: 'Publications', items: publicationGroup }] : []),
     ...(eventGroup.length ? [{ label: 'Events', items: eventGroup }] : []),
