@@ -1,5 +1,7 @@
 import { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
+import { auth } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 import { unstable_cache } from 'next/cache';
 import StudySelector from '@/components/study/StudySelector';
 import StudyCardNavigator from '@/components/study/StudyCardNavigator';
@@ -64,6 +66,18 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
   const selectedUnitId = searchParams.unit;
   const selectedType = searchParams.type as ResourceType | undefined;
   const searchQuery = searchParams.q;
+
+  // Law notes, case laws and old questions are member content. The general
+  // study browser stays public so visitors can see the syllabus.
+  const isMemberContent =
+    !!selectedType && ['LAW_NOTE', 'CASE_LAW', 'OLD_QUESTION'].includes(selectedType);
+  if (isMemberContent) {
+    const session = await auth();
+    if (!session?.user) {
+      const callbackUrl = `/study${searchParams.type ? `?type=${searchParams.type}` : ''}`;
+      redirect(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+    }
+  }
 
   // 1. Fetch reference data for selectors
   const getCachedSemesters = unstable_cache(
