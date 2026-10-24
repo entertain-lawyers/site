@@ -47,5 +47,5 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ id:
 
   const latestPosts = await getLatestPosts(wpId);
 
-  return <PostDetail post={post} backUrl="/news" backLabel="News" relatedPosts={relatedPosts} latestPosts={latestPosts} />;
+  return <PostDetail post={post} backUrl="/news" backLabel="News" relatedPosts={relatedPosts} latestPosts={latestPosts} modernType />;
 }

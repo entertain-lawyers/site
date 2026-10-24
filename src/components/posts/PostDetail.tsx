@@ -52,7 +52,7 @@ function buildTableOfContents(html: string): { html: string; items: TocItem[] } 
       const text = inner
         .replace(/<[^>]+>/g, ' ')
         .replace(/&nbsp;/gi, ' ')
-        .replace(/&amp;/gi, '&')
+        .replace(/&/gi, '&')
         .replace(/&#8217;|&rsquo;/gi, '\u2019')
         .replace(/\s+/g, ' ')
         .trim();
@@ -84,7 +84,7 @@ function buildTableOfContents(html: string): { html: string; items: TocItem[] } 
 /** Navy section bar used by About Author / Related Post / Latest Post. */
 function SectionBar({ id, children }: { id?: string; children: React.ReactNode }) {
   return (
-    <div className="bg-navy px-4 py-2.5 dark:bg-navy-light">
+    <div className="bg-navy dark:bg-navy-light px-4 py-2.5">
       <h2 id={id} className="text-[13px] font-bold uppercase tracking-[0.14em] text-white">
         {children}
       </h2>
@@ -98,12 +98,15 @@ export default function PostDetail({
   backLabel,
   relatedPosts = [],
   latestPosts = [],
+  modernType = false,
 }: {
   post: Post;
   backUrl: string;
   backLabel: string;
   relatedPosts?: RelatedPost[];
   latestPosts?: LatestPost[];
+  /** Opt in to the refreshed typography (scoped so other sections stay on the legacy face). */
+  modernType?: boolean;
 }) {
   const featuredImage = post.featuredImage || extractFirstImage(post.content);
   const authorName = post.author.name?.trim() || 'Entertain Lawyers';
@@ -125,7 +128,7 @@ export default function PostDetail({
   const readingMinutes = Math.max(1, Math.round(wordCount / 200));
 
   return (
-    <div className="min-h-screen bg-background pb-14">
+    <div className={`min-h-screen bg-background pb-14${modernType ? ' el-type-modern' : ''}`}>
       <ReadingProgress targetId="article-body" />
       <div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8">
         {/* Masthead: brand + search */}
@@ -135,7 +138,7 @@ export default function PostDetail({
           <article className="min-w-0">
             <Link
               href={backUrl}
-              className="inline-flex min-h-[44px] items-center gap-2 rounded text-sm font-semibold text-text-muted transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              className="inline-flex min-h-[44px] items-center gap-2 rounded text-sm font-semibold text-text-muted transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
             >
               <span aria-hidden="true">&larr;</span> Back to {backLabel}
             </Link>
@@ -297,7 +300,7 @@ export default function PostDetail({
             <div className="mt-10 text-center">
               <Link
                 href={backUrl}
-                className="inline-flex min-h-[46px] items-center justify-center gap-2 border border-border bg-surface px-7 text-sm font-bold text-navy transition-colors hover:border-gold hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-background dark:text-white"
+                className="inline-flex min-h-[46px] items-center justify-center gap-2 border border-border bg-surface px-7 text-sm font-bold text-navy transition-colors hover:border-gold hover:text-gold dark:text-white"
               >
                 <span aria-hidden="true">&larr;</span> Back to {backLabel}
               </Link>

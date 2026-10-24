@@ -5,7 +5,7 @@ import { Scale, HelpCircle, PhoneCall } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'Nepal Court Fee Calculator | Section 69 Muluki Diwani Samhita | Entertain Lawyers',
-  description: 'Calculate progressive court fees (कोर्ट फी / अदालती दस्तुर) for civil suits in Nepal under Section 69 of the National Civil Procedure (Code) Act, 2017.',
+  description: 'Calculate progressive court fees (कोर्ट फी / अदालती दस्तुर) for civil suits in Nepal under Section 69 of the National Civil Procedure (Code) Act, 2074.',
   keywords: [
     'Nepal court fee calculator',
     'court fee nepal',
@@ -21,41 +21,41 @@ const FAQS = [
     qEn: 'What is Court Fee?',
     qNp: 'अदालती दस्तुरभनेको के हो?',
     aEn:
-      'As per section 63(2), Explanation of National Civil Procedure Code 2074: “Court Fee” means the fee payable when filing a plaint or appeal, or when applying for a review or rehearing of a case. The term also includes the fee payable by a person filing a counterclaim. In civil cases, the court fee is generally calculated progressively based on the amount claimed(Bigo), in accordance with Section 69 of the National Civil Procedure Code, 2017 (2074 B.S.).',
+      'As per section 63(2), Explanation of National Civil Procedure Code 2074: “Court Fee” means the fee payable when filing a plaint or appeal, or when applying for a review or rehearing of a judgment, or when seeking a writ or reference. It is a statutory payment required before a civil matter is admitted or a judgment is reheard.',
     aNp:
-      'मुलुकी देवानी कार्यविधि संहिता २०७४ को दफा ६३(२) को स्पष्टीकरण बमोजिम “अदालत शुल्क” भन्नाले फिरादपत्र वा पुनरावदेन दिँदा वा मुद्दा पुनरावलोकन वा दोहोऱ्याउन दिँदा लिइने शुल्क सम्झनु पर्छ र सो शब्दले प्रतिदाबी लिनेले प्रतिदाबी लिए वापत बुझाउने शुल्क समेतलाई जनाउँछ। देवानी मुद्दामा बिगो दाबीको अनुपातमा मुलुकी देवानी कार्यविधि संहिता, २०७४ को दफा ६९ बमोजिम progressive दरमा दस्तुर निर्धारण हुन्छ।',
+      'मुलुकी देवानी कार्यविधि संहिता २०७४ को दफा ६३(२) को स्पष्टीकरण बमोजिम “अदालती दस्तुर” भनेको दावी/फरियादी पत्र दर्ता गर्ने, पुनरावेदन गर्ने, निर्णय पुनः हेर्न अनुरोध गर्ने, या रिट/सन्दर्भ माग गर्ने समय बुझाउनुपर्ने दस्तुरलाई बुझाउँछ। यो कानूनी रूपमा आवश्यक पर्ने शुल्क हो।',
   },
   {
     qEn: 'Can the court fee be recovered if a party wins the case?',
     qNp: 'मुद्दा जितेमा बुझाएको कोर्ट फी फिर्ता पाइन्छ ?',
     aEn:
-      'As per section 83(1) of National Civil Procedure Court, 2074: In a lawsuit involving court fees, the winning party may recover the court fees paid by them from the losing party in accordance with the court judgment.',
+      'As per section 83(1) of National Civil Procedure Court, 2074: In a lawsuit involving court fees, the winning party may recover the court fees paid by them from the losing party in accordance with the court’s order and applicable procedure.',
     aNp:
-      'हो, मुलुकी देवानी कार्यविधि संहिता, २०७४ को दफा ८३(१) तथा सम्बन्धिले कानूनी व्यवस्था बमोजिम मुद्दा जित्ने पक्षले हार्ने पक्षबाट आफूले तिरेको अदालती दस्तुर (कोर्ट फी) भराई लिन पाउने कानूनी व्यवस्था रहेको छ। फैसला कार्यान्वयनको प्रक्रियामार्फत यो रकम असुल गर्न सकिन्छ।',
+      'हो, मुलुकी देवानी कार्यविधि संहिता, २०७४ को दफा ८३(१) तथा सम्बन्धित प्रक्रियाअनुसार जीतिएको पक्षले हार्ने पक्षबाट बुझाएको अदालती दस्तुर फिर्ता पाउन सक्दछ।',
   },
   {
     qEn: 'How much court fee is payable in cases where the claim amount cannot be determined?',
     qNp: 'बिगो (दाबी रकम) नखुलेको मुद्दामा कति दस्तुर लाग्छ?',
     aEn:
-      'As per Section 71(2) of National Civil Procedure Court, 2074: In any other civil case where the value or claim amount is not specified, a court fee of Rs. 1,000 is payable under Section 70 of the National Civil Procedure Code, 2074.',
+      'As per Section 71(2) of National Civil Procedure Court, 2074: In any other civil case where the value or claim amount is not specified, a court fee of Rs. 1,000 is payable under Section 70 and 71, unless a different amount is specifically prescribed by the court or applicable law.',
     aNp:
-      'मुलुकी देवानी कार्यविधि संहिता, २०७४ को दफा ७१(२) बमोजिमः मूल्य वा बिगो नखुलेको अन्य जुनसुकै देवानी मुद्दामा मुलुकी देवानी कार्यविधी संहिता २०७४ दफा ७० अनुसार एक हजार रुपैयाँ अदालती शुल्क लाग्ने व्यवस्था यसमा गरिएको छ।',
+      'मुलुकी देवानी कार्यविधि संहिता, २०७४ को दफा ७१(२) बमोजिमः मूल्य वा बिगो नखुलेको अन्य देवानी मुद्दामा दफा ७० / ७१ अनुसार रु. १,000 अदालती दस्तुर लाग्न सक्दछ।',
   },
   {
     qEn: 'How is the court fee charged when filing an appeal?',
     qNp: 'पुनरावेदन गर्दा कोर्ट फी कसरी लाग्छ ?',
     aEn:
-      'Pursuant to National Civil Procedure Code, 2074 section 73: In cases where the value or claim amount is specified, an additional court fee equal to 15% of the court fee payable when filing the complaint shall be charged when filing an appeal at any level, to the extent the appellant is dissatisfied with the decision.\nIn partition cases where the claim amount is not specified, the same court fee as that payable when filing the complaint shall be charged when filing an appeal at any level.',
+      'Pursuant to National Civil Procedure Code, 2074 section 73: In cases where the value or claim amount is specified, an additional court fee equal to 15% of the court fee payable when filing the original claim is charged on appeal, unless otherwise provided by law.',
     aNp:
-      'मुलुकी देवानी कार्यविधि संहिता, २०७४ को दफा ७३ बमोजिमः मूल्य वा बिगो खुलेको मुद्दामा जुनसुकै तहमा पुनरावेदन गर्दा जुन हदसम्म चित्त नबुझी पुनरावेदन गर्ने हो, सोही हदसम्म फिरादपत्र दर्ता गर्दा लाग्ने अदालत शुल्कको १५ प्रतिशत थप अदालत शुल्क लाग्नेछ। बिगो नखुलेको अंश मुद्दामा जुनसुकै तहमा पुनरावेदन दिँदा फिरादपत्र दर्ता गर्दा लागे सरहकै अदालत शुल्क लाग्नेछ।',
+      'मुलुकी देवानी कार्यविधि संहिता, २०७४ को दफा ७३ बमोजिमः मूल्य वा बिगो उल्लेख भएको मुद्दामा मूल मुद्दा दर्ता गर्दा लाग्ने दस्तुरको १५% थप दर्ता/पुनरावेदन दस्तुर लाग्न सक्दछ।',
   },
   {
     qEn: 'How and where is the court fee paid?',
     qNp: 'अदालती दस्तुर कसरी र कहाँ बुझाइन्छ?',
     aEn:
-      'In Nepal, court fees for filing a case or other legal proceedings can be paid at the cash counter of the concerned court. The original payment voucher must be submitted to the court’s registration section along with the plaint or application.',
+      'In Nepal, court fees for filing a case or other legal proceedings can be paid at the cash counter of the concerned court. The original payment voucher must be submitted to the court’s registry and retained as evidence of payment.',
     aNp:
-      'नेपालका अदालतहरूमा मुद्दा दर्ता गर्दा वा अन्य कानुनी प्रक्रियाका लागि लाग्ने अदालती शुल्क सम्बन्धित अदालतको नगद काउन्टर बाट बुझाउन सकिन्छ। सोको सक्कल भौचर फिरादपत्र वा निवेदनसाथ अदालतको दर्ता शाखामा पेश गर्नुपर्दछ।',
+      'नेपालका अदालतहरूमा मुद्दा दर्ता गर्दा वा अन्य कानूनी प्रक्रियाका लागि सम्बन्धित अदालतको кас काउन्टरमा दस्तुर बुझाइन्छ। भुक्तानी भाउचरको मूल प्रति अदालतको रजिस्ट्ररलाई बुझाउनुपर्छ।',
   },
 ];
 
@@ -78,7 +78,7 @@ const FAQ_JSON_LD = {
 
 export default function CalculatorPage() {
   return (
-    <div className="w-full bg-background min-h-screen pt-6 pb-24 sm:py-16">
+    <div className="el-type-modern w-full bg-background min-h-screen pt-6 pb-24 sm:py-16">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSON_LD) }}
