@@ -28,8 +28,12 @@ export default function LatestPostsSidebar({
   if (items.length === 0) return null;
 
   return (
-    <nav aria-labelledby="latest-posts-heading" className="border border-border bg-surface">
-      <div className="bg-navy px-4 py-2.5 dark:bg-navy-light">
+    <nav
+      aria-labelledby="latest-posts-heading"
+      className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm"
+    >
+      <div className="flex items-center gap-2 border-b-2 border-gold/70 bg-navy px-4 py-2.5 dark:bg-navy-light">
+        <span className="h-1.5 w-1.5 rounded-full bg-gold" aria-hidden="true" />
         <h2
           id="latest-posts-heading"
           className="text-[13px] font-bold uppercase tracking-[0.14em] text-white"
@@ -45,7 +49,7 @@ export default function LatestPostsSidebar({
               href={p.url}
               className="group flex items-start gap-3 p-3 transition-colors hover:bg-surface-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gold"
             >
-              <div className="h-16 w-[92px] shrink-0 overflow-hidden border border-border bg-surface-alt">
+              <div className="h-16 w-[92px] shrink-0 overflow-hidden rounded-lg border border-border bg-surface-alt">
                 {p.featuredImage ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
@@ -60,7 +64,7 @@ export default function LatestPostsSidebar({
                   </div>
                 )}
               </div>
-              <h3 className="text-[13px] font-bold leading-snug text-navy transition-colors group-hover:text-gold dark:text-white">
+              <h3 className="text-sm font-bold leading-snug text-navy transition-colors group-hover:text-gold dark:text-white">
                 {p.title}
               </h3>
             </Link>

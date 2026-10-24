@@ -26,7 +26,7 @@ const DEV_CONSONANT: Record<string, string> = {
   '\u091F': 't',  '\u0920': 'th', '\u0921': 'd',  '\u0922': 'dh', '\u0923': 'n',
   '\u0924': 't',  '\u0925': 'th', '\u0926': 'd',  '\u0927': 'dh', '\u0928': 'n',
   '\u092A': 'p',  '\u092B': 'ph', '\u092C': 'b',  '\u092D': 'bh', '\u092E': 'm',
-  '\u092F': 'y',  '\u0930': 'r',  '\u0932': 'l',  '\u0933': 'l',  '\u0935': 'v',
+  '\u092F': 'y',  '\u0930': 'r', '\u0932': 'l', '\u0933': 'l', '\u0935': 'v',
   '\u0936': 'sh', '\u0937': 'sh', '\u0938': 's',  '\u0939': 'h',
 };
 
@@ -218,18 +218,32 @@ function normalizePhrase(input: string): string {
 
 const WORD_CHAR = '\\p{L}\\p{M}\\p{N}';
 
-/** Word-boundary phrase match (no mid-word hits like "fir" → "first"). */
+/**
+ * Word-boundary phrase match (no mid-word hits like "fir" → "first").
+ * This is intentionally stricter than a full fuzzy match so the search stays
+ * relevant even when the query matches just a single real word in a long title.
+ */
 function phraseMatch(title: string, query: string): boolean {
-  const t = normalizePhrase(title);
-  const q = normalizePhrase(query);
-  if (!t || !q) return false;
-  if (t === q) return true;
+  const titleText = normalizePhrase(title);
+  const queryText = normalizePhrase(query);
+  if (!titleText || !queryText) return false;
+  if (titleText === queryText) return true;
 
-  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  // Short queries must hit a whole word; longer ones may take a suffix
-  // ("contract" → "contracts").
-  const end = q.length < 5 ? `(?=$|[^${WORD_CHAR}])` : '';
-  return new RegExp(`(^|[^${WORD_CHAR}])${escaped}${end}`, 'u').test(t);
+  const chunks = queryText.split(/\s+/).filter(Boolean);
+  if (chunks.length === 0) return false;
+
+  // Match the whole query as a phrase, but tolerate punctuation/hyphen splits.
+  const phrase = chunks.map((chunk) => chunk.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('\\s+');
+  const regex = new RegExp(`(^|[^${WORD_CHAR}])${phrase}(?=$|[^${WORD_CHAR}])`, 'u');
+  if (regex.test(titleText)) return true;
+
+  // short single-word searches should stay word-boundary only, never mid-word.
+  if (chunks.length === 1) {
+    const escaped = chunks[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`(^|[^${WORD_CHAR}])${escaped}(?=$|[^${WORD_CHAR}])`, 'u').test(titleText);
+  }
+
+  return false;
 }
 
 /**

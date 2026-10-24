@@ -1,9 +1,11 @@
 import Link from 'next/link';
-import { Clock, User } from 'lucide-react';
+import { Clock, ListTree, Scale } from 'lucide-react';
 import SocialShareToolbar from './SocialShareToolbar';
 import LatestPostsSidebar from './LatestPostsSidebar';
 import BrandSearchHeader from './BrandSearchHeader';
-import ArticleReactions from './ArticleReactions';
+import Comments from './Comments';
+import ReadingProgress from './ReadingProgress';
+import ArticleBody from './ArticleBody';
 import type { LatestPost } from './LatestPostsSidebar';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
 
@@ -27,7 +29,57 @@ export interface RelatedPost {
 }
 
 const AUTHOR_BIO =
-  'Entertain Lawyers is Nepal’s trusted legal news platform, dedicated to delivering unbiased legal updates, court news, and informative content for legal professionals and the general public.';
+  'Entertain Lawyers is Nepal\u2019s trusted legal news platform, dedicated to delivering unbiased legal updates, court news, and informative content for legal professionals and the general public.';
+
+interface TocItem {
+  id: string;
+  text: string;
+  level: number;
+}
+
+/**
+ * Give every article heading a stable anchor and collect them for the
+ * "In this article" card. Long court/legal explainers benefit from a jump
+ * list, and the anchors make individual sections linkable from elsewhere.
+ */
+function buildTableOfContents(html: string): { html: string; items: TocItem[] } {
+  const items: TocItem[] = [];
+  const used = new Set<string>();
+
+  const withIds = html.replace(
+    /<h([23])([^>]*)>([\s\S]*?)<\/h\1>/gi,
+    (match, level: string, attrs: string, inner: string) => {
+      const text = inner
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&/gi, '&')
+        .replace(/&#8217;|&rsquo;/gi, '\u2019')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (!text) return match;
+
+      let id = attrs.match(/\bid=["']([^"']+)["']/i)?.[1];
+      let nextAttrs = attrs;
+      if (!id) {
+        const base =
+          text
+            .toLowerCase()
+            .replace(/[^a-z0-9\u0900-\u097F]+/g, '-')
+            .replace(/^-+|-+$/g, '')
+            .slice(0, 60) || `section-${items.length + 1}`;
+        id = base;
+        let suffix = 2;
+        while (used.has(id)) id = `${base}-${suffix++}`;
+        nextAttrs = ` id="${id}"${attrs}`;
+      }
+      used.add(id);
+      items.push({ id, text, level: Number(level) });
+      return `<h${level}${nextAttrs}>${inner}</h${level}>`;
+    }
+  );
+
+  return { html: withIds, items };
+}
 
 /** Navy section bar used by About Author / Related Post / Latest Post. */
 function SectionBar({ id, children }: { id?: string; children: React.ReactNode }) {
@@ -59,19 +111,30 @@ export default function PostDetail({
   const featuredImage = post.featuredImage || extractFirstImage(post.content);
   const authorName = post.author.name?.trim() || 'Entertain Lawyers';
   const authorInitial = authorName.charAt(0).toUpperCase();
+  const { html: articleHtml, items: tocItems } = buildTableOfContents(post.content);
 
   const formatLongDate = (d: Date) =>
     d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const formatShortDate = (d: Date) =>
     d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
 
+  // Rough reading-time estimate from the rendered article text.
+  const wordCount = post.content
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&[a-z]+;/gi, ' ')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+  const readingMinutes = Math.max(1, Math.round(wordCount / 200));
+
   return (
     <div className={`min-h-screen bg-background pb-14${modernType ? ' el-type-modern' : ''}`}>
-      <div className="mx-auto max-w-[1240px] px-4 sm:px-6 lg:px-8">
+      <ReadingProgress targetId="article-body" />
+      <div className="mx-auto max-w-[1360px] px-4 sm:px-6 lg:px-8">
         {/* Masthead: brand + search */}
         <BrandSearchHeader />
 
-        <div className="grid grid-cols-1 items-start gap-8 pt-6 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-10">
+        <div className="grid grid-cols-1 items-start gap-8 pt-6 lg:grid-cols-[minmax(0,860px)_340px] lg:justify-center lg:gap-12">
           <article className="min-w-0">
             <Link
               href={backUrl}
@@ -81,11 +144,14 @@ export default function PostDetail({
             </Link>
 
             <header className="pt-1">
-              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-gold">
-                {post.type}
-              </p>
+              <div className="flex items-center gap-3">
+                <span className="h-[3px] w-8 bg-gold" aria-hidden="true" />
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-gold">
+                  {post.type}
+                </p>
+              </div>
 
-              <h1 className="mt-2 text-[clamp(1.75rem,3.4vw,2.6rem)] font-black leading-[1.15] tracking-tight text-navy dark:text-white">
+              <h1 className="mt-3 text-balance text-[clamp(1.9rem,4vw,3rem)] font-black leading-[1.06] tracking-[-0.02em] text-navy dark:text-white">
                 {post.title}
               </h1>
 
@@ -103,12 +169,18 @@ export default function PostDetail({
                   <Clock className="h-4 w-4" aria-hidden="true" />
                   <time dateTime={post.createdAt.toISOString()}>{formatLongDate(post.createdAt)}</time>
                 </span>
+                <span className="inline-flex items-center gap-1.5" title={`About ${readingMinutes} min read`}>
+                  <span className="h-1 w-1 rounded-full bg-text-muted" aria-hidden="true" />
+                  {readingMinutes} min read
+                </span>
               </div>
+
+              <div className="mb-5 h-[3px] w-16 bg-gold" aria-hidden="true" />
             </header>
 
-            {/* Hero with overlaid share strip, like the news-site article page */}
+            {/* Hero image */}
             {featuredImage && (
-              <figure className="relative border border-border bg-surface-alt">
+              <figure className="border border-border bg-surface-alt">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={featuredImage}
@@ -116,21 +188,53 @@ export default function PostDetail({
                   className="aspect-[16/9] w-full object-cover"
                   loading="eager"
                 />
-                <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-navy-dark/90 via-navy-dark/45 to-transparent px-3 pb-3 pt-8">
-                  <div className="[&_.social-share-toolbar>span]:text-white/80">
-                    <SocialShareToolbar title={post.title} orientation="horizontal" compact />
-                  </div>
-                </figcaption>
               </figure>
             )}
 
-            {/* Article body — serif reading column */}
-            <div
-              className="article-body mt-7 font-serif"
-              dangerouslySetInnerHTML={{ __html: post.content }}
-            />
+            {/* Share bar — icon + label on every button so it reads clearly */}
+            <div id="share" className="mt-3 border border-border bg-surface p-3 sm:p-4">
+              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted">
+                Share this story
+              </p>
+              <SocialShareToolbar title={post.title} labels />
+            </div>
 
-            <ArticleReactions articleId={post.id} />
+            {/* In-article navigation — only for posts that actually have
+                sections, so short news items stay uncluttered */}
+            {tocItems.length >= 2 && (
+              <nav
+                aria-labelledby="toc-heading"
+                className="mt-3 border border-border bg-surface p-4"
+              >
+                <h2
+                  id="toc-heading"
+                  className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted"
+                >
+                  <ListTree className="h-3.5 w-3.5 text-gold" aria-hidden="true" />
+                  In this article
+                </h2>
+                <ul className="mt-3 space-y-1.5">
+                  {tocItems.map((item) => (
+                    <li key={item.id} className={item.level === 3 ? 'pl-5' : undefined}>
+                      <a
+                        href={`#${item.id}`}
+                        className="group flex items-start gap-2 text-sm font-medium text-text-secondary transition-colors hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+                      >
+                        <span
+                          className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-gold/70"
+                          aria-hidden="true"
+                        />
+                        <span className="underline-offset-4 group-hover:underline">{item.text}</span>
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            )}
+
+            {/* Article body — old-site reading face (Roboto), justified so
+                both edges line up, centred column for balanced margins */}
+            <ArticleBody html={articleHtml} />
 
             {/* About Author */}
             <section aria-labelledby="about-author-heading" className="mt-8 border border-border bg-surface">
@@ -151,16 +255,16 @@ export default function PostDetail({
 
             {/* Related Post */}
             {relatedPosts.length > 0 && (
-              <section aria-labelledby="related-heading" className="mt-8">
+              <section aria-labelledby="related-heading" className="mt-8 border border-border bg-surface">
                 <SectionBar id="related-heading">Related Post</SectionBar>
-                <ul className="divide-y divide-border border border-t-0 border-border bg-surface">
+                <ul className="mt-3 grid gap-3 p-4 sm:grid-cols-2">
                   {relatedPosts.map((rp) => (
-                    <li key={rp.id}>
+                    <li key={rp.id} className="border border-border bg-surface">
                       <Link
                         href={rp.url}
-                        className="group flex items-start gap-4 p-3 transition-colors hover:bg-surface-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+                        className="group flex h-full flex-col transition-colors hover:border-gold/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gold"
                       >
-                        <div className="h-[72px] w-[120px] shrink-0 overflow-hidden border border-border bg-surface-alt sm:h-[88px] sm:w-[150px]">
+                        <div className="aspect-[16/9] w-full overflow-hidden bg-surface-alt">
                           {rp.featuredImage ? (
                             /* eslint-disable-next-line @next/next/no-img-element */
                             <img
@@ -170,18 +274,18 @@ export default function PostDetail({
                               loading="lazy"
                             />
                           ) : (
-                            <div className="flex h-full w-full items-center justify-center">
-                              <User className="h-6 w-6 text-black/10 dark:text-white/10" aria-hidden="true" />
+                            <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-navy to-navy-light">
+                              <Scale className="h-8 w-8 text-gold/50" aria-hidden="true" />
                             </div>
                           )}
                         </div>
-                        <div className="min-w-0">
-                          <h3 className="text-sm font-bold leading-snug text-navy transition-colors group-hover:text-gold dark:text-white sm:text-[15px]">
+                        <div className="flex flex-1 flex-col p-3">
+                          <h3 className="text-sm font-bold leading-snug text-navy transition-colors group-hover:text-gold dark:text-white">
                             {rp.title}
                           </h3>
                           <time
                             dateTime={rp.createdAt.toISOString()}
-                            className="mt-1.5 block text-xs font-medium text-text-muted"
+                            className="mt-auto block pt-2 text-xs font-medium text-text-muted"
                           >
                             {formatShortDate(rp.createdAt)}
                           </time>
@@ -207,6 +311,11 @@ export default function PostDetail({
           <aside className="h-fit lg:sticky lg:top-24" aria-label="Latest posts">
             <LatestPostsSidebar posts={latestPosts} currentPostId={post.id} />
           </aside>
+
+          {/* Comments sit at the very bottom, aligned with the article column */}
+          <div className="mt-2 lg:col-start-1 lg:mt-4">
+            <Comments postId={post.id} postType={post.type === 'BLOG' ? 'BLOG' : 'NEWS'} />
+          </div>
         </div>
       </div>
     </div>

@@ -9,6 +9,8 @@ interface SocialShareToolbarProps {
   orientation?: 'horizontal' | 'vertical';
   /** Tight single-row variant for image overlays (hides secondary icons on mobile). */
   compact?: boolean;
+  /** Render icon + readable text labels (recommended for article pages). */
+  labels?: boolean;
 }
 
 const FacebookIcon = () => (
@@ -47,12 +49,14 @@ const RedditIcon = () => (
   </svg>
 );
 
-export default function SocialShareToolbar({ title, orientation = 'horizontal', compact = false }: SocialShareToolbarProps) {
+export default function SocialShareToolbar({ title, orientation = 'horizontal', compact = false, labels = false }: SocialShareToolbarProps) {
   const [copied, setCopied] = useState(false);
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
   
   useEffect(() => {
+    // The share URL needs window.location, which is unavailable during SSR.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
@@ -74,47 +78,86 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
   const platforms = [
     {
       name: 'Facebook',
+      label: 'Facebook',
       icon: <FacebookIcon />,
       href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
       color: 'bg-[#1877F2] hover:bg-[#1877F2]/90 text-white'
     },
     {
       name: 'X (Twitter)',
+      label: 'X',
       icon: <TwitterIcon />,
       href: `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedTitle}`,
       color: 'bg-black hover:bg-black/80 dark:bg-white dark:text-black dark:hover:bg-gray-200 text-white'
     },
     {
       name: 'WhatsApp',
+      label: 'WhatsApp',
       icon: <WhatsappIcon />,
       href: `https://wa.me/?text=${encodedTitle}%20${encodedUrl}`,
       color: 'bg-[#25D366] hover:bg-[#25D366]/90 text-white'
     },
     {
       name: 'Telegram',
+      label: 'Telegram',
       icon: <TelegramIcon />,
       href: `https://t.me/share/url?url=${encodedUrl}&text=${encodedTitle}`,
       color: 'bg-[#229ED9] hover:bg-[#229ED9]/90 text-white'
     },
     {
       name: 'LinkedIn',
+      label: 'LinkedIn',
       icon: <LinkedinIcon />,
       href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
       color: 'bg-[#0A66C2] hover:bg-[#0A66C2]/90 text-white'
     },
     {
       name: 'Reddit',
+      label: 'Reddit',
       icon: <RedditIcon />,
       href: `https://reddit.com/submit?url=${encodedUrl}&title=${encodedTitle}`,
       color: 'bg-[#FF4500] hover:bg-[#FF4500]/90 text-white'
     },
     {
       name: 'Email',
+      label: 'Mail',
       icon: <Mail className="w-4 h-4" />,
       href: `mailto:?subject=${encodedTitle}&body=Check out this article: ${encodedUrl}`,
       color: 'bg-gray-500 hover:bg-gray-600 text-white'
     }
   ];
+
+  // Labeled variant: icon + name on every button so any reader understands it.
+  if (labels) {
+    return (
+      <div className="social-share-toolbar grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {platforms.map((p) => (
+          <a
+            key={p.name}
+            href={p.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Share on ${p.name}`}
+            title={`Share on ${p.name}`}
+            className={`flex min-h-[42px] items-center justify-center gap-2 rounded-full px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-surface ${p.color}`}
+          >
+            {p.icon}
+            <span>{p.label}</span>
+          </a>
+        ))}
+        <button
+          type="button"
+          onClick={handleCopyLink}
+          aria-label="Copy article link"
+          title="Copy article link"
+          className="relative flex min-h-[42px] items-center justify-center gap-2 rounded-full border border-border bg-surface-alt px-3 text-xs font-semibold text-navy transition-colors hover:border-gold hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-surface dark:text-white"
+        >
+          <Link className="w-4 h-4" aria-hidden="true" />
+          <span>{copied ? 'Copied!' : 'Copy link'}</span>
+        </button>
+      </div>
+    );
+  }
 
   const containerClass = compact
     ? 'flex flex-nowrap items-center gap-1.5'
