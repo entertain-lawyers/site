@@ -171,6 +171,7 @@ Variables should be configured in `.env.local`. Refer to `.env.example`:
 ### Build & Lint
 - **Build:** `npm run build`
 - **Lint:** `npm run lint`
+- **Next.js version:** keep `next` at **16.4.3 or newer**. Earlier 16.3.x Turbopack builds can fail on Google Fonts' intermittent extensionless `/l/font?kit=…` URLs (`next/font/google queries have exactly one entry`). 16.4.3 resolves the type from the CSS `format()` hint and percent-encodes the font query.
 
 ## 14. Available Scripts
 
