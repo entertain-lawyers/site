@@ -8,7 +8,7 @@ import { hitIcon, hitChip } from '@/components/search/search-results';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Search Results | Entertain Lawyer',
+  title: 'Search Results',
   description: 'Search across law notes, case laws, blogs, news, historical facts, publications and events.',
   robots: { index: false },
 };

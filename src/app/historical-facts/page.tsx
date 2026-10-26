@@ -1,6 +1,14 @@
 import { SubjectCard } from '@/components/study/SubjectCard';
 import { Hourglass, Users } from 'lucide-react';
 import BrandSearchHeader from '@/components/posts/BrandSearchHeader';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Historical Facts & Legal Personalities',
+  description: 'Discover interesting historical facts, events, trivia, and prominent legal personalities in the Nepalese legal system.',
+  alternates: { canonical: '/historical-facts' },
+};
+
 export default function HistoricalFactsLandingPage() {
   return (
     <div className="min-h-screen bg-background py-8 sm:py-12">

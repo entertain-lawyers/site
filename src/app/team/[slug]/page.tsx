@@ -19,8 +19,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!member || !member.isPublished) return {};
 
   return {
-    title: `${member.name} - ${member.designation} | Entertain Lawyers`,
+    title: `${member.name} - ${member.designation}`,
     description: member.shortBio || `Profile of ${member.name}, ${member.designation} at Entertain Lawyers.`,
+    alternates: { canonical: `/team/${slug}` },
     openGraph: member.imageUrl ? {
       images: [{ url: member.imageUrl }],
     } : undefined,

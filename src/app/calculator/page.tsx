@@ -4,7 +4,7 @@ import CourtFeeCalculator from '@/components/calculator/CourtFeeCalculator';
 import { Scale, HelpCircle, PhoneCall } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Nepal Court Fee Calculator | Section 69 Muluki Diwani Samhita | Entertain Lawyers',
+  title: 'Nepal Court Fee Calculator | Section 69 Muluki Diwani Samhita',
   description: 'Calculate progressive court fees (कोर्ट फी / अदालती दस्तुर) for civil suits in Nepal under Section 69 of the National Civil Procedure (Code) Act, 2074.',
   keywords: [
     'Nepal court fee calculator',
@@ -14,6 +14,7 @@ export const metadata: Metadata = {
     'Nepal civil court filing fees',
     'Entertain Lawyers',
   ],
+  alternates: { canonical: '/calculator' },
 };
 
 const FAQS = [

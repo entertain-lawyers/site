@@ -89,7 +89,7 @@ export default function EditGalleryClient({ gal }: { gal: any }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {gal.images.map((img: any) => (
               <div key={img.id} className="border p-4 rounded-xl flex flex-col gap-2 relative group">
-                <img src={img.url} className="w-full h-40 object-cover rounded-lg" alt={img.altText || ''} />
+                <img src={img.url} className="w-full h-40 object-cover rounded-lg" alt={img.altText || ''} loading="lazy" decoding="async" />
                 <p className="text-sm font-bold mt-2 truncate">{img.caption || 'No caption'}</p>
                 <div className="flex justify-between mt-2">
                   <div className="flex gap-2">

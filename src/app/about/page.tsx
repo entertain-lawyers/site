@@ -4,8 +4,9 @@ import { Target, Lightbulb, ShieldCheck } from 'lucide-react';
 export async function generateMetadata() {
   const dict = await getDictionary();
   return {
-    title: `${dict.aboutTitle} - Entertain Lawyers`,
+    title: `${dict.aboutTitle}`,
     description: dict.aboutP1.substring(0, 150) + '...',
+    alternates: { canonical: '/about' },
   };
 }
 

@@ -19,8 +19,9 @@ export async function generateMetadata({ params }: { params: { category: string 
   if (!categoryInfo) return { title: 'Not Found' };
 
   return {
-    title: `${categoryInfo.title} - नेपाली | Entertain Lawyers`,
+    title: `${categoryInfo.title} - नेपाली`,
     description: categoryInfo.description,
+    alternates: { canonical: `/nepali/${params.category}` },
   };
 }
 

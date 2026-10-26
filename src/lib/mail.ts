@@ -26,13 +26,19 @@ export async function sendEmail({ to, subject, html }: { to: string; subject: st
       subject,
       html,
     });
-  } else {
-    // Development fallback
+  } else if (process.env.NODE_ENV !== 'production') {
+    // Development fallback: print the message so local sign-up and password
+    // reset flows can be tested without an SMTP server.
     console.log('\n=================== EMAIL SENT ===================');
     console.log(`TO: ${to}`);
     console.log(`SUBJECT: ${subject}`);
     console.log(`CONTENT: \n${html.replace(/<[^>]+>/g, '')}`); // Strip HTML tags for console readability
     console.log('==================================================\n');
+  } else {
+    // Never log recipients, OTPs, or message bodies in production. Logging the
+    // subject is enough to notice that mail is misconfigured without leaking
+    // credentials or personal data into the platform logs.
+    console.error('[mail] SMTP is not configured; email was not sent.', { subject });
   }
 }
 

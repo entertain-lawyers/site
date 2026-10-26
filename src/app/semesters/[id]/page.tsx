@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: PageProps) {
   
   if (!semester) {
     return {
-      title: 'Semester Not Found - Entertain Lawyers',
+      title: 'Semester Not Found',
     };
   }
 
@@ -36,7 +36,7 @@ export async function generateMetadata({ params }: PageProps) {
       canonical: `/semesters/${id}`,
     },
     openGraph: {
-      title: `${semester.name} Resources | Entertain Lawyers`,
+      title: `${semester.name} Resources`,
       description: `Study materials, notes, case laws, and old questions for ${semester.name}.`,
       url: `https://www.entertainlawyers.com/semesters/${id}`,
     },

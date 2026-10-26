@@ -6,8 +6,9 @@ import { BookOpen, ChevronRight, Lock, Library, Clock } from 'lucide-react';
 export async function generateMetadata() {
   const dict = await getDictionary();
   return {
-    title: `${dict.resources} - Entertain Lawyers`,
+    title: `${dict.resources}`,
     description: 'Browse all available study resources, law notes, old questions, and case laws.',
+    alternates: { canonical: '/resources' },
   };
 }
 

@@ -12,8 +12,9 @@ const HomeSearchBar = dynamic(() => import('@/components/home/HomeSearchBar'), {
 });
 
 export const metadata: Metadata = {
-  title: 'नेपाली संस्करण - Entertain Lawyers',
+  title: 'नेपाली संस्करण',
   description: 'Entertain Lawyers को नेपाली संस्करण - समाचार, नजिर, र कानून सम्बन्धी जानकारी।',
+  alternates: { canonical: '/nepali' },
 };
 
 const NEPALI_CARDS = [
@@ -132,7 +133,7 @@ export default async function NepaliLandingPage() {
                 <div className="relative h-56 w-full overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 dark:from-zinc-800 dark:to-zinc-900 flex items-center justify-center">
                   {post.featuredImage ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={post.featuredImage} alt={post.title} className="w-full h-full object-cover" />
+                    <img src={post.featuredImage} alt={post.title} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                   ) : (
                     <span className="text-6xl text-black/5 dark:text-white/5 font-serif italic">EL</span>
                   )}

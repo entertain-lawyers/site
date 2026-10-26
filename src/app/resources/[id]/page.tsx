@@ -25,12 +25,10 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
   return {
     title: `${resource.title}`,
-    description: `${descriptionText} for ${(resource as any).subject?.name} | Entertain Lawyers`,
-    alternates: {
-      canonical: `/resources/${id}`,
-    },
+    description: `${descriptionText} for ${(resource as any).subject?.name}`,
+    robots: { index: false },
     openGraph: {
-      title: `${resource.title} | Entertain Lawyers`,
+      title: `${resource.title}`,
       description: `${descriptionText} for ${(resource as any).subject?.name}`,
       url: `https://www.entertainlawyers.com/resources/${id}`,
     },

@@ -1,6 +1,13 @@
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { ImageIcon, Images } from 'lucide-react';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Photo Galleries',
+  description: 'Moments, events, and memories from Entertain Lawyers.',
+  alternates: { canonical: '/gallery' },
+};
 
 export const revalidate = 60;
 
@@ -39,7 +46,7 @@ export default async function GalleryListPage() {
                 <div className="w-full h-64 bg-slate-100 dark:bg-zinc-800 flex items-center justify-center border-b border-border overflow-hidden relative">
                   {coverImage ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={coverImage} alt={gallery.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                    <img src={coverImage} alt={gallery.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" decoding="async" />
                   ) : (
                     <ImageIcon className="w-16 h-16 text-black/10 dark:text-white/10" />
                   )}

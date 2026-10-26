@@ -2,8 +2,9 @@ import Link from 'next/link';
 import { BookOpen, Landmark, ScrollText, Newspaper, Clock, PenTool } from 'lucide-react';
 
 export const metadata = {
-  title: 'Explore Materials - Entertain Lawyers',
+  title: 'Explore Materials',
   description: 'Explore the comprehensive legal study materials, precedent case laws, old questions, and historical facts provided by Entertain Lawyers.',
+  alternates: { canonical: '/explore' },
 };
 
 export default function ExplorePage() {

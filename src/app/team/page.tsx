@@ -23,8 +23,9 @@ const InstagramIcon = () => (
 );
 
 export const metadata: Metadata = {
-  title: 'Our Team | Entertain Lawyers',
+  title: 'Our Team',
   description: 'Meet our team of experienced legal professionals and advocates.',
+  alternates: { canonical: '/team' },
 };
 
 export default async function TeamDirectoryPage() {

@@ -4,8 +4,9 @@ import { MapPin, Phone, Mail } from 'lucide-react';
 export async function generateMetadata() {
   const dict = await getDictionary();
   return {
-    title: `${dict.contactTitle} - Entertain Lawyers`,
+    title: `${dict.contactTitle}`,
     description: 'Get in touch with Entertain Lawyers.',
+    alternates: { canonical: '/contact' },
   };
 }
 

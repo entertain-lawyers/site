@@ -2,7 +2,8 @@ import { Metadata } from 'next';
 import VerifyEmailClient from './VerifyEmailClient';
 
 export const metadata: Metadata = {
-  title: 'Verify Email - Entertain Lawyers',
+  title: 'Verify Email',
+  robots: { index: false, follow: false },
 };
 
 export default function VerifyEmailPage() {
