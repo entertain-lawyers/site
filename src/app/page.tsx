@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { BookOpen, Landmark, Newspaper, Briefcase, Search, ScrollText, MessageSquare } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import { getHomepageConfig } from '@/lib/site-settings';
 
 const HomeSearchBar = dynamic(() => import('@/components/home/HomeSearchBar'), {
   loading: () => <div className="h-12 w-full bg-surface-alt animate-pulse rounded-full"></div>
@@ -12,14 +13,33 @@ const HomeCategoryGrid = dynamic(() => import('@/components/home/HomeCategoryGri
 });
 
 export const metadata = {
-  title: 'Entertain Lawyers - Nepalese Legal Education Platform',
+  // The root layout supplies the brand-aware default title.
   description: 'Comprehensive law notes, old questions, case laws, and study resources for BA.LLB and LLB students.',
   alternates: { canonical: '/' },
 };
 
-export default function HomePage() {
+export default async function HomePage() {
+  const config = await getHomepageConfig();
+  const showCta = Boolean(config.heroCtaText && config.heroCtaLink);
+
   return (
     <div className="w-full bg-background min-h-screen pb-12 sm:pb-16 lg:pb-20 relative overflow-hidden">
+
+      {/* Optional announcement banner (hidden by default) */}
+      {config.announcementText ? (
+        <div className="relative z-10 bg-accent text-white">
+          <div className="mx-auto flex max-w-7xl items-center justify-center px-4 py-2.5 text-center text-sm font-bold">
+            {config.announcementLink ? (
+              <Link href={config.announcementLink} className="inline-flex items-center gap-2 hover:underline">
+                {config.announcementText}
+                <span aria-hidden="true">→</span>
+              </Link>
+            ) : (
+              <span>{config.announcementText}</span>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       {/* Background Decorative Elements */}
       <div className="absolute top-[10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-accent/5 dark:bg-accent/10 blur-[120px] pointer-events-none" />
@@ -29,13 +49,13 @@ export default function HomePage() {
       <section className="pt-2 pb-4 sm:pt-3 sm:pb-6 flex flex-col items-center justify-center text-center px-4 relative z-10">
         <Link
           href="/"
-          aria-label="Entertain Lawyers — Home"
+          aria-label={`${config.heroHeading} — Home`}
           className="relative w-full max-w-[280px] sm:max-w-[480px] md:max-w-[600px] h-24 sm:h-32 md:h-36 mb-0 drop-shadow-sm rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent overflow-hidden"
         >
           {/* Light Mode Logo */}
           <Image
             src="/wordmark_navy.png"
-            alt="Entertain Lawyers - Connecting with Legal Updates"
+            alt={config.heroHeading}
             fill
             className="object-contain dark:hidden"
             priority
@@ -43,16 +63,30 @@ export default function HomePage() {
           {/* Dark Mode Logo */}
           <Image
             src="/wordmark_white.png"
-            alt="Entertain Lawyers - Connecting with Legal Updates"
+            alt={config.heroHeading}
             fill
             className="object-contain hidden dark:block"
             priority
           />
         </Link>
-        <h1 className="sr-only">Entertain Lawyers - Connecting with Legal Updates</h1>
-        <p className="max-w-2xl text-text-secondary text-fluid-base font-medium tracking-wide mt-1">
-          Nepal's premium platform for comprehensive <span className="text-accent font-bold">law notes</span>, <span className="text-accent font-bold">case laws</span>, and <span className="text-accent font-bold">study resources</span>.
-        </p>
+        <h1 className="sr-only">{config.heroHeading}</h1>
+        {config.heroSubheading ? (
+          <p className="max-w-2xl text-text-secondary text-fluid-base font-medium tracking-wide mt-1">
+            {config.heroSubheading}
+          </p>
+        ) : (
+          <p className="max-w-2xl text-text-secondary text-fluid-base font-medium tracking-wide mt-1">
+            Nepal's premium platform for comprehensive <span className="text-accent font-bold">law notes</span>, <span className="text-accent font-bold">case laws</span>, and <span className="text-accent font-bold">study resources</span>.
+          </p>
+        )}
+        {showCta ? (
+          <Link
+            href={config.heroCtaLink!}
+            className="mt-5 inline-flex items-center justify-center rounded-full bg-accent px-6 py-3 text-sm font-bold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-accent/90"
+          >
+            {config.heroCtaText}
+          </Link>
+        ) : null}
       </section>
 
       {/* Divider Line */}

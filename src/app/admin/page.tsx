@@ -29,6 +29,7 @@ export default async function AdminDashboardPage() {
   let activeSubCount = 0;
   let totalRevenue = 0;
   let recentTransactions: any[] = [];
+  let redirectCount = 0;
 
   if (isAdmin) {
     const [
@@ -36,7 +37,8 @@ export default async function AdminDashboardPage() {
       uc,
       asc,
       completedTx,
-      recentTx
+      recentTx,
+      redirects
     ] = await Promise.all([
       prisma.resource.count(),
       prisma.user.count({ where: { role: 'USER' } }),
@@ -50,13 +52,15 @@ export default async function AdminDashboardPage() {
         include: { user: true },
         orderBy: { createdAt: 'desc' },
         take: 5
-      })
+      }),
+      prisma.redirect.count()
     ]);
     resourceCount = rc;
     userCount = uc;
     activeSubCount = asc;
     totalRevenue = completedTx._sum.amount ? completedTx._sum.amount / 100 : 0;
     recentTransactions = recentTx;
+    redirectCount = redirects;
   }
 
   return (
@@ -185,6 +189,49 @@ export default async function AdminDashboardPage() {
             </>
           )}
         </div>
+
+        {/* Site Control quick links */}
+        {isAdmin && (
+          <div className="mb-10 rounded-2xl border border-black/5 bg-white p-6 shadow-sm dark:border-white/5 dark:bg-zinc-900 sm:p-8">
+            <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-lg font-bold text-navy dark:text-white">Site Control</h2>
+                <p className="mt-1 text-sm font-medium text-text-secondary">
+                  Change public content, contact details and old-link redirects.
+                </p>
+              </div>
+              <span className="inline-flex w-fit rounded-full border border-black/5 bg-slate-50 px-4 py-2 text-xs font-bold text-text-secondary dark:border-white/10 dark:bg-zinc-800 dark:text-white">
+                {redirectCount} redirect{redirectCount === 1 ? '' : 's'}
+              </span>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Link
+                href="/admin/settings"
+                className="group rounded-xl border border-black/5 p-5 transition hover:-translate-y-0.5 hover:border-accent hover:shadow-md dark:border-white/10"
+              >
+                <p className="text-sm font-bold text-navy dark:text-white">Site Settings</p>
+                <p className="mt-1 text-xs font-medium text-text-secondary">Organisation, contact and social links</p>
+                <span className="mt-3 inline-block text-xs font-bold text-accent">Open &rarr;</span>
+              </Link>
+              <Link
+                href="/admin/homepage"
+                className="group rounded-xl border border-black/5 p-5 transition hover:-translate-y-0.5 hover:border-accent hover:shadow-md dark:border-white/10"
+              >
+                <p className="text-sm font-bold text-navy dark:text-white">Homepage</p>
+                <p className="mt-1 text-xs font-medium text-text-secondary">Hero copy, call-to-action and banner</p>
+                <span className="mt-3 inline-block text-xs font-bold text-accent">Open &rarr;</span>
+              </Link>
+              <Link
+                href="/admin/redirects"
+                className="group rounded-xl border border-black/5 p-5 transition hover:-translate-y-0.5 hover:border-accent hover:shadow-md dark:border-white/10"
+              >
+                <p className="text-sm font-bold text-navy dark:text-white">Redirects</p>
+                <p className="mt-1 text-xs font-medium text-text-secondary">Send old URLs to the right page</p>
+                <span className="mt-3 inline-block text-xs font-bold text-accent">Open &rarr;</span>
+              </Link>
+            </div>
+          </div>
+        )}
 
         {/* Recent Transactions Table */}
         {isAdmin && (

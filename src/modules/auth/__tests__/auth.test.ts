@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { prisma } from '@/lib/prisma';
 import { register } from '../auth.actions';
-import middleware from '@/middleware';
 import bcrypt from 'bcryptjs';
 import { Role } from '@prisma/client';
 import { rateLimit } from '@/lib/rate-limit';

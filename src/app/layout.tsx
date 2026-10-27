@@ -12,6 +12,7 @@ import { unstable_cache } from 'next/cache';
 import NextTopLoader from 'nextjs-toploader';
 import PublicOnly from '@/components/layout/PublicOnly';
 import AskAI from '@/components/ai/AskAI';
+import { getSiteSettings } from '@/lib/site-settings';
 
 /**
  * Site-wide typography. Restored Mukta as the requested legacy face
@@ -45,36 +46,42 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
-export const metadata: Metadata = {
-  metadataBase: new URL('https://www.entertainlawyers.com'),
-  title: {
-    default: 'Entertain Lawyers — Nepal Legal Education Platform',
-    template: '%s | Entertain Lawyers',
-  },
-  description: 'Legal resources, law notes, old questions, and case laws for BALLB and LLB students in Nepal.',
-  openGraph: {
-    title: 'Entertain Lawyers — Nepal Legal Education Platform',
-    description: 'Legal resources, law notes, old questions, and case laws for BALLB and LLB students in Nepal.',
-    url: 'https://www.entertainlawyers.com',
-    siteName: 'Entertain Lawyers',
-    locale: 'en_NP',
-    type: 'website',
-    images: [
-      {
-        url: '/logo.jpg',
-        width: 512,
-        height: 512,
-        alt: 'Entertain Lawyers',
-      },
-    ],
-  },
-  twitter: {
-    card: 'summary',
-    title: 'Entertain Lawyers — Nepal Legal Education Platform',
-    description: 'Legal resources, law notes, old questions, and case laws for BALLB and LLB students in Nepal.',
-    images: ['/logo.jpg'],
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getSiteSettings();
+  const brand = settings.organizationName;
+  const description = 'Legal resources, law notes, old questions, and case laws for BALLB and LLB students in Nepal.';
+
+  return {
+    metadataBase: new URL('https://www.entertainlawyers.com'),
+    title: {
+      default: `${brand} — Nepal Legal Education Platform`,
+      template: `%s | ${brand}`,
+    },
+    description,
+    openGraph: {
+      title: `${brand} — Nepal Legal Education Platform`,
+      description,
+      url: 'https://www.entertainlawyers.com',
+      siteName: brand,
+      locale: 'en_NP',
+      type: 'website',
+      images: [
+        {
+          url: '/logo.jpg',
+          width: 512,
+          height: 512,
+          alt: brand,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary',
+      title: `${brand} — Nepal Legal Education Platform`,
+      description,
+      images: ['/logo.jpg'],
+    },
+  };
+}
 
 export default async function RootLayout({
   children,
@@ -84,6 +91,7 @@ export default async function RootLayout({
   const locale = await getLocale();
   const dict = await getDictionary();
   const session = await auth();
+  const settings = await getSiteSettings();
 
   const getCachedSemesters = unstable_cache(
     async () => {
@@ -132,19 +140,30 @@ export default async function RootLayout({
                 {
                   "@type": "Organization",
                   "@id": "https://www.entertainlawyers.com/#organization",
-                  "name": "Entertain Lawyers",
+                  "name": settings.organizationName,
                   "url": "https://www.entertainlawyers.com",
+                  "email": settings.contactEmail,
+                  "telephone": settings.contactPhone,
+                  "address": {
+                    "@type": "PostalAddress",
+                    "streetAddress": settings.address,
+                    "addressCountry": "NP"
+                  },
                   "sameAs": [
-                    "https://www.facebook.com/entertainlawyers",
-                    "https://www.instagram.com/entertainlawyers",
-                    "https://www.tiktok.com/@entertain.lawyers"
-                  ]
+                    settings.facebookUrl,
+                    settings.instagramUrl,
+                    settings.youtubeUrl,
+                    settings.twitterUrl,
+                    // TikTok is not stored in GlobalSettings yet; keep the
+                    // current profile so structured data stays complete.
+                    'https://www.tiktok.com/@entertain.lawyers'
+                  ].filter(Boolean)
                 },
                 {
                   "@type": "WebSite",
                   "@id": "https://www.entertainlawyers.com/#website",
                   "url": "https://www.entertainlawyers.com",
-                  "name": "Entertain Lawyers",
+                  "name": settings.organizationName,
                   "description": "Nepal Legal Education Platform",
                   "publisher": {
                     "@id": "https://www.entertainlawyers.com/#organization"
@@ -166,7 +185,7 @@ export default async function RootLayout({
           {children}
         </main>
         <PublicOnly>
-          <Footer dict={dict} />
+          <Footer dict={dict} settings={settings} />
           <AskAI />
         </PublicOnly>
       </body>

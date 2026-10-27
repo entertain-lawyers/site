@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, FileText, Database, Users, Settings, LogOut, Globe, History, Menu, X, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, FileText, Database, Users, Settings, LogOut, Globe, History, Menu, X, MessageSquare, BookOpen, Images, Brain, Home, ArrowRightLeft } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 
 export default function AdminSidebar({ userRole }: { userRole: string }) {
@@ -39,13 +39,18 @@ export default function AdminSidebar({ userRole }: { userRole: string }) {
     { name: 'Consultations', href: '/admin/consultations', icon: MessageSquare, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Posts', href: '/admin/posts', icon: FileText, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Events', href: '/admin/events', icon: FileText, roles: ['ADMIN', 'EDITOR'] },
-
     { name: 'FAQs', href: '/admin/faqs', icon: FileText, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Team', href: '/admin/team', icon: Users, roles: ['ADMIN', 'EDITOR'] },
+    { name: 'Publications', href: '/admin/publications', icon: BookOpen, roles: ['ADMIN', 'EDITOR'] },
+    { name: 'Gallery', href: '/admin/gallery', icon: Images, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Semesters', href: '/admin/study/semesters', icon: Database, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Subjects', href: '/admin/study/subjects', icon: Database, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Units', href: '/admin/study/units', icon: Database, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Resources', href: '/admin/study/resources', icon: FileText, roles: ['ADMIN', 'EDITOR'] },
+    { name: 'Site Settings', href: '/admin/settings', icon: Settings, roles: ['ADMIN'] },
+    { name: 'Homepage', href: '/admin/homepage', icon: Home, roles: ['ADMIN'] },
+    { name: 'Redirects', href: '/admin/redirects', icon: ArrowRightLeft, roles: ['ADMIN'] },
+    { name: 'AI Index', href: '/admin/ai', icon: Brain, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Users & Roles', href: '/admin/users', icon: Users, roles: ['ADMIN'] },
     { name: 'Audit Logs', href: '/admin/audit-logs', icon: History, roles: ['ADMIN'] },
   ];
@@ -128,7 +133,7 @@ export default function AdminSidebar({ userRole }: { userRole: string }) {
         <div className="mb-6">
           <p className="px-3 text-[11px] font-bold text-text-muted dark:text-white/40 tracking-wider uppercase mb-2">Content</p>
           <div className="space-y-0.5">
-            {filteredNavItems.filter(i => ['Resources', 'Semesters', 'Subjects', 'Units'].includes(i.name)).map((item) => {
+            {filteredNavItems.filter(i => ['Resources', 'Semesters', 'Subjects', 'Units', 'Publications', 'Gallery'].includes(i.name)).map((item) => {
               const isActive = pathname.startsWith(item.href);
               return (
                 <Link
@@ -178,12 +183,12 @@ export default function AdminSidebar({ userRole }: { userRole: string }) {
           </div>
         </div>
 
-        {/* Group: SYSTEM */}
+        {/* Group: SITE CONTROL */}
         {(userRole === 'ADMIN') && (
           <div className="mb-6">
-            <p className="px-3 text-[11px] font-bold text-text-muted dark:text-white/40 tracking-wider uppercase mb-2">System</p>
+            <p className="px-3 text-[11px] font-bold text-text-muted dark:text-white/40 tracking-wider uppercase mb-2">Site Control</p>
             <div className="space-y-0.5">
-              {filteredNavItems.filter(i => ['Users & Roles', 'Audit Logs'].includes(i.name)).map((item) => {
+              {filteredNavItems.filter(i => ['Site Settings', 'Homepage', 'Redirects'].includes(i.name)).map((item) => {
                 const isActive = pathname.startsWith(item.href);
                 return (
                   <Link
@@ -206,6 +211,34 @@ export default function AdminSidebar({ userRole }: { userRole: string }) {
             </div>
           </div>
         )}
+
+        {/* Group: SYSTEM — AI Index is available to editors; users and audit
+            logs stay admin-only and are filtered out for editors. */}
+        <div className="mb-6">
+          <p className="px-3 text-[11px] font-bold text-text-muted dark:text-white/40 tracking-wider uppercase mb-2">System</p>
+          <div className="space-y-0.5">
+            {filteredNavItems.filter(i => ['Users & Roles', 'Audit Logs', 'AI Index'].includes(i.name)).map((item) => {
+              const isActive = pathname.startsWith(item.href);
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 font-medium ${
+                    isActive
+                      ? 'bg-accent/10 text-accent dark:bg-accent/15 dark:text-accent-light'
+                      : 'text-text-secondary dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5 hover:text-navy dark:hover:text-white'
+                  }`}
+                >
+                  <item.icon className="w-5 h-5 shrink-0" />
+                  <span>{item.name}</span>
+                  {isActive && (
+                    <div className="ml-auto w-1 h-5 rounded-full bg-accent"></div>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
       </nav>
 
       <div className="p-4 border-t border-black/5 dark:border-white/5 space-y-1">
