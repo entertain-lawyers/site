@@ -3,17 +3,26 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, FileText, Database, Users, Settings, LogOut, Globe, History, Menu, X, MessageSquare, BookOpen, Images, Brain, Home, ArrowRightLeft } from 'lucide-react';
+import { LayoutDashboard, FileText, Database, Users, Settings, LogOut, Globe, History, Menu, X, MessageSquare, Brain, LayoutTemplate, Images, BookOpen, ShieldCheck, Home, ArrowRightLeft } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 
-export default function AdminSidebar({ userRole }: { userRole: string }) {
+type NavItem = {
+  name: string;
+  href: string;
+  icon: typeof FileText;
+  roles: string[];
+  badge?: number;
+};
+
+export default function AdminSidebar({
+  userRole,
+  pendingConsultations = 0,
+}: {
+  userRole: string;
+  pendingConsultations?: number;
+}) {
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-
-  // Close sidebar on route change on mobile
-  useEffect(() => {
-    setIsMobileOpen(false);
-  }, [pathname]);
 
   // Handle escape key
   useEffect(() => {
@@ -34,15 +43,16 @@ export default function AdminSidebar({ userRole }: { userRole: string }) {
     return () => { document.body.style.overflow = 'unset'; };
   }, [isMobileOpen]);
 
-  const navItems = [
+  const navItems: NavItem[] = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard, roles: ['ADMIN', 'EDITOR'] },
-    { name: 'Consultations', href: '/admin/consultations', icon: MessageSquare, roles: ['ADMIN', 'EDITOR'] },
+    { name: 'Consultations', href: '/admin/consultations', icon: MessageSquare, roles: ['ADMIN', 'EDITOR'], badge: pendingConsultations },
     { name: 'Posts', href: '/admin/posts', icon: FileText, roles: ['ADMIN', 'EDITOR'] },
+    { name: 'Visual Pages', href: '/admin/pages', icon: LayoutTemplate, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Events', href: '/admin/events', icon: FileText, roles: ['ADMIN', 'EDITOR'] },
     { name: 'FAQs', href: '/admin/faqs', icon: FileText, roles: ['ADMIN', 'EDITOR'] },
-    { name: 'Team', href: '/admin/team', icon: Users, roles: ['ADMIN', 'EDITOR'] },
-    { name: 'Publications', href: '/admin/publications', icon: BookOpen, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Gallery', href: '/admin/gallery', icon: Images, roles: ['ADMIN', 'EDITOR'] },
+    { name: 'Publications', href: '/admin/publications', icon: BookOpen, roles: ['ADMIN', 'EDITOR'] },
+    { name: 'Team', href: '/admin/team', icon: Users, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Semesters', href: '/admin/study/semesters', icon: Database, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Subjects', href: '/admin/study/subjects', icon: Database, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Units', href: '/admin/study/units', icon: Database, roles: ['ADMIN', 'EDITOR'] },
@@ -50,12 +60,50 @@ export default function AdminSidebar({ userRole }: { userRole: string }) {
     { name: 'Site Settings', href: '/admin/settings', icon: Settings, roles: ['ADMIN'] },
     { name: 'Homepage', href: '/admin/homepage', icon: Home, roles: ['ADMIN'] },
     { name: 'Redirects', href: '/admin/redirects', icon: ArrowRightLeft, roles: ['ADMIN'] },
-    { name: 'AI Index', href: '/admin/ai', icon: Brain, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Users & Roles', href: '/admin/users', icon: Users, roles: ['ADMIN'] },
+    { name: 'Protection Center', href: '/admin/protection', icon: ShieldCheck, roles: ['ADMIN'] },
     { name: 'Audit Logs', href: '/admin/audit-logs', icon: History, roles: ['ADMIN'] },
+    { name: 'AI Index', href: '/admin/ai', icon: Brain, roles: ['ADMIN', 'EDITOR'] },
   ];
 
   const filteredNavItems = navItems.filter(item => item.roles.includes(userRole));
+
+  const groups: { label: string; names: string[] }[] = [
+    { label: 'Overview', names: ['Dashboard'] },
+    { label: 'Requests', names: ['Consultations'] },
+    { label: 'Content', names: ['Semesters', 'Subjects', 'Units', 'Resources'] },
+    { label: 'Publishing', names: ['Posts', 'Visual Pages', 'Events', 'FAQs', 'Gallery', 'Publications', 'Team'] },
+    { label: 'Site Control', names: ['Site Settings', 'Homepage', 'Redirects'] },
+    { label: 'System', names: ['Users & Roles', 'Protection Center', 'Audit Logs', 'AI Index'] },
+  ];
+
+  const renderNavItem = (item: NavItem) => {
+    const isActive = item.href === '/admin'
+      ? pathname === item.href
+      : pathname === item.href || pathname.startsWith(`${item.href}/`);
+    return (
+      <Link
+        key={item.name}
+        href={item.href}
+        className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 font-medium ${
+          isActive
+            ? 'bg-accent/10 text-accent dark:bg-accent/15 dark:text-accent-light'
+            : 'text-text-secondary dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5 hover:text-navy dark:hover:text-white'
+        }`}
+      >
+        <item.icon className="w-5 h-5 shrink-0" />
+        <span>{item.name}</span>
+        <span className="ml-auto flex items-center gap-2">
+          {item.badge && item.badge > 0 ? (
+            <span className="px-2 py-0.5 text-[11px] font-bold rounded-full bg-red-500 text-white min-w-[20px] text-center">
+              {item.badge > 99 ? '99+' : item.badge}
+            </span>
+          ) : null}
+          {isActive ? <span className="w-1 h-5 rounded-full bg-accent" /> : null}
+        </span>
+      </Link>
+    );
+  };
 
   return (
     <>
@@ -94,167 +142,42 @@ export default function AdminSidebar({ userRole }: { userRole: string }) {
           <X className="w-6 h-6" />
         </button>
 
-      <div className="p-6">
-        <h2 className="text-xl font-bold text-navy dark:text-white tracking-tight">
-          {userRole === 'ADMIN' ? 'Admin Portal' : 'Editor Portal'}
-        </h2>
-        <p className="text-text-muted dark:text-white/40 text-xs font-medium tracking-wider uppercase mt-1">
-          Management System
-        </p>
-      </div>
+        <div className="p-6">
+          <h2 className="text-xl font-bold text-navy dark:text-white tracking-tight">
+            {userRole === 'ADMIN' ? 'Admin Portal' : 'Editor Portal'}
+          </h2>
+          <p className="text-text-muted dark:text-white/40 text-xs font-medium tracking-wider uppercase mt-1">
+            Management System
+          </p>
+        </div>
 
-      <nav className="flex-1 px-4 space-y-1 mt-2 overflow-y-auto overflow-x-hidden pb-4">
-
-        {/* Group: PRIMARY */}
-        <div className="mb-6">
-          {filteredNavItems.filter(i => i.name === 'Dashboard').map((item) => {
-            const isActive = pathname === item.href;
+        <nav className="flex-1 px-4 space-y-1 mt-2 overflow-y-auto overflow-x-hidden pb-4">
+          {groups.map((group) => {
+            const items = filteredNavItems.filter(i => group.names.includes(i.name));
+            if (items.length === 0) return null;
             return (
-              <Link
-                key={item.name}
-                href={item.href}
-                className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 font-medium ${
-                  isActive
-                    ? 'bg-accent/10 text-accent dark:bg-accent/15 dark:text-accent-light'
-                    : 'text-text-secondary dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5 hover:text-navy dark:hover:text-white'
-                }`}
-              >
-                <item.icon className="w-5 h-5 shrink-0" />
-                <span>{item.name}</span>
-                {isActive && (
-                  <div className="ml-auto w-1 h-5 rounded-full bg-accent"></div>
-                )}
-              </Link>
+              <div key={group.label} className="mb-6">
+                <p className="px-3 text-[11px] font-bold text-text-muted dark:text-white/40 tracking-wider uppercase mb-2">{group.label}</p>
+                <div className="space-y-0.5">{items.map(renderNavItem)}</div>
+              </div>
             );
           })}
-        </div>
+        </nav>
 
-        {/* Group: CONTENT */}
-        <div className="mb-6">
-          <p className="px-3 text-[11px] font-bold text-text-muted dark:text-white/40 tracking-wider uppercase mb-2">Content</p>
-          <div className="space-y-0.5">
-            {filteredNavItems.filter(i => ['Resources', 'Semesters', 'Subjects', 'Units', 'Publications', 'Gallery'].includes(i.name)).map((item) => {
-              const isActive = pathname.startsWith(item.href);
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 font-medium ${
-                    isActive
-                      ? 'bg-accent/10 text-accent dark:bg-accent/15 dark:text-accent-light'
-                      : 'text-text-secondary dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5 hover:text-navy dark:hover:text-white'
-                  }`}
-                >
-                  <item.icon className="w-5 h-5 shrink-0" />
-                  <span>{item.name}</span>
-                  {isActive && (
-                    <div className="ml-auto w-1 h-5 rounded-full bg-accent"></div>
-                  )}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Group: PUBLISHING */}
-        <div className="mb-6">
-          <p className="px-3 text-[11px] font-bold text-text-muted dark:text-white/40 tracking-wider uppercase mb-2">Publishing</p>
-          <div className="space-y-0.5">
-            {filteredNavItems.filter(i => ['Posts', 'Events', 'FAQs', 'Team'].includes(i.name)).map((item) => {
-              const isActive = pathname.startsWith(item.href);
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 font-medium ${
-                    isActive
-                      ? 'bg-accent/10 text-accent dark:bg-accent/15 dark:text-accent-light'
-                      : 'text-text-secondary dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5 hover:text-navy dark:hover:text-white'
-                  }`}
-                >
-                  <item.icon className="w-5 h-5 shrink-0" />
-                  <span>{item.name}</span>
-                  {isActive && (
-                    <div className="ml-auto w-1 h-5 rounded-full bg-accent"></div>
-                  )}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Group: SITE CONTROL */}
-        {(userRole === 'ADMIN') && (
-          <div className="mb-6">
-            <p className="px-3 text-[11px] font-bold text-text-muted dark:text-white/40 tracking-wider uppercase mb-2">Site Control</p>
-            <div className="space-y-0.5">
-              {filteredNavItems.filter(i => ['Site Settings', 'Homepage', 'Redirects'].includes(i.name)).map((item) => {
-                const isActive = pathname.startsWith(item.href);
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 font-medium ${
-                      isActive
-                        ? 'bg-accent/10 text-accent dark:bg-accent/15 dark:text-accent-light'
-                        : 'text-text-secondary dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5 hover:text-navy dark:hover:text-white'
-                    }`}
-                  >
-                    <item.icon className="w-5 h-5 shrink-0" />
-                    <span>{item.name}</span>
-                    {isActive && (
-                      <div className="ml-auto w-1 h-5 rounded-full bg-accent"></div>
-                    )}
-                  </Link>
-                );
-              })}
+        <div className="p-4 border-t border-black/5 dark:border-white/5 space-y-1">
+          <Link href="/" className="group flex w-full items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 font-medium text-text-secondary dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5 hover:text-navy dark:hover:text-white">
+            <div className="flex items-center gap-3">
+              <Globe className="w-5 h-5" />
+              <span>Main Site</span>
             </div>
-          </div>
-        )}
-
-        {/* Group: SYSTEM — AI Index is available to editors; users and audit
-            logs stay admin-only and are filtered out for editors. */}
-        <div className="mb-6">
-          <p className="px-3 text-[11px] font-bold text-text-muted dark:text-white/40 tracking-wider uppercase mb-2">System</p>
-          <div className="space-y-0.5">
-            {filteredNavItems.filter(i => ['Users & Roles', 'Audit Logs', 'AI Index'].includes(i.name)).map((item) => {
-              const isActive = pathname.startsWith(item.href);
-              return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`group flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 font-medium ${
-                    isActive
-                      ? 'bg-accent/10 text-accent dark:bg-accent/15 dark:text-accent-light'
-                      : 'text-text-secondary dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5 hover:text-navy dark:hover:text-white'
-                  }`}
-                >
-                  <item.icon className="w-5 h-5 shrink-0" />
-                  <span>{item.name}</span>
-                  {isActive && (
-                    <div className="ml-auto w-1 h-5 rounded-full bg-accent"></div>
-                  )}
-                </Link>
-              );
-            })}
-          </div>
+          </Link>
+          <button onClick={() => signOut({ callbackUrl: '/' })} className="group flex w-full items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 font-medium text-text-secondary dark:text-white/60 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 dark:hover:text-red-400">
+            <div className="flex items-center gap-3">
+              <LogOut className="w-5 h-5" />
+              <span>Secure Logout</span>
+            </div>
+          </button>
         </div>
-      </nav>
-
-      <div className="p-4 border-t border-black/5 dark:border-white/5 space-y-1">
-        <Link href="/" className="group flex w-full items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 font-medium text-text-secondary dark:text-white/60 hover:bg-black/5 dark:hover:bg-white/5 hover:text-navy dark:hover:text-white">
-          <div className="flex items-center gap-3">
-            <Globe className="w-5 h-5" />
-            <span>Main Site</span>
-          </div>
-        </Link>
-        <button onClick={() => signOut({ callbackUrl: '/' })} className="group flex w-full items-center justify-between px-3 py-2.5 rounded-lg transition-all duration-200 font-medium text-text-secondary dark:text-white/60 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 dark:hover:text-red-400">
-          <div className="flex items-center gap-3">
-            <LogOut className="w-5 h-5" />
-            <span>Secure Logout</span>
-          </div>
-        </button>
-      </div>
       </div>
     </>
   );

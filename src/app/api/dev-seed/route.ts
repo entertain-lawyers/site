@@ -3,7 +3,13 @@ import { prisma } from '@/lib/prisma';
 import { SYLLABUS_CONFIG } from '@/lib/syllabus-config';
 import { revalidatePath } from 'next/cache';
 
-export async function GET(request: Request) {
+export async function GET() {
+  // Dev-only tool: reseeds syllabus taxonomy from config. Never allow it in
+  // production — hitting it there would let anyone mutate live content.
+  if (process.env.NODE_ENV !== 'development') {
+    return NextResponse.json({ error: 'Not available in production' }, { status: 404 });
+  }
+
   function normalize(s: string) {
     return s.toLowerCase().replace(/[^a-z0-9]/g, '');
   }
@@ -49,7 +55,7 @@ export async function GET(request: Request) {
     revalidatePath('/', 'layout');
     
     return NextResponse.json({ success: true, createdSemesters, createdSubjects, cacheBusted: true });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message });
+  } catch (error: unknown) {
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : String(error) });
   }
 }

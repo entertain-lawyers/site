@@ -37,6 +37,64 @@ const deletePostSchema = z.object({
   type: z.string().optional(),
 });
 
+// Bulk-list operation languages + target WP statuses ('trash' handled server
+// side via deleteWordPressPost, permanent deletion additionally flags force).
+const bulkSchema = z.object({
+  ids: z.array(z.coerce.number()).min(1).max(50),
+  lang: z.enum(['en', 'ne']).default('en'),
+  action: z.enum(['TRASH', 'PUBLISH', 'DRAFT', 'DELETE_PERMANENTLY']),
+});
+
+/** Batch status change / trash / permanent delete — mirrors WP-admin "Bulk actions". */
+export const bulkUpdatePostStatusAction = createSafeAction(
+  async (args: z.infer<typeof bulkSchema>, session) => {
+    if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) {
+      throw new Error('Unauthorized');
+    }
+
+    if (process.env.VERCEL_ENV === 'preview' || process.env.WP_READ_ONLY === 'true') {
+      throw new Error('Cannot perform write operations in Preview mode to protect production WordPress.');
+    }
+
+    const succeeded: number[] = [];
+    const failed: number[] = [];
+
+    for (const id of args.ids) {
+      try {
+        if (args.action === 'DELETE_PERMANENTLY') {
+          await deleteWordPressPost(id, true, args.lang);
+        } else if (args.action === 'TRASH') {
+          await deleteWordPressPost(id, false, args.lang);
+        } else {
+          await updateWordPressPost(id, { status: args.action === 'PUBLISH' ? 'publish' : 'draft' }, args.lang);
+        }
+        succeeded.push(id);
+      } catch {
+        failed.push(id);
+      }
+    }
+
+    const counts = { succeeded: succeeded.length, failed: failed.length };
+
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: session.userId!,
+          action: 'UPDATE',
+          entityType: 'POST_WP',
+          entityId: 'bulk',
+          details: { wpLang: args.lang, wpAction: args.action, ...counts, failedIds: failed }
+        }
+      });
+    } catch (auditError) {
+      console.error('[WordPress Partial Failure] Bulk op applied but audit log failed:', auditError);
+    }
+
+    revalidatePath('/admin/posts');
+    return { ...counts };
+  }
+);
+
 export const createPostAction = createSafeAction(async (args: z.infer<typeof createPostSchema>, session) => {
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) {
     throw new Error('Unauthorized');
@@ -73,11 +131,11 @@ export const createPostAction = createSafeAction(async (args: z.infer<typeof cre
 
     revalidatePath('/admin/posts');
     return { id: String(wpPost.id) };
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof WordPressAuthError) {
       throw new Error('WordPress API Error: Server credentials missing or invalid.');
     }
-    throw new Error(`WordPress API Error: ${error.message}`);
+    throw new Error(`WordPress API Error: ${error instanceof Error ? error.message : String(error)}`);
   }
 });
 
@@ -123,11 +181,11 @@ export const updatePostAction = createSafeAction(async (args: z.infer<typeof upd
 
     revalidatePath('/admin/posts');
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof WordPressAuthError) {
       throw new Error('WordPress API Error: Server credentials missing or invalid.');
     }
-    throw new Error(`WordPress API Error: ${error.message}`);
+    throw new Error(`WordPress API Error: ${error instanceof Error ? error.message : String(error)}`);
   }
 });
 
@@ -161,10 +219,10 @@ export const deletePostAction = createSafeAction(async (args: z.infer<typeof del
 
     revalidatePath('/admin/posts');
     return { success: true };
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof WordPressAuthError) {
       throw new Error('WordPress API Error: Server credentials missing or invalid.');
     }
-    throw new Error(`WordPress API Error: ${error.message}`);
+    throw new Error(`WordPress API Error: ${error instanceof Error ? error.message : String(error)}`);
   }
 });

@@ -35,7 +35,10 @@ export function HomeSemesterCard({ order, href }: HomeSemesterCardProps) {
 
         {/* Right Text Content */}
         <div className="flex flex-col items-end justify-center text-right relative z-10 w-[calc(100%-4rem)] sm:w-[calc(100%-5rem)] pl-2 h-full">
-          <h3 className="text-[18px] sm:text-[20px] font-black text-white tracking-tight leading-snug mb-1 capitalize">
+          <h3
+            style={{ fontFamily: 'var(--font-mukta), Tahoma, sans-serif' }}
+            className="text-[18px] sm:text-[20px] font-black text-white tracking-tight leading-snug mb-1 capitalize"
+          >
             {order}<sup className="lowercase">{suffix}</sup> Semester
           </h3>
           <p className="text-[12px] sm:text-[13px] text-white/70 font-medium leading-snug uppercase tracking-wider transition-colors duration-400 group-hover:text-white/90">
