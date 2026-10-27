@@ -20,6 +20,19 @@ const updateUserSchema = z.object({
   email: z.string().trim().email().optional(),
   password: z.string().min(6).optional().or(z.literal('')),
   role: z.nativeEnum(Role).optional(),
+  // WP-parity profile fields (user-edit screen)
+  firstName: z.string().max(100).optional(),
+  lastName: z.string().max(100).optional(),
+  nickname: z.string().max(100).optional(),
+  website: z.union([
+    z.literal(''),
+    z.string().max(300).regex(/^https?:\/\/\S+\.\S+/, 'Website must start with http(s):// and look like a URL'),
+  ]).optional(),
+  bio: z.string().max(1200).optional(),
+  // Optional display-name override; if absent, name stays untouched.
+  displayName: z.string().max(150).optional(),
+  // Profile picture — "" clears it, URL sets it (uploaded via media intent flow).
+  image: z.string().max(2048).optional().or(z.literal('')),
 });
 
 const deleteUserSchema = z.object({
@@ -118,6 +131,20 @@ export const updateUserAction = createSafeAction(async (args: z.infer<typeof upd
     updateData.passwordHash = await bcrypt.hash(input.password, 12);
   }
 
+  // Profile fields — trimmed; WP stores "biographical info" alongside names
+  // and the display name lives in `name` ("Display name publicly as").
+  if (input.firstName !== undefined) updateData.firstName = input.firstName.trim() || null;
+  if (input.lastName !== undefined) updateData.lastName = input.lastName.trim() || null;
+  if (input.nickname !== undefined) updateData.nickname = input.nickname.trim() || null;
+  if (input.bio !== undefined) updateData.bio = input.bio.trim() || null;
+  if (input.website !== undefined) updateData.website = input.website.trim() || null;
+  if (input.displayName !== undefined && input.displayName.trim()) {
+    updateData.name = input.displayName.trim();
+  }
+  if (input.image !== undefined) updateData.image = input.image || null;
+
+  const changedKeys = Object.keys(updateData);
+
   try {
     await prisma.user.update({
       where: { id: input.id },
@@ -129,21 +156,29 @@ export const updateUserAction = createSafeAction(async (args: z.infer<typeof upd
     throw error;
   }
 
-  await prisma.auditLog.create({
-    data: {
-      userId: session.userId,
-      action: 'UPDATE',
-      entityType: 'USER',
-      entityId: targetUser.id,
-      details: {
-        email: targetUser.email,
-        role: input.role ?? targetUser.role,
-        passwordChanged: Boolean(input.password),
+  // Audit every save (role/password changes + profile fields), merged from the
+  // security hardening audit and the profile editor's USER_PROFILE logging.
+  try {
+    await prisma.auditLog.create({
+      data: {
+        userId: session.userId,
+        action: 'UPDATE',
+        entityType: 'USER_PROFILE',
+        entityId: targetUser.id,
+        details: {
+          email: targetUser.email,
+          role: input.role ?? targetUser.role,
+          passwordChanged: Boolean(input.password),
+          fields: changedKeys,
+        },
       },
-    },
-  });
+    });
+  } catch (auditError) {
+    console.error('[AdminUsers] User updated but audit log write failed:', auditError);
+  }
 
   revalidatePath('/admin/users');
+  revalidatePath(`/admin/users/${input.id}/edit`);
   return { success: true };
 });
 

@@ -2,14 +2,41 @@
 
 import { useState } from 'react';
 import { Role } from '@prisma/client';
-import { createUserAction, updateUserAction, deleteUserAction } from '@/modules/admin/admin-user.actions';
+import { createUserAction, deleteUserAction } from '@/modules/admin/admin-user.actions';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
-export default function UsersClient({ initialUsers, currentUserId }: { initialUsers: any[], currentUserId: string }) {
+function Avatar({ image, label }: { image?: string | null; label: string }) {
+  if (image) {
+    return (
+      /* eslint-disable-next-line @next/next/no-img-element */
+      <img src={image} alt="" className="h-10 w-10 rounded-full object-cover border border-black/10 dark:border-white/10" />
+    );
+  }
+  return (
+    <span
+      className="flex h-10 w-10 items-center justify-center rounded-full bg-navy text-sm font-bold text-white"
+      aria-hidden="true"
+    >
+      {label.charAt(0).toUpperCase()}
+    </span>
+  );
+}
+
+export interface AdminUserRow {
+  id: string;
+  email: string;
+  name: string | null;
+  image: string | null;
+  nickname: string | null;
+  role: Role;
+  createdAt: string | Date;
+}
+
+export default function UsersClient({ initialUsers, currentUserId }: { initialUsers: AdminUserRow[], currentUserId: string }) {
   const router = useRouter();
   const [users, setUsers] = useState(initialUsers);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<any | null>(null);
 
   // Form state
   const [email, setEmail] = useState('');
@@ -22,7 +49,6 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
   const [error, setError] = useState('');
 
   const openNewUserModal = () => {
-    setEditingUser(null);
     setEmail('');
     setPassword('');
     setConfirmPassword('');
@@ -31,19 +57,9 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
     setIsModalOpen(true);
   };
 
-  const openEditModal = (user: any) => {
-    setEditingUser(user);
-    setEmail(user.email);
-    setPassword(''); // leave blank unless changing
-    setConfirmPassword('');
-    setRole(user.role);
-    setError('');
-    setIsModalOpen(true);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password && password !== confirmPassword) {
+    if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
     }
@@ -52,30 +68,18 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
     setError('');
 
     try {
-      if (editingUser) {
-        const res = await updateUserAction({
-          id: editingUser.id,
-          email,
-          role,
-          password: password || undefined,
-        });
-        if (!res.success) throw new Error(res.error);
-      } else {
-        const res = await createUserAction({
-          email,
-          password,
-          role,
-        });
-        if (!res.success) throw new Error(res.error);
-      }
+      const res = await createUserAction({
+        email,
+        password,
+        role,
+      });
+      if (!res.success) throw new Error(res.error);
 
       setIsModalOpen(false);
       router.refresh();
-      // Temporarily update local state until refresh completes
-      // A more robust app would sync properly, but this is fine for now
       setTimeout(() => window.location.reload(), 500);
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
+    } catch (err) {
+      setError((err as Error).message || 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -93,8 +97,8 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
       if (!res.success) throw new Error(res.error);
       setUsers(users.filter(u => u.id !== id));
       router.refresh();
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete user');
+    } catch (err) {
+      alert((err as Error).message || 'Failed to delete user');
     }
   };
 
@@ -103,7 +107,7 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-extrabold text-navy dark:text-white tracking-tight">Manage Users</h1>
-          <p className="mt-2 text-text-secondary font-medium">Add users and assign roles.</p>
+          <p className="mt-2 text-text-secondary font-medium">Add users, assign roles and manage profiles.</p>
         </div>
         <button
           onClick={openNewUserModal}
@@ -118,7 +122,7 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
           <table className="min-w-full divide-y divide-black/5 dark:divide-white/5">
             <thead className="bg-slate-50/80 dark:bg-zinc-900/80">
               <tr>
-                <th className="px-8 py-4 text-left text-xs font-bold text-text-muted uppercase">Email</th>
+                <th className="px-8 py-4 text-left text-xs font-bold text-text-muted uppercase">User</th>
                 <th className="px-8 py-4 text-left text-xs font-bold text-text-muted uppercase">Role</th>
                 <th className="px-8 py-4 text-left text-xs font-bold text-text-muted uppercase">Joined</th>
                 <th className="px-8 py-4 text-right text-xs font-bold text-text-muted uppercase">Actions</th>
@@ -128,7 +132,15 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
               {users.map(user => (
                 <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-zinc-800/50">
                   <td className="px-8 py-5">
-                    <div className="text-sm font-bold text-navy dark:text-white">{user.email}</div>
+                    <div className="flex items-center gap-4">
+                      <Avatar image={user.image} label={user.name || user.email} />
+                      <div className="min-w-0">
+                        <div className="text-sm font-bold text-navy dark:text-white truncate">{user.name || user.email}</div>
+                        {(user.name || user.nickname) && (
+                          <div className="text-xs text-text-secondary truncate">{user.email}</div>
+                        )}
+                      </div>
+                    </div>
                   </td>
                   <td className="px-8 py-5">
                     <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
@@ -143,12 +155,12 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
                     {new Date(user.createdAt).toLocaleDateString()}
                   </td>
                   <td className="px-8 py-5 text-right">
-                    <button
-                      onClick={() => openEditModal(user)}
-                      className="text-accent hover:text-accent/80 font-medium text-sm mr-4"
+                    <Link
+                      href={`/admin/users/${user.id}/edit`}
+                      className="text-accent hover:text-accent/80 font-medium text-sm min-h-[44px] inline-flex items-center mr-4"
                     >
                       Edit
-                    </button>
+                    </Link>
                     {user.id !== currentUserId && (
                       <button
                         onClick={() => handleDelete(user.id)}
@@ -168,9 +180,7 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 sm:p-8 max-w-md w-full shadow-2xl">
-            <h2 className="text-2xl font-bold mb-6 text-navy dark:text-white">
-              {editingUser ? 'Edit User' : 'Add New User'}
-            </h2>
+            <h2 className="text-2xl font-bold mb-6 text-navy dark:text-white">Add New User</h2>
 
             {error && (
               <div className="mb-4 p-4 rounded-xl bg-red-50 border border-red-100 text-red-700 text-sm">
@@ -191,13 +201,11 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-navy dark:text-white mb-2">
-                  Password {editingUser && '(Leave blank to keep current)'}
-                </label>
+                <label className="block text-sm font-bold text-navy dark:text-white mb-2">Password</label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    required={!editingUser}
+                    required
                     minLength={6}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -223,39 +231,33 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
                 </div>
               </div>
 
-              {(password || !editingUser) && (
-                <div>
-                  <label className="block text-sm font-bold text-navy dark:text-white mb-2">
-                    Confirm Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      required={!editingUser || password.length > 0}
-                      minLength={6}
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full rounded-xl bg-slate-50 dark:bg-zinc-950 border border-black/10 px-4 py-3 text-navy dark:text-white focus:border-accent focus:ring-1 focus:ring-accent pr-12"
-                    />
-                  </div>
+              <div>
+                <label className="block text-sm font-bold text-navy dark:text-white mb-2">
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    minLength={6}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full rounded-xl bg-slate-50 dark:bg-zinc-950 border border-black/10 px-4 py-3 text-navy dark:text-white focus:border-accent focus:ring-1 focus:ring-accent pr-12"
+                  />
                 </div>
-              )}
+              </div>
 
               <div>
                 <label className="block text-sm font-bold text-navy dark:text-white mb-2">Role</label>
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value as Role)}
-                  disabled={editingUser?.email === 'admin@entertainlawyers.com'}
-                  className="w-full rounded-xl bg-slate-50 dark:bg-zinc-950 border border-black/10 px-4 py-3 text-navy dark:text-white focus:border-accent focus:ring-1 focus:ring-accent disabled:opacity-50"
+                  className="w-full rounded-xl bg-slate-50 dark:bg-zinc-950 border border-black/10 px-4 py-3 text-navy dark:text-white focus:border-accent focus:ring-1 focus:ring-accent"
                 >
                   <option value={Role.USER}>User</option>
                   <option value={Role.EDITOR}>Editor</option>
                   <option value={Role.ADMIN}>Admin</option>
                 </select>
-                {editingUser?.email === 'admin@entertainlawyers.com' && (
-                  <p className="mt-2 text-xs text-red-500 font-medium">The main admin role cannot be changed.</p>
-                )}
               </div>
 
               <div className="flex gap-4 pt-4">

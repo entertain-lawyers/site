@@ -20,6 +20,9 @@ export default async function AdminUsersPage() {
     select: {
       id: true,
       email: true,
+      name: true,
+      image: true,
+      nickname: true,
       role: true,
       createdAt: true,
     },

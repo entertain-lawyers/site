@@ -4,16 +4,49 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { updatePostAction } from '@/modules/admin/admin-post.actions';
 import Link from 'next/link';
+import { Eye } from 'lucide-react';
 import RichTextEditor from '@/components/editor/RichTextEditor';
+import { writePostPreviewDraft, type PostType } from '@/lib/post-preview';
 
-export default function EditPostClient({ post }: { post: any }) {
+const POST_TYPE_LABELS: Record<string, string> = {
+  NEWS: 'NEWS',
+  BLOG: 'BLOG',
+  FACT: 'FACT',
+  PERSONALITY: 'PERSONALITY',
+  NEPALI_SAMANYA_SAMACHAR: 'सामान्य समाचार',
+  NEPALI_ADALAT_SAMACHAR: 'अदालत समाचार',
+  NEPALI_MUKHYA_SAMACHAR: 'मुख्य समाचार',
+  NEPALI_NAJIRHARU: 'नजिरहरु',
+  NEPALI_AIN_KANUN: 'ऐन तथा कानून',
+  NEPALI_BLOG_BICHAR: 'ब्लग, बिचार, अन्य',
+};
+
+interface EditablePost {
+  id: string;
+  title: string;
+  content: string;
+  type: string;
+  status: string;
+}
+
+export default function EditPostClient({ post }: { post: EditablePost }) {
   const router = useRouter();
   const [title, setTitle] = useState(post.title);
   const [content, setContent] = useState(post.content);
-  const [type, setType] = useState<any>(post.type);
-  const [isPublished, setIsPublished] = useState(post.status === 'PUBLISHED' || !!post.isPublished);
+  const [type, setType] = useState<PostType>(post.type as PostType);
+  const [isPublished, setIsPublished] = useState(post.status === 'PUBLISHED');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const handlePreview = () => {
+    writePostPreviewDraft({
+      title: title || 'Untitled Draft',
+      content,
+      type: POST_TYPE_LABELS[type] || type,
+      featuredImage: null,
+    });
+    window.open('/preview', '_blank');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +60,7 @@ export default function EditPostClient({ post }: { post: any }) {
 
     try {
       const res = await updatePostAction({
-        id: post.id,
+        id: Number(post.id),
         title,
         content,
         type,
@@ -35,13 +68,13 @@ export default function EditPostClient({ post }: { post: any }) {
       });
 
       if (!res.success) {
-        throw new Error((res as any).error || 'Failed to update post');
+        throw new Error(res.error || 'Failed to update post');
       }
 
       router.push('/admin/posts');
       router.refresh();
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while saving.');
+    } catch (err) {
+      setError((err as Error).message || 'An error occurred while saving.');
     } finally {
       setLoading(false);
     }
@@ -113,6 +146,18 @@ export default function EditPostClient({ post }: { post: any }) {
             >
               {loading ? 'Saving...' : 'Update Post'}
             </button>
+
+            <button
+              type="button"
+              onClick={handlePreview}
+              className="w-full inline-flex items-center justify-center gap-2 border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 text-navy dark:text-white hover:border-gold hover:text-gold px-6 py-3 rounded-xl font-bold transition-all"
+            >
+              <Eye className="h-4 w-4" aria-hidden="true" />
+              Preview
+            </button>
+            <p className="text-xs text-text-secondary">
+              Opens the post on the live site view (new tab) without saving your changes.
+            </p>
           </div>
 
           <div className="bg-slate-50 dark:bg-zinc-950 p-6 rounded-2xl border border-black/5 dark:border-white/5 space-y-6">
@@ -123,7 +168,7 @@ export default function EditPostClient({ post }: { post: any }) {
                 id="type"
                 required
                 value={type}
-                onChange={(e) => setType(e.target.value as any)}
+                onChange={(e) => setType(e.target.value as PostType)}
                 className="block w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 px-4 py-3 text-navy dark:text-white shadow-sm focus:border-accent focus:ring-1 focus:ring-accent transition-colors sm:text-sm font-medium"
               >
                 <option value="NEWS">News</option>
