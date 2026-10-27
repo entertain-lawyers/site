@@ -34,7 +34,11 @@ const teamMemberSchema = z.object({
 });
 
 const teamMemberUpdateSchema = teamMemberSchema.extend({
-  id: z.string(),
+  id: z.string().uuid(),
+});
+
+const deleteTeamMemberSchema = z.object({
+  id: z.string().uuid(),
 });
 
 export const createTeamMemberAction = createSafeAction(async (data: z.infer<typeof teamMemberSchema>, session) => {
@@ -42,7 +46,13 @@ export const createTeamMemberAction = createSafeAction(async (data: z.infer<type
     throw new Error('Unauthorized');
   }
 
-  const finalSlug = data.slug || generateSlug(data.name);
+  const parsed = teamMemberSchema.safeParse(data);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message || 'Invalid team member details');
+  }
+  const input = parsed.data;
+
+  const finalSlug = input.slug || generateSlug(input.name);
 
   // Ensure slug uniqueness
   let counter = 1;
@@ -54,25 +64,35 @@ export const createTeamMemberAction = createSafeAction(async (data: z.infer<type
 
   const member = await prisma.teamMember.create({
     data: {
-      name: data.name,
-      designation: data.designation,
+      name: input.name,
+      designation: input.designation,
       slug: uniqueSlug,
-      shortBio: data.shortBio || null,
-      biography: data.biography || null,
-      imageUrl: data.imageUrl || null,
-      phone: data.phone || null,
-      email: data.email || null,
-      linkedinUrl: data.linkedinUrl || null,
-      facebookUrl: data.facebookUrl || null,
-      websiteUrl: data.websiteUrl || null,
-      instagramUrl: data.instagramUrl || null,
-      qualifications: data.qualifications || null,
-      experience: data.experience || null,
-      achievements: data.achievements || null,
-      practiceAreas: data.practiceAreas || null,
-      languages: data.languages || null,
-      displayOrder: data.displayOrder,
-      isPublished: data.isPublished,
+      shortBio: input.shortBio || null,
+      biography: input.biography || null,
+      imageUrl: input.imageUrl || null,
+      phone: input.phone || null,
+      email: input.email || null,
+      linkedinUrl: input.linkedinUrl || null,
+      facebookUrl: input.facebookUrl || null,
+      websiteUrl: input.websiteUrl || null,
+      instagramUrl: input.instagramUrl || null,
+      qualifications: input.qualifications || null,
+      experience: input.experience || null,
+      achievements: input.achievements || null,
+      practiceAreas: input.practiceAreas || null,
+      languages: input.languages || null,
+      displayOrder: input.displayOrder,
+      isPublished: input.isPublished,
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      userId: session.userId,
+      action: 'CREATE',
+      entityType: 'TEAM_MEMBER',
+      entityId: member.id,
+      details: { name: member.name, slug: member.slug },
     },
   });
 
@@ -86,16 +106,22 @@ export const updateTeamMemberAction = createSafeAction(async (data: z.infer<type
     throw new Error('Unauthorized');
   }
 
-  let finalSlug = data.slug || generateSlug(data.name);
+  const parsed = teamMemberUpdateSchema.safeParse(data);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message || 'Invalid team member details');
+  }
+  const input = parsed.data;
+
+  let finalSlug = input.slug || generateSlug(input.name);
 
   // Ensure slug uniqueness if changed
-  const existing = await prisma.teamMember.findUnique({ where: { id: data.id } });
+  const existing = await prisma.teamMember.findUnique({ where: { id: input.id } });
   if (!existing) throw new Error('Not found');
 
   if (existing.slug !== finalSlug) {
     let counter = 1;
     let uniqueSlug = finalSlug;
-    while (await prisma.teamMember.findFirst({ where: { slug: uniqueSlug, id: { not: data.id } } })) {
+    while (await prisma.teamMember.findFirst({ where: { slug: uniqueSlug, id: { not: input.id } } })) {
       uniqueSlug = `${finalSlug}-${counter}`;
       counter++;
     }
@@ -103,27 +129,37 @@ export const updateTeamMemberAction = createSafeAction(async (data: z.infer<type
   }
 
   const member = await prisma.teamMember.update({
-    where: { id: data.id },
+    where: { id: input.id },
     data: {
-      name: data.name,
-      designation: data.designation,
+      name: input.name,
+      designation: input.designation,
       slug: finalSlug,
-      shortBio: data.shortBio || null,
-      biography: data.biography || null,
-      imageUrl: data.imageUrl || null,
-      phone: data.phone || null,
-      email: data.email || null,
-      linkedinUrl: data.linkedinUrl || null,
-      facebookUrl: data.facebookUrl || null,
-      websiteUrl: data.websiteUrl || null,
-      instagramUrl: data.instagramUrl || null,
-      qualifications: data.qualifications || null,
-      experience: data.experience || null,
-      achievements: data.achievements || null,
-      practiceAreas: data.practiceAreas || null,
-      languages: data.languages || null,
-      displayOrder: data.displayOrder,
-      isPublished: data.isPublished,
+      shortBio: input.shortBio || null,
+      biography: input.biography || null,
+      imageUrl: input.imageUrl || null,
+      phone: input.phone || null,
+      email: input.email || null,
+      linkedinUrl: input.linkedinUrl || null,
+      facebookUrl: input.facebookUrl || null,
+      websiteUrl: input.websiteUrl || null,
+      instagramUrl: input.instagramUrl || null,
+      qualifications: input.qualifications || null,
+      experience: input.experience || null,
+      achievements: input.achievements || null,
+      practiceAreas: input.practiceAreas || null,
+      languages: input.languages || null,
+      displayOrder: input.displayOrder,
+      isPublished: input.isPublished,
+    },
+  });
+
+  await prisma.auditLog.create({
+    data: {
+      userId: session.userId,
+      action: 'UPDATE',
+      entityType: 'TEAM_MEMBER',
+      entityId: member.id,
+      details: { name: member.name, slug: member.slug },
     },
   });
 
@@ -133,18 +169,34 @@ export const updateTeamMemberAction = createSafeAction(async (data: z.infer<type
   return member;
 });
 
-export const deleteTeamMemberAction = createSafeAction(async (id: string, session) => {
+export const deleteTeamMemberAction = createSafeAction(async (args: z.infer<typeof deleteTeamMemberSchema>, session) => {
   if (session.role !== Role.ADMIN) {
     throw new Error('Unauthorized. Only Admins can delete.');
   }
 
+  const parsed = deleteTeamMemberSchema.safeParse(args);
+  if (!parsed.success) {
+    throw new Error('Invalid team member id');
+  }
+
   let member;
   try {
-    member = await prisma.teamMember.delete({ where: { id } });
+    member = await prisma.teamMember.delete({ where: { id: parsed.data.id } });
   } catch (error) {
     if (isRecordNotFoundError(error)) throw new Error('Team member not found');
     throw error;
   }
+
+  await prisma.auditLog.create({
+    data: {
+      userId: session.userId,
+      action: 'DELETE',
+      entityType: 'TEAM_MEMBER',
+      entityId: member.id,
+      details: { name: member.name, slug: member.slug },
+    },
+  });
+
   revalidatePath('/team');
   revalidatePath('/admin/team');
   return member;

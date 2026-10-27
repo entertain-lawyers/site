@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { auth } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
+import { Role } from '@prisma/client';
 
 export async function GET(request: Request) {
-  const session = await auth();
-  if (!session || (session.user.role !== 'ADMIN' && session.user.role !== 'EDITOR')) {
+  // Re-read the role from the database; JWT roles can be stale after a demotion.
+  const user = await requireRole(Role.ADMIN, Role.EDITOR);
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

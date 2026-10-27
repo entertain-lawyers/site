@@ -29,10 +29,14 @@ const deletePublicationSchema = z.object({
 export const createPublicationAction = createSafeAction(async (args: z.infer<typeof createPublicationSchema>, session) => {
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) throw new Error('Unauthorized');
 
+  const parsed = createPublicationSchema.safeParse(args);
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message || 'Invalid publication');
+  const input = parsed.data;
+
   const pub = await prisma.publication.create({
     data: {
-      ...args,
-      publishDate: args.publishDate ? new Date(args.publishDate) : null,
+      ...input,
+      publishDate: input.publishDate ? new Date(input.publishDate) : null,
       authorId: session.userId!,
     }
   });
@@ -49,12 +53,16 @@ export const createPublicationAction = createSafeAction(async (args: z.infer<typ
 export const updatePublicationAction = createSafeAction(async (args: z.infer<typeof updatePublicationSchema>, session) => {
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) throw new Error('Unauthorized');
 
-  const existing = await prisma.publication.findUnique({ where: { id: args.id } });
+  const parsed = updatePublicationSchema.safeParse(args);
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message || 'Invalid publication');
+  const input = parsed.data;
+
+  const existing = await prisma.publication.findUnique({ where: { id: input.id } });
   if (!existing) throw new Error('Publication not found');
 
   const pub = await prisma.publication.update({
-    where: { id: args.id },
-    data: { ...args, publishDate: args.publishDate ? new Date(args.publishDate) : null },
+    where: { id: input.id },
+    data: { ...input, publishDate: input.publishDate ? new Date(input.publishDate) : null },
   });
 
   await prisma.auditLog.create({

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { rateLimit } from '@/lib/rate-limit';
+import { getClientIp } from '@/lib/client-ip';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,14 +42,10 @@ function sanitizeUrl(raw: string | undefined): string | null {
   return raw.slice(0, 256);
 }
 
-function clientIp(request: Request): string {
-  return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'anonymous';
-}
-
 export async function POST(request: Request) {
   let ip = 'anonymous';
   try {
-    ip = clientIp(request);
+    ip = getClientIp(request.headers);
     const limited = await rateLimit(`protection-log:${ip}`, 20, 60);
     if (!limited.success) {
       return NextResponse.json({ ok: true, stored: 0, throttled: true }, { status: 429 });

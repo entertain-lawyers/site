@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import { initiateDocumentUpload, confirmDocumentUpload } from '@/modules/admin/admin-document.actions';
 import { getSecureDocumentUrl } from '@/modules/documents/document.actions';
 import { canAccessResource } from '@/modules/entitlements/entitlement.service';
+import { assertTestDatabase, describeDb } from '@/test/db';
 
 // Mock R2 Client
 vi.mock('@/lib/b2', () => ({
@@ -36,7 +37,7 @@ vi.mock('@/lib/auth', () => ({
 
 import { getObjectHeadBytes, getObjectMetadata } from '@/lib/b2';
 
-describe('Milestone 3A Integration Tests', () => {
+describeDb('Milestone 3A Integration Tests', () => {
   let adminId: string;
   let userId1: string; // Has subscription
   let userId2: string; // Has individual purchase
@@ -47,6 +48,8 @@ describe('Milestone 3A Integration Tests', () => {
   let premiumResource2Id: string;
 
   beforeAll(async () => {
+    // This suite truncates tables, so it may only run on a disposable database.
+    await assertTestDatabase(prisma);
     // Clear DB
     await prisma.paymentTransaction.deleteMany();
     await prisma.accessLog.deleteMany();
@@ -55,8 +58,10 @@ describe('Milestone 3A Integration Tests', () => {
     await prisma.subscription.deleteMany();
     await prisma.purchase.deleteMany();
     await prisma.plan.deleteMany();
-    await prisma.document.deleteMany();
+    // Resource references Document, so resources must go first.
     await prisma.resource.deleteMany();
+    await prisma.document.deleteMany();
+    await prisma.unit.deleteMany();
     await prisma.subject.deleteMany();
     await prisma.semester.deleteMany();
     await prisma.session.deleteMany();
@@ -141,7 +146,7 @@ describe('Milestone 3A Integration Tests', () => {
       mockSession = { user: { id: userId1, role: 'USER' } };
       const res = await initiateDocumentUpload({ resourceId: premiumResourceId, expectedSize: 1024, expectedMimeType: 'application/pdf' });
       expect(res.success).toBe(false);
-      if (!res.success) expect(res.error).toContain('Forbidden');
+      if (!res.success) expect(res.error).toMatch(/Unauthorized|Forbidden/);
     });
 
     it('3. Invalid resource is rejected', async () => {

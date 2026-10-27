@@ -5,10 +5,14 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
+import { headers } from "next/headers";
 import { authConfig } from "./auth.config";
+import { normalizeEmail } from "./auth-utils";
+import { rateLimit } from "./rate-limit";
+import { getClientIp } from "./client-ip";
 
 const credentialsSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().email(),
   password: z.string().min(1),
 });
 
@@ -21,41 +25,64 @@ export async function testAuthorize(credentials: unknown) {
   if (!parsed.success) return null;
 
   const { email, password } = parsed.data;
-  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedEmail = normalizeEmail(email);
 
   const user = await prisma.user.findUnique({
     where: { email: normalizedEmail },
   });
 
-  const dummyHash = "$2b$12$dummyHashToPreventTimingAttacks12345678901234567890";
+  // A valid bcrypt hash (60 chars) keeps the compare cost identical when the
+  // account does not exist, so response timing does not reveal valid emails.
+  const dummyHash = "$2b$12$BC2HnljaAVW2CnR34dTYg.lctzpDZY.ZWCkkT4qR7gI3Z8AbV8TMq";
 
   const passwordsMatch = await bcrypt.compare(
     password,
     user?.passwordHash || dummyHash
   );
 
-  class UserNotFound extends CredentialsSignin { code = "UserNotFound" }
-  class MissingPasswordHash extends CredentialsSignin { code = "MissingPasswordHash" }
-  class PasswordMismatch extends CredentialsSignin { code = "PasswordMismatch" }
   class UnverifiedEmail extends CredentialsSignin { code = "UnverifiedEmail" }
 
-  if (!user) {
-    throw new UserNotFound("User not found in database.");
-  }
-  
-  if (!user.passwordHash) {
-    throw new MissingPasswordHash("Password hash is missing for this user.");
+  // Return null for unknown accounts and wrong passwords: NextAuth shows the
+  // same generic error either way, so the UI cannot be used to enumerate users.
+  if (!user || !user.passwordHash || !passwordsMatch) {
+    return null;
   }
 
   if (!user.isEmailVerified && !user.emailVerified && user.role !== 'ADMIN') {
     throw new UnverifiedEmail('Please verify your email address before logging in.');
   }
 
-  if (passwordsMatch) {
-    return { id: user.id, email: user.email, role: user.role };
+  return { id: user.id, email: user.email, role: user.role };
+}
+
+class LoginRateLimited extends CredentialsSignin {
+  code = "LoginRateLimited";
+}
+
+/**
+ * Credentials login is reachable from /api/auth/*, which the proxy does not
+ * cover, so it needs its own throttle. Limit per account (5-10 guesses) and
+ * per IP (shared NAT) to slow down password spraying.
+ */
+async function authorizeWithRateLimit(credentials: unknown) {
+  const parsed = credentialsSchema.safeParse(credentials);
+  const email = parsed.success ? normalizeEmail(parsed.data.email) : "unknown";
+
+  const headersList = await headers();
+  const ip = getClientIp(headersList);
+
+  const [ipLimit, accountLimit] = await Promise.all([
+    rateLimit(`login:ip:${ip}`, 30, 900),
+    rateLimit(`login:account:${email}`, 10, 900),
+  ]);
+
+  if (!ipLimit.success || !accountLimit.success) {
+    throw new LoginRateLimited(
+      "Too many login attempts. Please wait a few minutes and try again."
+    );
   }
 
-  throw new PasswordMismatch("Invalid email or password.");
+  return testAuthorize(credentials);
 }
 
 export { authConfig };
@@ -76,7 +103,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      authorize: testAuthorize,
+      authorize: authorizeWithRateLimit,
     }),
   ],
 });

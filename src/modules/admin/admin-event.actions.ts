@@ -29,10 +29,14 @@ const deleteEventSchema = z.object({
 export const createEventAction = createSafeAction(async (args: z.infer<typeof createEventSchema>, session) => {
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) throw new Error('Unauthorized');
 
+  const parsed = createEventSchema.safeParse(args);
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message || 'Invalid event');
+  const input = parsed.data;
+
   const evt = await prisma.event.create({
     data: {
-      ...args,
-      eventDate: new Date(args.eventDate),
+      ...input,
+      eventDate: new Date(input.eventDate),
       authorId: session.userId!,
     }
   });
@@ -49,12 +53,16 @@ export const createEventAction = createSafeAction(async (args: z.infer<typeof cr
 export const updateEventAction = createSafeAction(async (args: z.infer<typeof updateEventSchema>, session) => {
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) throw new Error('Unauthorized');
 
-  const existing = await prisma.event.findUnique({ where: { id: args.id } });
+  const parsed = updateEventSchema.safeParse(args);
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message || 'Invalid event');
+  const input = parsed.data;
+
+  const existing = await prisma.event.findUnique({ where: { id: input.id } });
   if (!existing) throw new Error('Event not found');
 
   const evt = await prisma.event.update({
-    where: { id: args.id },
-    data: { ...args, eventDate: new Date(args.eventDate) },
+    where: { id: input.id },
+    data: { ...input, eventDate: new Date(input.eventDate) },
   });
 
   await prisma.auditLog.create({

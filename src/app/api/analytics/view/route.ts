@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { rateLimit } from '@/lib/rate-limit';
+import { getClientIp } from '@/lib/client-ip';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,10 +10,6 @@ export const dynamic = 'force-dynamic';
  * row (action = PAGE_VIEW) with a relative path, IP and user agent — no
  * cookies, no cross-site identifiers.
  */
-
-function clientIp(request: Request): string {
-  return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'anonymous';
-}
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as { action?: string; url?: string } | null;
@@ -24,7 +21,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'invalid url' }, { status: 400 });
   }
 
-  const ip = clientIp(request);
+  const ip = getClientIp(request.headers);
 
   try {
     // Generous cap: normal browsing rarely exceeds ~2 views/minute.

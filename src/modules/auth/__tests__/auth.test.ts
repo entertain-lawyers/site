@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { prisma } from '@/lib/prisma';
 import { register } from '../auth.actions';
-import bcrypt from 'bcryptjs';
 import { Role } from '@prisma/client';
 import { rateLimit } from '@/lib/rate-limit';
 import { createSafeAction } from '@/lib/safe-action';
+import { assertTestDatabase, describeDb } from '@/test/db';
 import nextConfig from '../../../../next.config';
 
 vi.mock('next/headers', () => ({
@@ -29,22 +29,34 @@ vi.mock('@/lib/auth', async (importOriginal) => {
   };
 });
 
-import { auth, authConfig, testAuthorize } from '@/lib/auth';
+import { auth, testAuthorize } from '@/lib/auth';
 
-describe('Authentication & Security Foundation', () => {
+describeDb('Authentication & Security Foundation', () => {
   const testEmail = `test-${Date.now()}@auth.com`;
   const testPassword = 'SecurePassword123!';
+  const adminEmail = `admin-${Date.now()}@auth.com`;
   let userId: string;
+  let adminUserId: string;
 
   beforeAll(async () => {
-    await prisma.user.deleteMany({ where: { email: testEmail } });
+    await assertTestDatabase(prisma);
+    await prisma.user.deleteMany({ where: { email: { in: [testEmail, adminEmail] } } });
+    const admin = await prisma.user.create({
+      data: { email: adminEmail, role: Role.ADMIN, isEmailVerified: true },
+    });
+    adminUserId = admin.id;
   });
 
   afterAll(async () => {
-    await prisma.accessLog.deleteMany();
-    await prisma.uploadIntent.deleteMany();
-    await prisma.session.deleteMany();
-    await prisma.user.deleteMany();
+    // Only remove rows this suite created. Deleting every user/session in the
+    // database would wipe real accounts when the suite is misconfigured.
+    const ids = [userId, adminUserId].filter(Boolean);
+    if (ids.length > 0) {
+      await prisma.accessLog.deleteMany({ where: { userId: { in: ids } } });
+      await prisma.uploadIntent.deleteMany({ where: { adminId: { in: ids } } });
+      await prisma.session.deleteMany({ where: { userId: { in: ids } } });
+      await prisma.user.deleteMany({ where: { id: { in: ids } } });
+    }
     await prisma.$disconnect();
     vi.clearAllMocks();
   });
@@ -59,8 +71,28 @@ describe('Authentication & Security Foundation', () => {
       const res = await register({ email: testEmail, password: testPassword });
       expect(res.success).toBe(true);
       if (res.success) {
-        userId = res.data.id;
-        expect(res.data.email).toBe(testEmail);
+        // Registration no longer returns the account id: doing so would let an
+        // attacker probe which addresses exist.
+        expect(res.data.message).toBe('Verification email sent');
+      }
+
+      const created = await prisma.user.findUnique({ where: { email: testEmail } });
+      expect(created).not.toBeNull();
+      userId = created!.id;
+
+      // New accounts must confirm their email before they can log in; the
+      // login tests below simulate that confirmation.
+      await prisma.user.update({
+        where: { id: userId },
+        data: { isEmailVerified: true },
+      });
+    });
+
+    it('does not reveal whether an email is already registered', async () => {
+      const res = await register({ email: testEmail, password: testPassword });
+      expect(res.success).toBe(true);
+      if (res.success) {
+        expect(res.data.message).toBe('Verification email sent');
       }
     });
 
@@ -77,35 +109,64 @@ describe('Authentication & Security Foundation', () => {
     });
   });
 
-  describe('4-7. Login & Sessions (Auth.js encode mock)', () => {
+  describe('4-7. Login & Sessions (Auth.js JWT strategy)', () => {
     it('invalid password is rejected', async () => {
       const res = await testAuthorize({ email: testEmail, password: 'wrong' });
       expect(res).toBeNull();
     });
 
-    it('successful login creates a valid database session', async () => {
-      const user = await testAuthorize({ email: testEmail, password: testPassword });
-      
-      if (!user) {
-        const dbUser = await prisma.user.findUnique({ where: { email: testEmail } });
-        const match = await bcrypt.compare(testPassword, dbUser?.passwordHash || '');
-        console.error("DEBUG:", { testPassword, hash: dbUser?.passwordHash, match });
-      }
-
-      expect(user).toBeDefined();
-      expect(user?.id).toBe(userId);
-
-      /* JWT encode test removed for NextAuth v5 JWT strategy */
+    it('unknown accounts are rejected without revealing whether they exist', async () => {
+      const res = await testAuthorize({
+        email: `missing-${Date.now()}@auth.com`,
+        password: 'whatever',
+      });
+      expect(res).toBeNull();
     });
 
-    it('session revocation works (manual deletion)', async () => {
-      const dbSessions = await prisma.session.findMany({ where: { userId } });
-      expect(dbSessions.length).toBeGreaterThan(0);
-      
-      await prisma.session.delete({ where: { id: dbSessions[0].id } });
-      
-      const check = await prisma.session.findUnique({ where: { id: dbSessions[0].id } });
-      expect(check).toBeNull();
+    it('successful login returns the user', async () => {
+      const user = await testAuthorize({ email: testEmail, password: testPassword });
+      expect(user).toBeDefined();
+      expect(user?.id).toBe(userId);
+      expect(user?.role).toBe(Role.USER);
+    });
+
+    it('mixed-case email addresses still log in', async () => {
+      const user = await testAuthorize({
+        email: `  ${testEmail.toUpperCase()}  `,
+        password: testPassword,
+      });
+      expect(user?.id).toBe(userId);
+    });
+
+    it('unverified accounts are rejected until the email is confirmed', async () => {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { isEmailVerified: false },
+      });
+
+      await expect(testAuthorize({ email: testEmail, password: testPassword }))
+        .rejects.toThrow(/verify your email/i);
+
+      await prisma.user.update({
+        where: { id: userId },
+        data: { isEmailVerified: true },
+      });
+    });
+
+    it('a deleted account cannot use an existing session', async () => {
+      const probe = createSafeAction(async () => 'ok', { requireAuth: true });
+      const temp = await prisma.user.create({
+        data: { email: `deleted-${Date.now()}@auth.com`, role: Role.USER },
+      });
+
+      vi.mocked(auth).mockResolvedValueOnce({
+        user: { id: temp.id, role: Role.USER },
+        expires: '',
+      } as any);
+      await prisma.user.delete({ where: { id: temp.id } });
+
+      const res = await probe({});
+      expect(res).toEqual({ success: false, error: 'Unauthorized: Please log in.' });
     });
   });
 
@@ -126,7 +187,7 @@ describe('Authentication & Security Foundation', () => {
     });
 
     it('admin can access authorized admin routes', async () => {
-      vi.mocked(auth).mockResolvedValueOnce({ user: { id: userId, role: Role.ADMIN }, expires: '' } as any);
+      vi.mocked(auth).mockResolvedValueOnce({ user: { id: adminUserId, role: Role.ADMIN }, expires: '' } as any);
       const res = await adminAction({});
       expect(res.success).toBe(true);
       if (res.success) {
@@ -135,18 +196,14 @@ describe('Authentication & Security Foundation', () => {
     });
 
     it('client-supplied role cannot bypass authorization', async () => {
-      // In the auth.ts session callback, we force a DB lookup to overwrite the token's role.
-      // We test this logic by simulating the session callback explicitly.
       const dbUser = await prisma.user.findUnique({ where: { id: userId } });
       expect(dbUser?.role).toBe(Role.USER); // Real DB role is USER
 
-      const sessionCallback = authConfig.callbacks!.session as any;
-      const tamperedSession = { user: { id: userId, role: Role.ADMIN } }; // Client tries to supply ADMIN
-
-      const resolvedSession = await sessionCallback({ session: tamperedSession, token: { id: userId } } as any);
-      
-      // The callback must revert it to USER based on the DB!
-      expect(resolvedSession.user.role).toBe(Role.USER);
+      // A tampered session/JWT claims ADMIN, but the action re-reads the role
+      // from the database and must reject it.
+      vi.mocked(auth).mockResolvedValueOnce({ user: { id: userId, role: Role.ADMIN }, expires: '' } as any);
+      const res = await adminAction({});
+      expect(res).toEqual({ success: false, error: 'Forbidden: Admin access required.' });
     });
   });
 

@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { ResourceType } from '@prisma/client';
-import { createResourceAction } from '@/modules/admin/admin-resource.actions';
+import { createResourceAction, deleteResourceAction } from '@/modules/admin/admin-resource.actions';
 import { confirmDocumentUpload, initiateDocumentUpload } from '@/modules/admin/admin-document.actions';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 
@@ -81,6 +81,10 @@ export function AdminResourceForm({
     setLoading(true);
     setError('');
 
+    // Track the created row so a failed PDF upload can remove it instead of
+    // leaving an orphan that a retry would duplicate.
+    let createdResourceId: string | null = null;
+
     try {
       // 1. Create Resource
       const createRes = await createResourceAction({
@@ -100,6 +104,7 @@ export function AdminResourceForm({
       }
 
       const resourceId = createRes.data.resourceId;
+      createdResourceId = resourceId;
 
       // 2. If PDF mode, upload file
       if (uploadMode === 'PDF' && file) {
@@ -138,9 +143,20 @@ export function AdminResourceForm({
       }
 
       // Success
+      createdResourceId = null;
       router.push('/admin/study/resources');
       router.refresh();
     } catch (err) {
+      // If the resource row was created but the upload/confirm step failed,
+      // delete the orphan so the user can retry without duplicates.
+      if (createdResourceId) {
+        try {
+          await deleteResourceAction({ id: createdResourceId });
+        } catch {
+          // Best-effort cleanup; surface the original failure below.
+        }
+      }
+
       const message = err instanceof Error ? err.message : 'An error occurred during creation.';
       setError(message);
       setLoading(false);

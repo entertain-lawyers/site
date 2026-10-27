@@ -53,7 +53,11 @@ export class KhaltiProvider implements IPaymentProviderService {
     // 1. Perform server-to-server lookup
     const lookupData = await verifyKhaltiTransaction(pidx);
 
-    // 2. Validate amount matches what we expect
+    // 2. Validate amount matches what we expect. (The callback's
+    // purchase_order_id is attacker-controlled and the lookup response does
+    // not echo it, so the payment is bound to our transaction by comparing
+    // this pidx with the providerRef stored at initiation in
+    // PaymentCoreService.)
     if (lookupData.total_amount !== expectedAmount) {
       return {
         success: false,
@@ -64,15 +68,19 @@ export class KhaltiProvider implements IPaymentProviderService {
       };
     }
 
-    // 3. Status check
-    const isComplete = lookupData.status === 'Completed';
+    // 3. Status check. Expired/canceled/refunded payments are terminal
+    // failures; Pending/Initiated are not, so the transaction must stay
+    // PENDING and be finalized by a later Completed callback.
+    const terminalFailure = ['Expired', 'User canceled', 'Refunded'].includes(
+      lookupData.status
+    );
 
     return {
-      success: true,
+      success: !terminalFailure,
       providerRef: pidx,
       amountPaid: lookupData.total_amount,
       currency: "NPR",
-      isComplete,
+      isComplete: lookupData.status === 'Completed',
     };
   }
 }

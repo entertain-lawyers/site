@@ -7,6 +7,7 @@ const cspHeader = `
     img-src 'self' blob: data:;
     font-src 'self';
     connect-src 'self';
+    worker-src 'self' blob:;
     frame-src https://www.google.com https://maps.google.com;
     object-src 'none';
     base-uri 'self';

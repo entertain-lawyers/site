@@ -16,15 +16,30 @@ export async function GET(
       return new NextResponse('Invalid request', { status: 400 });
     }
 
-    // 0. Security Check: Prevent path traversal
-    if (keyArray.some(segment => segment === '..' || segment === '.')) {
+    // 0. Security Check: Prevent path traversal. Segments are decoded by Next,
+    // so reject any separator or dot sequence inside a segment as well as the
+    // literal "." / ".." values.
+    if (
+      keyArray.some(
+        (segment) =>
+          !segment ||
+          segment === '.' ||
+          segment === '..' ||
+          segment.includes('/') ||
+          segment.includes('\\') ||
+          segment.includes('\0')
+      ) ||
+      keyArray.join('/').includes('..')
+    ) {
       return new NextResponse('Forbidden: Path traversal not allowed', { status: 403 });
     }
 
     const key = keyArray.join('/');
 
     // 1. Security Check: Validate against public prefix allowlist
-    const isPublic = PUBLIC_PREFIXES.some(prefix => key.startsWith(prefix));
+    const isPublic = PUBLIC_PREFIXES.some(
+      (prefix) => key.startsWith(prefix) && key.length > prefix.length
+    );
 
     if (!isPublic) {
       // Return 403 for blocked/private prefixes (like documents/) or unknown prefixes
@@ -34,12 +49,14 @@ export async function GET(
     // 2. Generate a short-lived presigned URL (3600 seconds = 1 hour)
     const presignedUrl = await generatePresignedGetUrl(key, 3600);
 
-    // 3. Issue a 302 Redirect with strict Cache-Control headers
-    // We cache the redirect for 1800 seconds (30 mins), safely less than the 60 min signature.
+    // 3. Issue a 302 Redirect with strict Cache-Control headers.
+    // The redirect is cached for 30 minutes, safely less than the 60-minute
+    // signature. Do not add stale-while-revalidate: a stale redirect points at
+    // an expired signature and breaks images for as long as it is served.
     return NextResponse.redirect(presignedUrl, {
       status: 302,
       headers: {
-        'Cache-Control': 'public, max-age=1800, s-maxage=1800, stale-while-revalidate=86400'
+        'Cache-Control': 'public, max-age=1800, s-maxage=1800'
       }
     });
 
