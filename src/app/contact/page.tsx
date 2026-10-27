@@ -1,11 +1,14 @@
 import { getDictionary } from '@/lib/i18n';
+import { getSiteSettings, phoneHref } from '@/lib/site-settings';
 import { MapPin, Phone, Mail } from 'lucide-react';
 
 export async function generateMetadata() {
   const dict = await getDictionary();
+  const settings = await getSiteSettings();
   return {
-    title: `${dict.contactTitle}`,
-    description: 'Get in touch with Entertain Lawyers.',
+    // The root layout template appends the organisation name.
+    title: dict.contactTitle,
+    description: `Get in touch with ${settings.organizationName}.`,
     alternates: { canonical: '/contact' },
   };
 }
@@ -47,14 +50,15 @@ const TiktokIcon = ({ className }: { className?: string }) => (
 
 export default async function ContactPage() {
   const dict = await getDictionary();
+  const settings = await getSiteSettings();
 
   const socialLinks = [
-    { name: "Facebook", url: "https://www.facebook.com/entertainlawyers", icon: FacebookIcon, label: "Like us on Facebook", iconColor: "text-[#1877F2]", hoverBg: "group-hover:bg-[#1877F2]" },
-    { name: "Twitter", url: "https://twitter.com/entertainlawyers", icon: TwitterIcon, label: "Follow us on Twitter", iconColor: "text-[#1DA1F2]", hoverBg: "group-hover:bg-[#1DA1F2]" },
-    { name: "YouTube", url: "https://youtube.com/entertainlawyers", icon: YoutubeIcon, label: "Subscribe YouTube Channel", iconColor: "text-[#FF0000]", hoverBg: "group-hover:bg-[#FF0000]" },
-    { name: "Instagram", url: "https://www.instagram.com/entertainlawyers", icon: InstagramIcon, label: "Follow us on Instagram", iconColor: "text-[#E1306C]", hoverBg: "group-hover:bg-[#E1306C]" },
+    settings.facebookUrl && { name: "Facebook", url: settings.facebookUrl, icon: FacebookIcon, label: "Like us on Facebook", iconColor: "text-[#1877F2]", hoverBg: "group-hover:bg-[#1877F2]" },
+    settings.twitterUrl && { name: "Twitter", url: settings.twitterUrl, icon: TwitterIcon, label: "Follow us on Twitter", iconColor: "text-[#1DA1F2]", hoverBg: "group-hover:bg-[#1DA1F2]" },
+    settings.youtubeUrl && { name: "YouTube", url: settings.youtubeUrl, icon: YoutubeIcon, label: "Subscribe YouTube Channel", iconColor: "text-[#FF0000]", hoverBg: "group-hover:bg-[#FF0000]" },
+    settings.instagramUrl && { name: "Instagram", url: settings.instagramUrl, icon: InstagramIcon, label: "Follow us on Instagram", iconColor: "text-[#E1306C]", hoverBg: "group-hover:bg-[#E1306C]" },
     { name: "TikTok", url: "https://www.tiktok.com/@entertain.lawyers", icon: TiktokIcon, label: "Follow us on Tiktok", iconColor: "text-black dark:text-white group-hover:text-white", hoverBg: "group-hover:bg-black dark:group-hover:bg-white dark:group-hover:text-black" }
-  ];
+  ].filter(Boolean) as Array<{ name: string; url: string; icon: typeof FacebookIcon; label: string; iconColor: string; hoverBg: string }>;
 
   return (
     <main className="min-h-screen bg-background py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
@@ -78,8 +82,8 @@ export default async function ContactPage() {
             <Phone className="w-8 h-8" />
           </div>
           <h3 className="font-bold text-navy dark:text-white text-xl mb-3">{dict.phoneLabel}</h3>
-          <a href="tel:9822010737" className="text-text-secondary hover:text-accent font-medium text-lg transition-colors">
-            +977 9822010737
+          <a href={phoneHref(settings.contactPhone)} className="text-text-secondary hover:text-accent font-medium text-lg transition-colors">
+            {settings.contactPhone}
           </a>
         </div>
 
@@ -89,8 +93,8 @@ export default async function ContactPage() {
             <Mail className="w-8 h-8" />
           </div>
           <h3 className="font-bold text-navy dark:text-white text-xl mb-3">{dict.emailLabel}</h3>
-          <a href="mailto:contact@entertainlawyers.com" className="text-text-secondary hover:text-accent font-medium text-lg transition-colors break-words">
-            contact@entertainlawyers.com
+          <a href={`mailto:${settings.contactEmail}`} className="text-text-secondary hover:text-accent font-medium text-lg transition-colors break-words">
+            {settings.contactEmail}
           </a>
         </div>
 
@@ -101,7 +105,7 @@ export default async function ContactPage() {
           </div>
           <h3 className="font-bold text-navy dark:text-white text-xl mb-3">{dict.addressLabel}</h3>
           <p className="text-text-secondary font-medium text-lg">
-            Pokhara Metropolitan City-1, Kaski
+            {settings.address}
           </p>
         </div>
 

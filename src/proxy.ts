@@ -1,10 +1,68 @@
 import { NextResponse } from "next/server";
 import NextAuth from "next-auth";
 import { authConfig } from "@/lib/auth.config";
+import { prisma } from "@/lib/prisma";
 
 const { auth } = NextAuth(authConfig);
 
-export default auth((req) => {
+type RedirectRule = { source: string; destination: string; statusCode: number };
+
+/**
+ * Admin-managed redirects are read through a tiny in-process cache so ordinary
+ * page views do not hit the database. A new rule becomes visible within the
+ * TTL (or immediately on a fresh server instance).
+ */
+const REDIRECT_CACHE_TTL_MS = 10_000;
+let redirectCache: { rules: RedirectRule[]; expiresAt: number } | null = null;
+
+function normalizePath(path: string): string {
+  let value = path.trim();
+  if (!value.startsWith('/')) value = `/${value}`;
+  if (value.length > 1 && value.endsWith('/')) value = value.replace(/\/+$/, '');
+  return value || '/';
+}
+
+async function getActiveRedirects(): Promise<RedirectRule[]> {
+  if (redirectCache && redirectCache.expiresAt > Date.now()) {
+    return redirectCache.rules;
+  }
+
+  try {
+    const rules = await prisma.redirect.findMany({
+      where: { isActive: true },
+      select: { source: true, destination: true, statusCode: true },
+    });
+    redirectCache = { rules, expiresAt: Date.now() + REDIRECT_CACHE_TTL_MS };
+    return rules;
+  } catch (error) {
+    console.error("Could not load redirects in middleware.", error);
+    return [];
+  }
+}
+
+/** Areas where a redirect must never interfere with auth or the app shell. */
+const REDIRECT_EXEMPT_PREFIXES = [
+  '/api',
+  '/_next',
+  '/admin',
+  '/dashboard',
+  '/read',
+  '/payment',
+  '/login',
+  '/register',
+  '/forgot-password',
+  '/reset-password',
+  '/verify-email',
+];
+
+function shouldCheckRedirect(pathname: string): boolean {
+  if (pathname === '/') return false;
+  return !REDIRECT_EXEMPT_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
+  );
+}
+
+export default auth(async (req) => {
   const isLoggedIn = !!req.auth;
   const nextUrl = req.nextUrl;
 
@@ -46,6 +104,28 @@ export default auth((req) => {
     const role = auth?.user?.role;
     if (role !== "ADMIN" && role !== "EDITOR") {
       return NextResponse.redirect(new URL('/dashboard', nextUrl));
+    }
+  }
+
+  // Admin-managed redirects for old or changed URLs. Exact status codes are
+  // preserved, which matters for search engines.
+  if (
+    (req.method === 'GET' || req.method === 'HEAD') &&
+    shouldCheckRedirect(nextUrl.pathname)
+  ) {
+    const normalized = normalizePath(nextUrl.pathname);
+    const rules = await getActiveRedirects();
+    const rule = rules.find((candidate) => normalizePath(candidate.source) === normalized);
+
+    if (rule) {
+      let destination = rule.destination;
+
+      // Keep campaign parameters and search queries on relative targets.
+      if (destination.startsWith('/') && nextUrl.search && !destination.includes('?')) {
+        destination += nextUrl.search;
+      }
+
+      return NextResponse.redirect(new URL(destination, nextUrl), rule.statusCode);
     }
   }
 
