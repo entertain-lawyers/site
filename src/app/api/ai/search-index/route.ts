@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
+import { Role } from '@prisma/client';
 import { geminiEmbed, isAiEnabled } from '@/lib/ai/gemini';
 import { ensureEmbeddingTable, upsertEmbedding, hashCorpusItem } from '@/lib/ai/semantic';
 import { buildCorpus, corpusBreakdown } from '@/lib/ai/corpus';
@@ -29,10 +30,10 @@ export const dynamic = 'force-dynamic';
  * The admin UI at /admin/ai drives this loop automatically.
  */
 export async function POST(request: Request) {
-  // Editors/admins only — this writes to the database.
-  const session = await auth();
-  const role = (session?.user as { role?: string } | undefined)?.role;
-  if (!session || (role !== 'ADMIN' && role !== 'EDITOR')) {
+  // Editors/admins only — this writes to the database. Resolve the role from
+  // the database so a demoted user cannot wipe the index with a stale JWT.
+  const user = await requireRole(Role.ADMIN, Role.EDITOR);
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   if (!isAiEnabled()) {

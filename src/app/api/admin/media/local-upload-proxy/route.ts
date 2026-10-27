@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { env } from '@/env';
 import fs from 'fs';
 import path from 'path';
-import { auth } from '@/lib/auth';
+import { requireRole } from '@/lib/api-auth';
+import { Role } from '@prisma/client';
 import crypto from 'crypto';
 
 export async function PUT(request: Request) {
@@ -11,9 +12,10 @@ export async function PUT(request: Request) {
     return new NextResponse('Not available in production. Use R2.', { status: 403 });
   }
 
-  // AUTHENTICATION & AUTHORIZATION
-  const session = await auth();
-  if (!session || !session.user || (session.user.role !== 'ADMIN' && session.user.role !== 'EDITOR')) {
+  // AUTHENTICATION & AUTHORIZATION — resolve the role from the database so a
+  // demoted editor loses access immediately.
+  const user = await requireRole(Role.ADMIN, Role.EDITOR);
+  if (!user) {
     return new NextResponse('Unauthorized', { status: 401 });
   }
 
@@ -43,7 +45,7 @@ export async function PUT(request: Request) {
   }
 
   // Verify intent ownership
-  if (intent.userId !== session.user.id) {
+  if (intent.userId !== user.id) {
     return new NextResponse('Token user mismatch', { status: 403 });
   }
 

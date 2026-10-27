@@ -203,8 +203,10 @@ describeDb('Milestone 3B Integration Tests', () => {
 
     it('15. Two simultaneous Khalti finalization attempts create only one access grant', async () => {
       const res = await paymentCoreService.initiatePurchasePayment(userId1, resourceId1, 'KHALTI', 'url');
+      // The verification result must carry the pidx stored at initiation;
+      // otherwise the callback is rejected as belonging to another order.
       vi.spyOn(khaltiProvider, 'verifyPayment').mockResolvedValue({
-        success: true, providerRef: 'khalti-simultaneous', amountPaid: 50000, currency: 'NPR', isComplete: true
+        success: true, providerRef: res.providerRef!, amountPaid: 50000, currency: 'NPR', isComplete: true
       });
 
       const results = await Promise.all([
@@ -222,7 +224,7 @@ describeDb('Milestone 3B Integration Tests', () => {
     it('16. Duplicate callback after successful finalization is harmless', async () => {
       const res = await paymentCoreService.initiatePurchasePayment(userId1, resourceId2, 'KHALTI', 'url');
       vi.spyOn(khaltiProvider, 'verifyPayment').mockResolvedValue({
-        success: true, providerRef: 'khalti-dup', amountPaid: 20000, currency: 'NPR', isComplete: true
+        success: true, providerRef: res.providerRef!, amountPaid: 20000, currency: 'NPR', isComplete: true
       });
 
       // First call
@@ -346,7 +348,7 @@ describeDb('Milestone 3B Integration Tests', () => {
       });
       const res = await paymentCoreService.initiatePurchasePayment(userId2, resourceId1, 'KHALTI', 'url');
       vi.spyOn(khaltiProvider, 'verifyPayment').mockResolvedValue({
-        success: true, providerRef: 'k1', amountPaid: 50000, currency: 'NPR', isComplete: true
+        success: true, providerRef: res.providerRef!, amountPaid: 50000, currency: 'NPR', isComplete: true
       });
       await paymentCoreService.verifyAndFinalizePayment('KHALTI', {}, res.idempotencyKey);
       

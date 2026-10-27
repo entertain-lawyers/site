@@ -76,7 +76,7 @@ export async function listComments(
   postId: string,
   postType: string,
   viewer?: { id: string; role?: string | null }
-): Promise<CommentRecord[]> {
+): Promise<Array<Omit<CommentRecord, 'userId'> & { canDelete: boolean }>> {
   await ensureCommentsTable();
   const rows = await prisma.$queryRaw<
     Array<Omit<CommentRecord, 'canDelete'>>
@@ -91,9 +91,11 @@ export async function listComments(
   `;
 
   const isAdmin = viewer?.role === 'ADMIN';
-  return rows.map((row) => ({
+  // Never return userId: GET /api/comments is public and the internal user id
+  // is not needed by the client. Only the computed canDelete flag is exposed.
+  return rows.map(({ userId, ...row }) => ({
     ...row,
-    canDelete: Boolean(viewer && (isAdmin || row.userId === viewer.id)),
+    canDelete: Boolean(viewer && (isAdmin || userId === viewer.id)),
   }));
 }
 

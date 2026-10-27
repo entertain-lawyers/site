@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
+import { getClientIp } from "@/lib/client-ip";
 import { Role } from "@prisma/client";
 import { headers } from "next/headers";
 
@@ -12,22 +13,42 @@ type ActionOptions = {
   rateLimitWindow?: number;
 };
 
-/**
- * Prefer the address set by the reverse proxy. `x-forwarded-for` is a
- * client-controlled list, so the first entry can be spoofed to get a fresh
- * rate-limit bucket; the last entry is the hop appended closest to us.
- */
-function clientIp(headersList: Headers): string {
-  const realIp = headersList.get("x-real-ip")?.trim();
-  if (realIp) return realIp;
+const GENERIC_ERROR = "An unexpected error occurred. Please try again.";
 
-  const forwarded = headersList.get("x-forwarded-for");
-  if (forwarded) {
-    const hops = forwarded.split(",").map((hop) => hop.trim()).filter(Boolean);
-    if (hops.length > 0) return hops[hops.length - 1];
+/**
+ * Only forward messages that are meant for users. A substring allowlist alone
+ * leaked internals because Prisma errors also contain "Invalid" (e.g.
+ * "Invalid `prisma.user.create()` invocation ..."), so reject anything that
+ * looks like a framework/database failure first.
+ */
+function toPublicErrorMessage(error: unknown): string {
+  if (!(error instanceof Error)) return GENERIC_ERROR;
+
+  const message = error.message;
+  if (
+    error.name.startsWith("Prisma") ||
+    /prisma|invocation|constraint|SQLSTATE|ECONN|ETIMEDOUT|ENOTFOUND|fetch failed|Cannot read propert|is not a function|jwt|secret/i.test(
+      message
+    )
+  ) {
+    return GENERIC_ERROR;
   }
 
-  return "unknown-ip";
+  const isSafeMessage =
+    message.includes("Unauthorized") ||
+    message.includes("Forbidden") ||
+    message.includes("not found") ||
+    message.includes("already") ||
+    message.includes("Cannot") ||
+    message.includes("Invalid") ||
+    message.includes("must") ||
+    message.includes("required") ||
+    message.includes("expired") ||
+    message.includes("Too many") ||
+    message.includes("do not have access") ||
+    message.includes("do not have permission");
+
+  return isSafeMessage ? message : GENERIC_ERROR;
 }
 
 export function createSafeAction<TArgs, TReturn>(
@@ -70,7 +91,7 @@ export function createSafeAction<TArgs, TReturn>(
       // Rate Limiting
       if (options.rateLimitKey) {
         const headersList = await headers();
-        const identifier = userId ?? clientIp(headersList);
+        const identifier = userId ?? getClientIp(headersList);
         const key = `${options.rateLimitKey}_${identifier}`;
 
         const { success } = await rateLimit(key, options.rateLimitMax ?? 10, options.rateLimitWindow ?? 60);
@@ -84,11 +105,7 @@ export function createSafeAction<TArgs, TReturn>(
       return { success: true, data };
     } catch (error) {
       console.error("Action error:", error);
-      // Return a generic message to avoid leaking internal error details
-      const message = error instanceof Error ? error.message : "An unexpected error occurred.";
-      // Only return safe, user-facing error messages. Database/internal errors get a generic message.
-      const isSafeMessage = message.includes('Unauthorized') || message.includes('Forbidden') || message.includes('not found') || message.includes('already') || message.includes('Cannot') || message.includes('Invalid') || message.includes('must') || message.includes('required') || message.includes('expired') || message.includes('Too many') || message.includes('do not have access') || message.includes('do not have permission');
-      return { success: false, error: isSafeMessage ? message : "An unexpected error occurred. Please try again." };
+      return { success: false, error: toPublicErrorMessage(error) };
     }
   };
 }

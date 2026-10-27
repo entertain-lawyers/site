@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { Role, ConsultationStatus, ContactMethod, ConsultationMode } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
+import { getClientIp } from '@/lib/client-ip';
 
 export const consultationRequestSchema = z.object({
   fullName: z.string().min(2, 'Full name must be at least 2 characters').max(100),
@@ -24,24 +25,32 @@ export const consultationRequestSchema = z.object({
 
 export const submitConsultationRequestAction = createSafeAction(
   async (data: z.infer<typeof consultationRequestSchema>) => {
+    // createSafeAction does not validate arguments, so parse here before any
+    // raw client input reaches Prisma.
+    const parsed = consultationRequestSchema.safeParse(data);
+    if (!parsed.success) {
+      throw new Error(parsed.error.issues[0]?.message || 'Invalid consultation request');
+    }
+    const input = parsed.data;
+
     const headersList = await headers();
-    const ip = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() || headersList.get('x-real-ip') || null;
+    const ip = getClientIp(headersList);
     const userAgent = headersList.get('user-agent') || null;
 
     const request = await prisma.consultationRequest.create({
       data: {
-        fullName: data.fullName.trim(),
-        email: data.email.trim().toLowerCase(),
-        phone: data.phone.trim(),
-        preferredContactMethod: data.preferredContactMethod as ContactMethod,
-        consultationMode: data.consultationMode as ConsultationMode,
-        practiceArea: data.practiceArea,
-        preferredTime: data.preferredTime?.trim() || null,
-        claimAmount: data.claimAmount ?? null,
-        courtFeeEstimated: data.courtFeeEstimated ?? null,
-        subject: data.subject.trim(),
-        description: data.description.trim(),
-        referralSource: data.referralSource?.trim() || null,
+        fullName: input.fullName.trim(),
+        email: input.email.trim().toLowerCase(),
+        phone: input.phone.trim(),
+        preferredContactMethod: input.preferredContactMethod as ContactMethod,
+        consultationMode: input.consultationMode as ConsultationMode,
+        practiceArea: input.practiceArea,
+        preferredTime: input.preferredTime?.trim() || null,
+        claimAmount: input.claimAmount ?? null,
+        courtFeeEstimated: input.courtFeeEstimated ?? null,
+        subject: input.subject.trim(),
+        description: input.description.trim(),
+        referralSource: input.referralSource?.trim() || null,
         ipAddress: ip,
         userAgent: userAgent ? userAgent.substring(0, 255) : null,
       },
@@ -74,7 +83,7 @@ export const adminGetConsultationsAction = createSafeAction(
       throw new Error('Unauthorized');
     }
 
-    const { status, search, page, pageSize } = filters;
+    const { status, search, page, pageSize } = adminGetConsultationsFilterSchema.parse(filters);
     const skip = (page - 1) * pageSize;
 
     const where: any = {};
@@ -130,7 +139,7 @@ export const adminGetConsultationsAction = createSafeAction(
 );
 
 const updateStatusSchema = z.object({
-  id: z.string(),
+  id: z.string().uuid(),
   status: z.enum(['NEW', 'CONTACTED', 'SCHEDULED', 'COMPLETED', 'CANCELLED']),
   adminNotes: z.string().optional().nullable(),
 });
@@ -141,11 +150,16 @@ export const adminUpdateConsultationStatusAction = createSafeAction(
       throw new Error('Unauthorized');
     }
 
+    const parsed = updateStatusSchema.safeParse(data);
+    if (!parsed.success) {
+      throw new Error(parsed.error.issues[0]?.message || 'Invalid consultation update');
+    }
+
     const updated = await prisma.consultationRequest.update({
-      where: { id: data.id },
+      where: { id: parsed.data.id },
       data: {
-        status: data.status as ConsultationStatus,
-        adminNotes: data.adminNotes !== undefined ? data.adminNotes : undefined,
+        status: parsed.data.status as ConsultationStatus,
+        adminNotes: parsed.data.adminNotes !== undefined ? parsed.data.adminNotes : undefined,
       },
     });
 

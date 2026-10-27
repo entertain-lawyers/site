@@ -71,9 +71,14 @@ describeDb('Authentication & Security Foundation', () => {
       const res = await register({ email: testEmail, password: testPassword });
       expect(res.success).toBe(true);
       if (res.success) {
-        userId = res.data.id;
-        expect(res.data.email).toBe(testEmail);
+        // Registration no longer returns the account id: doing so would let an
+        // attacker probe which addresses exist.
+        expect(res.data.message).toBe('Verification email sent');
       }
+
+      const created = await prisma.user.findUnique({ where: { email: testEmail } });
+      expect(created).not.toBeNull();
+      userId = created!.id;
 
       // New accounts must confirm their email before they can log in; the
       // login tests below simulate that confirmation.
@@ -81,6 +86,14 @@ describeDb('Authentication & Security Foundation', () => {
         where: { id: userId },
         data: { isEmailVerified: true },
       });
+    });
+
+    it('does not reveal whether an email is already registered', async () => {
+      const res = await register({ email: testEmail, password: testPassword });
+      expect(res.success).toBe(true);
+      if (res.success) {
+        expect(res.data.message).toBe('Verification email sent');
+      }
     });
 
     it.skip('30. Admin restricted route redirects standard user', async () => {

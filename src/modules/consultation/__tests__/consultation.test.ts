@@ -219,15 +219,16 @@ describe('Consultation Request Module', () => {
 
     it('allows EDITOR or ADMIN to update consultation status and notes', async () => {
       (auth as any).mockResolvedValue({ user: { id: 'admin1', role: Role.ADMIN } });
+      const consultationId = '11111111-1111-4111-8111-111111111111';
       const mockUpdated = {
-        id: 'c1',
+        id: consultationId,
         status: ConsultationStatus.SCHEDULED,
         adminNotes: 'Appointment set for Tuesday 2 PM',
       };
       (prisma.consultationRequest.update as any).mockResolvedValue(mockUpdated);
 
       const res = await adminUpdateConsultationStatusAction({
-        id: 'c1',
+        id: consultationId,
         status: 'SCHEDULED',
         adminNotes: 'Appointment set for Tuesday 2 PM',
       });
@@ -238,7 +239,7 @@ describe('Consultation Request Module', () => {
         expect(res.data.adminNotes).toBe('Appointment set for Tuesday 2 PM');
       }
       expect(prisma.consultationRequest.update).toHaveBeenCalledWith({
-        where: { id: 'c1' },
+        where: { id: consultationId },
         data: {
           status: ConsultationStatus.SCHEDULED,
           adminNotes: 'Appointment set for Tuesday 2 PM',

@@ -22,11 +22,11 @@ export function requiresSignIn(resourceType: string): boolean {
 export async function canAccessResource(userId: string, resourceId: string): Promise<boolean> {
   const resource = await prisma.resource.findUnique({
     where: { id: resourceId },
-    select: { isPremium: true }
+    select: { isPremium: true, status: true }
   });
 
-  // 1. If resource doesn't exist, deny access
-  if (!resource) return false;
+  // 1. If the resource doesn't exist or is not published, deny access
+  if (!resource || resource.status !== 'PUBLISHED') return false;
 
   // 2. Free resources are accessible to any authenticated user
   if (!resource.isPremium) return true;

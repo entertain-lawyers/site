@@ -15,8 +15,13 @@ export default async function PaymentSuccessPage({
   let targetLabel = 'Go to Dashboard';
 
   if (resolvedSearchParams.txId && session?.user) {
-    const tx = await prisma.paymentTransaction.findUnique({
-      where: { idempotencyKey: resolvedSearchParams.txId }
+    // Scope the lookup to the signed-in user: a leaked idempotency key must not
+    // reveal another customer's transaction or link them into its content.
+    const tx = await prisma.paymentTransaction.findFirst({
+      where: {
+        idempotencyKey: resolvedSearchParams.txId,
+        userId: session.user.id,
+      }
     });
 
     if (tx && tx.status === 'COMPLETED') {

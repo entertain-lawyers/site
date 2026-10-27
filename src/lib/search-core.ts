@@ -422,13 +422,14 @@ export async function runSearch(q: string, ip: string): Promise<SearchResponse> 
     }),
     // 2. Publications
     prisma.publication.findMany({
-      where: { publishDate: { lte: new Date() } },
+      where: { status: 'PUBLISHED', publishDate: { lte: new Date() } },
       select: { id: true, title: true, slug: true },
       orderBy: { publishDate: 'desc' },
       take: 200,
     }),
     // 3. Events
     prisma.event.findMany({
+      where: { status: 'PUBLISHED' },
       select: { id: true, title: true, slug: true },
       orderBy: { eventDate: 'desc' },
       take: 200,

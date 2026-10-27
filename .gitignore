@@ -94,3 +94,6 @@ docs/OPENCODE_*.md
 .mock-s3-data/
 test.pdf
 scripts/mock-s3.js
+
+# Generated at build time from pdfjs-dist
+public/pdf.worker.min.mjs
