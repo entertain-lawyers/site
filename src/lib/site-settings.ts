@@ -119,14 +119,6 @@ export const getHomepageConfig = cache(async (): Promise<HomepageConfig> => {
   }
 });
 
-/** Normalise a path for comparison: leading slash, no trailing slash. */
-export function normalizePath(path: string): string {
-  let value = path.trim();
-  if (!value.startsWith('/')) value = `/${value}`;
-  if (value.length > 1 && value.endsWith('/')) value = value.replace(/\/+$/, '');
-  return value || '/';
-}
-
 /** Strip spaces so a display phone number works in a `tel:` link. */
 export function phoneHref(phone: string): string {
   return `tel:${phone.replace(/[^\d+]/g, '')}`;

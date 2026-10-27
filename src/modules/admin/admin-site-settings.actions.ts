@@ -9,8 +9,13 @@ import { isUniqueConstraintError } from '@/lib/prisma-errors';
 import {
   HOMEPAGE_CONFIG_ID,
   SITE_SETTINGS_ID,
-  normalizePath,
 } from '@/lib/site-settings';
+import {
+  normalizePath,
+  redirectIdSchema,
+  redirectSchema,
+  updateRedirectSchema,
+} from '@/lib/redirect-rules';
 
 /**
  * WordPress-style site control actions. Only ADMIN can change global settings,
@@ -46,42 +51,6 @@ const homepageSchema = z.object({
   announcementText: optionalText(300),
   announcementLink: optionalLink(500),
 });
-
-const redirectSchema = z.object({
-  source: z
-    .string()
-    .trim()
-    .min(1, 'Source path is required')
-    .max(500)
-    .refine(
-      (value) =>
-        value.startsWith('/') &&
-        !value.startsWith('//') &&
-        // A redirect from "/" would shadow the whole site.
-        value !== '/' &&
-        // Query strings and fragments are not part of a path match.
-        !/[?#\s]/.test(value),
-      'Source must be a site path such as /old-page (no query, hash or spaces)'
-    ),
-  destination: z
-    .string()
-    .trim()
-    .min(1, 'Destination is required')
-    .max(1000)
-    .refine(
-      (value) => value.startsWith('/') || /^https?:\/\//i.test(value),
-      'Destination must start with / or http(s)://'
-    ),
-  statusCode: z.coerce.number().int().refine((code) => [301, 302, 307, 308].includes(code), 'Use 301, 302, 307 or 308').default(301),
-  isActive: z.boolean().default(true),
-  notes: optionalText(500),
-});
-
-const updateRedirectSchema = redirectSchema.extend({
-  id: z.string().uuid(),
-});
-
-const redirectIdSchema = z.object({ id: z.string().uuid() });
 
 function requireAdmin(role?: Role) {
   if (role !== Role.ADMIN) throw new Error('Unauthorized: Admin access required.');

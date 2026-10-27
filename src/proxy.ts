@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import NextAuth from "next-auth";
 import { authConfig } from "@/lib/auth.config";
 import { prisma } from "@/lib/prisma";
+import { isRedirectExempt, normalizePath } from "@/lib/redirect-rules";
 
 const { auth } = NextAuth(authConfig);
 
@@ -14,13 +15,6 @@ type RedirectRule = { source: string; destination: string; statusCode: number };
  */
 const REDIRECT_CACHE_TTL_MS = 10_000;
 let redirectCache: { rules: RedirectRule[]; expiresAt: number } | null = null;
-
-function normalizePath(path: string): string {
-  let value = path.trim();
-  if (!value.startsWith('/')) value = `/${value}`;
-  if (value.length > 1 && value.endsWith('/')) value = value.replace(/\/+$/, '');
-  return value || '/';
-}
 
 async function getActiveRedirects(): Promise<RedirectRule[]> {
   if (redirectCache && redirectCache.expiresAt > Date.now()) {
@@ -38,28 +32,6 @@ async function getActiveRedirects(): Promise<RedirectRule[]> {
     console.error("Could not load redirects in middleware.", error);
     return [];
   }
-}
-
-/** Areas where a redirect must never interfere with auth or the app shell. */
-const REDIRECT_EXEMPT_PREFIXES = [
-  '/api',
-  '/_next',
-  '/admin',
-  '/dashboard',
-  '/read',
-  '/payment',
-  '/login',
-  '/register',
-  '/forgot-password',
-  '/reset-password',
-  '/verify-email',
-];
-
-function shouldCheckRedirect(pathname: string): boolean {
-  if (pathname === '/') return false;
-  return !REDIRECT_EXEMPT_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
-  );
 }
 
 export default auth(async (req) => {
@@ -111,7 +83,7 @@ export default auth(async (req) => {
   // preserved, which matters for search engines.
   if (
     (req.method === 'GET' || req.method === 'HEAD') &&
-    shouldCheckRedirect(nextUrl.pathname)
+    !isRedirectExempt(nextUrl.pathname)
   ) {
     const normalized = normalizePath(nextUrl.pathname);
     const rules = await getActiveRedirects();
