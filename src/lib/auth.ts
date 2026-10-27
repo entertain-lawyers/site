@@ -6,9 +6,10 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { authConfig } from "./auth.config";
+import { normalizeEmail } from "./auth-utils";
 
 const credentialsSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().email(),
   password: z.string().min(1),
 });
 
@@ -21,41 +22,34 @@ export async function testAuthorize(credentials: unknown) {
   if (!parsed.success) return null;
 
   const { email, password } = parsed.data;
-  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedEmail = normalizeEmail(email);
 
   const user = await prisma.user.findUnique({
     where: { email: normalizedEmail },
   });
 
-  const dummyHash = "$2b$12$dummyHashToPreventTimingAttacks12345678901234567890";
+  // A valid bcrypt hash (60 chars) keeps the compare cost identical when the
+  // account does not exist, so response timing does not reveal valid emails.
+  const dummyHash = "$2b$12$BC2HnljaAVW2CnR34dTYg.lctzpDZY.ZWCkkT4qR7gI3Z8AbV8TMq";
 
   const passwordsMatch = await bcrypt.compare(
     password,
     user?.passwordHash || dummyHash
   );
 
-  class UserNotFound extends CredentialsSignin { code = "UserNotFound" }
-  class MissingPasswordHash extends CredentialsSignin { code = "MissingPasswordHash" }
-  class PasswordMismatch extends CredentialsSignin { code = "PasswordMismatch" }
   class UnverifiedEmail extends CredentialsSignin { code = "UnverifiedEmail" }
 
-  if (!user) {
-    throw new UserNotFound("User not found in database.");
-  }
-  
-  if (!user.passwordHash) {
-    throw new MissingPasswordHash("Password hash is missing for this user.");
+  // Return null for unknown accounts and wrong passwords: NextAuth shows the
+  // same generic error either way, so the UI cannot be used to enumerate users.
+  if (!user || !user.passwordHash || !passwordsMatch) {
+    return null;
   }
 
   if (!user.isEmailVerified && !user.emailVerified && user.role !== 'ADMIN') {
     throw new UnverifiedEmail('Please verify your email address before logging in.');
   }
 
-  if (passwordsMatch) {
-    return { id: user.id, email: user.email, role: user.role };
-  }
-
-  throw new PasswordMismatch("Invalid email or password.");
+  return { id: user.id, email: user.email, role: user.role };
 }
 
 export { authConfig };

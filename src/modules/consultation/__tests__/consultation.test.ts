@@ -40,6 +40,12 @@ import { auth } from '@/lib/auth';
 // Mock prisma
 vi.mock('@/lib/prisma', () => ({
   prisma: {
+    user: {
+      // createSafeAction re-reads the current role from the database.
+      findUnique: vi.fn(async ({ where }: { where: { id: string } }) => ({
+        role: where.id === 'admin1' ? 'ADMIN' : 'USER',
+      })),
+    },
     consultationRequest: {
       create: vi.fn(),
       findMany: vi.fn(),

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { paymentCoreService } from '@/modules/payments/core/payment.service';
 import { esewaProvider } from '@/modules/payments/providers/esewa/esewa.provider';
 import { khaltiProvider } from '@/modules/payments/providers/khalti/khalti.provider';
+import { assertTestDatabase, describeDb } from '@/test/db';
 
 // Mock the environment variables needed
 process.env.ESEWA_SECRET_KEY = '8gBm/:&EnhH.1/q';
@@ -12,7 +13,7 @@ process.env.KHALTI_SECRET_KEY = 'test_secret_key';
 // Mock fetch for both providers
 const globalFetch = global.fetch;
 
-describe('Milestone 3B Integration Tests', () => {
+describeDb('Milestone 3B Integration Tests', () => {
   let userId1: string;
   let userId2: string;
   let planId1: string;
@@ -21,6 +22,8 @@ describe('Milestone 3B Integration Tests', () => {
   let freeResourceId: string;
 
   beforeAll(async () => {
+    // This suite truncates tables, so it may only run on a disposable database.
+    await assertTestDatabase(prisma);
     // Clean DB
     await prisma.accessLog.deleteMany();
     await prisma.uploadIntent.deleteMany();
@@ -28,8 +31,10 @@ describe('Milestone 3B Integration Tests', () => {
     await prisma.paymentTransaction.deleteMany();
     await prisma.subscription.deleteMany();
     await prisma.purchase.deleteMany();
-    await prisma.document.deleteMany();
+    // Resource references Document, so resources must go first.
     await prisma.resource.deleteMany();
+    await prisma.document.deleteMany();
+    await prisma.unit.deleteMany();
     await prisma.subject.deleteMany();
     await prisma.semester.deleteMany();
     await prisma.plan.deleteMany();

@@ -1,16 +1,20 @@
 import { PrismaClient, TxType, TxStatus, EntitlementSource, SubStatus } from '@prisma/client';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { assertTestDatabase, describeDb } from '@/test/db';
 
 const prisma = new PrismaClient();
 
-describe('Database Integrity Constraints', () => {
+describeDb('Database Integrity Constraints', () => {
   let testUser: any;
   let testPlan: any;
   let testSub: any;
   let testResource: any;
   let testPurchase: any;
+  let testSemester: any;
+  let testSubject: any;
 
   beforeAll(async () => {
+    await assertTestDatabase(prisma);
     // Create base data for testing
     testUser = await prisma.user.create({
       data: { email: `test-${Date.now()}@example.com` }
@@ -29,16 +33,16 @@ describe('Database Integrity Constraints', () => {
       }
     });
 
-    const semester = await prisma.semester.create({
+    testSemester = await prisma.semester.create({
       data: { name: 'S1', order: 1 }
     });
 
-    const subject = await prisma.subject.create({
-      data: { name: 'Sub1', semesterId: semester.id }
+    testSubject = await prisma.subject.create({
+      data: { name: 'Sub1', semesterId: testSemester.id }
     });
 
     testResource = await prisma.resource.create({
-      data: { title: 'R1', subjectId: subject.id }
+      data: { title: 'R1', subjectId: testSubject.id }
     });
 
     testPurchase = await prisma.purchase.create({
@@ -51,18 +55,18 @@ describe('Database Integrity Constraints', () => {
   });
 
   afterAll(async () => {
-    await prisma.accessLog.deleteMany();
-    await prisma.uploadIntent.deleteMany();
-    await prisma.entitlement.deleteMany();
-    await prisma.paymentTransaction.deleteMany();
-    await prisma.purchase.deleteMany();
-    await prisma.subscription.deleteMany();
-    await prisma.document.deleteMany();
-    await prisma.resource.deleteMany();
-    await prisma.subject.deleteMany();
-    await prisma.semester.deleteMany();
-    await prisma.plan.deleteMany();
-    await prisma.user.deleteMany();
+    // Delete only the rows this suite created; never truncate shared tables.
+    if (testUser) {
+      await prisma.paymentTransaction.deleteMany({ where: { userId: testUser.id } });
+      await prisma.entitlement.deleteMany({ where: { userId: testUser.id } });
+    }
+    if (testPurchase) await prisma.purchase.deleteMany({ where: { id: testPurchase.id } });
+    if (testSub) await prisma.subscription.deleteMany({ where: { id: testSub.id } });
+    if (testResource) await prisma.resource.deleteMany({ where: { id: testResource.id } });
+    if (testSubject) await prisma.subject.deleteMany({ where: { id: testSubject.id } });
+    if (testSemester) await prisma.semester.deleteMany({ where: { id: testSemester.id } });
+    if (testPlan) await prisma.plan.deleteMany({ where: { id: testPlan.id } });
+    if (testUser) await prisma.user.deleteMany({ where: { id: testUser.id } });
     await prisma.$disconnect();
   });
 

@@ -3,11 +3,18 @@
 import { createSafeAction } from "@/lib/safe-action";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { randomInt } from "crypto";
 import { z } from "zod";
+import { normalizeEmail } from "@/lib/auth-utils";
 import { sendVerificationOTP } from "@/lib/mail";
 
+/** Six-digit OTP from a cryptographically secure source. */
+function generateOtp(): string {
+  return randomInt(100000, 1000000).toString();
+}
+
 const registerSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().email(),
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
@@ -18,8 +25,10 @@ export const register = createSafeAction(
       throw new Error(parsed.error.issues[0]?.message || "Invalid registration data");
     }
 
+    const normalizedEmail = normalizeEmail(parsed.data.email);
+
     const existingUser = await prisma.user.findUnique({
-      where: { email: parsed.data.email },
+      where: { email: normalizedEmail },
     });
 
     if (existingUser) {
@@ -31,12 +40,12 @@ export const register = createSafeAction(
 
     const user = await prisma.user.create({
       data: {
-        email: parsed.data.email,
+        email: normalizedEmail,
         passwordHash,
       },
     });
 
-    const token = Math.floor(100000 + Math.random() * 900000).toString();
+    const token = generateOtp();
     const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
 
     await prisma.verificationToken.create({
@@ -59,29 +68,30 @@ export const register = createSafeAction(
   }
 );
 
-const resendSchema = z.object({ email: z.string().email() });
+const resendSchema = z.object({ email: z.string().trim().email() });
 
 export const resendVerificationEmail = createSafeAction(
   async ({ email }: z.infer<typeof resendSchema>) => {
+    const normalizedEmail = normalizeEmail(email);
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
     });
 
     if (!user) throw new Error("User not found");
     if (user.isEmailVerified) throw new Error("Email is already verified");
 
-    const token = Math.floor(100000 + Math.random() * 900000).toString();
+    const token = generateOtp();
     const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
 
     await prisma.verificationToken.deleteMany({
-      where: { identifier: email, type: "VERIFY_EMAIL" }
+      where: { identifier: normalizedEmail, type: "VERIFY_EMAIL" }
     });
 
     await prisma.verificationToken.create({
-      data: { identifier: email, token, type: "VERIFY_EMAIL", expires }
+      data: { identifier: normalizedEmail, token, type: "VERIFY_EMAIL", expires }
     });
 
-    await sendVerificationOTP(email, token);
+    await sendVerificationOTP(normalizedEmail, token);
 
     return { success: true, message: "Verification email sent" };
   },
@@ -93,16 +103,23 @@ export const resendVerificationEmail = createSafeAction(
 );
 
 const verifyEmailSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().email(),
   token: z.string().length(6),
 });
 
 export const verifyEmail = createSafeAction(
   async ({ email, token }: z.infer<typeof verifyEmailSchema>) => {
+    const parsed = verifyEmailSchema.safeParse({ email, token });
+    if (!parsed.success) {
+      throw new Error(parsed.error.issues[0]?.message || "Invalid verification code");
+    }
+
+    const normalizedEmail = normalizeEmail(parsed.data.email);
+
     const verification = await prisma.verificationToken.findFirst({
       where: {
-        identifier: email,
-        token,
+        identifier: normalizedEmail,
+        token: parsed.data.token,
         type: "VERIFY_EMAIL",
         expires: { gt: new Date() }
       }
@@ -113,7 +130,7 @@ export const verifyEmail = createSafeAction(
     }
 
     await prisma.user.update({
-      where: { email },
+      where: { email: normalizedEmail },
       data: { isEmailVerified: true }
     });
 
@@ -131,31 +148,32 @@ export const verifyEmail = createSafeAction(
 );
 
 const requestPasswordResetSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().email(),
 });
 
 export const requestPasswordReset = createSafeAction(
   async ({ email }: z.infer<typeof requestPasswordResetSchema>) => {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const normalizedEmail = normalizeEmail(email);
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (!user) {
       // Return success anyway to prevent email enumeration
       return { success: true };
     }
 
-    const token = Math.floor(100000 + Math.random() * 900000).toString();
+    const token = generateOtp();
     const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
 
     // Clear existing tokens of this type for this user
     await prisma.verificationToken.deleteMany({
-      where: { identifier: email, type: "RESET_PASSWORD" }
+      where: { identifier: normalizedEmail, type: "RESET_PASSWORD" }
     });
 
     await prisma.verificationToken.create({
-      data: { identifier: email, token, type: "RESET_PASSWORD", expires }
+      data: { identifier: normalizedEmail, token, type: "RESET_PASSWORD", expires }
     });
 
     const { sendPasswordResetOTP } = await import('@/lib/mail');
-    await sendPasswordResetOTP(email, token);
+    await sendPasswordResetOTP(normalizedEmail, token);
 
     return { success: true };
   },
@@ -167,17 +185,24 @@ export const requestPasswordReset = createSafeAction(
 );
 
 const resetPasswordSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().email(),
   token: z.string().length(6),
   newPassword: z.string().min(8),
 });
 
 export const resetPassword = createSafeAction(
   async ({ email, token, newPassword }: z.infer<typeof resetPasswordSchema>) => {
+    const parsed = resetPasswordSchema.safeParse({ email, token, newPassword });
+    if (!parsed.success) {
+      throw new Error(parsed.error.issues[0]?.message || "Invalid reset request");
+    }
+
+    const normalizedEmail = normalizeEmail(parsed.data.email);
+
     const verification = await prisma.verificationToken.findFirst({
       where: {
-        identifier: email,
-        token,
+        identifier: normalizedEmail,
+        token: parsed.data.token,
         type: "RESET_PASSWORD",
         expires: { gt: new Date() }
       }
@@ -188,10 +213,10 @@ export const resetPassword = createSafeAction(
     }
 
     const salt = await bcrypt.genSalt(12);
-    const passwordHash = await bcrypt.hash(newPassword, salt);
+    const passwordHash = await bcrypt.hash(parsed.data.newPassword, salt);
 
     await prisma.user.update({
-      where: { email },
+      where: { email: normalizedEmail },
       data: { passwordHash, isEmailVerified: true } // Also verify email since they own it
     });
 
