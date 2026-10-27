@@ -14,6 +14,18 @@ interface RichTextEditorProps {
   placeholder?: string;
 }
 
+// Format whitelist — every name here must exist in the Quill 2 registry.
+// Quill 2 merged "bullet" into "list" (values: 'ordered' | 'bullet'): listing a
+// nonexistent "bullet" format makes the editor throw "Cannot register …" and
+// break while processing pasted content (e.g. <ul> lists). Only "list" is valid.
+const QUILL_FORMATS = [
+  'header',
+  'bold', 'italic', 'underline', 'strike',
+  'list', 'indent',
+  'link', 'image', 'video',
+  'color', 'background'
+];
+
 type AllowedImageMimeType = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
 const ALLOWED_IMAGE_MIME_TYPES = new Set<string>(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
 
@@ -87,13 +99,9 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Write y
     }
   }), [imageHandler]);
 
-  const formats = [
-    'header',
-    'bold', 'italic', 'underline', 'strike',
-    'list', 'bullet', 'indent',
-    'link', 'image', 'video',
-    'color', 'background'
-  ];
+  // Reconstructing the array each render gives ReactQuill a new reference via
+  // dirtyProps deep-compare (isEqual), but a stable constant avoids any churn.
+  const formats = QUILL_FORMATS;
 
   const [editorFont, setEditorFont] = useState<'english' | 'nepali'>('english');
 

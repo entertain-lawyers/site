@@ -47,12 +47,15 @@ export default function PostDetail({
   backLabel,
   relatedPosts = [],
   latestPosts = [],
+  showComments = true,
 }: {
   post: Post;
   backUrl: string;
   backLabel: string;
   relatedPosts?: RelatedPost[];
   latestPosts?: LatestPost[];
+  /** Preview of unsaved drafts passes false — no real post id to thread on. */
+  showComments?: boolean;
 }) {
   const featuredImage = post.featuredImage || extractFirstImage(post.content);
   const authorName = post.author.name?.trim() || 'Entertain Lawyers';
@@ -224,9 +227,11 @@ export default function PostDetail({
           </aside>
 
           {/* Comments sit at the very bottom, aligned with the article column */}
-          <div className="mt-2 lg:col-start-1 lg:mt-4">
-            <Comments postId={post.id} postType={post.type === 'BLOG' ? 'BLOG' : 'NEWS'} />
-          </div>
+          {showComments && (
+            <div className="mt-2 lg:col-start-1 lg:mt-4">
+              <Comments postId={post.id} postType={post.type === 'BLOG' ? 'BLOG' : 'NEWS'} />
+            </div>
+          )}
         </div>
       </div>
     </div>
