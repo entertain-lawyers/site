@@ -3,6 +3,50 @@
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 
+/**
+ * Blocked-copy event reporting. Events are queued in memory and flushed in
+ * small batches to /api/protection/log so one frustrated visitor cannot flood
+ * the AccessLog table: each action type is recorded at most once per 30s,
+ * batches go out at most every 10s, and the endpoint rate-limits per IP.
+ */
+const ACTION_COOLDOWN_MS = 30_000;
+const FLUSH_INTERVAL_MS = 10_000;
+
+const lastLoggedAt = new Map<string, number>();
+const queue: { action: string; url: string }[] = [];
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+function flushQueue() {
+  flushTimer = null;
+  if (queue.length === 0 || typeof navigator === 'undefined') return;
+  const events = queue.splice(0, queue.length);
+  try {
+    fetch('/api/protection/log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ events }),
+      keepalive: true,
+    }).catch(() => {
+      // Best-effort telemetry — never surface network failures to visitors.
+    });
+  } catch {
+    // ignore
+  }
+}
+
+function reportProtectionEvent(action: string) {
+  if (typeof window === 'undefined') return;
+  const now = Date.now();
+  const last = lastLoggedAt.get(action) || 0;
+  if (now - last < ACTION_COOLDOWN_MS) return;
+  lastLoggedAt.set(action, now);
+  // Relative path only — the endpoint rejects absolute URLs.
+  queue.push({ action, url: window.location.pathname + window.location.search });
+  if (flushTimer === null) {
+    flushTimer = setTimeout(flushQueue, FLUSH_INTERVAL_MS);
+  }
+}
+
 export default function ContentProtection() {
   const pathname = usePathname();
 
@@ -50,18 +94,21 @@ export default function ContentProtection() {
     const handleContextMenu = (e: MouseEvent) => {
       if (!isExempt(e.target)) {
         e.preventDefault();
+        reportProtectionEvent('PROTECTION_CONTEXT_MENU_BLOCKED');
       }
     };
 
     const handleCopyCut = (e: ClipboardEvent) => {
       if (!isExempt(e.target)) {
         e.preventDefault();
+        reportProtectionEvent(e.type === 'cut' ? 'PROTECTION_CUT_BLOCKED' : 'PROTECTION_COPY_BLOCKED');
       }
     };
 
     const handleDragStart = (e: DragEvent) => {
       if (!isExempt(e.target)) {
         e.preventDefault();
+        reportProtectionEvent('PROTECTION_DRAG_BLOCKED');
       }
     };
 
@@ -72,8 +119,17 @@ export default function ContentProtection() {
 
         const key = e.key.toLowerCase();
         // c: copy, x: cut, s: save, p: print, u: view source
-        if (['c', 'x', 's', 'p', 'u'].includes(key)) {
+        const keyActions: Record<string, string> = {
+          c: 'PROTECTION_COPY_BLOCKED',
+          x: 'PROTECTION_CUT_BLOCKED',
+          s: 'PROTECTION_SAVE_BLOCKED',
+          p: 'PROTECTION_PRINT_BLOCKED',
+          u: 'PROTECTION_VIEW_SOURCE_BLOCKED',
+        };
+        const blockedAction = keyActions[key];
+        if (blockedAction) {
           e.preventDefault();
+          reportProtectionEvent(blockedAction);
         }
       }
     };
@@ -85,14 +141,28 @@ export default function ContentProtection() {
     document.addEventListener('dragstart', handleDragStart);
     document.addEventListener('keydown', handleKeyDown);
 
-    // Cleanup
+    // Flush pending events when the tab is hidden/closed so short visits
+    // still reach the log (keepalive keeps the request alive past unload).
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') flushQueue();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('pagehide', handleVisibility);
+
+    // Cleanup — also drop any timers/listeners owned by this effect
     return () => {
+      if (flushTimer !== null) {
+        clearTimeout(flushTimer);
+        flushTimer = null;
+      }
       document.body.classList.remove('protected-mode');
       document.removeEventListener('contextmenu', handleContextMenu);
       document.removeEventListener('copy', handleCopyCut);
       document.removeEventListener('cut', handleCopyCut);
       document.removeEventListener('dragstart', handleDragStart);
       document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('pagehide', handleVisibility);
     };
   }, [pathname]);
 

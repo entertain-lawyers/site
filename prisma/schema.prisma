@@ -21,6 +21,7 @@ model User {
   accessLogs    AccessLog[]
   accounts      Account[]
   AuditLog      AuditLog[]
+  builderPages  BuilderPage[]
   entitlements  Entitlement[]
   Event         Event[]
   transactions  PaymentTransaction[]
@@ -256,6 +257,9 @@ model AccessLog {
   action     String
   ipAddress  String?
   userAgent  String?
+  // Public page URL the event originated from (added for copy-protection
+  // activity tracking; also useful for anonymous access analytics).
+  url        String?
   createdAt     DateTime             @default(now())
   document   Document? @relation(fields: [documentId], references: [id])
   resource   Resource? @relation(fields: [resourceId], references: [id])
@@ -263,6 +267,7 @@ model AccessLog {
 
   @@index([userId, action])
   @@index([resourceId])
+  @@index([action, createdAt])
 }
 
 model AuditLog {
@@ -304,6 +309,22 @@ model Event {
   createdAt     DateTime             @default(now())
   updatedAt     DateTime @updatedAt
   User          User?         @relation(fields: [authorId], references: [id])
+}
+
+/// Visual-builder page (drag & drop "Elementor-style" editing in /admin/pages).
+/// `data` holds the Puck document (JSON); the public site renders it at /p/[slug].
+model BuilderPage {
+  id        String        @id @default(uuid())
+  title     String
+  slug      String        @unique
+  data      Json
+  status    ContentStatus @default(DRAFT)
+  metaTitle String?
+  metaDesc  String?
+  authorId  String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  User      User?         @relation(fields: [authorId], references: [id])
 }
 
 model FAQ {

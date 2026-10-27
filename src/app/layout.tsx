@@ -13,6 +13,7 @@ import NextTopLoader from 'nextjs-toploader';
 import PublicOnly from '@/components/layout/PublicOnly';
 import AskAI from '@/components/ai/AskAI';
 import { getSiteSettings } from '@/lib/site-settings';
+import AnalyticsTracker from '@/components/AnalyticsTracker';
 
 /**
  * Site-wide typography. Restored Mukta as the requested legacy face
@@ -176,6 +177,7 @@ export default async function RootLayout({
       </head>
       <body className={`${mukta.variable} ${jakarta.variable} ${inter.variable} ${notoDevanagari.variable} bg-background text-text-primary flex flex-col min-h-screen transition-colors duration-200`}>
         <NextTopLoader color="var(--color-accent)" showSpinner={false} shadow="0 0 10px var(--color-accent),0 0 5px var(--color-accent)" />
+        <AnalyticsTracker />
         <ContentProtection />
         <PublicOnly>
           <TopUtilityBar locale={locale} dict={dict} />

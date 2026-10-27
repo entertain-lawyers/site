@@ -5,7 +5,7 @@ interface HomeCategoryCardProps {
   title: React.ReactNode;
   subtitle: string;
   href: string;
-  icon: LucideIcon | React.ComponentType<any>;
+  icon: LucideIcon | React.ComponentType<{ className?: string }>;
 }
 
 export function HomeCategoryCard({ title, subtitle, href, icon: Icon }: HomeCategoryCardProps) {
@@ -23,7 +23,10 @@ export function HomeCategoryCard({ title, subtitle, href, icon: Icon }: HomeCate
 
         {/* Text Content (Left) */}
         <div className="flex flex-col items-start justify-center text-left relative z-10 w-[70%] sm:w-[65%] pr-2 h-full mr-auto">
-          <h3 className="text-[18px] sm:text-[20px] font-black text-navy dark:text-slate-100 tracking-tight leading-snug mb-1 transition-colors duration-400 ease-out group-hover:text-accent dark:group-hover:text-blue-400 line-clamp-4 capitalize">
+          <h3
+            style={{ fontFamily: 'var(--font-mukta), Tahoma, sans-serif' }}
+            className="text-[18px] sm:text-[20px] font-black text-navy dark:text-slate-100 tracking-tight leading-snug mb-1 transition-colors duration-400 ease-out group-hover:text-accent dark:group-hover:text-blue-400 line-clamp-4 capitalize"
+          >
             {title}
           </h3>
           {subtitle && (

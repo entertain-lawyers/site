@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Metadata } from 'next';
+import { PROTECTION_ACTION_PREFIX, PROTECTION_LABELS, protectionSince } from '@/lib/protection';
+import { PAGE_VIEW_ACTION, resolvePostTitles, friendlyPageLabel } from '@/lib/analytics';
 
 export const metadata: Metadata = {
   title: 'Admin Dashboard - Entertain Lawyers',
@@ -18,10 +20,86 @@ export default async function AdminDashboardPage() {
   const isAdmin = session.user.role === 'ADMIN';
 
   // Base queries for both ADMIN and EDITOR
-  const [postCount, activePostCount] = await Promise.all([
+  const [postCount, activePostCount, pendingConsultations, upcomingEvents, publishedPages] = await Promise.all([
     prisma.post.count(),
-    prisma.post.count({ where: { status: 'PUBLISHED' } })
+    prisma.post.count({ where: { status: 'PUBLISHED' } }),
+    prisma.consultationRequest.count({ where: { status: 'NEW' } }).catch(() => 0),
+    prisma.event.count({ where: { eventDate: { gte: new Date() } } }).catch(() => 0),
+    prisma.builderPage.count({ where: { status: 'PUBLISHED' } }).catch(() => 0),
   ]);
+
+  // ADMIN: recent platform activity for the activity feed
+  let recentActivity: { id: string; action: string; entityType: string; entityId: string; createdAt: Date; userName: string | null }[] = [];
+  if (isAdmin) {
+    const logs = await prisma.auditLog.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 8,
+      include: { User: { select: { name: true, email: true } } },
+    }).catch(() => []);
+    recentActivity = logs.map(l => ({
+      id: l.id,
+      action: l.action,
+      entityType: l.entityType,
+      entityId: l.entityId,
+      createdAt: l.createdAt,
+      userName: l.User?.name || l.User?.email || 'System',
+    }));
+  }
+
+  // ADMIN: content protection activity (blocked copy/right-click attempts etc.)
+  // — mirrors the "Copy Protection" dashboard widget on the old WP site.
+  const since7d = protectionSince(7);
+  let protection7d = 0;
+  let protectionByAction: { action: string; count: number }[] = [];
+  let protectionTopPages: { url: string; count: number }[] = [];
+  if (isAdmin) {
+    const [total, byAction, topPages] = await Promise.all([
+      prisma.accessLog.count({ where: { action: { startsWith: PROTECTION_ACTION_PREFIX }, createdAt: { gte: since7d } } }).catch(() => 0),
+      prisma.accessLog.groupBy({
+        by: ['action'],
+        where: { action: { startsWith: PROTECTION_ACTION_PREFIX }, createdAt: { gte: since7d } },
+        _count: { _all: true },
+        orderBy: { _count: { action: 'desc' } },
+        take: 4,
+      }).catch(() => [] as { action: string; _count: { _all: number } }[]),
+      prisma.accessLog.groupBy({
+        by: ['url'],
+        where: { action: { startsWith: PROTECTION_ACTION_PREFIX }, createdAt: { gte: since7d }, url: { not: null } },
+        _count: { _all: true },
+        orderBy: { _count: { url: 'desc' } },
+        take: 3,
+      }).catch(() => [] as { url: string | null; _count: { _all: number } }[]),
+    ]);
+    protection7d = total;
+    protectionByAction = byAction.map(g => ({ action: g.action, count: g._count._all }));
+    protectionTopPages = topPages.map(g => ({ url: g.url || '', count: g._count._all }));
+  }
+
+  // First-party site traffic for BOTH roles — page views recorded by
+  // AnalyticsTracker (AccessLog PAGE_VIEW rows), 30-day window.
+  const since30dViews = protectionSince(30);
+  const [viewTotal30d, viewUniques, viewTopPages] = await Promise.all([
+    prisma.accessLog.count({ where: { action: PAGE_VIEW_ACTION, createdAt: { gte: since30dViews } } }).catch(() => 0),
+    prisma.accessLog.groupBy({
+      by: ['ipAddress'],
+      where: { action: PAGE_VIEW_ACTION, createdAt: { gte: since30dViews } },
+      orderBy: { ipAddress: 'asc' },
+      take: 10000,
+    }).catch(() => [] as { ipAddress: string | null }[]),
+    prisma.accessLog.groupBy({
+      by: ['url'],
+      where: { action: PAGE_VIEW_ACTION, createdAt: { gte: since30dViews }, url: { not: null } },
+      _count: { _all: true },
+      orderBy: { _count: { url: 'desc' } },
+      take: 10,
+    }).catch(() => [] as { url: string | null; _count: { _all: number } }[]),
+  ]);
+  const topViewPages = viewTopPages.map(g => ({ url: g.url || '', count: g._count._all }));
+  // Split the top list into real posts (with WP titles) and other pages, and
+  // take the strongest few of each for the widget.
+  const { posts: topPosts, plainPages: topPlainPages } = await resolvePostTitles(topViewPages).catch(() => ({ posts: [], plainPages: topViewPages }));
+  const widgetPosts = topPosts.slice(0, 4);
+  const widgetPages = topPlainPages.slice(0, 4);
 
   // Admin-specific queries
   let resourceCount = 0;
@@ -129,8 +207,54 @@ export default async function AdminDashboardPage() {
             </div>
           </div>
 
+          <div className="group bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-black/5 dark:border-white/5 relative overflow-hidden">
+            <div className="flex items-center gap-5 relative z-10">
+              <div className={`flex-shrink-0 rounded-2xl p-4 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 ${pendingConsultations > 0 ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400'}`}>
+                <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 43.95A5.3 5.3 0 0018 33.4V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+              </div>
+              <div>
+                <dt className="text-sm font-bold text-text-muted uppercase tracking-wider mb-1">Pending Consultations</dt>
+                <dd className="text-3xl font-extrabold text-navy dark:text-white tracking-tight">{pendingConsultations}</dd>
+              </div>
+            </div>
+            <Link href="/admin/consultations" className="absolute inset-0" aria-label="Open consultations" />
+          </div>
+
+          <div className="group bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-black/5 dark:border-white/5 relative overflow-hidden">
+            <div className="flex items-center gap-5 relative z-10">
+              <div className="flex-shrink-0 bg-teal-50 dark:bg-teal-900/30 rounded-2xl p-4 text-teal-600 dark:text-teal-400  group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
+                <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div>
+                <dt className="text-sm font-bold text-text-muted uppercase tracking-wider mb-1">Upcoming Events</dt>
+                <dd className="text-3xl font-extrabold text-navy dark:text-white tracking-tight">{upcomingEvents}</dd>
+              </div>
+            </div>
+            <Link href="/admin/events" className="absolute inset-0" aria-label="Open events" />
+          </div>
+
+            <div className="group bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-black/5 dark:border-white/5 relative overflow-hidden">
+              <div className="flex items-center gap-5 relative z-10">
+                <div className="flex-shrink-0 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl p-4 text-indigo-600 dark:text-indigo-400  group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-300">
+                  <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm0 8a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zm10 0a1 1 0 011-1h4a1 1 0 011 1v3a1 1 0 01-1 1h-4a1 1 0 01-1-1v-3z" />
+                  </svg>
+                </div>
+                <div>
+                  <dt className="text-sm font-bold text-text-muted uppercase tracking-wider mb-1">Visual Pages (Live)</dt>
+                  <dd className="text-3xl font-extrabold text-navy dark:text-white tracking-tight">{publishedPages}</dd>
+                </div>
+              </div>
+              <Link href="/admin/pages" className="absolute inset-0" aria-label="Open visual pages" />
+            </div>
+
           {isAdmin && (
             <>
+
               <div className="group bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-black/5 dark:border-white/5 relative overflow-hidden">
                 <div className="flex items-center gap-5 relative z-10">
                   <div className="flex-shrink-0 bg-accent/10 rounded-2xl p-4 text-accent  group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-300">
@@ -190,7 +314,7 @@ export default async function AdminDashboardPage() {
           )}
         </div>
 
-        {/* Site Control quick links */}
+        {/* Site Control quick links (merged from upstream site-control PR) */}
         {isAdmin && (
           <div className="mb-10 rounded-2xl border border-black/5 bg-white p-6 shadow-sm dark:border-white/5 dark:bg-zinc-900 sm:p-8">
             <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -238,7 +362,7 @@ export default async function AdminDashboardPage() {
           <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-black/5 dark:border-white/5 overflow-hidden">
             <div className="px-8 py-6 border-b border-black/5 dark:border-white/5 bg-slate-50/50 dark:bg-zinc-900/50 flex justify-between items-center">
               <h3 className="text-lg font-bold text-navy dark:text-white">Recent Transactions</h3>
-              <Link href="#" className="text-sm font-bold text-accent hover:text-accent-hover transition-colors">View All &rarr;</Link>
+              <Link href="/admin/audit-logs" className="text-sm font-bold text-accent hover:text-accent-hover transition-colors">Activity log &rarr;</Link>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-black/5 dark:divide-white/5">
@@ -301,6 +425,140 @@ export default async function AdminDashboardPage() {
                   )}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* Site Traffic — first-party analytics, both roles */}
+        <div className="mt-10 bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-black/5 dark:border-white/5 overflow-hidden">
+          <div className="px-8 py-6 border-b border-black/5 dark:border-white/5 bg-slate-50/50 dark:bg-zinc-900/50 flex flex-wrap justify-between items-center gap-2">
+            <div>
+              <h3 className="text-lg font-bold text-navy dark:text-white">Site Traffic</h3>
+              <p className="text-sm text-text-secondary mt-0.5">First-party page views from your own site — last 30 days.</p>
+            </div>
+            <div className="flex items-center gap-5">
+              <div className="text-right">
+                <p className="text-2xl font-extrabold text-navy dark:text-white leading-none">{viewTotal30d}</p>
+                <p className="text-[11px] font-bold text-text-muted uppercase tracking-wider mt-1">Page Views</p>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-extrabold text-navy dark:text-white leading-none">{viewUniques.length}</p>
+                <p className="text-[11px] font-bold text-text-muted uppercase tracking-wider mt-1">Visitors</p>
+              </div>
+            </div>
+          </div>
+          <div className="px-8 py-6 grid gap-8 md:grid-cols-2">
+            <div>
+              <p className="text-[11px] font-bold text-text-muted uppercase tracking-wider mb-3">Top Articles</p>
+              {widgetPosts.length > 0 ? (
+                <ul className="space-y-2.5">
+                  {widgetPosts.map((row, i) => (
+                    <li key={row.url} className="flex items-start gap-3 text-sm">
+                      <span className="w-5 h-5 mt-0.5 shrink-0 rounded-full bg-accent/10 text-accent text-[11px] font-extrabold flex items-center justify-center">{i + 1}</span>
+                      <a href={row.url} target="_blank" rel="noopener noreferrer" className="text-text-primary dark:text-white/80 hover:text-accent font-medium leading-snug line-clamp-2">{row.title}</a>
+                      <span className="text-xs font-bold text-text-muted tabular-nums shrink-0 ml-auto mt-0.5">{row.count}×</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-text-muted font-medium py-3">No article reads yet — publish articles and visits will appear here.</p>
+              )}
+            </div>
+            <div>
+              <p className="text-[11px] font-bold text-text-muted uppercase tracking-wider mb-3">Other Popular Pages</p>
+              {widgetPages.length > 0 ? (
+                <ul className="space-y-2.5">
+                  {widgetPages.map((row) => (
+                    <li key={row.url} className="flex items-center gap-3 text-sm">
+                      <a href={row.url} target="_blank" rel="noopener noreferrer" className="text-text-secondary dark:text-white/70 hover:text-accent truncate">{friendlyPageLabel(row.url)}</a>
+                      <span className="text-xs font-bold text-text-muted tabular-nums shrink-0 ml-auto">{row.count}×</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-text-muted font-medium py-3">No page views recorded yet.</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Recent Activity — what has been happening on the platform (ADMIN) */}
+        {isAdmin && (
+          <div className="mt-10 bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-black/5 dark:border-white/5 overflow-hidden">
+            <div className="px-8 py-6 border-b border-black/5 dark:border-white/5 bg-slate-50/50 dark:bg-zinc-900/50 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-navy dark:text-white">Recent Activity</h3>
+              <Link href="/admin/audit-logs" className="text-sm font-bold text-accent hover:text-accent-hover transition-colors">View All &rarr;</Link>
+            </div>
+            <div className="divide-y divide-black/5 dark:divide-white/5">
+              {recentActivity.length > 0 ? (
+                recentActivity.map((entry) => (
+                  <div key={entry.id} className="px-8 py-4 flex flex-wrap items-center gap-x-4 gap-y-1 hover:bg-slate-50/60 dark:hover:bg-zinc-800/40 transition-colors">
+                    <span className="px-2.5 py-0.5 inline-flex text-[11px] font-bold rounded-full border bg-slate-50 text-text-secondary border-black/5 dark:bg-zinc-800 dark:border-white/10 dark:text-slate-300">
+                      {entry.action}
+                    </span>
+                    <span className="text-sm font-bold text-navy dark:text-white">{entry.entityType.replace('_', ' ')}</span>
+                    <span className="text-sm text-text-muted truncate max-w-[220px]">{entry.entityId}</span>
+                    <span className="text-xs font-medium text-text-muted ml-auto">{entry.userName}</span>
+                    <span className="text-xs text-text-muted w-24 text-right">{entry.createdAt.toLocaleDateString()}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="px-8 py-12 text-center text-sm text-text-muted font-medium">
+                  No recorded activity yet — actions taken across the panel will appear here.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Content Protection Activity — WP Copy-Protection widget parity (ADMIN) */}
+        {isAdmin && (
+          <div className="mt-10 bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-black/5 dark:border-white/5 overflow-hidden">
+            <div className="px-8 py-6 border-b border-black/5 dark:border-white/5 bg-slate-50/50 dark:bg-zinc-900/50 flex justify-between items-center">
+              <div>
+                <h3 className="text-lg font-bold text-navy dark:text-white">Content Protection Activity</h3>
+                <p className="text-sm text-text-secondary mt-0.5">Blocked copy, right-click &amp; download attempts on the public site — last 7 days.</p>
+              </div>
+              <Link href="/admin/protection" className="text-sm font-bold text-accent hover:text-accent-hover transition-colors">Protection Center &rarr;</Link>
+            </div>
+            <div className="px-8 py-6 grid gap-6 sm:grid-cols-[auto_1fr] items-start">
+              <div className="text-center px-6 py-5 rounded-2xl bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-950/40 dark:to-orange-950/20 border border-red-100 dark:border-red-900/40 min-w-[150px]">
+                <dd className="text-4xl font-extrabold text-red-600 dark:text-red-400 tracking-tight">{protection7d}</dd>
+                <dt className="mt-1 text-[11px] font-bold text-red-700/70 dark:text-red-400/70 uppercase tracking-wider">Attempts<br />Blocked (7d)</dt>
+              </div>
+              <div className="min-w-0 space-y-3">
+                {protectionByAction.length > 0 ? (
+                  protectionByAction.map((row) => {
+                    const max = protectionByAction[0]?.count || 1;
+                    return (
+                      <div key={row.action} className="flex items-center gap-3">
+                        <span className="text-xs font-bold text-text-secondary dark:text-white/60 w-40 shrink-0 truncate">{PROTECTION_LABELS[row.action] || row.action}</span>
+                        <div className="flex-1 h-2 rounded-full bg-slate-100 dark:bg-zinc-800 overflow-hidden min-w-[60px]">
+                          <div className="h-full rounded-full bg-gradient-to-r from-red-500 to-orange-400" style={{ width: `${Math.max(4, Math.round((row.count / max) * 100))}%` }} />
+                        </div>
+                        <span className="text-sm font-extrabold text-navy dark:text-white tabular-nums w-10 text-right">{row.count}</span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-sm text-text-muted font-medium py-3">
+                    No blocked attempts recorded yet. When visitors try to copy content, right-click, or print on the public site, the attempts appear here.
+                  </p>
+                )}
+                {protectionTopPages.length > 0 ? (
+                  <div className="pt-2 border-t border-black/5 dark:border-white/5">
+                    <p className="text-[11px] font-bold text-text-muted uppercase tracking-wider mb-2">Most targeted pages</p>
+                    <ul className="space-y-1.5">
+                      {protectionTopPages.map((row) => (
+                        <li key={row.url} className="flex items-center justify-between gap-3 text-sm">
+                          <a href={row.url} target="_blank" rel="noopener noreferrer" className="text-text-secondary dark:text-white/70 hover:text-accent truncate max-w-[320px]">{row.url}</a>
+                          <span className="text-xs font-bold text-text-muted tabular-nums">{row.count}×</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
         )}
