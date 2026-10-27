@@ -13,7 +13,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!wpPost || wpPost.status !== 'publish') return { title: 'Not Found' };
 
   return {
-    title: `${wpPost.title.rendered} - नेपाली | Entertain Lawyers`,
+    title: `${wpPost.title.rendered} - नेपाली`,
+    alternates: { canonical: `/nepali/post/${id}` },
   };
 }
 
@@ -118,7 +119,7 @@ export default async function NepaliPostPage({ params }: { params: Promise<{ id:
         {post.featuredImage && (
           <div className="w-full mb-10 overflow-hidden rounded-2xl shadow-sm border border-black/5 dark:border-white/5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={post.featuredImage} alt={post.title} className="w-full aspect-video object-cover" />
+            <img src={post.featuredImage} alt={post.title} className="w-full aspect-video object-cover" loading="eager" fetchPriority="high" decoding="async" />
           </div>
         )}
 

@@ -5,8 +5,9 @@ import { getDictionary } from '@/lib/i18n';
 export async function generateMetadata(): Promise<Metadata> {
   const dict = await getDictionary();
   return {
-    title: `${dict.pageNotFound} | Entertain Lawyers`,
+    title: `${dict.pageNotFound}`,
     description: dict.pageNotFoundDesc,
+    robots: { index: false, follow: false },
   };
 }
 

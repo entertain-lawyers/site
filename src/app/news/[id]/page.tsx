@@ -2,8 +2,31 @@ import { getWordPressPostById, getWordPressPosts, mapCategoryToType } from '@/li
 import { getLatestPosts } from '@/lib/latest-posts';
 import { notFound } from 'next/navigation';
 import PostDetail from '@/components/posts/PostDetail';
+import type { Metadata } from 'next';
+import { postMetadata } from '@/lib/seo';
 
 export const revalidate = 60;
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const wpId = Number(id);
+  if (isNaN(wpId)) return { title: 'Article Not Found' };
+
+  const wpPost = await getWordPressPostById(wpId, 'en');
+  if (!wpPost || wpPost.status !== 'publish' || mapCategoryToType(wpPost.categories, 'en') !== 'NEWS') {
+    return { title: 'Article Not Found' };
+  }
+
+  return postMetadata({
+    title: wpPost.title.rendered,
+    excerpt: wpPost.excerpt?.rendered,
+    content: wpPost.content?.rendered,
+    canonical: `/news/${id}`,
+    image: wpPost._embedded?.['wp:featuredmedia']?.[0]?.source_url,
+    publishedTime: wpPost.date,
+    modifiedTime: wpPost.modified,
+  });
+}
 
 export default async function NewsDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

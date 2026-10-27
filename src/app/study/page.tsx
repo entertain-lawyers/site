@@ -18,13 +18,16 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
   const params = await searchParams;
   const type = params.type;
 
-  if (type === 'LAW_NOTE') return { title: 'Law Notes | Entertain Lawyer', description: 'Comprehensive notes covering the BALLB & LLB syllabus.' };
-  if (type === 'CASE_LAW') return { title: 'Precedent Case Laws | Entertain Lawyer', description: 'Landmark judgments and essential case summaries.' };
-  if (type === 'OLD_QUESTION') return { title: 'Past Examination Questions | Entertain Lawyer', description: 'Previous year university examination question papers.' };
+  // Gated collections are only readable after signing in, so keep them out of
+  // search results instead of exposing a login redirect as the canonical page.
+  if (type === 'LAW_NOTE') return { title: 'Law Notes', description: 'Comprehensive notes covering the BALLB & LLB syllabus.', robots: { index: false } };
+  if (type === 'CASE_LAW') return { title: 'Precedent Case Laws', description: 'Landmark judgments and essential case summaries.', robots: { index: false } };
+  if (type === 'OLD_QUESTION') return { title: 'Past Examination Questions', description: 'Previous year university examination question papers.', robots: { index: false } };
 
   return {
-    title: 'Study Materials | Entertain Lawyer',
+    title: 'Study Materials',
     description: 'Browse law notes, case laws, and past questions by semester and subject.',
+    alternates: { canonical: '/study' },
   };
 }
 

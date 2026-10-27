@@ -14,8 +14,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!event || event.status !== 'PUBLISHED') return { title: 'Event Not Found' };
 
   return {
-    title: `${event.metaTitle || event.title} | Entertain Lawyers`,
+    title: `${event.metaTitle || event.title}`,
     description: event.metaDesc || event.description || `Event on ${new Date(event.eventDate).toLocaleDateString()}`,
+    alternates: { canonical: `/events/${slug}` },
   };
 }
 
@@ -36,7 +37,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
       {heroImage ? (
         <div className="w-full h-[40vh] md:h-[60vh] relative">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={heroImage} alt={event.title} className="w-full h-full object-cover" />
+          <img src={heroImage} alt={event.title} className="w-full h-full object-cover" loading="eager" fetchPriority="high" decoding="async" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent"></div>
           <div className="absolute bottom-0 left-0 w-full p-6 md:p-12 max-w-5xl mx-auto">
              <div className="flex items-center gap-4 mb-4 text-white font-medium drop-shadow-md">

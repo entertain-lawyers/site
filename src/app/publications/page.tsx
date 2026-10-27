@@ -2,6 +2,13 @@ import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { BookOpen, FileText } from 'lucide-react';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Publications',
+  description: 'Journals, books, and in-depth legal analyses published by Entertain Lawyers.',
+  alternates: { canonical: '/publications' },
+};
 
 export const revalidate = 60;
 
@@ -31,7 +38,7 @@ export default async function PublicationsPage() {
                 <div className="w-full aspect-[3/4] bg-slate-100 dark:bg-zinc-800 flex items-center justify-center border-b border-border overflow-hidden relative">
                   {thumbnail ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={thumbnail} alt={pub.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                    <img src={thumbnail} alt={pub.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" decoding="async" />
                   ) : (
                     <BookOpen className="w-16 h-16 text-black/10 dark:text-white/10" />
                   )}

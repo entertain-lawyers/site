@@ -14,8 +14,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!pub || pub.status !== 'PUBLISHED') return { title: 'Publication Not Found' };
 
   return {
-    title: `${pub.metaTitle || pub.title} | Entertain Lawyers`,
+    title: `${pub.metaTitle || pub.title}`,
     description: pub.metaDesc || pub.description || `Publication by Entertain Lawyers`,
+    alternates: { canonical: `/publications/${slug}` },
   };
 }
 
@@ -41,7 +42,7 @@ export default async function PublicationDetailPage({ params }: { params: Promis
                {coverImage ? (
                  <div className="w-full max-w-[280px] aspect-[3/4] rounded-xl overflow-hidden shadow-2xl relative ring-1 ring-black/10 dark:ring-white/10">
                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                   <img src={coverImage} alt={pub.title} className="w-full h-full object-cover" />
+                   <img src={coverImage} alt={pub.title} className="w-full h-full object-cover" loading="eager" fetchPriority="high" decoding="async" />
                  </div>
                ) : (
                  <div className="w-full max-w-[280px] aspect-[3/4] rounded-xl bg-surface-alt flex flex-col items-center justify-center text-text-muted border-2 border-dashed border-border">

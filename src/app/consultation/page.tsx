@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'Consult a Lawyer | Legal Consultation in Nepal | Entertain Lawyers',
+  title: 'Consult a Lawyer | Legal Consultation in Nepal',
   description: 'Book a professional legal consultation with our advocates in Pokhara & Kathmandu. Expert legal advisory in Civil, Criminal, Corporate, IP, and Family Law.',
   keywords: [
     'Consult a lawyer Nepal',
@@ -23,6 +23,7 @@ export const metadata: Metadata = {
     'hire lawyer in kathmandu nepal',
     'entertain lawyers consultation',
   ],
+  alternates: { canonical: '/consultation' },
 };
 
 const QUICK_CONTACTS = [

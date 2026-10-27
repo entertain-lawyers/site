@@ -5,7 +5,8 @@ import { prisma } from '@/lib/prisma';
 import ProfileClient from './ProfileClient';
 
 export const metadata: Metadata = {
-  title: 'My Profile - Entertain Lawyers',
+  title: 'My Profile',
+  robots: { index: false, follow: false },
 };
 
 export default async function ProfilePage() {

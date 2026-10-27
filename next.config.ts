@@ -47,6 +47,7 @@ function buildCspHeader(): string {
 }
 
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
   experimental: {
     serverActions: {
       bodySizeLimit: '25mb',
@@ -76,6 +77,10 @@ const nextConfig: NextConfig = {
           {
             key: 'Referrer-Policy',
             value: 'strict-origin-when-cross-origin',
+          },
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=(), payment=()',
           },
         ],
       },

@@ -1,8 +1,9 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Terms of Service - Entertain Lawyers',
+  title: 'Terms of Service',
   description: 'Terms of Service for Entertain Lawyers platform.',
+  alternates: { canonical: '/terms' },
 };
 
 export default function TermsOfServicePage() {

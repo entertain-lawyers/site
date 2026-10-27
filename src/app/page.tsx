@@ -14,6 +14,7 @@ const HomeCategoryGrid = dynamic(() => import('@/components/home/HomeCategoryGri
 export const metadata = {
   title: 'Entertain Lawyers - Nepalese Legal Education Platform',
   description: 'Comprehensive law notes, old questions, case laws, and study resources for BA.LLB and LLB students.',
+  alternates: { canonical: '/' },
 };
 
 export default function HomePage() {

@@ -8,8 +8,9 @@ import { unstable_cache } from 'next/cache';
 export async function generateMetadata() {
   const dict = await getDictionary();
   return {
-    title: `${dict.subscriptionPlans} - Entertain Lawyers`,
+    title: `${dict.subscriptionPlans}`,
     description: dict.subscriptionDesc,
+    alternates: { canonical: '/pricing' },
   };
 }
 

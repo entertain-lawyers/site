@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'My Dashboard - Entertain Lawyers',
+  title: 'My Dashboard',
+  robots: { index: false, follow: false },
 };
 
 export default async function DashboardPage() {

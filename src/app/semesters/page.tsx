@@ -6,8 +6,9 @@ import { GraduationCap, ChevronRight, BookOpen } from 'lucide-react';
 export async function generateMetadata() {
   const dict = await getDictionary();
   return {
-    title: `${dict.semestersTitle} - Entertain Lawyers`,
+    title: `${dict.semestersTitle}`,
     description: dict.semestersDesc,
+    alternates: { canonical: '/semesters' },
   };
 }
 

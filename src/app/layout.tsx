@@ -59,11 +59,20 @@ export const metadata: Metadata = {
     siteName: 'Entertain Lawyers',
     locale: 'en_NP',
     type: 'website',
+    images: [
+      {
+        url: '/logo.jpg',
+        width: 512,
+        height: 512,
+        alt: 'Entertain Lawyers',
+      },
+    ],
   },
   twitter: {
-    card: 'summary_large_image',
+    card: 'summary',
     title: 'Entertain Lawyers — Nepal Legal Education Platform',
     description: 'Legal resources, law notes, old questions, and case laws for BALLB and LLB students in Nepal.',
+    images: ['/logo.jpg'],
   },
 };
 

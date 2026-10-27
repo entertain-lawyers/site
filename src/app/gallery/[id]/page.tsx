@@ -13,8 +13,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!gallery || gallery.status !== 'PUBLISHED') return { title: 'Gallery Not Found' };
 
   return {
-    title: `${gallery.title} | Entertain Lawyers`,
+    title: `${gallery.title}`,
     description: gallery.description || `Photo gallery from Entertain Lawyers`,
+    alternates: { canonical: `/gallery/${id}` },
   };
 }
 
@@ -64,6 +65,8 @@ export default async function GalleryDetailPage({ params }: { params: Promise<{ 
                   src={image.url} 
                   alt={image.altText || image.caption || gallery.title} 
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  loading="lazy"
+                  decoding="async"
                 />
                 {(image.caption || image.altText) && (
                   <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">

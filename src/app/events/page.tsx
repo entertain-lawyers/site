@@ -2,6 +2,13 @@ import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { Calendar, MapPin } from 'lucide-react';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Events',
+  description: 'Upcoming and past events, seminars, and workshops from Entertain Lawyers.',
+  alternates: { canonical: '/events' },
+};
 
 export const revalidate = 60;
 
@@ -35,7 +42,7 @@ export default async function EventsPage() {
                 <div className="w-full h-48 bg-slate-100 dark:bg-zinc-800 flex items-center justify-center border-b border-border overflow-hidden">
                   {thumbnail ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={thumbnail} alt={event.title} className="w-full h-full object-cover" />
+                    <img src={thumbnail} alt={event.title} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                   ) : (
                     <Calendar className="w-12 h-12 text-black/10 dark:text-white/10" />
                   )}

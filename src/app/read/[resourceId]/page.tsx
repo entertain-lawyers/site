@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: { params: Promise<{ resourceI
   if (!resource) return { title: 'Resource Not Found' };
 
   return {
-    title: `Reading ${resource.title} - Entertain Lawyers`,
+    title: `Reading ${resource.title}`,
     robots: {
       index: false,
       follow: false,
