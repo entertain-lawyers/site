@@ -28,7 +28,7 @@ export interface AdminUserRow {
   email: string;
   name: string | null;
   image: string | null;
-  nickname: string | null;
+  nickname?: string | null;
   role: Role;
   createdAt: string | Date;
 }

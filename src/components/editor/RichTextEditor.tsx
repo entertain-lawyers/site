@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { initiateMediaUploadAction } from '@/modules/admin/admin-media.actions';
 import dynamic from 'next/dynamic';
 import 'react-quill-new/dist/quill.snow.css'; // Import Quill styles
@@ -33,77 +33,90 @@ function isAllowedImageMimeType(mimeType: string): mimeType is AllowedImageMimeT
   return ALLOWED_IMAGE_MIME_TYPES.has(mimeType);
 }
 
+// Keep toolbar config at module scope — a stable object reference means
+// ReactQuill never unmounts/remounts when the parent re-renders.
+// The image handler is wired via a forwarded ref (see useEffect below) so it
+// can access the live Quill instance without being in the dep array.
+const QUILL_TOOLBAR_CONTAINER = [
+  [{ header: [1, 2, 3, 4, 5, 6, false] }],
+  ['bold', 'italic', 'underline', 'strike'],
+  [{ list: 'ordered' }, { list: 'bullet' }],
+  [{ indent: '-1' }, { indent: '+1' }],
+  ['link', 'image', 'video'],
+  [{ color: [] }, { background: [] }],
+  ['clean'],
+];
+
+// Stable modules object — does NOT include the image handler so it never
+// changes reference. The handler is attached imperatively after mount.
+const QUILL_MODULES_BASE = {
+  toolbar: {
+    container: QUILL_TOOLBAR_CONTAINER,
+  },
+};
+
 export default function RichTextEditor({ value, onChange, placeholder = 'Write your content here...' }: RichTextEditorProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const reactQuillRef = useRef<any>(null);
-
-  const imageHandler = useCallback(() => {
-    const input = document.createElement('input');
-    input.setAttribute('type', 'file');
-    input.setAttribute('accept', 'image/jpeg,image/png,image/webp,image/gif');
-    input.click();
-
-    input.onchange = async () => {
-      const file = input.files ? input.files[0] : null;
-      if (!file) return;
-
-      try {
-        if (!isAllowedImageMimeType(file.type)) {
-          throw new Error('Only JPG, PNG, WebP, and GIF images are allowed');
-        }
-
-        const res = await initiateMediaUploadAction({
-          filename: file.name,
-          mimeType: file.type,
-          size: file.size,
-          type: 'RICH_TEXT',
-        });
-
-        if (!res.success) {
-          throw new Error(res.error || 'Upload initialization failed');
-        }
-
-        const uploadRes = await fetch(res.data.uploadUrl, {
-          method: 'PUT',
-          body: file,
-          headers: { 'Content-Type': file.type },
-        });
-
-        if (!uploadRes.ok) throw new Error('Failed to upload file');
-
-        const editor = reactQuillRef.current?.getEditor();
-        if (editor) {
-          const range = editor.getSelection();
-          editor.insertEmbed(range ? range.index : 0, 'image', res.data.publicUrl);
-        }
-      } catch (err) {
-        alert('Failed to upload image: ' + (err as Error).message);
-      }
-    };
-  }, []);
-
-  const modules = useMemo(() => ({
-    toolbar: {
-      container: [
-        [{ header: [1, 2, 3, 4, 5, 6, false] }],
-        ['bold', 'italic', 'underline', 'strike'],
-        [{ list: 'ordered' }, { list: 'bullet' }],
-        [{ indent: '-1' }, { indent: '+1' }],
-        ['link', 'image', 'video'],
-        [{ color: [] }, { background: [] }],
-        ['clean'],
-      ],
-      handlers: {
-        image: imageHandler,
-      }
-    }
-  }), [imageHandler]);
-
-  // Reconstructing the array each render gives ReactQuill a new reference via
-  // dirtyProps deep-compare (isEqual), but a stable constant avoids any churn.
-  const formats = QUILL_FORMATS;
-
   const [editorFont, setEditorFont] = useState<'english' | 'nepali'>('english');
+
+  // Wire the image handler imperatively after the dynamic import resolves so
+  // QUILL_MODULES_BASE never has to change (which would remount the editor).
+  useEffect(() => {
+    const quill = reactQuillRef.current?.getEditor?.();
+    if (!quill) return;
+
+    const toolbar = quill.getModule('toolbar');
+    if (!toolbar) return;
+
+    toolbar.addHandler('image', () => {
+      const input = document.createElement('input');
+      input.setAttribute('type', 'file');
+      input.setAttribute('accept', 'image/jpeg,image/png,image/webp,image/gif');
+      input.click();
+
+      input.onchange = async () => {
+        const file = input.files ? input.files[0] : null;
+        if (!file) return;
+
+        try {
+          if (!isAllowedImageMimeType(file.type)) {
+            throw new Error('Only JPG, PNG, WebP, and GIF images are allowed');
+          }
+
+          const res = await initiateMediaUploadAction({
+            filename: file.name,
+            mimeType: file.type,
+            size: file.size,
+            type: 'RICH_TEXT',
+          });
+
+          if (!res.success) {
+            throw new Error(res.error || 'Upload initialization failed');
+          }
+
+          const uploadRes = await fetch(res.data.uploadUrl, {
+            method: 'PUT',
+            body: file,
+            headers: { 'Content-Type': file.type },
+          });
+
+          if (!uploadRes.ok) throw new Error('Failed to upload file');
+
+          // Re-query the editor at call-time so we always have the live instance.
+          const editor = reactQuillRef.current?.getEditor();
+          if (editor) {
+            const range = editor.getSelection();
+            editor.insertEmbed(range ? range.index : 0, 'image', res.data.publicUrl);
+          }
+        } catch (err) {
+          alert('Failed to upload image: ' + (err as Error).message);
+        }
+      };
+    });
+  // Run once after mount — the quill instance never changes for the lifetime
+  // of this component, so an empty dep array is correct.
+  }, []);
 
   return (
     <div className="editor-wrapper space-y-3">
@@ -151,8 +164,8 @@ export default function RichTextEditor({ value, onChange, placeholder = 'Write y
         theme="snow"
         value={value}
         onChange={onChange}
-        modules={modules}
-        formats={formats}
+        modules={QUILL_MODULES_BASE}
+        formats={QUILL_FORMATS}
         placeholder={placeholder}
         className="h-96"
       />
