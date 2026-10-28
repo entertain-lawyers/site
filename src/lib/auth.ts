@@ -27,8 +27,21 @@ export async function testAuthorize(credentials: unknown) {
   const { email, password } = parsed.data;
   const normalizedEmail = normalizeEmail(email);
 
+  // Select explicitly instead of loading the whole row. Prisma's default
+  // selection includes every column in the schema, so a database that has not
+  // yet applied the profile-fields migration (firstName, lastName, nickname,
+  // bio, website) makes this query throw P2022 and login fails with a generic
+  // "Configuration" error. Only these base columns are needed to authenticate.
   const user = await prisma.user.findUnique({
     where: { email: normalizedEmail },
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      passwordHash: true,
+      isEmailVerified: true,
+      emailVerified: true,
+    },
   });
 
   // A valid bcrypt hash (60 chars) keeps the compare cost identical when the

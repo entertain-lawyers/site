@@ -127,7 +127,7 @@ export default async function AdminDashboardPage() {
       }),
       prisma.paymentTransaction.findMany({
         where: { status: 'COMPLETED' },
-        include: { user: true },
+        include: { user: { select: { id: true, email: true } } },
         orderBy: { createdAt: 'desc' },
         take: 5
       }),

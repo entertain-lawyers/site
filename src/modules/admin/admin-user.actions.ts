@@ -64,7 +64,10 @@ export const createUserAction = createSafeAction(async (args: z.infer<typeof cre
 
   const email = normalizeEmail(parsed.data.email);
 
-  const existing = await prisma.user.findUnique({ where: { email } });
+  const existing = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true },
+  });
   if (existing) {
     throw new Error('User with this email already exists');
   }
@@ -77,7 +80,8 @@ export const createUserAction = createSafeAction(async (args: z.infer<typeof cre
       passwordHash: hashedPassword,
       role: parsed.data.role,
       isEmailVerified: true,
-    }
+    },
+    select: { id: true, email: true, role: true },
   });
 
   // Role changes and account creation are the highest-risk admin operations;
@@ -151,7 +155,8 @@ export const updateUserAction = createSafeAction(async (args: z.infer<typeof upd
   try {
     await prisma.user.update({
       where: { id: input.id },
-      data: updateData
+      data: updateData,
+      select: { id: true },
     });
   } catch (error) {
     if (isUniqueConstraintError(error)) throw new Error('User with this email already exists');
@@ -170,6 +175,7 @@ export const updateUserAction = createSafeAction(async (args: z.infer<typeof upd
       await prisma.user.update({
         where: { id: input.id },
         data: baseData,
+        select: { id: true },
       });
     } catch (retryError) {
       if (isUniqueConstraintError(retryError)) throw new Error('User with this email already exists');

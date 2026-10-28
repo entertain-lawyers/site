@@ -10,14 +10,24 @@ export async function rateLimit(
   limit: number = 10,
   windowSeconds: number = 60
 ): Promise<{ success: boolean; limit: number; remaining: number; reset: number }> {
+  // `RATE_LIMITING_ENABLED` is the documented switch for distributed limiting
+  // (see src/env.ts). It must be honoured here: production deployments that
+  // intentionally leave it off (the default) have no Upstash credentials, and
+  // the old unconditional fail-closed throw made every login/registration
+  // attempt fail with Auth.js "Configuration". When it is off we still apply
+  // the in-memory limiter as best-effort protection.
+  const rateLimitingEnabled = env.RATE_LIMITING_ENABLED === "true";
+
   // Treat placeholder credentials as "not configured"
   const upstashConfigured =
+    rateLimitingEnabled &&
     Boolean(env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN) &&
     typeof env.UPSTASH_REDIS_REST_URL === 'string' &&
     !env.UPSTASH_REDIS_REST_URL.includes("dummy");
 
   const useMemoryFallback =
-    (env.NODE_ENV === "development" || env.NODE_ENV === "test") && !upstashConfigured;
+    !rateLimitingEnabled ||
+    ((env.NODE_ENV === "development" || env.NODE_ENV === "test") && !upstashConfigured);
 
   if (useMemoryFallback) {
     const now = Date.now();
@@ -45,10 +55,11 @@ export async function rateLimit(
     return { success: true, limit, remaining: limit - current - 1, reset: now + windowMs };
   }
 
-  // Ensure production doesn't accidentally use the fallback if vars are missing
+  // Ensure production doesn't accidentally use the fallback if limiting is
+  // explicitly enabled but Upstash is missing.
   if (!upstashConfigured) {
-    console.error("🚨 CRITICAL SECURITY ERROR: Upstash Redis credentials (UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN) are missing in a non-development environment. Distributed rate limiting is disabled. Failing safely (denying operation).");
-    throw new Error("Upstash Redis credentials are required in non-development environments to enforce secure rate limiting.");
+    console.error("🚨 CRITICAL SECURITY ERROR: RATE_LIMITING_ENABLED=true but Upstash Redis credentials (UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN) are missing or placeholders. Distributed rate limiting is disabled. Failing safely (denying operation).");
+    throw new Error("Upstash Redis credentials are required when RATE_LIMITING_ENABLED=true to enforce secure rate limiting.");
   }
 
   const redis = new Redis({

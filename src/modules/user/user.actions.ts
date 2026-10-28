@@ -29,6 +29,7 @@ export const updateProfile = createSafeAction(
     const updated = await prisma.user.update({
       where: { id: ctx.userId },
       data: parsed.data.name !== undefined ? { name: parsed.data.name } : {},
+      select: { name: true },
     });
 
     return { success: true, name: updated.name };
@@ -50,7 +51,8 @@ export const changePassword = createSafeAction(
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: ctx.userId }
+      where: { id: ctx.userId },
+      select: { passwordHash: true },
     });
 
     if (!user || !user.passwordHash) {

@@ -75,8 +75,16 @@ export const register = createSafeAction(
 
     const normalizedEmail = normalizeEmail(parsed.data.email);
 
+    // Explicit select: the default selection loads every schema column, which
+    // fails on databases that have not applied the profile-fields migration.
     const existingUser = await prisma.user.findUnique({
       where: { email: normalizedEmail },
+      select: {
+        id: true,
+        email: true,
+        isEmailVerified: true,
+        emailVerified: true,
+      },
     });
 
     if (existingUser) {
@@ -98,6 +106,7 @@ export const register = createSafeAction(
         email: normalizedEmail,
         passwordHash,
       },
+      select: { id: true, email: true },
     });
 
     const token = await issueOtp(user.email, "VERIFY_EMAIL");
@@ -119,6 +128,12 @@ export const resendVerificationEmail = createSafeAction(
     const normalizedEmail = normalizeEmail(email);
     const user = await prisma.user.findUnique({
       where: { email: normalizedEmail },
+      select: {
+        id: true,
+        email: true,
+        isEmailVerified: true,
+        emailVerified: true,
+      },
     });
 
     // Always return the same response: distinguishing "user not found" from
@@ -167,7 +182,8 @@ export const verifyEmail = createSafeAction(
 
     await prisma.user.update({
       where: { email: normalizedEmail },
-      data: { isEmailVerified: true }
+      data: { isEmailVerified: true },
+      select: { id: true },
     });
 
     await prisma.verificationToken.delete({
@@ -190,7 +206,10 @@ const requestPasswordResetSchema = z.object({
 export const requestPasswordReset = createSafeAction(
   async ({ email }: z.infer<typeof requestPasswordResetSchema>) => {
     const normalizedEmail = normalizeEmail(email);
-    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    const user = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true },
+    });
     if (!user) {
       // Return success anyway to prevent email enumeration
       return { success: true };
@@ -244,7 +263,8 @@ export const resetPassword = createSafeAction(
 
     await prisma.user.update({
       where: { email: normalizedEmail },
-      data: { passwordHash, isEmailVerified: true } // Also verify email since they own it
+      data: { passwordHash, isEmailVerified: true }, // Also verify email since they own it
+      select: { id: true },
     });
 
     await prisma.verificationToken.delete({
