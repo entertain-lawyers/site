@@ -16,24 +16,39 @@ export default async function AdminUsersPage() {
     redirect('/');
   }
 
-  // Note: nickname/firstName/lastName are added by migration
-  // 20261027150000_add_user_profile_fields. Until that migration runs on
-  // production the column does not exist and querying it crashes this page.
-  // The UsersClient already handles nickname being null.
-  const users = await prisma.user.findMany({
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      image: true,
-      nickname: true,
-      role: true,
-      createdAt: true,
-    },
-    orderBy: {
-      createdAt: 'desc',
-    }
-  });
+  // Try full select with nickname (post-migration). Fall back to base fields if
+  // migration 20261027150000_add_user_profile_fields has not been deployed yet.
+  let users;
+  try {
+    users = await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        image: true,
+        nickname: true,
+        role: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      }
+    });
+  } catch {
+    users = await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        image: true,
+        role: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      }
+    });
+  }
 
   return (
     <div className="min-h-screen bg-transparent py-10 max-w-[1400px] mx-auto">
