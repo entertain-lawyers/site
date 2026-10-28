@@ -6,17 +6,18 @@ import { prisma } from '@/lib/prisma';
 import { Prisma, Role } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import bcrypt from 'bcryptjs';
+import { normalizeEmail } from '@/lib/auth-utils';
 import { isRecordInUseError, isRecordNotFoundError, isUniqueConstraintError } from '@/lib/prisma-errors';
 
 const createUserSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().email(),
   password: z.string().min(6),
   role: z.nativeEnum(Role),
 });
 
 const updateUserSchema = z.object({
   id: z.string().uuid(),
-  email: z.string().email().optional(),
+  email: z.string().trim().email().optional(),
   password: z.string().min(6).optional().or(z.literal('')),
   role: z.nativeEnum(Role).optional(),
   // WP-parity profile fields (user-edit screen)
@@ -38,25 +39,57 @@ const deleteUserSchema = z.object({
   id: z.string().uuid(),
 });
 
+/**
+ * Removing the only ADMIN would leave the site with no way to administer it.
+ * Only call this when an existing admin is being demoted or deleted.
+ */
+async function assertNotLastAdmin(targetId: string) {
+  const otherAdmins = await prisma.user.count({
+    where: { role: Role.ADMIN, id: { not: targetId } },
+  });
+  if (otherAdmins === 0) {
+    throw new Error('Cannot remove the last admin account.');
+  }
+}
+
 export const createUserAction = createSafeAction(async (args: z.infer<typeof createUserSchema>, session) => {
   if (session.role !== Role.ADMIN) {
     throw new Error('Unauthorized');
   }
 
-  const existing = await prisma.user.findUnique({ where: { email: args.email } });
+  const parsed = createUserSchema.safeParse(args);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message || 'Invalid user details');
+  }
+
+  const email = normalizeEmail(parsed.data.email);
+
+  const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     throw new Error('User with this email already exists');
   }
 
-  const hashedPassword = await bcrypt.hash(args.password, 12);
+  const hashedPassword = await bcrypt.hash(parsed.data.password, 12);
 
-  await prisma.user.create({
+  const created = await prisma.user.create({
     data: {
-      email: args.email,
+      email,
       passwordHash: hashedPassword,
-      role: args.role,
+      role: parsed.data.role,
       isEmailVerified: true,
     }
+  });
+
+  // Role changes and account creation are the highest-risk admin operations;
+  // keep an audit trail of who did what.
+  await prisma.auditLog.create({
+    data: {
+      userId: session.userId,
+      action: 'CREATE',
+      entityType: 'USER',
+      entityId: created.id,
+      details: { email: created.email, role: created.role },
+    },
   });
 
   revalidatePath('/admin/users');
@@ -68,41 +101,53 @@ export const updateUserAction = createSafeAction(async (args: z.infer<typeof upd
     throw new Error('Unauthorized');
   }
 
-  const targetUser = await prisma.user.findUnique({ where: { id: args.id } });
+  const parsed = updateUserSchema.safeParse(args);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message || 'Invalid user details');
+  }
+
+  const input = parsed.data;
+  const targetUser = await prisma.user.findUnique({ where: { id: input.id } });
   if (!targetUser) throw new Error('User not found');
 
   const updateData: Prisma.UserUpdateInput = {};
 
-  if (args.email) updateData.email = args.email;
+  if (input.email) updateData.email = normalizeEmail(input.email);
 
-  if (args.role) {
-    if (targetUser.email === 'admin@entertainlawyers.com' && args.role !== Role.ADMIN) {
+  if (input.role) {
+    if (targetUser.email === 'admin@entertainlawyers.com' && input.role !== Role.ADMIN) {
       throw new Error('The main admin role cannot be changed.');
     }
-    updateData.role = args.role;
+    if (input.id === session.userId && input.role !== Role.ADMIN) {
+      throw new Error('You cannot remove your own admin role.');
+    }
+    if (targetUser.role === Role.ADMIN && input.role !== Role.ADMIN) {
+      await assertNotLastAdmin(targetUser.id);
+    }
+    updateData.role = input.role;
   }
 
-  if (args.password && args.password.length >= 6) {
-    updateData.passwordHash = await bcrypt.hash(args.password, 12);
+  if (input.password && input.password.length >= 6) {
+    updateData.passwordHash = await bcrypt.hash(input.password, 12);
   }
 
   // Profile fields — trimmed; WP stores "biographical info" alongside names
   // and the display name lives in `name` ("Display name publicly as").
-  if (args.firstName !== undefined) updateData.firstName = args.firstName.trim() || null;
-  if (args.lastName !== undefined) updateData.lastName = args.lastName.trim() || null;
-  if (args.nickname !== undefined) updateData.nickname = args.nickname.trim() || null;
-  if (args.bio !== undefined) updateData.bio = args.bio.trim() || null;
-  if (args.website !== undefined) updateData.website = args.website.trim() || null;
-  if (args.displayName !== undefined && args.displayName.trim()) {
-    updateData.name = args.displayName.trim();
+  if (input.firstName !== undefined) updateData.firstName = input.firstName.trim() || null;
+  if (input.lastName !== undefined) updateData.lastName = input.lastName.trim() || null;
+  if (input.nickname !== undefined) updateData.nickname = input.nickname.trim() || null;
+  if (input.bio !== undefined) updateData.bio = input.bio.trim() || null;
+  if (input.website !== undefined) updateData.website = input.website.trim() || null;
+  if (input.displayName !== undefined && input.displayName.trim()) {
+    updateData.name = input.displayName.trim();
   }
-  if (args.image !== undefined) updateData.image = args.image || null;
+  if (input.image !== undefined) updateData.image = input.image || null;
 
   const changedKeys = Object.keys(updateData);
 
   try {
     await prisma.user.update({
-      where: { id: args.id },
+      where: { id: input.id },
       data: updateData
     });
   } catch (error) {
@@ -111,23 +156,29 @@ export const updateUserAction = createSafeAction(async (args: z.infer<typeof upd
     throw error;
   }
 
-  // Audit every profile save (WP keeps an edit log too; ours goes to AuditLog).
+  // Audit every save (role/password changes + profile fields), merged from the
+  // security hardening audit and the profile editor's USER_PROFILE logging.
   try {
     await prisma.auditLog.create({
       data: {
-        userId: session.userId!,
+        userId: session.userId,
         action: 'UPDATE',
         entityType: 'USER_PROFILE',
-        entityId: args.id,
-        details: { fields: changedKeys, email: targetUser.email }
-      }
+        entityId: targetUser.id,
+        details: {
+          email: targetUser.email,
+          role: input.role ?? targetUser.role,
+          passwordChanged: Boolean(input.password),
+          fields: changedKeys,
+        },
+      },
     });
   } catch (auditError) {
     console.error('[AdminUsers] User updated but audit log write failed:', auditError);
   }
 
   revalidatePath('/admin/users');
-  revalidatePath(`/admin/users/${args.id}/edit`);
+  revalidatePath(`/admin/users/${input.id}/edit`);
   return { success: true };
 });
 
@@ -136,20 +187,31 @@ export const deleteUserAction = createSafeAction(async (args: z.infer<typeof del
     throw new Error('Unauthorized');
   }
 
-  if (args.id === session.userId) {
+  const parsed = deleteUserSchema.safeParse(args);
+  if (!parsed.success) {
+    throw new Error('Invalid user id');
+  }
+
+  const { id } = parsed.data;
+
+  if (id === session.userId) {
     throw new Error('You cannot delete yourself');
   }
 
-  const targetUser = await prisma.user.findUnique({ where: { id: args.id } });
-  if (targetUser?.email === 'admin@entertainlawyers.com') {
+  const targetUser = await prisma.user.findUnique({ where: { id } });
+  if (!targetUser) throw new Error('User not found');
+
+  if (targetUser.email === 'admin@entertainlawyers.com') {
     throw new Error('The main admin account cannot be deleted.');
   }
 
-  if (!targetUser) throw new Error('User not found');
+  if (targetUser.role === Role.ADMIN) {
+    await assertNotLastAdmin(targetUser.id);
+  }
 
   try {
     await prisma.user.delete({
-      where: { id: args.id }
+      where: { id }
     });
   } catch (error) {
     if (isRecordInUseError(error)) {
@@ -158,6 +220,16 @@ export const deleteUserAction = createSafeAction(async (args: z.infer<typeof del
     if (isRecordNotFoundError(error)) throw new Error('User not found');
     throw error;
   }
+
+  await prisma.auditLog.create({
+    data: {
+      userId: session.userId,
+      action: 'DELETE',
+      entityType: 'USER',
+      entityId: targetUser.id,
+      details: { email: targetUser.email, role: targetUser.role },
+    },
+  });
 
   revalidatePath('/admin/users');
   return { success: true };

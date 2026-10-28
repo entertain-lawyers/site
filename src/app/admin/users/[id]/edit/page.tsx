@@ -12,6 +12,11 @@ export const metadata: Metadata = {
 /**
  * WP-parity user profile editor (user-edit screen): Names, Contact Info,
  * About, Profile Picture and Account Management.
+ *
+ * The extra profile columns (firstName, lastName, nickname, bio, website) are
+ * added by migration 20261027150000_add_user_profile_fields. If that migration
+ * hasn't run yet (e.g. on production before deploy) we fall back to the base
+ * fields so the page doesn't crash.
  */
 export default async function EditUserPage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -20,22 +25,51 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
   }
 
   const { id } = await params;
-  const user = await prisma.user.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      firstName: true,
-      lastName: true,
-      nickname: true,
-      bio: true,
-      website: true,
-      image: true,
-      role: true,
-      createdAt: true,
-    },
-  });
+
+  // Try the full select (post-migration). Fall back to base fields if the new
+  // columns don't exist yet so the page stays functional pre-migration.
+  let user: {
+    id: string;
+    email: string;
+    name: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+    nickname?: string | null;
+    bio?: string | null;
+    website?: string | null;
+    image: string | null;
+    role: Role;
+  } | null = null;
+
+  try {
+    user = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        firstName: true,
+        lastName: true,
+        nickname: true,
+        bio: true,
+        website: true,
+        image: true,
+        role: true,
+      },
+    });
+  } catch {
+    // Profile-fields migration not yet applied — load base fields only.
+    user = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        image: true,
+        role: true,
+      },
+    });
+  }
 
   if (!user) return notFound();
 
@@ -56,13 +90,13 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
       user={{
         id: user.id,
         email: user.email,
-        name: user.name,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        nickname: user.nickname,
-        bio: user.bio,
-        website: user.website,
-        image: user.image,
+        name: user.name ?? null,
+        firstName: user.firstName ?? null,
+        lastName: user.lastName ?? null,
+        nickname: user.nickname ?? null,
+        bio: user.bio ?? null,
+        website: user.website ?? null,
+        image: user.image ?? null,
         role: user.role,
       }}
       displayOptions={displayOptions}
