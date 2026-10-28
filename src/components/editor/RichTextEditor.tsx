@@ -22,8 +22,7 @@ const QUILL_FORMATS = [
   'bold', 'italic', 'underline', 'strike',
   'list', 'indent',
   'link', 'image', 'video',
-  'color', 'background',
-] as const;
+];
 
 type AllowedImageMimeType = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
 const ALLOWED_IMAGE_MIME_TYPES = new Set<string>([
