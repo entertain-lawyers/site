@@ -17,7 +17,7 @@ const initiateMediaUploadSchema = z.object({
   filename: z.string().min(1),
   mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp', 'image/gif']),
   size: z.number().positive().max(10 * 1024 * 1024, "Image must be under 10MB"), // 10MB limit
-  type: z.enum(['POST', 'EVENT', 'GALLERY', 'PUBLICATION', 'RICH_TEXT', 'TEAM']),
+  type: z.enum(['POST', 'EVENT', 'GALLERY', 'PUBLICATION', 'RICH_TEXT', 'TEAM', 'PROFILE']),
 });
 
 export const initiateMediaUploadAction = createSafeAction(async (args: z.infer<typeof initiateMediaUploadSchema>, session) => {
@@ -49,6 +49,7 @@ export const initiateMediaUploadAction = createSafeAction(async (args: z.infer<t
   else if (input.type === 'PUBLICATION') prefix = 'publications';
   else if (input.type === 'RICH_TEXT') prefix = 'rich-text';
   else if (input.type === 'TEAM') prefix = 'team';
+  else if (input.type === 'PROFILE') prefix = 'profiles';
 
   const key = `editorial/${prefix}/${dateStr}-${uuid}.${ext}`;
 
@@ -65,8 +66,9 @@ export const initiateMediaUploadAction = createSafeAction(async (args: z.infer<t
       key,
       publicUrl: mediaStorage.getPublicUrl(key),
     };
-  } catch (err: any) {
-    console.error(`[AdminMediaUpload] Failed to generate upload URL for type=${input.type}:`, err instanceof Error ? err.name : 'StorageError');
+  } catch (err) {
+    const name = err instanceof Error ? err.name : 'StorageError';
+    console.error(`[AdminMediaUpload] Failed to generate upload URL for type=${input.type}:`, name);
     throw new Error('Failed to generate upload URL. Please verify storage configuration.');
   }
 });
