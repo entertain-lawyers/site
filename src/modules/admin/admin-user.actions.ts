@@ -107,7 +107,10 @@ export const updateUserAction = createSafeAction(async (args: z.infer<typeof upd
   }
 
   const input = parsed.data;
-  const targetUser = await prisma.user.findUnique({ where: { id: input.id } });
+  const targetUser = await prisma.user.findUnique({
+    where: { id: input.id },
+    select: { id: true, email: true, role: true },
+  });
   if (!targetUser) throw new Error('User not found');
 
   const updateData: Prisma.UserUpdateInput = {};
@@ -151,27 +154,27 @@ export const updateUserAction = createSafeAction(async (args: z.infer<typeof upd
       data: updateData
     });
   } catch (error) {
+    if (isUniqueConstraintError(error)) throw new Error('User with this email already exists');
+    if (isRecordNotFoundError(error)) throw new Error('User not found');
+
     // If migration 20261027150000_add_user_profile_fields has not been deployed yet,
     // gracefully retry with only base fields (email, role, password, name, image).
-    const isColumnMissing =
-      (error && typeof error === 'object' && 'code' in error && (error as { code: string }).code === 'P2022') ||
-      (error instanceof Error && error.message.includes('does not exist'));
+    const baseData: Prisma.UserUpdateInput = { ...updateData };
+    delete baseData.firstName;
+    delete baseData.lastName;
+    delete baseData.nickname;
+    delete baseData.bio;
+    delete baseData.website;
 
-    if (isColumnMissing) {
-      const baseData: Prisma.UserUpdateInput = { ...updateData };
-      delete baseData.firstName;
-      delete baseData.lastName;
-      delete baseData.nickname;
-      delete baseData.bio;
-      delete baseData.website;
+    try {
       await prisma.user.update({
         where: { id: input.id },
         data: baseData,
       });
-    } else {
-      if (isUniqueConstraintError(error)) throw new Error('User with this email already exists');
-      if (isRecordNotFoundError(error)) throw new Error('User not found');
-      throw error;
+    } catch (retryError) {
+      if (isUniqueConstraintError(retryError)) throw new Error('User with this email already exists');
+      if (isRecordNotFoundError(retryError)) throw new Error('User not found');
+      throw retryError;
     }
   }
 
@@ -217,7 +220,10 @@ export const deleteUserAction = createSafeAction(async (args: z.infer<typeof del
     throw new Error('You cannot delete yourself');
   }
 
-  const targetUser = await prisma.user.findUnique({ where: { id } });
+  const targetUser = await prisma.user.findUnique({
+    where: { id },
+    select: { id: true, email: true, role: true },
+  });
   if (!targetUser) throw new Error('User not found');
 
   if (targetUser.email === 'admin@entertainlawyers.com') {

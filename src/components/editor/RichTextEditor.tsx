@@ -22,6 +22,7 @@ const QUILL_FORMATS = [
   'bold', 'italic', 'underline', 'strike',
   'list', 'indent',
   'link', 'image', 'video',
+  'color', 'background',
 ];
 
 type AllowedImageMimeType = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
