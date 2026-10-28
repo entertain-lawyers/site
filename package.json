@@ -14,7 +14,9 @@
     "migration:import:staging": "node scripts/migration.js import",
     "migration:verify": "node scripts/migration.js verify",
     "migration:media": "node scripts/migration-media.js",
-    "migration:redirects": "node scripts/migration-redirects.js"
+    "migration:redirects": "node scripts/migration-redirects.js",
+    "predev": "node scripts/copy-pdf-worker.mjs",
+    "prebuild": "node scripts/copy-pdf-worker.mjs"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.3",

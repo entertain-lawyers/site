@@ -8,6 +8,7 @@ import { answerSiteFacts, teamFactLines, detectReplyLang } from '@/lib/ai/site-f
 import { SITE_FACT_SHEET } from '@/lib/ai/site-knowledge';
 import { polishReply, isEmptyReply, isNoContentReply } from '@/lib/ai/reply';
 import { typingChunks, sseEvent } from '@/lib/ai/stream';
+import { getClientIp } from '@/lib/client-ip';
 
 export const dynamic = 'force-dynamic';
 /** Groq→Gemini→OpenRouter chain + retrieval needs a budget beyond 10s. */
@@ -91,10 +92,6 @@ interface ChatPayload {
   aiUsed?: boolean;
   rateLimited?: boolean;
   error?: string;
-}
-
-function clientIp(request: Request): string {
-  return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'anonymous';
 }
 
 const STREAM_HEADERS = {
@@ -196,7 +193,7 @@ export async function POST(request: Request) {
   // protections (caches, thresholds) still bound the damage.
   let perMinute: Awaited<ReturnType<typeof rateLimit>> = { success: true, limit: 5, remaining: 5, reset: 0 };
   try {
-    perMinute = await rateLimit(`ai-chat-min:${clientIp(request)}`, 5, 60);
+    perMinute = await rateLimit(`ai-chat-min:${getClientIp(request.headers)}`, 5, 60);
   } catch {
     // limiter unavailable → allow
   }
@@ -213,7 +210,7 @@ export async function POST(request: Request) {
   }
   let perDay: Awaited<ReturnType<typeof rateLimit>> = { success: true, limit: 40, remaining: 40, reset: 0 };
   try {
-    perDay = await rateLimit(`ai-chat-day:${clientIp(request)}`, 40, 86400);
+    perDay = await rateLimit(`ai-chat-day:${getClientIp(request.headers)}`, 40, 86400);
   } catch {
     // limiter unavailable → allow
   }

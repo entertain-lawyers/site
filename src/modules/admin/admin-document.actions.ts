@@ -36,10 +36,6 @@ export const initiateDocumentUpload = createSafeAction(
       throw new Error("Resource not found");
     }
 
-    if (role === "EDITOR" ) {
-      throw new Error("You do not have permission to upload documents for this resource.");
-    }
-
     // Document replacement is fully supported.
     // The previous document and R2 object will be safely retained as an orphaned historical artifact.
 

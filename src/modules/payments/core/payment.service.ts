@@ -106,10 +106,33 @@ export class PaymentCoreService {
     // 2. Delegate to provider specific verification logic
     const verifyResult = await provider.verifyPayment(payload, idempotencyKey, transaction.amount);
 
-    if (!verifyResult.success || !verifyResult.isComplete) {
-      // Transition to FAILED safely
+    if (!verifyResult.success) {
+      // Explicit failure: amount mismatch, or the provider reports the payment
+      // as canceled/expired/refunded.
       await markTransactionFailed(transaction.id);
-      throw new PaymentVerificationError("Payment verification failed or not complete.");
+      throw new PaymentVerificationError("Payment verification failed.");
+    }
+
+    // Bind the callback to this transaction. Khalti returns the pidx we stored
+    // at initiation as providerRef; the callback's purchase_order_id is
+    // attacker-controlled, so without this check a completed payment for
+    // another order could be replayed to unlock this one.
+    if (
+      transaction.providerRef &&
+      verifyResult.providerRef &&
+      verifyResult.providerRef !== transaction.providerRef
+    ) {
+      throw new PaymentVerificationError(
+        "Payment reference does not match this transaction."
+      );
+    }
+
+    if (!verifyResult.isComplete) {
+      // The provider says the payment is still pending (e.g. Khalti "Pending",
+      // eSewa "PENDING"/"AMBIGUOUS"). Keep the transaction PENDING instead of
+      // failing it: the provider may send a COMPLETED callback moments later,
+      // and a FAILED row would make that callback permanently unusable.
+      throw new PaymentVerificationError("Payment is not complete yet.");
     }
 
     if (verifyResult.currency !== "NPR") {
@@ -140,8 +163,21 @@ export class PaymentCoreService {
       );
     } catch (e) {
       if (e instanceof IdempotencyError) {
-        // Safe to ignore, already finalized by concurrent request
-        return { success: true, message: "Already processed" };
+        // A concurrent request touched this row. Only report success if the
+        // transaction really is COMPLETED; otherwise the caller would be sent
+        // to the success page without receiving an entitlement.
+        const current = await prisma.paymentTransaction.findUnique({
+          where: { id: transaction.id },
+          select: { status: true },
+        });
+
+        if (current?.status === 'COMPLETED') {
+          return { success: true, message: "Already processed" };
+        }
+
+        throw new PaymentVerificationError(
+          "Payment could not be finalized. Please contact support if you were charged."
+        );
       }
       throw e;
     }

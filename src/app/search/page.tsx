@@ -4,6 +4,7 @@ import { headers } from 'next/headers';
 import { Sparkles, ArrowRight, GraduationCap, Search, SearchX } from 'lucide-react';
 import { runSearch } from '@/lib/search-core';
 import { hitIcon, hitChip } from '@/components/search/search-results';
+import { getClientIp } from '@/lib/client-ip';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +22,7 @@ export default async function SearchPage({
   const sp = await searchParams;
   const q = (sp.q ?? '').trim();
 
-  const ip = (await headers()).get('x-forwarded-for')?.split(',')[0]?.trim() || 'anonymous';
+  const ip = getClientIp(await headers());
   const result = q.length >= 2 ? await runSearch(q, ip) : null;
 
   return (

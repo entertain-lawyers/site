@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { paymentCoreService } from '@/modules/payments/core/payment.service';
 import { esewaProvider } from '@/modules/payments/providers/esewa/esewa.provider';
 import { khaltiProvider } from '@/modules/payments/providers/khalti/khalti.provider';
+import { assertTestDatabase, describeDb } from '@/test/db';
 
 // Mock the environment variables needed
 process.env.ESEWA_SECRET_KEY = '8gBm/:&EnhH.1/q';
@@ -12,7 +13,7 @@ process.env.KHALTI_SECRET_KEY = 'test_secret_key';
 // Mock fetch for both providers
 const globalFetch = global.fetch;
 
-describe('Milestone 3B Integration Tests', () => {
+describeDb('Milestone 3B Integration Tests', () => {
   let userId1: string;
   let userId2: string;
   let planId1: string;
@@ -21,6 +22,8 @@ describe('Milestone 3B Integration Tests', () => {
   let freeResourceId: string;
 
   beforeAll(async () => {
+    // This suite truncates tables, so it may only run on a disposable database.
+    await assertTestDatabase(prisma);
     // Clean DB
     await prisma.accessLog.deleteMany();
     await prisma.uploadIntent.deleteMany();
@@ -28,8 +31,10 @@ describe('Milestone 3B Integration Tests', () => {
     await prisma.paymentTransaction.deleteMany();
     await prisma.subscription.deleteMany();
     await prisma.purchase.deleteMany();
-    await prisma.document.deleteMany();
+    // Resource references Document, so resources must go first.
     await prisma.resource.deleteMany();
+    await prisma.document.deleteMany();
+    await prisma.unit.deleteMany();
     await prisma.subject.deleteMany();
     await prisma.semester.deleteMany();
     await prisma.plan.deleteMany();
@@ -198,8 +203,10 @@ describe('Milestone 3B Integration Tests', () => {
 
     it('15. Two simultaneous Khalti finalization attempts create only one access grant', async () => {
       const res = await paymentCoreService.initiatePurchasePayment(userId1, resourceId1, 'KHALTI', 'url');
+      // The verification result must carry the pidx stored at initiation;
+      // otherwise the callback is rejected as belonging to another order.
       vi.spyOn(khaltiProvider, 'verifyPayment').mockResolvedValue({
-        success: true, providerRef: 'khalti-simultaneous', amountPaid: 50000, currency: 'NPR', isComplete: true
+        success: true, providerRef: res.providerRef!, amountPaid: 50000, currency: 'NPR', isComplete: true
       });
 
       const results = await Promise.all([
@@ -217,7 +224,7 @@ describe('Milestone 3B Integration Tests', () => {
     it('16. Duplicate callback after successful finalization is harmless', async () => {
       const res = await paymentCoreService.initiatePurchasePayment(userId1, resourceId2, 'KHALTI', 'url');
       vi.spyOn(khaltiProvider, 'verifyPayment').mockResolvedValue({
-        success: true, providerRef: 'khalti-dup', amountPaid: 20000, currency: 'NPR', isComplete: true
+        success: true, providerRef: res.providerRef!, amountPaid: 20000, currency: 'NPR', isComplete: true
       });
 
       // First call
@@ -341,7 +348,7 @@ describe('Milestone 3B Integration Tests', () => {
       });
       const res = await paymentCoreService.initiatePurchasePayment(userId2, resourceId1, 'KHALTI', 'url');
       vi.spyOn(khaltiProvider, 'verifyPayment').mockResolvedValue({
-        success: true, providerRef: 'k1', amountPaid: 50000, currency: 'NPR', isComplete: true
+        success: true, providerRef: res.providerRef!, amountPaid: 50000, currency: 'NPR', isComplete: true
       });
       await paymentCoreService.verifyAndFinalizePayment('KHALTI', {}, res.idempotencyKey);
       

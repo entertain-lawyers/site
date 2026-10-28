@@ -92,18 +92,22 @@ const addGalleryImageSchema = z.object({
 export const addGalleryImageAction = createSafeAction(async (args: z.infer<typeof addGalleryImageSchema>, session) => {
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) throw new Error('Unauthorized');
 
+  const parsed = addGalleryImageSchema.safeParse(args);
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message || 'Invalid gallery image');
+  const input = parsed.data;
+
   // get max order
   const lastImage = await prisma.galleryImage.findFirst({
-    where: { galleryId: args.galleryId },
+    where: { galleryId: input.galleryId },
     orderBy: { order: 'desc' },
   });
   const newOrder = lastImage ? lastImage.order + 1 : 0;
 
   await prisma.galleryImage.create({
-    data: { ...args, order: newOrder }
+    data: { ...input, order: newOrder }
   });
 
-  revalidatePath(`/admin/gallery/${args.galleryId}/edit`);
+  revalidatePath(`/admin/gallery/${input.galleryId}/edit`);
   revalidatePath('/gallery');
   return { success: true };
 });

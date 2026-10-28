@@ -17,6 +17,7 @@ const SecurePdfViewer = dynamic(() => import('@/components/SecurePdfViewer'), {
 import StudyOutlineSidebar from '@/components/study/StudyOutlineSidebar';
 import { Metadata } from 'next';
 import { getDictionary } from '@/lib/i18n';
+import { htmlToText } from '@/lib/html';
 
 export async function generateMetadata({ params }: { params: Promise<{ resourceId: string }> }): Promise<Metadata> {
   const { resourceId } = await params;
@@ -110,6 +111,42 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
   }
 
   if (!resource.documentId || !resource.document) {
+    // Notes created in the admin "Write Note" mode have no PDF; render the
+    // stored body instead of telling the reader the document is missing.
+    if (resource.content) {
+      return (
+        <div className="min-h-dvh bg-background transition-colors duration-300">
+          <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+            <Link
+              href={`/resources/${resourceId}`}
+              className="inline-flex items-center gap-2 text-sm font-medium text-text-muted hover:text-accent transition-colors"
+            >
+              <svg className="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 10">
+                <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5H1m0 0 4 4M1 5l4-4"/>
+              </svg>
+              {dict.goBack}
+            </Link>
+
+            <h1 className="mt-6 text-3xl font-bold tracking-tight text-navy dark:text-white">
+              {resource.title}
+            </h1>
+            {typedResource.subject?.name && (
+              <p className="mt-2 text-sm text-text-muted">
+                {typedResource.subject.name}
+                {typedResource.subject?.semester?.name
+                  ? ` · ${typedResource.subject.semester.name}`
+                  : ''}
+              </p>
+            )}
+
+            <article className="mt-8 whitespace-pre-wrap text-base leading-relaxed text-text-secondary">
+              {htmlToText(resource.content)}
+            </article>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 transition-colors duration-300">
         <div className="bg-surface p-8 rounded-2xl shadow-soft border border-border max-w-md w-full text-center">

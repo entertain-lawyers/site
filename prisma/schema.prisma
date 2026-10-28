@@ -179,6 +179,9 @@ model Unit {
 model Resource {
   id            String         @id @default(uuid())
   title         String
+  // Rich-text/plain note body for resources created in "Write Note" mode.
+  // PDF-backed resources keep their content in Document instead.
+  content       String?
   isPremium     Boolean        @default(false)
   subjectId     String?
   documentId    String?        @unique
@@ -501,6 +504,8 @@ model VerificationToken {
   token      String
   type       String
   expires    DateTime
+  // Failed guesses for this code; the code is invalidated after a few.
+  attempts   Int      @default(0)
 
   @@unique([identifier, token])
 }

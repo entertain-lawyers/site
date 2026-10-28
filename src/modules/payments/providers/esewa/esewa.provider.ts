@@ -125,8 +125,21 @@ export class EsewaProvider implements IPaymentProviderService {
     // Output is usually { "status": "COMPLETE", "transaction_code": "...", "transaction_uuid": "...", "total_amount": 100 }
     
     if (statusData.status !== 'COMPLETE') {
+      // PENDING/AMBIGUOUS are transient: leave the transaction PENDING so a
+      // later COMPLETE callback can still grant access. Only explicitly
+      // canceled/unknown transactions are terminal failures.
+      const status =
+        typeof statusData.status === 'string' ? statusData.status.toUpperCase() : '';
+      const terminalFailure = [
+        'CANCELED',
+        'CANCELLED',
+        'NOT_FOUND',
+        'FAILED',
+        'REFUNDED',
+      ].includes(status);
+
       return {
-        success: false,
+        success: !terminalFailure,
         providerRef: transactionCode,
         amountPaid: parseFloat(String(totalAmount)) * 100,
         currency: "NPR",

@@ -12,7 +12,7 @@ export default function DeleteTeamMemberButton({ id, name }: { id: string; name:
   const handleDelete = async () => {
     if (!confirm(`Are you sure you want to delete ${name}?`)) return;
     setLoading(true);
-    const res = await deleteTeamMemberAction(id);
+    const res = await deleteTeamMemberAction({ id });
     if (!res?.success) {
       alert((res as any)?.error || 'Error deleting member');
     }

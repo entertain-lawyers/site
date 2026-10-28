@@ -26,10 +26,11 @@ const QUILL_FORMATS = [
 ] as const;
 
 type AllowedImageMimeType = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
-const ALLOWED_IMAGE_MIME_TYPES = new Set<string>(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
-
-function isAllowedImageMimeType(mimeType: string): mimeType is AllowedImageMimeType {
-  return ALLOWED_IMAGE_MIME_TYPES.has(mimeType);
+const ALLOWED_IMAGE_MIME_TYPES = new Set<string>([
+  'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+]);
+function isAllowedImageMimeType(t: string): t is AllowedImageMimeType {
+  return ALLOWED_IMAGE_MIME_TYPES.has(t);
 }
 
 const QUILL_TOOLBAR_CONTAINER = [
@@ -69,6 +70,8 @@ export default function RichTextEditor({
   const reactQuillRef = useRef<any>(null);
   const [editorFont, setEditorFont] = useState<'english' | 'nepali'>('english');
 
+  // Build the real image handler as a stable callback so the relay closure
+  // holds the latest ref without creating a new relay function.
   const imageHandler = useCallback(() => {
     const input = document.createElement('input');
     input.setAttribute('type', 'file');

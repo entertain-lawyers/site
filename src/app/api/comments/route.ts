@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getCurrentUser } from '@/lib/api-auth';
+import { getClientIp } from '@/lib/client-ip';
 import { rateLimit } from '@/lib/rate-limit';
 import {
   createComment,
@@ -12,10 +13,6 @@ import {
 export const dynamic = 'force-dynamic';
 export const maxDuration = 15;
 
-function clientIp(request: Request): string {
-  return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'anonymous';
-}
-
 /** GET /api/comments?postId=2600&type=NEWS — public read. */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -26,10 +23,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Invalid post' }, { status: 400 });
   }
 
-  const session = await auth();
-  const viewer = session?.user?.id
-    ? { id: session.user.id, role: session.user.role }
-    : undefined;
+  // Resolve the role from the database; the JWT can hold a stale role.
+  const user = await getCurrentUser();
+  const viewer = user ? { id: user.id, role: user.role } : undefined;
 
   try {
     const comments = await listComments(postId, postType, viewer);
@@ -45,8 +41,8 @@ export async function GET(request: Request) {
 
 /** POST /api/comments — requires a signed-in user. */
 export async function POST(request: Request) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const user = await getCurrentUser();
+  if (!user) {
     return NextResponse.json(
       { error: 'signin_required', message: 'Please sign in to comment.' },
       { status: 401 }
@@ -56,7 +52,7 @@ export async function POST(request: Request) {
   // Fail-open: a limiter outage must not stop genuine commenters; the
   // per-user auth requirement already bounds abuse far better than IP caps.
   try {
-    const perMinute = await rateLimit(`comment-min:${clientIp(request)}`, 5, 60);
+    const perMinute = await rateLimit(`comment-min:${getClientIp(request.headers)}`, 5, 60);
     if (!perMinute.success) {
       return NextResponse.json(
         { error: 'rate_limited', message: 'You are commenting too quickly. Please wait a minute.' },
@@ -91,7 +87,7 @@ export async function POST(request: Request) {
     const comment = await createComment({
       postId,
       postType,
-      userId: session.user.id,
+      userId: user.id,
       content,
     });
     return NextResponse.json({ comment }, { status: 201 });

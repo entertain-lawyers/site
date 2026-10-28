@@ -1,6 +1,15 @@
 import Link from 'next/link';
 import { XCircle, ArrowLeft } from 'lucide-react';
 import { prisma } from '@/lib/prisma';
+import { auth } from '@/lib/auth';
+
+/** Fixed copy for the failure reasons the callback route can emit. */
+const REASON_MESSAGES: Record<string, string> = {
+  processing_error:
+    'We could not verify your payment. If you were charged, please contact support with your transaction reference.',
+  missing_key:
+    'The payment reference was missing. Please start the payment again from the checkout page.',
+};
 
 export default async function PaymentFailurePage({
   searchParams,
@@ -8,15 +17,25 @@ export default async function PaymentFailurePage({
   searchParams: Promise<{ reason?: string, txId?: string }>;
 }) {
   const resolvedParams = await searchParams;
-  const reason = resolvedParams.reason || 'Unknown error occurred during payment verification.';
+  const reason =
+    REASON_MESSAGES[resolvedParams.reason ?? ''] ??
+    'Unknown error occurred during payment verification.';
 
   let targetUrl = '/';
   let targetLabel = 'Return Home';
 
   if (resolvedParams.txId) {
-    const tx = await prisma.paymentTransaction.findUnique({
-      where: { idempotencyKey: resolvedParams.txId }
-    });
+    const session = await auth();
+    // Scope the lookup to the signed-in user so a leaked key cannot reveal
+    // another customer's transaction.
+    const tx = session?.user?.id
+      ? await prisma.paymentTransaction.findFirst({
+          where: {
+            idempotencyKey: resolvedParams.txId,
+            userId: session.user.id,
+          }
+        })
+      : null;
 
     if (tx) {
       if (tx.type === 'PURCHASE' && tx.targetId) {

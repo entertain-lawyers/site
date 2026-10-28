@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getCurrentUser } from '@/lib/api-auth';
 import { deleteComment } from '@/lib/comments';
 
 export const dynamic = 'force-dynamic';
@@ -9,8 +9,10 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  // Re-read the role from the database: the JWT can still claim ADMIN after a
+  // demotion, which would let the caller delete other users' comments.
+  const user = await getCurrentUser();
+  if (!user) {
     return NextResponse.json({ error: 'signin_required' }, { status: 401 });
   }
 
@@ -20,7 +22,7 @@ export async function DELETE(
   }
 
   try {
-    const removed = await deleteComment(id, { id: session.user.id, role: session.user.role });
+    const removed = await deleteComment(id, { id: user.id, role: user.role });
     if (!removed) {
       return NextResponse.json({ error: 'Not found or not allowed' }, { status: 404 });
     }

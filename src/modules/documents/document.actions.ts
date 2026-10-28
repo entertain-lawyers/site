@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { canAccessResource } from "@/modules/entitlements/entitlement.service";
 import { generatePresignedGetUrl } from "@/lib/b2";
 import { rateLimit } from "@/lib/rate-limit";
+import { getClientIp } from "@/lib/client-ip";
 import { headers } from "next/headers";
 import { z } from "zod";
 
@@ -23,7 +24,7 @@ export const getSecureDocumentUrl = createSafeAction(
 
     // 1. Scoped Rate Limiting
     const headersList = await headers();
-    const ip = headersList.get("x-forwarded-for") ?? "unknown-ip";
+    const ip = getClientIp(headersList);
 
     // IP-based abuse limiter (10 per minute per IP globally for this action)
     const ipLimit = await rateLimit(`doc_abuse_${ip}`, 10, 60);
@@ -37,20 +38,23 @@ export const getSecureDocumentUrl = createSafeAction(
       throw new Error("Too many requests for this document. Please wait a moment.");
     }
 
-    // 2. Entitlement Check
-    const hasAccess = await canAccessResource(userId, resourceId);
-    if (!hasAccess) {
-      throw new Error("You do not have access to this premium resource. Please purchase it or subscribe to a plan.");
-    }
-
-    // 3. Document Resolution
+    // 2. Resource Resolution
+    // Draft/archived resources must not be readable by guessing their UUID:
+    // the public pages only serve PUBLISHED resources, and the document action
+    // is reachable directly.
     const resource = await prisma.resource.findUnique({
       where: { id: resourceId },
       include: { document: true }
     });
 
-    if (!resource) {
+    if (!resource || resource.status !== 'PUBLISHED') {
       throw new Error("Resource not found");
+    }
+
+    // 3. Entitlement Check
+    const hasAccess = await canAccessResource(userId, resourceId);
+    if (!hasAccess) {
+      throw new Error("You do not have access to this premium resource. Please purchase it or subscribe to a plan.");
     }
 
     if (!resource.document) {

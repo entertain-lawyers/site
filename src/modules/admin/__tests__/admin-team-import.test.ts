@@ -4,6 +4,14 @@ import path from 'path';
 import { prisma } from '@/lib/prisma';
 import { loadTeamBackupData, teamImportItemSchema } from '../admin-team-import.helpers';
 
+// The import tool reads an operator-local backup plus its photos. Neither is
+// committed (they contain real team data), so skip these tests on a clean
+// checkout instead of failing with "backup file not found".
+const backupFixturePath = path.join(process.cwd(), 'team_members_backup.json');
+const photosFixtureDir = path.join(process.cwd(), 'public/uploads/editorial/team');
+const hasImportFixture = fs.existsSync(backupFixturePath) && fs.existsSync(photosFixtureDir);
+const describeWithFixture = hasImportFixture ? describe : describe.skip;
+
 let mockUserRole = 'ADMIN';
 let mockUserId = 'admin-user-id';
 
@@ -35,7 +43,7 @@ vi.mock('@/lib/prisma', () => ({
   },
 }));
 
-describe('admin-team-import.actions & Data Integrity', () => {
+describeWithFixture('admin-team-import.actions & Data Integrity', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUserRole = 'ADMIN';

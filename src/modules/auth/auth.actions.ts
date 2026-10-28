@@ -3,11 +3,66 @@
 import { createSafeAction } from "@/lib/safe-action";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { randomInt } from "crypto";
 import { z } from "zod";
+import { normalizeEmail } from "@/lib/auth-utils";
 import { sendVerificationOTP } from "@/lib/mail";
 
+/** Six-digit OTP from a cryptographically secure source. */
+function generateOtp(): string {
+  return randomInt(100000, 1000000).toString();
+}
+
+const OTP_TTL_MS = 15 * 60 * 1000; // 15 minutes
+const OTP_MAX_ATTEMPTS = 5;
+
+type OtpType = "VERIFY_EMAIL" | "RESET_PASSWORD";
+
+/** Replace any existing code of this type and issue a fresh one. */
+async function issueOtp(identifier: string, type: OtpType): Promise<string> {
+  const token = generateOtp();
+  const expires = new Date(Date.now() + OTP_TTL_MS);
+
+  await prisma.verificationToken.deleteMany({ where: { identifier, type } });
+  await prisma.verificationToken.create({
+    data: { identifier, token, type, expires },
+  });
+
+  return token;
+}
+
+/**
+ * Count a wrong OTP guess against the account.
+ *
+ * A six-digit code is brute-forceable when the attacker can distribute
+ * requests across IPs, and the per-IP limiter cannot see that. After a few
+ * failures the code is invalidated and the user has to request a new one.
+ */
+async function recordFailedOtpAttempt(
+  identifier: string,
+  type: OtpType
+): Promise<void> {
+  const current = await prisma.verificationToken.findFirst({
+    where: { identifier, type },
+    orderBy: { expires: "desc" },
+    select: { id: true, attempts: true },
+  });
+
+  if (!current) return;
+
+  if (current.attempts + 1 >= OTP_MAX_ATTEMPTS) {
+    await prisma.verificationToken.deleteMany({ where: { identifier, type } });
+    return;
+  }
+
+  await prisma.verificationToken.update({
+    where: { id: current.id },
+    data: { attempts: { increment: 1 } },
+  });
+}
+
 const registerSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().email(),
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
@@ -18,12 +73,21 @@ export const register = createSafeAction(
       throw new Error(parsed.error.issues[0]?.message || "Invalid registration data");
     }
 
+    const normalizedEmail = normalizeEmail(parsed.data.email);
+
     const existingUser = await prisma.user.findUnique({
-      where: { email: parsed.data.email },
+      where: { email: normalizedEmail },
     });
 
     if (existingUser) {
-      throw new Error("Email is already in use");
+      // Do not reveal whether the address is already registered. If the
+      // account exists but is still unverified, re-send a code so the signup
+      // flow can complete; otherwise silently succeed.
+      if (!existingUser.isEmailVerified && !existingUser.emailVerified) {
+        const token = await issueOtp(existingUser.email, "VERIFY_EMAIL");
+        await sendVerificationOTP(existingUser.email, token);
+      }
+      return { message: "Verification email sent" };
     }
 
     const salt = await bcrypt.genSalt(12);
@@ -31,26 +95,15 @@ export const register = createSafeAction(
 
     const user = await prisma.user.create({
       data: {
-        email: parsed.data.email,
+        email: normalizedEmail,
         passwordHash,
       },
     });
 
-    const token = Math.floor(100000 + Math.random() * 900000).toString();
-    const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
-
-    await prisma.verificationToken.create({
-      data: {
-        identifier: user.email,
-        token,
-        type: "VERIFY_EMAIL",
-        expires,
-      }
-    });
-
+    const token = await issueOtp(user.email, "VERIFY_EMAIL");
     await sendVerificationOTP(user.email, token);
 
-    return { id: user.id, email: user.email, message: "Verification email sent" };
+    return { message: "Verification email sent" };
   },
   {
     rateLimitKey: "auth_register",
@@ -59,29 +112,21 @@ export const register = createSafeAction(
   }
 );
 
-const resendSchema = z.object({ email: z.string().email() });
+const resendSchema = z.object({ email: z.string().trim().email() });
 
 export const resendVerificationEmail = createSafeAction(
   async ({ email }: z.infer<typeof resendSchema>) => {
+    const normalizedEmail = normalizeEmail(email);
     const user = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
     });
 
-    if (!user) throw new Error("User not found");
-    if (user.isEmailVerified) throw new Error("Email is already verified");
-
-    const token = Math.floor(100000 + Math.random() * 900000).toString();
-    const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
-
-    await prisma.verificationToken.deleteMany({
-      where: { identifier: email, type: "VERIFY_EMAIL" }
-    });
-
-    await prisma.verificationToken.create({
-      data: { identifier: email, token, type: "VERIFY_EMAIL", expires }
-    });
-
-    await sendVerificationOTP(email, token);
+    // Always return the same response: distinguishing "user not found" from
+    // "already verified" lets anyone test whether an address is registered.
+    if (user && !user.isEmailVerified && !user.emailVerified) {
+      const token = await issueOtp(normalizedEmail, "VERIFY_EMAIL");
+      await sendVerificationOTP(normalizedEmail, token);
+    }
 
     return { success: true, message: "Verification email sent" };
   },
@@ -93,27 +138,35 @@ export const resendVerificationEmail = createSafeAction(
 );
 
 const verifyEmailSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().email(),
   token: z.string().length(6),
 });
 
 export const verifyEmail = createSafeAction(
   async ({ email, token }: z.infer<typeof verifyEmailSchema>) => {
+    const parsed = verifyEmailSchema.safeParse({ email, token });
+    if (!parsed.success) {
+      throw new Error(parsed.error.issues[0]?.message || "Invalid verification code");
+    }
+
+    const normalizedEmail = normalizeEmail(parsed.data.email);
+
     const verification = await prisma.verificationToken.findFirst({
       where: {
-        identifier: email,
-        token,
+        identifier: normalizedEmail,
+        token: parsed.data.token,
         type: "VERIFY_EMAIL",
         expires: { gt: new Date() }
       }
     });
 
     if (!verification) {
+      await recordFailedOtpAttempt(normalizedEmail, "VERIFY_EMAIL");
       throw new Error("Invalid or expired code");
     }
 
     await prisma.user.update({
-      where: { email },
+      where: { email: normalizedEmail },
       data: { isEmailVerified: true }
     });
 
@@ -131,31 +184,22 @@ export const verifyEmail = createSafeAction(
 );
 
 const requestPasswordResetSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().email(),
 });
 
 export const requestPasswordReset = createSafeAction(
   async ({ email }: z.infer<typeof requestPasswordResetSchema>) => {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const normalizedEmail = normalizeEmail(email);
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
     if (!user) {
       // Return success anyway to prevent email enumeration
       return { success: true };
     }
 
-    const token = Math.floor(100000 + Math.random() * 900000).toString();
-    const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
-
-    // Clear existing tokens of this type for this user
-    await prisma.verificationToken.deleteMany({
-      where: { identifier: email, type: "RESET_PASSWORD" }
-    });
-
-    await prisma.verificationToken.create({
-      data: { identifier: email, token, type: "RESET_PASSWORD", expires }
-    });
+    const token = await issueOtp(normalizedEmail, "RESET_PASSWORD");
 
     const { sendPasswordResetOTP } = await import('@/lib/mail');
-    await sendPasswordResetOTP(email, token);
+    await sendPasswordResetOTP(normalizedEmail, token);
 
     return { success: true };
   },
@@ -167,31 +211,39 @@ export const requestPasswordReset = createSafeAction(
 );
 
 const resetPasswordSchema = z.object({
-  email: z.string().email(),
+  email: z.string().trim().email(),
   token: z.string().length(6),
   newPassword: z.string().min(8),
 });
 
 export const resetPassword = createSafeAction(
   async ({ email, token, newPassword }: z.infer<typeof resetPasswordSchema>) => {
+    const parsed = resetPasswordSchema.safeParse({ email, token, newPassword });
+    if (!parsed.success) {
+      throw new Error(parsed.error.issues[0]?.message || "Invalid reset request");
+    }
+
+    const normalizedEmail = normalizeEmail(parsed.data.email);
+
     const verification = await prisma.verificationToken.findFirst({
       where: {
-        identifier: email,
-        token,
+        identifier: normalizedEmail,
+        token: parsed.data.token,
         type: "RESET_PASSWORD",
         expires: { gt: new Date() }
       }
     });
 
     if (!verification) {
+      await recordFailedOtpAttempt(normalizedEmail, "RESET_PASSWORD");
       throw new Error("Invalid or expired code");
     }
 
     const salt = await bcrypt.genSalt(12);
-    const passwordHash = await bcrypt.hash(newPassword, salt);
+    const passwordHash = await bcrypt.hash(parsed.data.newPassword, salt);
 
     await prisma.user.update({
-      where: { email },
+      where: { email: normalizedEmail },
       data: { passwordHash, isEmailVerified: true } // Also verify email since they own it
     });
 
