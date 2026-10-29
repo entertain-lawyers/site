@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Metadata } from 'next';
+import { Shield, ArrowRight } from 'lucide-react';
 
 export const metadata: Metadata = {
   title: 'My Dashboard',
@@ -63,6 +64,8 @@ export default async function DashboardPage() {
     ];
   }
 
+  const isStaff = session.user.role === 'ADMIN' || session.user.role === 'EDITOR';
+
   return (
     <div className="min-h-screen bg-background py-10 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -72,6 +75,32 @@ export default async function DashboardPage() {
           <h1 className="text-fluid-h2 font-bold text-navy dark:text-white mb-2 tracking-tight">My Dashboard</h1>
           <p className="text-text-secondary text-fluid-base truncate">Welcome back, {session.user.email}</p>
         </div>
+
+        {/* Staff Administration Banner */}
+        {isStaff && (
+          <div className="bg-gradient-to-r from-navy via-slate-900 to-navy text-white rounded-2xl p-6 sm:p-8 mb-8 shadow-md border border-gold/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-gold/20 text-gold border border-gold/40">
+                  <Shield className="w-3.5 h-3.5 text-gold" />
+                  Staff Portal
+                </span>
+                <span className="text-xs text-slate-300">Role: <strong className="text-white">{session.user.role}</strong></span>
+              </div>
+              <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Admin & Editorial Management</h2>
+              <p className="text-slate-300 text-sm max-w-2xl">
+                Manage consultations, certified lawyers, WordPress posts, semesters, study resources, and user profiles.
+              </p>
+            </div>
+            <Link
+              href="/admin"
+              className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-gold hover:bg-gold-light text-navy font-bold text-sm shadow-md hover:shadow-lg transition-all transform active:scale-95 whitespace-nowrap"
+            >
+              <span>Go to Admin Portal</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        )}
 
         {/* Subscriptions Section */}
         <section className="mb-12">
