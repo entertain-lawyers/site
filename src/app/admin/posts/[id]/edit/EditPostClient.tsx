@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { Eye } from 'lucide-react';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import { writePostPreviewDraft, type PostType } from '@/lib/post-preview';
+import { htmlToText } from '@/lib/html';
 
 const POST_TYPE_LABELS: Record<string, string> = {
   NEWS: 'NEWS',
@@ -73,7 +74,10 @@ export default function EditPostClient({ post }: { post: EditablePost }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim() || content === '<p><br></p>') {
+    // Quill's semantic HTML renders an empty editor as <p></p> (and it used
+    // to be <p><br></p>), so tag-strip instead of string-comparing. An
+    // image-only post still counts as content.
+    if (!htmlToText(content) && !/<img\b/i.test(content)) {
       setError('Content cannot be empty');
       return;
     }

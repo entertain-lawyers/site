@@ -7,6 +7,7 @@ import { Eye } from 'lucide-react';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import { createPostAction } from '@/modules/admin/admin-post.actions';
 import { writePostPreviewDraft, type PostType } from '@/lib/post-preview';
+import { htmlToText } from '@/lib/html';
 
 const POST_TYPE_LABELS: Record<string, string> = {
   NEWS: 'NEWS',
@@ -65,7 +66,9 @@ export default function NewPostClient({ defaultLang = 'en' }: { defaultLang?: 'e
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!content.trim() || content === '<p><br></p>') {
+    // Quill's semantic HTML renders an empty editor as <p></p>, so tag-strip
+    // instead of string-comparing. An image-only note still counts.
+    if (!htmlToText(content) && !/<img\b/i.test(content)) {
       setError('Content cannot be empty');
       return;
     }
