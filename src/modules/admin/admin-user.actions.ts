@@ -11,7 +11,7 @@ import { isRecordInUseError, isRecordNotFoundError, isUniqueConstraintError } fr
 
 const createUserSchema = z.object({
   email: z.string().trim().email(),
-  password: z.string().min(6),
+  password: z.string().min(8),
   role: z.nativeEnum(Role),
 });
 
@@ -134,8 +134,10 @@ export const updateUserAction = createSafeAction(async (args: z.infer<typeof upd
     updateData.role = input.role;
   }
 
-  if (input.password && input.password.length >= 6) {
+  if (input.password && input.password.length >= 8) {
     updateData.passwordHash = await bcrypt.hash(input.password, 12);
+    // Invalidate the user's existing sessions after an admin-set password.
+    updateData.sessionVersion = { increment: 1 };
   }
 
   // Profile fields — trimmed; WP stores "biographical info" alongside names

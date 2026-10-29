@@ -2,12 +2,18 @@ import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import NewPostClient from './NewPostClient';
 
-export default async function NewPostPage() {
+export default async function NewPostPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ lang?: string }>;
+}) {
   const session = await auth();
 
   if (!session?.user?.id || (session.user.role !== 'ADMIN' && session.user.role !== 'EDITOR')) {
     redirect('/');
   }
 
-  return <NewPostClient />;
+  const { lang } = await searchParams;
+
+  return <NewPostClient defaultLang={lang === 'ne' ? 'ne' : 'en'} />;
 }

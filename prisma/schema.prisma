@@ -20,6 +20,10 @@ model User {
   image           String?
   isEmailVerified Boolean              @default(false)
   passwordHash    String?
+  phone           String?
+  education       String?
+  university      String?
+  sessionVersion  Int                  @default(0)
   role            Role                 @default(USER)
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
@@ -535,6 +539,35 @@ model TeamMember {
   updatedAt      DateTime @updatedAt
 
   @@index([isPublished, displayOrder])
+}
+
+model ConsultationLawyer {
+  id                String   @id @default(uuid())
+  name              String
+  slug              String   @unique
+  title             String   @default("Advocate")
+  licenseNumber     String?  // Nepal Bar Council registration number
+  specialization    String?  // Primary focus
+  practiceAreas     String?  // Comma-separated practice areas
+  courtJurisdiction String?  // e.g. "Supreme Court & High Courts"
+  experience        String?  // e.g. "7+ Years Experience"
+  qualifications    String?  // e.g. "LL.M., B.A. LL.B."
+  languages         String?  // e.g. "Nepali, English"
+  phone             String?
+  email             String?
+  whatsappNumber    String?
+  location          String?  // e.g. "Pokhara & Kathmandu"
+  shortBio          String?
+  bio               String?  @db.Text
+  imageUrl          String?
+  rating            Float?   @default(5.0)
+  displayOrder      Int      @default(0)
+  isAvailable       Boolean  @default(true)
+  isFeatured        Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([isAvailable, displayOrder])
 }
 
 enum ConsultationStatus {

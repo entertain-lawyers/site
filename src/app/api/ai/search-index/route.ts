@@ -3,7 +3,7 @@ import { requireRole } from '@/lib/api-auth';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
 import { geminiEmbed, isAiEnabled } from '@/lib/ai/gemini';
-import { ensureEmbeddingTable, upsertEmbedding, hashCorpusItem } from '@/lib/ai/semantic';
+import { deleteEmbedding, ensureEmbeddingTable, upsertEmbedding, hashCorpusItem } from '@/lib/ai/semantic';
 import { buildCorpus, corpusBreakdown } from '@/lib/ai/corpus';
 
 /** Batch embedding over the whole site corpus needs a budget beyond 10s. */
@@ -85,6 +85,18 @@ export async function POST(request: Request) {
   }
 
   const done = index >= corpus.length;
+
+  // Once the full corpus has been walked, drop embeddings for content that is
+  // no longer public (unpublished, deleted or withdrawn).
+  if (done) {
+    const current = new Set(corpus.map((item) => `${item.source}:${item.refId}`));
+    for (const row of existing) {
+      if (!current.has(`${row.source}:${row.refId}`)) {
+        await deleteEmbedding(row.source, row.refId);
+      }
+    }
+  }
+
   return NextResponse.json({
     total: corpus.length,
     processed: index - offset,

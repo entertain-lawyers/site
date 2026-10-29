@@ -59,7 +59,11 @@ export default async function FactDetailPage({ params }: { params: Promise<{ id:
   });
 
   const relatedPosts = wpRelatedResponse.data
-    .filter(p => p.id !== wpPost.id)
+    .filter(p => {
+      if (p.id === wpPost.id) return false;
+      const type = mapCategoryToType(p.categories, 'en');
+      return type === 'FACT' || type === 'PERSONALITY';
+    })
     .slice(0, 4)
     .map(p => ({
       id: String(p.id),

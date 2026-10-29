@@ -30,6 +30,11 @@ const updatePostSchema = z.object({
   type: z.enum(['NEWS', 'BLOG', 'FACT', 'PERSONALITY', 'NEPALI_SAMANYA_SAMACHAR', 'NEPALI_ADALAT_SAMACHAR', 'NEPALI_MUKHYA_SAMACHAR', 'NEPALI_NAJIRHARU', 'NEPALI_AIN_KANUN', 'NEPALI_BLOG_BICHAR']).optional(),
   isPublished: z.boolean().optional(),
   status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).optional(),
+  // Pinned by the edit page: the post only exists in one of the two WP installs.
+  lang: z.enum(['en', 'ne']).optional(),
+  // Sent when the admin did not change the type, so editing a post in a
+  // category the type list doesn't cover neither fails nor drops categories.
+  categories: z.array(z.coerce.number()).optional(),
 });
 
 const deletePostSchema = z.object({
@@ -148,8 +153,8 @@ export const updatePostAction = createSafeAction(async (args: z.infer<typeof upd
     throw new Error('Cannot perform write operations in Preview mode to protect production WordPress.');
   }
 
-  const lang = args.type ? (args.type.startsWith('NEPALI_') ? 'ne' : 'en') : 'en';
-  
+  const lang = args.lang ?? (args.type ? (args.type.startsWith('NEPALI_') ? 'ne' : 'en') : 'en');
+
   let status: 'publish' | 'draft' | 'trash' | undefined;
   if (args.status) {
     status = args.status === 'PUBLISHED' ? 'publish' : 'draft';
@@ -162,7 +167,7 @@ export const updatePostAction = createSafeAction(async (args: z.infer<typeof upd
       title: args.title,
       content: args.content,
       status: status,
-      categories: args.type ? mapTypeToCategory(args.type, lang) : undefined,
+      categories: args.categories ?? (args.type ? mapTypeToCategory(args.type, lang) : undefined),
     }, lang);
 
     try {

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/api-auth';
 import { getClientIp } from '@/lib/client-ip';
 import { rateLimit } from '@/lib/rate-limit';
+import { prisma } from '@/lib/prisma';
+import { getWordPressPostById, mapCategoryToType } from '@/lib/wordpress';
 import {
   createComment,
   isPostType,
@@ -81,6 +83,26 @@ export async function POST(request: Request) {
       { error: 'empty', message: 'Write something before posting.' },
       { status: 400 }
     );
+  }
+
+  // Refuse comments attached to IDs that do not resolve to published content.
+  if (postType === 'NEWS' || postType === 'BLOG') {
+    const wpPost = await getWordPressPostById(Number(postId), 'en');
+    if (
+      !wpPost ||
+      wpPost.status !== 'publish' ||
+      mapCategoryToType(wpPost.categories, 'en') !== postType
+    ) {
+      return NextResponse.json({ error: 'Invalid post' }, { status: 400 });
+    }
+  } else {
+    const resource = await prisma.resource.findFirst({
+      where: { id: postId, status: 'PUBLISHED' },
+      select: { id: true },
+    });
+    if (!resource) {
+      return NextResponse.json({ error: 'Invalid post' }, { status: 400 });
+    }
   }
 
   try {

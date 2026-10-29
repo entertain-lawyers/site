@@ -7,6 +7,7 @@ import Comments from './Comments';
 import { articleFont } from './article-font';
 import type { LatestPost } from './LatestPostsSidebar';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
+import { sanitizeHtml } from '@/lib/sanitize';
 
 interface Post {
   id: string;
@@ -147,7 +148,7 @@ export default function PostDetail({
                 both edges line up, centred column for balanced margins */}
             <div
               className={`article-body article-body--reading mt-7 ${articleFont.variable}`}
-              dangerouslySetInnerHTML={{ __html: post.content }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.content) }}
             />
 
             {/* About Author */}

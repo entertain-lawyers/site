@@ -1,10 +1,10 @@
 /**
  * Post preview handoff between the admin editor and /preview.
  *
- * sessionStorage is used instead of a server round-trip so previews render
- * the exact, unsaved draft the admin is looking at — no WordPress writes and
- * no DB rows. Keyed storage survives the editor client in the opener tab and
- * is copied into the preview tab opened via window.open.
+ * localStorage (not sessionStorage) is used so an already-open preview tab
+ * receives the next draft through the `storage` event — the editor can keep
+ * editing while the preview stays open. No server round-trip, no WordPress
+ * writes and no DB rows. The draft only ever lives in this browser.
  */
 export const POST_PREVIEW_STORAGE_KEY = 'el-post-preview-draft';
 
@@ -21,6 +21,8 @@ export interface PostPreviewDraft {
   /** ISO string; defaults to now when the editor doesn't pass one. */
   createdAt: string;
   featuredImage?: string | null;
+  /** Admin edit URL, so "Back to Editor" returns to the post being edited. */
+  editorUrl?: string;
   /** Sidebar is fetched server-side on /preview — not needed in the draft. */
 }
 
@@ -31,6 +33,7 @@ export function writePostPreviewDraft(draft: {
   type: string;
   featuredImage?: string | null;
   createdAt?: string;
+  editorUrl?: string;
 }): void {
   if (typeof window === 'undefined') return;
   const payload: PostPreviewDraft = {
@@ -38,7 +41,7 @@ export function writePostPreviewDraft(draft: {
     createdAt: draft.createdAt || new Date().toISOString(),
   };
   try {
-    window.sessionStorage.setItem(POST_PREVIEW_STORAGE_KEY, JSON.stringify(payload));
+    window.localStorage.setItem(POST_PREVIEW_STORAGE_KEY, JSON.stringify(payload));
   } catch {
     // Quota/private-mode failures shouldn't block the editor — /preview will
     // fall back to its "no draft" empty state.

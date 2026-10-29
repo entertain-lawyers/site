@@ -7,6 +7,7 @@ import {
 } from '@/lib/wordpress';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import { sanitizeHtml } from '@/lib/sanitize';
 import PostsTableClient, { type AdminPostRow } from './PostsTableClient';
 
 const PER_PAGE = 20;
@@ -81,7 +82,9 @@ export default async function AdminPostsPage({
 
     return {
       id: String(p.id),
-      titleHtml: (p.title?.rendered || '') + statusSuffix,
+      // Sanitize server-side; the table is a client component whose SSR pass
+      // cannot run DOMPurify (no window).
+      titleHtml: sanitizeHtml((p.title?.rendered || '') + statusSuffix),
       type,
       status: p.status === 'publish' ? 'PUBLISHED' : p.status === 'trash' ? 'TRASH' : 'DRAFT',
       authorName,

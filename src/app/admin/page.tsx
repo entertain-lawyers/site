@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Metadata } from 'next';
 import { PROTECTION_ACTION_PREFIX, PROTECTION_LABELS, protectionSince } from '@/lib/protection';
 import { PAGE_VIEW_ACTION, resolvePostTitles, friendlyPageLabel } from '@/lib/analytics';
+import { getWordPressPosts } from '@/lib/wordpress';
 
 export const metadata: Metadata = {
   title: 'Admin Dashboard - Entertain Lawyers',
@@ -19,14 +20,21 @@ export default async function AdminDashboardPage() {
 
   const isAdmin = session.user.role === 'ADMIN';
 
-  // Base queries for both ADMIN and EDITOR
-  const [postCount, activePostCount, pendingConsultations, upcomingEvents, publishedPages] = await Promise.all([
-    prisma.post.count(),
-    prisma.post.count({ where: { status: 'PUBLISHED' } }),
+  // Posts live in the two WordPress installs, not the local Post mirror, so
+  // count them at the source (the fetch is cached like every WP list call).
+  const wpCount = (lang: 'en' | 'ne', status?: 'publish') =>
+    getWordPressPosts({ lang, perPage: 1, fields: 'id', status }).catch(() => null);
+  const [wpEn, wpNe, wpEnPublished, wpNePublished, pendingConsultations, upcomingEvents, publishedPages] = await Promise.all([
+    wpCount('en'),
+    wpCount('ne'),
+    wpCount('en', 'publish'),
+    wpCount('ne', 'publish'),
     prisma.consultationRequest.count({ where: { status: 'NEW' } }).catch(() => 0),
     prisma.event.count({ where: { eventDate: { gte: new Date() } } }).catch(() => 0),
     prisma.builderPage.count({ where: { status: 'PUBLISHED' } }).catch(() => 0),
   ]);
+  const postCount = (wpEn?.total ?? 0) + (wpNe?.total ?? 0);
+  const activePostCount = (wpEnPublished?.total ?? 0) + (wpNePublished?.total ?? 0);
 
   // ADMIN: recent platform activity for the activity feed
   let recentActivity: { id: string; action: string; entityType: string; entityId: string; createdAt: Date; userName: string | null }[] = [];

@@ -107,4 +107,26 @@ describe('admin-post.actions.ts Preview Safety', () => {
 
     expect(result?.success).toBe(true);
   });
+
+  it('should keep the supplied categories when the type is unchanged', async () => {
+    process.env.VERCEL_ENV = 'production';
+    process.env.WP_READ_ONLY = 'false';
+    const { updatePostAction } = await getActions();
+    const { updateWordPressPost } = await import('@/lib/wordpress');
+
+    const result = await updatePostAction({
+      id: 7,
+      title: 'Edited title',
+      content: 'Edited content',
+      lang: 'ne',
+      categories: [60],
+    });
+
+    expect(result?.success).toBe(true);
+    expect(updateWordPressPost).toHaveBeenCalledWith(
+      7,
+      expect.objectContaining({ categories: [60] }),
+      'ne'
+    );
+  });
 });

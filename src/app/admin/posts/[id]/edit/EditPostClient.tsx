@@ -27,7 +27,27 @@ interface EditablePost {
   content: string;
   type: string;
   status: string;
+  lang: 'en' | 'ne';
+  /** WordPress category ids currently on the post. */
+  categories: number[];
 }
+
+const TYPE_OPTIONS: Record<'en' | 'ne', Array<[PostType, string]>> = {
+  en: [
+    ['NEWS', 'News'],
+    ['BLOG', 'Blog'],
+    ['FACT', 'Historical Fact'],
+    ['PERSONALITY', 'Legal Personality'],
+  ],
+  ne: [
+    ['NEPALI_SAMANYA_SAMACHAR', 'Nepali: सामान्य समाचार'],
+    ['NEPALI_ADALAT_SAMACHAR', 'Nepali: अदालत समाचार'],
+    ['NEPALI_MUKHYA_SAMACHAR', 'Nepali: मुख्य समाचार'],
+    ['NEPALI_NAJIRHARU', 'Nepali: नजिरहरु'],
+    ['NEPALI_AIN_KANUN', 'Nepali: ऐन तथा कानून'],
+    ['NEPALI_BLOG_BICHAR', 'Nepali: ब्लग, बिचार, अन्य'],
+  ],
+};
 
 export default function EditPostClient({ post }: { post: EditablePost }) {
   const router = useRouter();
@@ -44,8 +64,9 @@ export default function EditPostClient({ post }: { post: EditablePost }) {
       content,
       type: POST_TYPE_LABELS[type] || type,
       featuredImage: null,
+      editorUrl: `/admin/posts/${post.id}/edit?lang=${post.lang}`,
     });
-    window.open('/preview', '_blank');
+    window.open('/preview', 'el-post-preview')?.focus();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -63,8 +84,15 @@ export default function EditPostClient({ post }: { post: EditablePost }) {
         id: Number(post.id),
         title,
         content,
-        type,
+        // Omit an unchanged type (which can be UNKNOWN for categories the
+        // type list does not map) so the schema accepts it.
+        type: type === post.type ? undefined : type,
         isPublished,
+        lang: post.lang,
+        // Only rewrite categories when the admin actually changed the type;
+        // otherwise keep WordPress's own categories (including any the type
+        // list does not map, such as "विचार").
+        categories: type === post.type ? post.categories : undefined,
       });
 
       if (!res.success) {
@@ -81,7 +109,7 @@ export default function EditPostClient({ post }: { post: EditablePost }) {
   };
 
   return (
-    <div className="py-10 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
+    <div className="admin-editor-page py-10 px-4 sm:px-6 lg:px-8 max-w-[1360px] mx-auto">
       <div className="mb-10">
         <Link href="/admin/posts" className="inline-flex items-center text-sm font-bold text-text-secondary hover:text-accent mb-6 transition-colors group">
           <svg className="w-4 h-4 mr-2 transform group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -98,10 +126,10 @@ export default function EditPostClient({ post }: { post: EditablePost }) {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="bg-white dark:bg-zinc-900 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-black/5 dark:border-white/5 rounded-2xl p-5 sm:p-8 lg:p-10 flex flex-col lg:flex-row gap-10">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-10 lg:grid lg:grid-cols-[minmax(0,860px)_340px] lg:justify-center lg:gap-12">
 
-        {/* Left Column: Main Editor */}
-        <div className="flex-1 space-y-8">
+        {/* Left Column: Main Editor — same width as the public article column */}
+        <div className="min-w-0 space-y-8">
           <div>
             <label htmlFor="title" className="block text-sm font-bold text-navy dark:text-white mb-2">Title</label>
             <input
@@ -111,7 +139,7 @@ export default function EditPostClient({ post }: { post: EditablePost }) {
               value={title}
               onChange={e => setTitle(e.target.value)}
               placeholder="Add title"
-              className="block w-full rounded-xl border border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 px-4 py-3 text-navy dark:text-white shadow-sm focus:border-accent focus:ring-1 focus:ring-accent transition-colors sm:text-lg font-bold"
+              className="block w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 px-4 py-3 text-navy dark:text-white shadow-sm focus:border-accent focus:ring-1 focus:ring-accent transition-colors sm:text-lg font-bold"
             />
           </div>
 
@@ -122,7 +150,7 @@ export default function EditPostClient({ post }: { post: EditablePost }) {
         </div>
 
         {/* Right Column: Settings */}
-        <div className="w-full lg:w-80 space-y-8">
+        <div className="w-full space-y-8">
           <div className="bg-slate-50 dark:bg-zinc-950 p-6 rounded-2xl border border-black/5 dark:border-white/5 space-y-6">
             <h3 className="font-bold text-navy dark:text-white border-b border-black/5 dark:border-white/10 pb-3">Publish</h3>
 
@@ -171,16 +199,12 @@ export default function EditPostClient({ post }: { post: EditablePost }) {
                 onChange={(e) => setType(e.target.value as PostType)}
                 className="block w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 px-4 py-3 text-navy dark:text-white shadow-sm focus:border-accent focus:ring-1 focus:ring-accent transition-colors sm:text-sm font-medium"
               >
-                <option value="NEWS">News</option>
-                <option value="BLOG">Blog</option>
-                <option value="FACT">Historical Fact</option>
-                <option value="PERSONALITY">Legal Personality</option>
-                <option value="NEPALI_SAMANYA_SAMACHAR">Nepali: सामान्य समाचार</option>
-                <option value="NEPALI_ADALAT_SAMACHAR">Nepali: अदालत समाचार</option>
-                <option value="NEPALI_MUKHYA_SAMACHAR">Nepali: मुख्य समाचार</option>
-                <option value="NEPALI_NAJIRHARU">Nepali: नजिरहरु</option>
-                <option value="NEPALI_AIN_KANUN">Nepali: ऐन तथा कानून</option>
-                <option value="NEPALI_BLOG_BICHAR">Nepali: ब्लग, बिचार, अन्य</option>
+                {!TYPE_OPTIONS[post.lang].some(([value]) => value === type) && (
+                  <option value={type}>Keep current category</option>
+                )}
+                {TYPE_OPTIONS[post.lang].map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
               </select>
             </div>
           </div>

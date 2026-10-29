@@ -53,6 +53,7 @@ export default function BulkImportTeamDialog() {
   const handleImport = async () => {
     setExecuting(true);
     setError('');
+    setSuccess('');
     try {
       const res = await executeTeamImportAction({
         uploadPhotosToStorage: uploadPhotos,
@@ -62,13 +63,16 @@ export default function BulkImportTeamDialog() {
       if (!res.success) {
         setError(res.error || 'Bulk import failed with errors.');
       } else {
-        setSuccess(
-          `Bulk import complete! ${res.data.createdCount} created, ${res.data.updatedCount} updated, ${res.data.photosUploadedCount} photos uploaded to storage.`
-        );
-        setTimeout(() => {
-          setIsOpen(false);
-          router.refresh();
-        }, 1800);
+        const summary = `Bulk import finished: ${res.data.createdCount} created, ${res.data.updatedCount} updated, ${res.data.photosUploadedCount} photos uploaded.`;
+        if (!res.data.success) {
+          setError(`${summary} ${res.data.errors.length} record(s) failed. First error: ${res.data.errors[0]}`);
+        } else {
+          setSuccess(summary);
+          setTimeout(() => {
+            setIsOpen(false);
+            router.refresh();
+          }, 1800);
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Failed to execute import');

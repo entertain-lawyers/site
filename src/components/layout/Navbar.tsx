@@ -59,7 +59,7 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isStudyOpen]);
+  }, [isStudyOpen, isExploreOpen]);
 
   const navLinks: { href: string; label: string; title?: string }[] = isNepaliPage
     ? [

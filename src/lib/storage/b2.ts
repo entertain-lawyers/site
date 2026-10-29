@@ -15,7 +15,7 @@ const s3Client = new S3Client({
 });
 
 export class B2StorageAdapter implements StorageAdapter {
-  async generateUploadUrl(key: string, mimeType: string, expiresInSeconds: number = 600, userId?: string): Promise<string> {
+  async generateUploadUrl(key: string, mimeType: string, expiresInSeconds: number = 600, userId?: string, size?: number): Promise<string> {
     const bucket = process.env.B2_BUCKET_NAME;
     if (!bucket) throw new Error("B2_BUCKET_NAME is not configured");
 
@@ -23,6 +23,7 @@ export class B2StorageAdapter implements StorageAdapter {
       Bucket: bucket,
       Key: key,
       ContentType: mimeType,
+      ...(size ? { ContentLength: size } : {}),
     });
     return getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
   }

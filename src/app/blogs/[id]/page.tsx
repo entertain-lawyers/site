@@ -57,7 +57,7 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ id:
   });
 
   const relatedPosts = wpRelatedResponse.data
-    .filter(p => p.id !== wpPost.id)
+    .filter(p => p.id !== wpPost.id && mapCategoryToType(p.categories, 'en') === 'BLOG')
     .slice(0, 4)
     .map(p => ({
       id: String(p.id),

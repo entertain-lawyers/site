@@ -3,7 +3,7 @@ import { LocalStorageAdapter } from './local';
 import { B2StorageAdapter } from './b2';
 
 export interface StorageAdapter {
-  generateUploadUrl(key: string, mimeType: string, expiresIn?: number, userId?: string): Promise<string>;
+  generateUploadUrl(key: string, mimeType: string, expiresIn?: number, userId?: string, size?: number): Promise<string>;
   verifyUpload(key: string): Promise<boolean>;
   getPublicUrl(key: string): string;
 }

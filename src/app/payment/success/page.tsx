@@ -13,6 +13,7 @@ export default async function PaymentSuccessPage({
 
   let targetUrl = '/dashboard';
   let targetLabel = 'Go to Dashboard';
+  let verified = false;
 
   if (resolvedSearchParams.txId && session?.user) {
     // Scope the lookup to the signed-in user: a leaked idempotency key must not
@@ -25,6 +26,7 @@ export default async function PaymentSuccessPage({
     });
 
     if (tx && tx.status === 'COMPLETED') {
+      verified = true;
       if (tx.type === 'PURCHASE' && tx.targetId) {
         targetUrl = `/read/${tx.targetId}`;
         targetLabel = 'Read Document Now';
@@ -38,12 +40,16 @@ export default async function PaymentSuccessPage({
   return (
     <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 bg-background">
       <div className="bg-surface p-6 sm:p-10 rounded-2xl shadow-soft border border-border max-w-md w-full text-center">
-        <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-50 border border-green-200 mb-6 shadow-sm">
-          <CheckCircle className="h-8 w-8 text-green-600" />
+        <div className={`mx-auto flex items-center justify-center h-16 w-16 rounded-full border mb-6 shadow-sm ${verified ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
+          <CheckCircle className={`h-8 w-8 ${verified ? 'text-green-600' : 'text-amber-600'}`} />
         </div>
-        <h1 className="text-2xl font-bold text-navy dark:text-white mb-3">Payment Successful!</h1>
+        <h1 className="text-2xl font-bold text-navy dark:text-white mb-3">
+          {verified ? 'Payment Successful!' : 'Payment Processing'}
+        </h1>
         <p className="text-text-secondary font-medium mb-8">
-          Your transaction has been securely verified and access has been granted.
+          {verified
+            ? 'Your transaction has been verified and access has been granted.'
+            : 'We have not confirmed this payment yet. If you completed it, check your dashboard in a minute — do not pay again.'}
         </p>
         <Link
           href={targetUrl}

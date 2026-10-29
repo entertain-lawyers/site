@@ -21,14 +21,14 @@ export const updateProfile = createSafeAction(
       throw new Error(parsed.error.issues[0]?.message || "Invalid profile data");
     }
 
-    // NOTE: The User model currently only has a `name` column. `phone`,
-    // `education`, and `university` are accepted from the form but cannot be
-    // persisted until the pending additive migration adds those columns.
-    // Passing them to Prisma would throw "Unknown argument", so only `name`
-    // is written. See docs/OPENCODE_PROGRESS.md (profile fields migration).
     const updated = await prisma.user.update({
       where: { id: ctx.userId },
-      data: parsed.data.name !== undefined ? { name: parsed.data.name } : {},
+      data: {
+        ...(parsed.data.name !== undefined ? { name: parsed.data.name } : {}),
+        ...(parsed.data.phone !== undefined ? { phone: parsed.data.phone } : {}),
+        ...(parsed.data.education !== undefined ? { education: parsed.data.education } : {}),
+        ...(parsed.data.university !== undefined ? { university: parsed.data.university } : {}),
+      },
       select: { name: true },
     });
 
@@ -69,7 +69,7 @@ export const changePassword = createSafeAction(
 
     await prisma.user.update({
       where: { id: ctx.userId },
-      data: { passwordHash }
+      data: { passwordHash, sessionVersion: { increment: 1 } }
     });
 
     return { success: true };

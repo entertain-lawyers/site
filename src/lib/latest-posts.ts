@@ -23,21 +23,30 @@ export async function getLatestPosts(excludeId?: number, limit = 6, lang: 'en' =
 
   const items: LatestPost[] = response.data
     .filter(p => p.id !== excludeId)
-    .map(p => {
+    .flatMap(p => {
       const type = mapCategoryToType(p.categories, lang);
       const idStr = String(p.id);
-      return {
+      const url =
+        type === 'NEWS'
+          ? `/news/${idStr}`
+          : type === 'BLOG'
+            ? `/blogs/${idStr}`
+            : type === 'FACT' || type === 'PERSONALITY'
+              ? `/historical-facts/${idStr}`
+              : null;
+
+      // Drop posts whose route is not part of this site (e.g. UNKNOWN).
+      if (!url) return [];
+
+      return [{
         id: idStr,
         title: p.title.rendered,
         type,
         createdAt: new Date(p.date),
         featuredImage: p._embedded?.['wp:featuredmedia']?.[0]?.source_url || null,
-        url: type === 'NEWS' ? `/news/${idStr}` : type === 'BLOG' ? `/blogs/${idStr}` : `/historical-facts/${idStr}`
-      };
+        url,
+      }];
     });
 
-  // Prefer posts belonging to a routed content type so sidebar links
-  // resolve to real /news, /blogs and /historical-facts pages.
-  const routed = items.filter(p => p.type !== 'UNKNOWN');
-  return (routed.length >= limit ? routed : [...routed, ...items.filter(p => p.type === 'UNKNOWN')]).slice(0, limit);
+  return items.slice(0, limit);
 }

@@ -31,11 +31,18 @@ vi.mock('@/lib/rate-limit', () => ({
   })),
 }));
 
+// Mock mail
+vi.mock('@/lib/mail', () => ({
+  sendConsultationNotificationEmail: vi.fn(async () => undefined),
+  sendConsultationClientAckEmail: vi.fn(async () => undefined),
+}));
+
 // Mock auth
 vi.mock('@/lib/auth', () => ({
   auth: vi.fn(),
 }));
 import { auth } from '@/lib/auth';
+import { sendConsultationNotificationEmail, sendConsultationClientAckEmail } from '@/lib/mail';
 
 // Mock prisma
 vi.mock('@/lib/prisma', () => ({
@@ -165,6 +172,48 @@ describe('Consultation Request Module', () => {
           userAgent: 'Mozilla/5.0 TestBrowser',
         }),
       });
+
+      expect(sendConsultationNotificationEmail).toHaveBeenCalled();
+      expect(sendConsultationClientAckEmail).toHaveBeenCalled();
+    });
+
+    it('attaches selected lawyer to description and referralSource', async () => {
+      const fakeCreated = {
+        id: 'lawyer-consultation-456',
+        fullName: 'Hari Prasad',
+        createdAt: new Date('2026-10-12T10:00:00Z'),
+      };
+      (prisma.consultationRequest.create as any).mockResolvedValue(fakeCreated);
+
+      const payload = {
+        fullName: 'Hari Prasad',
+        email: 'hari@example.com',
+        phone: '9851000000',
+        practiceArea: 'CRIMINAL_DEFENSE',
+        subject: 'Bail Application Advice',
+        description: 'Need urgent consultation regarding a court appearance in Pokhara.',
+        lawyerName: 'Advocate Ram Babu Das',
+        lawyerId: 'lawyer-123',
+      };
+
+      const result = await submitConsultationRequestAction(payload);
+      expect(result.success).toBe(true);
+
+      expect(prisma.consultationRequest.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          fullName: 'Hari Prasad',
+          description: expect.stringContaining('[Requested Advocate: Advocate Ram Babu Das]'),
+          referralSource: 'Advocate: Advocate Ram Babu Das',
+        }),
+      });
+
+      expect(sendConsultationNotificationEmail).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({
+            lawyerName: 'Advocate Ram Babu Das',
+          }),
+        })
+      );
     });
   });
 

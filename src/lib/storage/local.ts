@@ -6,7 +6,7 @@ import { env } from '@/env';
 // This replaces the in-memory Map to natively support Next.js App Router multi-worker environments (Turbopack/Server Actions vs API Routes).
 
 export class LocalStorageAdapter implements StorageAdapter {
-  async generateUploadUrl(key: string, mimeType: string, expiresInSeconds: number = 600, userId?: string): Promise<string> {
+  async generateUploadUrl(key: string, mimeType: string, expiresInSeconds: number = 600, userId?: string, _size?: number): Promise<string> {
     if (!userId) throw new Error("userId required for local storage intents");
 
     const expiresAt = Date.now() + expiresInSeconds * 1000;

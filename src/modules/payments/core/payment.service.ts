@@ -55,7 +55,7 @@ export class PaymentCoreService {
 
   async initiatePurchasePayment(userId: string, resourceId: string, providerName: PaymentProvider, returnUrl: string) {
     const resource = await prisma.resource.findUnique({ where: { id: resourceId } });
-    if (!resource || !resource.isPremium || !resource.priceAmount) {
+    if (!resource || resource.status !== 'PUBLISHED' || !resource.isPremium || !resource.priceAmount) {
       throw new Error("Invalid resource for purchase");
     }
 

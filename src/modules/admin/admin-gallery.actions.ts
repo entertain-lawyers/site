@@ -84,7 +84,12 @@ export const deleteGalleryAction = createSafeAction(async (args: z.infer<typeof 
 
 const addGalleryImageSchema = z.object({
   galleryId: z.string().uuid(),
-  url: z.string().url(),
+  // Storage returns relative paths (/uploads/... or /api/media/...), so a bare
+  // z.string().url() rejects every image the admin uploads.
+  url: z.string().min(1).max(2048).refine(
+    (value) => value.startsWith('/') || /^https?:\/\//i.test(value),
+    'Image URL must be a path starting with / or an http(s) URL'
+  ),
   altText: z.string().optional(),
   caption: z.string().optional(),
 });

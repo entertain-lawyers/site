@@ -17,6 +17,7 @@ export default async function PaymentFailurePage({
   searchParams: Promise<{ reason?: string, txId?: string }>;
 }) {
   const resolvedParams = await searchParams;
+  const processingError = resolvedParams.reason === 'processing_error';
   const reason =
     REASON_MESSAGES[resolvedParams.reason ?? ''] ??
     'Unknown error occurred during payment verification.';
@@ -59,7 +60,9 @@ export default async function PaymentFailurePage({
           {reason}
         </p>
         <div className="bg-red-50 border border-red-100 text-red-800 text-sm p-4 rounded-xl mb-8 text-left font-medium">
-          Your account has not been charged for this transaction. If you believe this is an error, please try again or contact support.
+          {processingError
+            ? 'We could not confirm the payment status. Check your bank or wallet before trying again.'
+            : 'Your account has not been charged for this transaction. If you believe this is an error, please try again or contact support.'}
         </div>
         <Link href={targetUrl} className="w-full inline-flex justify-center items-center px-4 py-3.5 border border-border shadow-sm text-sm font-bold rounded-xl text-navy dark:text-white bg-surface-alt hover:bg-border transition-colors">
           <ArrowLeft className="mr-2 h-4 w-4" />

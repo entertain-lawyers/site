@@ -94,6 +94,16 @@ docs/OPENCODE_*.md
 .mock-s3-data/
 test.pdf
 scripts/mock-s3.js
+public/uploads/
+test-*
+test_*
+dump-*.ts
+generate-sql.js
+wp_*.json
+wp_content.html
+team_members_backup.json
+data_separation_report.md
+cors_rules.json
 
 # Generated at build time from pdfjs-dist
 public/pdf.worker.min.mjs

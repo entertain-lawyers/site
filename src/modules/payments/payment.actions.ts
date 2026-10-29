@@ -22,8 +22,11 @@ export const initiatePurchaseAction = createSafeAction(async (args: { resourceId
     returnUrl
   );
 
-  return { redirectUrl: result.providerUrl };
-});
+  return {
+    redirectUrl: result.providerUrl,
+    providerData: result.providerData ?? null,
+  };
+}, { rateLimitKey: 'payment_init', rateLimitMax: 10, rateLimitWindow: 60 });
 
 export const initiateSubscriptionAction = createSafeAction(async (args: { planId: string, provider: PaymentProvider }, session) => {
   if (!session.userId) throw new Error('Unauthorized');
@@ -39,5 +42,8 @@ export const initiateSubscriptionAction = createSafeAction(async (args: { planId
     returnUrl
   );
 
-  return { redirectUrl: result.providerUrl };
-});
+  return {
+    redirectUrl: result.providerUrl,
+    providerData: result.providerData ?? null,
+  };
+}, { rateLimitKey: 'payment_init', rateLimitMax: 10, rateLimitWindow: 60 });
