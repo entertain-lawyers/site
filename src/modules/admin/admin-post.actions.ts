@@ -53,10 +53,16 @@ const bulkSchema = z.object({
 
 /** Batch status change / trash / permanent delete — mirrors WP-admin "Bulk actions". */
 export const bulkUpdatePostStatusAction = createSafeAction(
-  async (args: z.infer<typeof bulkSchema>, session) => {
+  async (rawArgs: z.infer<typeof bulkSchema>, session) => {
     if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) {
       throw new Error('Unauthorized');
     }
+
+    const parsed = bulkSchema.safeParse(rawArgs);
+    if (!parsed.success) {
+      throw new Error(parsed.error.issues[0]?.message || 'Invalid bulk operation input');
+    }
+    const args = parsed.data;
 
     if (process.env.VERCEL_ENV === 'preview' || process.env.WP_READ_ONLY === 'true') {
       throw new Error('Cannot perform write operations in Preview mode to protect production WordPress.');
@@ -101,10 +107,16 @@ export const bulkUpdatePostStatusAction = createSafeAction(
   }
 );
 
-export const createPostAction = createSafeAction(async (args: z.infer<typeof createPostSchema>, session) => {
+export const createPostAction = createSafeAction(async (rawArgs: z.infer<typeof createPostSchema>, session) => {
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) {
     throw new Error('Unauthorized');
   }
+
+  const parsed = createPostSchema.safeParse(rawArgs);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message || 'Invalid post input');
+  }
+  const args = parsed.data;
 
   if (process.env.VERCEL_ENV === 'preview' || process.env.WP_READ_ONLY === 'true') {
     throw new Error('Cannot perform write operations in Preview mode to protect production WordPress.');
@@ -145,10 +157,16 @@ export const createPostAction = createSafeAction(async (args: z.infer<typeof cre
   }
 });
 
-export const updatePostAction = createSafeAction(async (args: z.infer<typeof updatePostSchema>, session) => {
+export const updatePostAction = createSafeAction(async (rawArgs: z.infer<typeof updatePostSchema>, session) => {
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) {
     throw new Error('Unauthorized');
   }
+
+  const parsed = updatePostSchema.safeParse(rawArgs);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message || 'Invalid update input');
+  }
+  const args = parsed.data;
 
   if (process.env.VERCEL_ENV === 'preview' || process.env.WP_READ_ONLY === 'true') {
     throw new Error('Cannot perform write operations in Preview mode to protect production WordPress.');
@@ -195,10 +213,16 @@ export const updatePostAction = createSafeAction(async (args: z.infer<typeof upd
   }
 });
 
-export const deletePostAction = createSafeAction(async (args: z.infer<typeof deletePostSchema>, session) => {
+export const deletePostAction = createSafeAction(async (rawArgs: z.infer<typeof deletePostSchema>, session) => {
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) {
     throw new Error('Unauthorized');
   }
+
+  const parsed = deletePostSchema.safeParse(rawArgs);
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message || 'Invalid delete input');
+  }
+  const args = parsed.data;
 
   if (process.env.VERCEL_ENV === 'preview' || process.env.WP_READ_ONLY === 'true') {
     throw new Error('Cannot perform write operations in Preview mode to protect production WordPress.');
