@@ -37,13 +37,42 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
-    const result = await signIn('credentials', {
-      email,
-      password,
-      callbackUrl,
-      redirect: true,
-    });
-    setLoading(false);
+    const trimmedEmail = email.trim();
+
+    try {
+      const result = await signIn('credentials', {
+        email: trimmedEmail,
+        password,
+        callbackUrl,
+        redirect: false,
+      });
+
+      if (!result) {
+        setError('An unexpected error occurred during authentication.');
+        setLoading(false);
+        return;
+      }
+
+      if (result.error) {
+        if (result.error === 'CredentialsSignin' || (result as any).code === 'credentials') {
+          setError('Invalid email or password.');
+        } else if (result.error === 'UnverifiedEmail' || (result as any).code === 'UnverifiedEmail') {
+          setError('Please verify your email address before logging in.');
+        } else if (result.error === 'LoginRateLimited' || (result as any).code === 'LoginRateLimited') {
+          setError('Too many login attempts. Please wait a few minutes and try again.');
+        } else {
+          setError('Invalid email or password.');
+        }
+        setLoading(false);
+        return;
+      }
+
+      const destination = result.url || callbackUrl || '/dashboard';
+      window.location.href = destination;
+    } catch (err: any) {
+      setError(err?.message || 'Failed to sign in. Please try again.');
+      setLoading(false);
+    }
   };
 
   const handleRegister = async (e: React.FormEvent) => {

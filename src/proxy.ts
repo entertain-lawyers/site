@@ -73,7 +73,7 @@ export default auth(async (req) => {
   // Middleware Role Gating (UX only - Server Actions enforce true security)
   if (isAdminRoute) {
     const auth = req.auth as { user?: { role?: string } } | null;
-    const role = auth?.user?.role;
+    const role = auth?.user?.role?.toUpperCase();
     if (role !== "ADMIN" && role !== "EDITOR") {
       return NextResponse.redirect(new URL('/dashboard', nextUrl));
     }
@@ -103,6 +103,24 @@ export default auth(async (req) => {
 
   // Route-based language enforcement
   const response = NextResponse.next();
+
+  // Environment-aware security headers:
+  // Strictly enforce HSTS and upgrade-insecure-requests on live production HTTPS domains,
+  // while omitting them on localhost/127.0.0.1 to avoid breaking local HTTP development.
+  const host = req.headers.get('host') || nextUrl.host || '';
+  const isLocal = host.includes('localhost') || host.includes('127.0.0.1');
+
+  if (!isLocal && process.env.NODE_ENV === 'production') {
+    response.headers.set(
+      'Strict-Transport-Security',
+      'max-age=31536000; includeSubDomains; preload'
+    );
+    const existingCsp = response.headers.get('content-security-policy') || '';
+    if (existingCsp && !existingCsp.includes('upgrade-insecure-requests')) {
+      response.headers.set('content-security-policy', `${existingCsp.trim()} upgrade-insecure-requests;`);
+    }
+  }
+
   const currentLocale = req.cookies.get('NEXT_LOCALE')?.value;
 
   if (nextUrl.pathname.startsWith('/nepali')) {

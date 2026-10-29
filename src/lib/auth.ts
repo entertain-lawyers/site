@@ -81,18 +81,25 @@ async function authorizeWithRateLimit(credentials: unknown) {
   const parsed = credentialsSchema.safeParse(credentials);
   const email = parsed.success ? normalizeEmail(parsed.data.email) : "unknown";
 
-  const headersList = await headers();
-  const ip = getClientIp(headersList);
+  try {
+    const headersList = await headers();
+    const ip = getClientIp(headersList);
 
-  const [ipLimit, accountLimit] = await Promise.all([
-    rateLimit(`login:ip:${ip}`, 30, 900),
-    rateLimit(`login:account:${email}`, 10, 900),
-  ]);
+    const [ipLimit, accountLimit] = await Promise.all([
+      rateLimit(`login:ip:${ip}`, 30, 900),
+      rateLimit(`login:account:${email}`, 10, 900),
+    ]);
 
-  if (!ipLimit.success || !accountLimit.success) {
-    throw new LoginRateLimited(
-      "Too many login attempts. Please wait a few minutes and try again."
-    );
+    if (!ipLimit.success || !accountLimit.success) {
+      throw new LoginRateLimited(
+        "Too many login attempts. Please wait a few minutes and try again."
+      );
+    }
+  } catch (err) {
+    if (err instanceof LoginRateLimited) {
+      throw err;
+    }
+    console.warn("[auth] Rate limiter check failed, proceeding to authorize:", err);
   }
 
   return testAuthorize(credentials);
@@ -108,12 +115,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        const dbUser = await prisma.user.findUnique({
-          where: { id: user.id },
-          select: { role: true, sessionVersion: true },
-        });
-        token.role = dbUser?.role ?? user.role;
-        token.sessionVersion = dbUser?.sessionVersion ?? 0;
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: { role: true, sessionVersion: true },
+          });
+          token.role = dbUser?.role ?? user.role;
+          token.sessionVersion = dbUser?.sessionVersion ?? 0;
+        } catch (err) {
+          console.warn("[auth] Failed to read user sessionVersion on signin, using user.role fallback:", err);
+          token.role = user.role;
+          token.sessionVersion = 0;
+        }
         return token;
       }
 
@@ -121,17 +134,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
       // Read the role and session version on every request so demotions take
       // effect immediately and a password change invalidates older tokens.
-      const dbUser = await prisma.user.findUnique({
-        where: { id: token.id as string },
-        select: { role: true, sessionVersion: true },
-      });
+      try {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: { role: true, sessionVersion: true },
+        });
 
-      if (!dbUser || dbUser.sessionVersion !== token.sessionVersion) {
-        return null;
+        if (!dbUser) {
+          return null;
+        }
+
+        // Only invalidate if both sides have explicit non-matching session versions
+        if (
+          typeof dbUser.sessionVersion === "number" &&
+          typeof token.sessionVersion === "number" &&
+          dbUser.sessionVersion !== token.sessionVersion
+        ) {
+          return null;
+        }
+
+        token.role = dbUser.role ?? token.role;
+        return token;
+      } catch (err) {
+        console.warn("[auth] Failed to refresh user session from DB, keeping token:", err);
+        return token;
       }
-
-      token.role = dbUser.role;
-      return token;
     },
   },
   providers: [
