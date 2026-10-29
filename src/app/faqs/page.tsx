@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import FaqAccordion from './FaqAccordion';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { HelpCircle } from 'lucide-react';
 import { Metadata } from 'next';
 
@@ -12,10 +13,14 @@ export const metadata: Metadata = {
 };
 
 export default async function FaqsPage() {
-  const faqs = await prisma.fAQ.findMany({
-    where: { status: 'PUBLISHED' },
-    orderBy: { order: 'asc' },
-  });
+  // Sanitize here, on the server: a client component's SSR pass uses
+  // DOMPurify's browser build, which cannot sanitize without a window.
+  const faqs = (
+    await prisma.fAQ.findMany({
+      where: { status: 'PUBLISHED' },
+      orderBy: { order: 'asc' },
+    })
+  ).map((faq) => ({ ...faq, answer: sanitizeHtml(faq.answer) }));
 
   return (
     <div className="min-h-screen bg-background py-16 lg:py-24">

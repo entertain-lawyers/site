@@ -55,7 +55,7 @@ export const initiateMediaUploadAction = createSafeAction(async (args: z.infer<t
 
   try {
     // Generate the upload URL
-    const uploadUrl = await mediaStorage.generateUploadUrl(key, input.mimeType, 300, session.userId);
+    const uploadUrl = await mediaStorage.generateUploadUrl(key, input.mimeType, 300, session.userId, input.size);
 
     // We do NOT use UploadIntent table here because editorial images don't require
     // strict rollback transactions like Private Documents.

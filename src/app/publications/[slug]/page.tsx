@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { BookOpen, FileText } from 'lucide-react';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { Metadata } from 'next';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -78,7 +79,7 @@ export default async function PublicationDetailPage({ params }: { params: Promis
                {pub.content && (
                  <div
                    className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-accent hover:prose-a:text-accent-dark mb-12"
-                   dangerouslySetInnerHTML={{ __html: pub.content }}
+                   dangerouslySetInnerHTML={{ __html: sanitizeHtml(pub.content) }}
                  />
                )}
 

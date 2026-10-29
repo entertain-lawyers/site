@@ -247,13 +247,22 @@ async function fetchWordPress<T>(
       perPage: options.perPage || (Array.isArray(data) ? data.length : 1),
     };
   } catch (error: any) {
-    if (error.name === 'AbortError') {
-      throw new WordPressApiError(`Request to WordPress timed out after ${timeoutMs}ms`, 408, endpoint);
-    }
-    if (error instanceof WordPressApiError) {
-      throw error;
-    }
-    throw new WordPressApiError(`Failed to fetch from WordPress API: ${error.message}`, 500, endpoint);
+    // Public content must survive a WordPress outage. Return an empty page so
+    // list/detail pages render their empty state instead of a 500.
+    const reason =
+      error?.name === 'AbortError'
+        ? `timed out after ${timeoutMs}ms`
+        : error instanceof Error
+          ? error.message
+          : String(error);
+    console.error(`[wordpress] ${endpoint} failed: ${reason}`);
+    return {
+      data: [],
+      total: 0,
+      totalPages: 0,
+      page: options.page || 1,
+      perPage: options.perPage || 0,
+    };
   } finally {
     clearTimeout(timer);
   }

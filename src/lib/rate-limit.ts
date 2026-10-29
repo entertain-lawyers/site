@@ -2,8 +2,38 @@ import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 import { env } from "@/env";
 
-// In-memory fallback for local development if Redis is not configured
+// Per-process fallback. It is weaker than Redis across multiple instances but
+// keeps every caller bounded when Upstash is disabled or unhealthy.
 const memoryCache = new Map<string, number>();
+
+function inMemoryLimit(
+  identifier: string,
+  limit: number,
+  windowSeconds: number
+): { success: boolean; limit: number; remaining: number; reset: number } {
+  const now = Date.now();
+  const windowMs = windowSeconds * 1000;
+  const key = `${identifier}_${Math.floor(now / windowMs)}`;
+  const current = memoryCache.get(key) ?? 0;
+
+  if (current >= limit) {
+    return { success: false, limit, remaining: 0, reset: now + windowMs };
+  }
+
+  memoryCache.set(key, current + 1);
+
+  // Naive cleanup; cheap enough for the small number of keys a site this size uses.
+  if (Math.random() < 0.05) {
+    for (const [k] of memoryCache.entries()) {
+      const timestamp = parseInt(k.split("_").pop() || "0", 10) * windowMs;
+      if (now - timestamp > windowMs * 2) {
+        memoryCache.delete(k);
+      }
+    }
+  }
+
+  return { success: true, limit, remaining: limit - current - 1, reset: now + windowMs };
+}
 
 export async function rateLimit(
   identifier: string,
@@ -11,55 +41,23 @@ export async function rateLimit(
   windowSeconds: number = 60
 ): Promise<{ success: boolean; limit: number; remaining: number; reset: number }> {
   // `RATE_LIMITING_ENABLED` is the documented switch for distributed limiting
-  // (see src/env.ts). It must be honoured here: production deployments that
-  // intentionally leave it off (the default) have no Upstash credentials, and
-  // the old unconditional fail-closed throw made every login/registration
-  // attempt fail with Auth.js "Configuration". When it is off we still apply
-  // the in-memory limiter as best-effort protection.
+  // (see src/env.ts). When it is off we still apply the in-memory limiter as
+  // best-effort protection.
   const rateLimitingEnabled = env.RATE_LIMITING_ENABLED === "true";
 
-  // Treat placeholder credentials as "not configured"
   const upstashConfigured =
     rateLimitingEnabled &&
     Boolean(env.UPSTASH_REDIS_REST_URL && env.UPSTASH_REDIS_REST_TOKEN) &&
     typeof env.UPSTASH_REDIS_REST_URL === 'string' &&
     !env.UPSTASH_REDIS_REST_URL.includes("dummy");
 
-  const useMemoryFallback =
-    !rateLimitingEnabled ||
-    ((env.NODE_ENV === "development" || env.NODE_ENV === "test") && !upstashConfigured);
-
-  if (useMemoryFallback) {
-    const now = Date.now();
-    const windowMs = windowSeconds * 1000;
-    const key = `${identifier}_${Math.floor(now / windowMs)}`;
-    
-    const current = memoryCache.get(key) ?? 0;
-    
-    if (current >= limit) {
-      return { success: false, limit, remaining: 0, reset: now + windowMs };
+  if (!rateLimitingEnabled || !upstashConfigured) {
+    if (rateLimitingEnabled) {
+      console.error(
+        "🚨 RATE_LIMITING_ENABLED=true but Upstash is not configured. Using per-process limiting."
+      );
     }
-    
-    memoryCache.set(key, current + 1);
-    
-    // Cleanup old keys periodically (naive approach for dev)
-    if (Math.random() < 0.05) {
-      for (const [k] of memoryCache.entries()) {
-        const timestamp = parseInt(k.split("_").pop() || "0", 10) * windowMs;
-        if (now - timestamp > windowMs * 2) {
-          memoryCache.delete(k);
-        }
-      }
-    }
-    
-    return { success: true, limit, remaining: limit - current - 1, reset: now + windowMs };
-  }
-
-  // Ensure production doesn't accidentally use the fallback if limiting is
-  // explicitly enabled but Upstash is missing.
-  if (!upstashConfigured) {
-    console.error("🚨 CRITICAL SECURITY ERROR: RATE_LIMITING_ENABLED=true but Upstash Redis credentials (UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN) are missing or placeholders. Distributed rate limiting is disabled. Failing safely (denying operation).");
-    throw new Error("Upstash Redis credentials are required when RATE_LIMITING_ENABLED=true to enforce secure rate limiting.");
+    return inMemoryLimit(identifier, limit, windowSeconds);
   }
 
   const redis = new Redis({
@@ -68,36 +66,22 @@ export async function rateLimit(
   });
 
   const ratelimit = new Ratelimit({
-    redis: redis,
+    redis,
     limiter: Ratelimit.slidingWindow(limit, `${windowSeconds} s`),
     analytics: false,
   });
 
-  let res;
   try {
-    res = await ratelimit.limit(identifier);
+    const res = await ratelimit.limit(identifier);
+    return {
+      success: res.success,
+      limit: res.limit,
+      remaining: res.remaining,
+      reset: res.reset,
+    };
   } catch (error) {
-    // Transient Upstash failure: degrade to local memory limiting in dev,
-    // but keep the original fail-closed behavior elsewhere.
-    if (env.NODE_ENV === "development" || env.NODE_ENV === "test") {
-      console.warn("⚠️ Upstash rate limit failed, using in-memory fallback:", (error as Error)?.message);
-      const now = Date.now();
-      const windowMs = windowSeconds * 1000;
-      const key = `${identifier}_${Math.floor(now / windowMs)}`;
-      const current = memoryCache.get(key) ?? 0;
-      if (current >= limit) {
-        return { success: false, limit, remaining: 0, reset: now + windowMs };
-      }
-      memoryCache.set(key, current + 1);
-      return { success: true, limit, remaining: limit - current - 1, reset: now + windowMs };
-    }
-    throw error;
+    // A Redis outage must not remove the cap entirely. Fall back locally.
+    console.warn("⚠️ Upstash rate limit failed, using in-memory fallback:", (error as Error)?.message);
+    return inMemoryLimit(identifier, limit, windowSeconds);
   }
-
-  return {
-    success: res.success,
-    limit: res.limit,
-    remaining: res.remaining,
-    reset: res.reset,
-  };
 }

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { initiatePurchaseAction } from '@/modules/payments/payment.actions';
+import { submitPaymentForm } from '@/lib/payment-form';
 
 interface CheckoutButtonsProps {
   resourceId: string;
@@ -19,10 +20,15 @@ export function CheckoutButtons({ resourceId, priceAmount, currency, paymentsEna
     setError(null);
     try {
       const result = await initiatePurchaseAction({ resourceId, provider });
-      if (result.success && (result.data as any)?.redirectUrl) {
-        window.location.href = (result.data as any).redirectUrl;
+      if (result.success) {
+        const { redirectUrl, providerData } = result.data;
+        if (providerData) {
+          submitPaymentForm(redirectUrl, providerData);
+        } else {
+          window.location.href = redirectUrl;
+        }
       } else {
-        setError((result as any).error || 'Failed to initiate payment');
+        setError(result.error || 'Failed to initiate payment');
         setLoading(null);
       }
     } catch (err: any) {

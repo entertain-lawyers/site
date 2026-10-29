@@ -170,7 +170,7 @@ describe('WordPress REST API Client (src/lib/wordpress.ts)', () => {
   });
 
   describe('4. Error Handling & Request Timeout', () => {
-    it('should throw WordPressApiError on non-200 responses', async () => {
+    it('should return empty list on non-200 responses to survive outage', async () => {
       vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
         ok: false,
         status: 500,
@@ -178,7 +178,9 @@ describe('WordPress REST API Client (src/lib/wordpress.ts)', () => {
         json: async () => ({ message: 'Server crash' }),
       } as Response);
 
-      await expect(getWordPressPosts()).rejects.toThrow(WordPressApiError);
+      const res = await getWordPressPosts();
+      expect(res.data).toEqual([]);
+      expect(res.total).toBe(0);
     });
   });
 

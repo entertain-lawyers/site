@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { articleFont } from './article-font';
+import { sanitizeHtml } from '@/lib/sanitize';
 
 /**
  * Article body renderer.
@@ -53,7 +54,7 @@ export default function ArticleBody({ html }: { html: string }) {
         ref={containerRef}
         id="article-body"
         className={`article-body article-body--reading mt-7 ${articleFont.variable}`}
-        dangerouslySetInnerHTML={{ __html: html }}
+        dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
       />
 
       {zoomSrc && (

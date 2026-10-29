@@ -87,19 +87,24 @@ export const register = createSafeAction(
       },
     });
 
+    const salt = await bcrypt.genSalt(12);
+    const passwordHash = await bcrypt.hash(parsed.data.password, salt);
+
     if (existingUser) {
       // Do not reveal whether the address is already registered. If the
-      // account exists but is still unverified, re-send a code so the signup
-      // flow can complete; otherwise silently succeed.
+      // account exists but is still unverified, take over the password from
+      // this signup: otherwise an attacker who pre-registered the address
+      // keeps the password the victim later "sets", enabling account hijack.
       if (!existingUser.isEmailVerified && !existingUser.emailVerified) {
+        await prisma.user.update({
+          where: { id: existingUser.id },
+          data: { passwordHash },
+        });
         const token = await issueOtp(existingUser.email, "VERIFY_EMAIL");
         await sendVerificationOTP(existingUser.email, token);
       }
       return { message: "Verification email sent" };
     }
-
-    const salt = await bcrypt.genSalt(12);
-    const passwordHash = await bcrypt.hash(parsed.data.password, salt);
 
     const user = await prisma.user.create({
       data: {
@@ -263,7 +268,8 @@ export const resetPassword = createSafeAction(
 
     await prisma.user.update({
       where: { email: normalizedEmail },
-      data: { passwordHash, isEmailVerified: true }, // Also verify email since they own it
+      // Also verify email since they own it, and invalidate existing sessions.
+      data: { passwordHash, isEmailVerified: true, sessionVersion: { increment: 1 } },
       select: { id: true },
     });
 

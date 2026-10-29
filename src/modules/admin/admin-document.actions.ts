@@ -43,7 +43,7 @@ export const initiateDocumentUpload = createSafeAction(
     const storageKey = `documents/${resourceId}-${Date.now()}.pdf`;
 
     // Generate the PUT URL (expires in 10 minutes)
-    const uploadUrl = await generatePresignedPutUrl(storageKey, expectedMimeType, 600);
+    const uploadUrl = await generatePresignedPutUrl(storageKey, expectedMimeType, 600, expectedSize);
 
     // Create the upload intent
     const intent = await prisma.uploadIntent.create({

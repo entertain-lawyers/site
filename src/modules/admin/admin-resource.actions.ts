@@ -36,6 +36,15 @@ export const createResourceAction = createSafeAction(async (args: z.infer<typeof
   }
 
   const input = parsed.data;
+  // `type` is optional, and the create below defaults it to LAW_NOTE, so the
+  // editor check must apply that default too.
+  const resourceType = input.type ?? ResourceType.LAW_NOTE;
+  if (
+    session.role === Role.EDITOR &&
+    (resourceType === ResourceType.LAW_NOTE || resourceType === ResourceType.CASE_LAW)
+  ) {
+    throw new Error('Only admins can create law notes and case laws');
+  }
   // Honour the admin's Premium checkbox instead of deriving it from the type;
   // "Write Note" resources can be free or paid.
   const isPremium = input.isPremium;
@@ -53,7 +62,7 @@ export const createResourceAction = createSafeAction(async (args: z.infer<typeof
         isPremium,
         priceAmount,
         currency,
-        type: input.type || ResourceType.LAW_NOTE,
+        type: resourceType,
         unitId: input.unitId || null,
       }
     });

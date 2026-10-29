@@ -8,6 +8,8 @@ import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { getClientIp } from '@/lib/client-ip';
 
+import { sendConsultationNotificationEmail, sendConsultationClientAckEmail } from '@/lib/mail';
+
 export const consultationRequestSchema = z.object({
   fullName: z.string().min(2, 'Full name must be at least 2 characters').max(100),
   email: z.string().email('Please enter a valid email address'),
@@ -21,10 +23,12 @@ export const consultationRequestSchema = z.object({
   subject: z.string().min(3, 'Subject must be at least 3 characters').max(200),
   description: z.string().min(10, 'Please provide details of your legal matter (at least 10 characters)').max(5000),
   referralSource: z.string().max(100).optional().nullable(),
+  lawyerName: z.string().max(150).optional().nullable(),
+  lawyerId: z.string().max(100).optional().nullable(),
 });
 
 export const submitConsultationRequestAction = createSafeAction(
-  async (data: z.infer<typeof consultationRequestSchema>) => {
+  async (data: z.input<typeof consultationRequestSchema>) => {
     // createSafeAction does not validate arguments, so parse here before any
     // raw client input reaches Prisma.
     const parsed = consultationRequestSchema.safeParse(data);
@@ -36,6 +40,15 @@ export const submitConsultationRequestAction = createSafeAction(
     const headersList = await headers();
     const ip = getClientIp(headersList);
     const userAgent = headersList.get('user-agent') || null;
+
+    const chosenLawyer = input.lawyerName?.trim() || null;
+    const enrichedDescription = chosenLawyer
+      ? `[Requested Advocate: ${chosenLawyer}]\n\n${input.description.trim()}`
+      : input.description.trim();
+
+    const enrichedReferralSource = chosenLawyer
+      ? (input.referralSource?.trim() ? `Advocate: ${chosenLawyer} | ${input.referralSource.trim()}` : `Advocate: ${chosenLawyer}`)
+      : (input.referralSource?.trim() || null);
 
     const request = await prisma.consultationRequest.create({
       data: {
@@ -49,12 +62,50 @@ export const submitConsultationRequestAction = createSafeAction(
         claimAmount: input.claimAmount ?? null,
         courtFeeEstimated: input.courtFeeEstimated ?? null,
         subject: input.subject.trim(),
-        description: input.description.trim(),
-        referralSource: input.referralSource?.trim() || null,
+        description: enrichedDescription,
+        referralSource: enrichedReferralSource,
         ipAddress: ip,
         userAgent: userAgent ? userAgent.substring(0, 255) : null,
       },
     });
+
+    const chambersEmail = process.env.ADMIN_NOTIFICATION_EMAIL || process.env.CONTACT_EMAIL || 'contact@entertainlawyers.com';
+
+    // Send notifications (errors are non-blocking for intake registration)
+    try {
+      await sendConsultationNotificationEmail({
+        recipient: chambersEmail,
+        request: {
+          id: request.id,
+          fullName: request.fullName,
+          email: request.email,
+          phone: request.phone,
+          preferredContactMethod: request.preferredContactMethod,
+          consultationMode: request.consultationMode,
+          practiceArea: request.practiceArea,
+          preferredTime: request.preferredTime,
+          claimAmount: request.claimAmount,
+          courtFeeEstimated: request.courtFeeEstimated,
+          subject: request.subject,
+          description: request.description,
+          lawyerName: chosenLawyer,
+          createdAt: request.createdAt,
+        },
+      });
+    } catch (mailError) {
+      console.error('[Consultation Email Error - Chambers Notification]:', mailError);
+    }
+
+    try {
+      await sendConsultationClientAckEmail({
+        recipient: request.email,
+        fullName: request.fullName,
+        requestId: request.id,
+        lawyerName: chosenLawyer,
+      });
+    } catch (mailError) {
+      console.error('[Consultation Email Error - Client Acknowledgment]:', mailError);
+    }
 
     return {
       id: request.id,

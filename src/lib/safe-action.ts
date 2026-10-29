@@ -45,6 +45,7 @@ function toPublicErrorMessage(error: unknown): string {
     message.includes("required") ||
     message.includes("expired") ||
     message.includes("Too many") ||
+    message.includes("WordPress") ||
     message.includes("do not have access") ||
     message.includes("do not have permission");
 

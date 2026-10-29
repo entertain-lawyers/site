@@ -2,7 +2,10 @@ import { getWordPressPostById, getWordPressPosts, mapCategoryToType } from '@/li
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { formatBSDate } from '@/lib/nepali-date';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { Metadata } from 'next';
+
+export const revalidate = 60;
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
@@ -126,7 +129,7 @@ export default async function NepaliPostPage({ params }: { params: Promise<{ id:
         {/* Post Content */}
         <div
           className="prose prose-lg sm:prose-xl prose-slate dark:prose-invert max-w-none prose-headings:font-bold prose-headings:text-navy dark:prose-headings:text-white prose-a:text-accent dark:prose-a:text-accent font-nepali prose-p:leading-relaxed"
-          dangerouslySetInnerHTML={{ __html: post.content }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.content) }}
         />
         </article>
 

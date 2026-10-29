@@ -31,7 +31,12 @@ export default async function NewResourcePage() {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sm:p-10">
-        <AdminResourceForm semesters={semesters} subjects={subjects} units={units} />
+        <AdminResourceForm
+          semesters={semesters}
+          subjects={subjects}
+          units={units}
+          canManageLawTypes={session.user.role === 'ADMIN'}
+        />
       </div>
     </div>
   );

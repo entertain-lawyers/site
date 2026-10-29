@@ -52,8 +52,6 @@ export default function Footer({ dict, settings }: FooterProps) {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-px bg-gradient-to-r from-transparent via-accent/20 dark:via-white/20 to-transparent" />
       <div className="absolute -top-24 left-1/4 w-96 h-96 bg-accent/10 dark:bg-accent/5 rounded-full blur-[100px] pointer-events-none" />
 
-      <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.02] pointer-events-none mix-blend-overlay"></div>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-4 sm:pt-10 sm:pb-4 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-6 mb-8">
 

@@ -326,6 +326,21 @@
   .article-body a:focus-visible {
     color: var(--color-accent-hover);
   }
+  /* Quill stores alignment/indent as classes. Its stylesheet only ships with
+     the admin editor, so mirror those rules for previews and public pages
+     (article detail uses .article-body, Nepali/law-note pages use .prose). */
+  :is(.article-body, .prose) .ql-align-center { text-align: center; }
+  :is(.article-body, .prose) .ql-align-right { text-align: right; }
+  :is(.article-body, .prose) .ql-align-justify { text-align: justify; }
+  :is(.article-body, .prose) .ql-indent-1 { padding-left: 3em; }
+  :is(.article-body, .prose) .ql-indent-2 { padding-left: 6em; }
+  :is(.article-body, .prose) .ql-indent-3 { padding-left: 9em; }
+  :is(.article-body, .prose) .ql-indent-4 { padding-left: 12em; }
+  :is(.article-body, .prose) .ql-indent-5 { padding-left: 15em; }
+  :is(.article-body, .prose) .ql-indent-6 { padding-left: 18em; }
+  :is(.article-body, .prose) .ql-indent-7 { padding-left: 21em; }
+  :is(.article-body, .prose) .ql-indent-8 { padding-left: 24em; }
+  :is(.article-body, .prose) .ql-indent-9 { padding-left: 27em; }
   .article-body :is(ul, ol) {
     margin: 0 0 1.6em;
     padding-left: 1.5em;
@@ -543,5 +558,17 @@
 
   .el-ai-ring {
     animation: el-ai-ring 3.2s ease-out infinite;
+  }
+}
+
+/* Desktop focus mode for post editing. Hiding the admin sidebar gives the
+   editor the full width it needs to match the public article column. */
+@media (min-width: 64rem) {
+  body:has(.admin-editor-page) .admin-sidebar {
+    display: none;
+  }
+
+  body:has(.admin-editor-page) .admin-main {
+    margin-left: 0;
   }
 }

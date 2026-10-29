@@ -14,19 +14,21 @@ const CATEGORY_MAP: Record<string, { type: PostType, title: string, icon: string
   'blog-bichar': { type: 'NEPALI_BLOG_BICHAR', title: 'ब्लग, बिचार, अन्य', icon: '✍️', description: 'विभिन्न लेखकका लेख, विचार, र अन्य' },
 };
 
-export async function generateMetadata({ params }: { params: { category: string } }) {
-  const categoryInfo = CATEGORY_MAP[params.category];
+export async function generateMetadata({ params }: { params: Promise<{ category: string }> }) {
+  const { category } = await params;
+  const categoryInfo = CATEGORY_MAP[category];
   if (!categoryInfo) return { title: 'Not Found' };
 
   return {
     title: `${categoryInfo.title} - नेपाली`,
     description: categoryInfo.description,
-    alternates: { canonical: `/nepali/${params.category}` },
+    alternates: { canonical: `/nepali/${category}` },
   };
 }
 
-export default async function NepaliCategoryPage({ params }: { params: { category: string } }) {
-  const categoryInfo = CATEGORY_MAP[params.category];
+export default async function NepaliCategoryPage({ params }: { params: Promise<{ category: string }> }) {
+  const { category } = await params;
+  const categoryInfo = CATEGORY_MAP[category];
 
   if (!categoryInfo) {
     notFound();

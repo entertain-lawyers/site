@@ -6,8 +6,8 @@ export default async function EditGalleryPage({ params }: { params: Promise<{ id
   const id = (await params).id;
   const gal = await prisma.gallery.findUnique({
     where: { id },
-    
+    include: { GalleryImage: { orderBy: { order: 'asc' } } },
   });
   if (!gal) notFound();
-  return <EditGalleryClient gal={gal} />;
+  return <EditGalleryClient gal={{ ...gal, images: gal.GalleryImage }} />;
 }

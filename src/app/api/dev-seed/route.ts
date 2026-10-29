@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { SYLLABUS_CONFIG } from '@/lib/syllabus-config';
 import { revalidatePath } from 'next/cache';
 
-export async function GET() {
+export async function POST() {
   // Dev-only tool: reseeds syllabus taxonomy from config. Never allow it in
   // production — hitting it there would let anyone mutate live content.
   if (process.env.NODE_ENV !== 'development') {

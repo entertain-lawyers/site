@@ -30,11 +30,14 @@ describe("rateLimit", () => {
     expect([first.success, second.success, third.success]).toEqual([true, true, false]);
   });
 
-  it("fails closed only when limiting is enabled without Upstash", async () => {
+  it("falls back to per-process limiting when enabled without Upstash", async () => {
     state.env.RATE_LIMITING_ENABLED = "true";
+    const key = `enabled-${Date.now()}-${Math.random()}`;
 
-    await expect(rateLimit(`enabled-${Date.now()}`, 2, 60)).rejects.toThrow(
-      /RATE_LIMITING_ENABLED=true/
-    );
+    const first = await rateLimit(key, 2, 60);
+    const second = await rateLimit(key, 2, 60);
+    const third = await rateLimit(key, 2, 60);
+
+    expect([first.success, second.success, third.success]).toEqual([true, true, false]);
   });
 });

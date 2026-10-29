@@ -25,7 +25,15 @@ const deleteFAQSchema = z.object({
 export const createFAQAction = createSafeAction(async (args: z.infer<typeof createFAQSchema>, session) => {
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) throw new Error('Unauthorized');
 
-  const faq = await prisma.fAQ.create({ data: args });
+  // Keep new FAQs after existing ones. The form defaults `order` to 0, which
+  // otherwise makes every row tie and breaks reordering.
+  const last = await prisma.fAQ.findFirst({
+    orderBy: { order: 'desc' },
+    select: { order: true },
+  });
+  const order = args.order !== 0 ? args.order : (last?.order ?? -1) + 1;
+
+  const faq = await prisma.fAQ.create({ data: { ...args, order } });
 
   await prisma.auditLog.create({
     data: { userId: session.userId!, action: 'CREATE', entityType: 'FAQ', entityId: faq.id, details: { question: faq.question } }
@@ -86,22 +94,26 @@ const reorderFAQSchema = z.object({
 export const reorderFAQAction = createSafeAction(async (args: z.infer<typeof reorderFAQSchema>, session) => {
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) throw new Error('Unauthorized');
 
-  const item = await prisma.fAQ.findUnique({ where: { id: args.id } });
-  if (!item) throw new Error('FAQ not found');
-
-  const targetItem = await prisma.fAQ.findFirst({
-    where: {
-      order: args.direction === 'UP' ? { lt: item.order } : { gt: item.order },
-    },
-    orderBy: { order: args.direction === 'UP' ? 'desc' : 'asc' },
+  // Normalize first, then swap by position. Comparing raw `order` values fails
+  // when several rows tie at 0.
+  const ordered = await prisma.fAQ.findMany({
+    orderBy: [{ order: 'asc' }, { id: 'asc' }],
+    select: { id: true },
   });
+  const index = ordered.findIndex((faq) => faq.id === args.id);
+  if (index === -1) throw new Error('FAQ not found');
 
-  if (!targetItem) return { success: true }; // Nothing to swap with
+  const swapIndex = args.direction === 'UP' ? index - 1 : index + 1;
+  if (swapIndex < 0 || swapIndex >= ordered.length) return { success: true };
 
-  await prisma.$transaction([
-    prisma.fAQ.update({ where: { id: item.id }, data: { order: targetItem.order } }),
-    prisma.fAQ.update({ where: { id: targetItem.id }, data: { order: item.order } }),
-  ]);
+  const next = [...ordered];
+  [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+
+  await prisma.$transaction(
+    next.map((faq, order) =>
+      prisma.fAQ.update({ where: { id: faq.id }, data: { order } })
+    )
+  );
 
   revalidatePath('/admin/faqs');
   revalidatePath('/faqs');

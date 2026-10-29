@@ -25,12 +25,20 @@ export async function generatePresignedGetUrl(storageKey: string, expiresInSecon
 
 /**
  * Generates a short-lived presigned PUT URL for admin document uploads.
+ * Signing ContentLength makes B2 reject an object larger than the size the
+ * upload intent authorized; without it the limit is only checked after upload.
  */
-export async function generatePresignedPutUrl(storageKey: string, mimeType: string, expiresInSeconds: number = 600) {
+export async function generatePresignedPutUrl(
+  storageKey: string,
+  mimeType: string,
+  expiresInSeconds: number = 600,
+  contentLength?: number
+) {
   const command = new PutObjectCommand({
     Bucket: env.B2_BUCKET_NAME || "",
     Key: storageKey,
     ContentType: mimeType,
+    ...(contentLength ? { ContentLength: contentLength } : {}),
   });
   return getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
 }

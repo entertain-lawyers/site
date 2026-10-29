@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, FileText, Database, Users, Settings, LogOut, Globe, History, Menu, X, MessageSquare, Brain, LayoutTemplate, Images, BookOpen, ShieldCheck, Home, ArrowRightLeft } from 'lucide-react';
+import { LayoutDashboard, FileText, Database, Users, Settings, LogOut, Globe, History, Menu, X, MessageSquare, Brain, LayoutTemplate, Images, BookOpen, ShieldCheck, Home, ArrowRightLeft, Scale } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 
 type NavItem = {
@@ -46,6 +46,7 @@ export default function AdminSidebar({
   const navItems: NavItem[] = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Consultations', href: '/admin/consultations', icon: MessageSquare, roles: ['ADMIN', 'EDITOR'], badge: pendingConsultations },
+    { name: 'Consult Lawyers', href: '/admin/lawyers', icon: Scale, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Posts', href: '/admin/posts', icon: FileText, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Visual Pages', href: '/admin/pages', icon: LayoutTemplate, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Events', href: '/admin/events', icon: FileText, roles: ['ADMIN', 'EDITOR'] },
@@ -70,7 +71,7 @@ export default function AdminSidebar({
 
   const groups: { label: string; names: string[] }[] = [
     { label: 'Overview', names: ['Dashboard'] },
-    { label: 'Requests', names: ['Consultations'] },
+    { label: 'Requests', names: ['Consultations', 'Consult Lawyers'] },
     { label: 'Content', names: ['Semesters', 'Subjects', 'Units', 'Resources'] },
     { label: 'Publishing', names: ['Posts', 'Visual Pages', 'Events', 'FAQs', 'Gallery', 'Publications', 'Team'] },
     { label: 'Site Control', names: ['Site Settings', 'Homepage', 'Redirects'] },
@@ -131,7 +132,7 @@ export default function AdminSidebar({
       )}
 
       {/* Sidebar Drawer */}
-      <div className={`w-64 bg-slate-50 dark:bg-zinc-950 h-dvh flex flex-col border-r border-black/5 dark:border-white/5 shrink-0 fixed top-0 bottom-0 z-50 transition-transform duration-300 ease-in-out safe-area-top safe-area-bottom lg:translate-x-0 ${isMobileOpen ? 'translate-x-0 left-0' : '-translate-x-full left-0 lg:left-0'}`}>
+      <div className={`admin-sidebar w-64 bg-slate-50 dark:bg-zinc-950 h-dvh flex flex-col border-r border-black/5 dark:border-white/5 shrink-0 fixed top-0 bottom-0 z-50 transition-transform duration-300 ease-in-out safe-area-top safe-area-bottom lg:translate-x-0 ${isMobileOpen ? 'translate-x-0 left-0' : '-translate-x-full left-0 lg:left-0'}`}>
 
         {/* Mobile Close Button */}
         <button

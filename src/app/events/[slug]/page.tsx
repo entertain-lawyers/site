@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Calendar, MapPin } from 'lucide-react';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { Metadata } from 'next';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
@@ -90,7 +91,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
           {event.content && (
             <div
               className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-accent hover:prose-a:text-accent-dark prose-img:rounded-xl prose-img:shadow-md"
-              dangerouslySetInnerHTML={{ __html: event.content }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(event.content) }}
             />
           )}
 

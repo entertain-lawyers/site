@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { initiateMediaUploadAction } from '@/modules/admin/admin-media.actions';
+import { articleFont } from '@/components/posts/article-font';
 import dynamic from 'next/dynamic';
 import 'react-quill-new/dist/quill.snow.css';
 
@@ -70,6 +71,14 @@ export default function RichTextEditor({
   const reactQuillRef = useRef<any>(null);
   const [editorFont, setEditorFont] = useState<'english' | 'nepali'>('english');
 
+  // Quill's semantic HTML is what the public article CSS understands (real
+  // <ul>/<ol>, no editor-only ql-* classes). It escapes every space as
+  // &nbsp;, which would stop preview lines wrapping, so normalise those back.
+  const handleChange = useCallback(
+    (html: string) => onChange(html.replaceAll('&nbsp;', ' ')),
+    [onChange]
+  );
+
   // Build the real image handler as a stable callback so the relay closure
   // holds the latest ref without creating a new relay function.
   const imageHandler = useCallback(() => {
@@ -120,16 +129,30 @@ export default function RichTextEditor({
 
   const fontFamily =
     editorFont === 'nepali'
-      ? 'var(--font-chat-devanagari), "Noto Sans Devanagari", sans-serif'
-      : 'inherit';
+      ? 'var(--font-mukta), var(--font-chat-devanagari), "Noto Sans Devanagari", Mukta, sans-serif'
+      : 'var(--font-article), Roboto, "Noto Sans Devanagari", sans-serif';
 
   return (
-    <div className="editor-wrapper space-y-3">
+    <div className={`editor-wrapper ${articleFont.variable} space-y-3`}>
       <style dangerouslySetInnerHTML={{
         __html: `
           .editor-wrapper .ql-editor {
             font-family: ${fontFamily} !important;
+            /* Same size/leading as the public reading column so line breaks
+               in the editor match the preview. */
+            font-size: 1rem !important;
+            line-height: 2.25 !important;
+            /* Quill's default 15px side padding would make the text column
+               narrower than the article, shifting line breaks. */
+            padding-left: 0 !important;
+            padding-right: 0 !important;
             min-height: 18rem;
+          }
+          @media (min-width: 768px) {
+            .editor-wrapper .ql-editor {
+              font-size: 1.125rem !important;
+              line-height: 2.14 !important;
+            }
           }
           .editor-wrapper .ql-toolbar.ql-snow {
             display: flex !important;
@@ -176,12 +199,14 @@ export default function RichTextEditor({
         <ReactQuill
           {...{ ref: reactQuillRef }}
           theme="snow"
-          value={value}
-          onChange={onChange}
+          // Uncontrolled: keeping the editor in sync with the parent's HTML on
+          // every keystroke makes react-quill re-parse content and reset the
+          // cursor. The parent only needs onChange for preview/save.
+          defaultValue={value}
+          onChange={handleChange}
           modules={QUILL_MODULES}
           formats={QUILL_FORMATS}
           placeholder={placeholder}
-          useSemanticHTML={false}
         />
       </div>
     </div>

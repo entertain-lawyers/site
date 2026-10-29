@@ -22,6 +22,9 @@ export default async function ProfilePage() {
       id: true,
       email: true,
       name: true,
+      phone: true,
+      education: true,
+      university: true,
       passwordHash: true,
     },
   });
@@ -42,9 +45,9 @@ export default async function ProfilePage() {
           id: user.id,
           email: user.email,
           name: user.name ?? '',
-          phone: '',
-          education: '',
-          university: '',
+          phone: user.phone ?? '',
+          education: user.education ?? '',
+          university: user.university ?? '',
           hasPassword: !!user.passwordHash
         }} />
       </div>

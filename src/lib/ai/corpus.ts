@@ -170,7 +170,7 @@ export async function buildCorpus(): Promise<CorpusItem[]> {
       take: 800,
     }),
     prisma.publication.findMany({
-      where: { publishDate: { lte: new Date() } },
+      where: { status: 'PUBLISHED', publishDate: { lte: new Date() } },
       select: { id: true, title: true, slug: true, description: true },
       orderBy: { publishDate: 'desc' },
       take: 300,

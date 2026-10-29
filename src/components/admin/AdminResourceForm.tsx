@@ -22,24 +22,30 @@ export function AdminResourceForm({
   semesters,
   subjects,
   units,
+  canManageLawTypes = false,
 }: {
   semesters: SemesterOption[];
   subjects: SubjectOption[];
   units: UnitOption[];
+  canManageLawTypes?: boolean;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const availableTypes = canManageLawTypes
+    ? RESOURCE_TYPES
+    : RESOURCE_TYPES.filter((type) => type.value !== ResourceType.LAW_NOTE && type.value !== ResourceType.CASE_LAW);
+
   const [title, setTitle] = useState('');
   const [description] = useState(''); // Maybe optional now
   const [semesterId, setSemesterId] = useState('');
   const [subjectId, setSubjectId] = useState('');
-  const [resourceType, setResourceType] = useState<ResourceType>(ResourceType.LAW_NOTE);
+  // Editors cannot create law notes/case laws, so start on a type they can use.
+  const [resourceType, setResourceType] = useState<ResourceType>(availableTypes[0].value);
   const [unitId, setUnitId] = useState('');
   const [isPremium, setIsPremium] = useState(false);
   const [priceAmount, setPriceAmount] = useState('');
-  const [featuredImage, setFeaturedImage] = useState('');
 
   // Mode selection: 'PDF' or 'NOTE'
   const [uploadMode, setUploadMode] = useState<'PDF' | 'NOTE'>('PDF');
@@ -216,7 +222,7 @@ export function AdminResourceForm({
             onChange={e => setResourceType(e.target.value as ResourceType)}
             className="w-full rounded-xl border border-black/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
           >
-            {RESOURCE_TYPES.map(type => (
+            {availableTypes.map(type => (
               <option key={type.value} value={type.value}>{type.label}</option>
             ))}
           </select>
@@ -279,16 +285,6 @@ export function AdminResourceForm({
           </>
         )}
 
-        <div>
-          <label className="block text-sm font-bold text-navy dark:text-white mb-2">Featured Image URL (Optional)</label>
-          <input
-            type="url"
-            value={featuredImage}
-            onChange={e => setFeaturedImage(e.target.value)}
-            placeholder="https://example.com/image.jpg"
-            className="w-full rounded-xl border border-black/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
-          />
-        </div>
       </div>
 
       <div className="pt-4 border-t border-black/10 dark:border-white/10">

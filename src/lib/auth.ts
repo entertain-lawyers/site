@@ -103,6 +103,37 @@ export { authConfig };
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   adapter: PrismaAdapter(prisma),
+  callbacks: {
+    ...authConfig.callbacks,
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { role: true, sessionVersion: true },
+        });
+        token.role = dbUser?.role ?? user.role;
+        token.sessionVersion = dbUser?.sessionVersion ?? 0;
+        return token;
+      }
+
+      if (!token.id) return token;
+
+      // Read the role and session version on every request so demotions take
+      // effect immediately and a password change invalidates older tokens.
+      const dbUser = await prisma.user.findUnique({
+        where: { id: token.id as string },
+        select: { role: true, sessionVersion: true },
+      });
+
+      if (!dbUser || dbUser.sessionVersion !== token.sessionVersion) {
+        return null;
+      }
+
+      token.role = dbUser.role;
+      return token;
+    },
+  },
   providers: [
     ...(googleProviderEnabled
       ? [GoogleProvider({
