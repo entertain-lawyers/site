@@ -568,9 +568,9 @@ export async function deleteWordPressPost(
 const EN_WP_CATEGORIES = {
   NEWS: 58,
   BLOG: 61,
+  OPINION: 60,
   FACT: 78,
   PERSONALITY: 81,
-  OPINION: 61,
 };
 
 const NE_WP_CATEGORIES = {
@@ -598,18 +598,22 @@ export function mapCategoryToType(categories: number[] | undefined, lang: 'en' |
     return 'UNKNOWN';
   }
   if (lang === 'ne') {
-    if (categories.includes(56)) return 'NEPALI_ADALAT_SAMACHAR';
+    // Court news: अदालत (56), उच्च अदालत (68), सर्वोच्च अदालत (55), जिल्ला अदालत (69)
+    if (categories.includes(56) || categories.includes(68) || categories.includes(55) || categories.includes(69)) return 'NEPALI_ADALAT_SAMACHAR';
+    // Precedents: नजिर (57)
     if (categories.includes(57)) return 'NEPALI_NAJIRHARU';
+    // Acts/Laws: ऐन/कानुन (64)
     if (categories.includes(64)) return 'NEPALI_AIN_KANUN';
-    if (categories.includes(61)) return 'NEPALI_BLOG_BICHAR';
-    
-    if (categories.includes(58)) return 'NEPALI_SAMANYA_SAMACHAR';
+    // Blog & Opinion: ब्लग (61), विचार (60)
+    if (categories.includes(61) || categories.includes(60)) return 'NEPALI_BLOG_BICHAR';
+    // General News: राष्ट्रिय (58), समसामयिक (65), हाइलाइट (63), अन्तर्राष्ट्रिय (66), अन्य (1)
+    if (categories.includes(58) || categories.includes(65) || categories.includes(63) || categories.includes(66) || categories.includes(1)) return 'NEPALI_SAMANYA_SAMACHAR';
     return 'UNKNOWN';
   }
+  if (categories.includes(60)) return 'OPINION';
   if (categories.includes(61)) return 'BLOG';
   if (categories.includes(78)) return 'FACT';
   if (categories.includes(81)) return 'PERSONALITY';
-  
   if (categories.includes(58)) return 'NEWS';
   return 'UNKNOWN';
 }

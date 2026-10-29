@@ -18,7 +18,7 @@ import {
 const createPostSchema = z.object({
   title: z.string().min(1),
   content: z.string().min(1),
-  type: z.enum(['NEWS', 'BLOG', 'FACT', 'PERSONALITY', 'NEPALI_SAMANYA_SAMACHAR', 'NEPALI_ADALAT_SAMACHAR', 'NEPALI_MUKHYA_SAMACHAR', 'NEPALI_NAJIRHARU', 'NEPALI_AIN_KANUN', 'NEPALI_BLOG_BICHAR']),
+  type: z.enum(['NEWS', 'BLOG', 'OPINION', 'FACT', 'PERSONALITY', 'NEPALI_SAMANYA_SAMACHAR', 'NEPALI_ADALAT_SAMACHAR', 'NEPALI_MUKHYA_SAMACHAR', 'NEPALI_NAJIRHARU', 'NEPALI_AIN_KANUN', 'NEPALI_BLOG_BICHAR']),
   isPublished: z.boolean().optional(),
   status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).optional(),
 });
@@ -27,7 +27,7 @@ const updatePostSchema = z.object({
   id: z.coerce.number(),
   title: z.string().min(1).optional(),
   content: z.string().min(1).optional(),
-  type: z.enum(['NEWS', 'BLOG', 'FACT', 'PERSONALITY', 'NEPALI_SAMANYA_SAMACHAR', 'NEPALI_ADALAT_SAMACHAR', 'NEPALI_MUKHYA_SAMACHAR', 'NEPALI_NAJIRHARU', 'NEPALI_AIN_KANUN', 'NEPALI_BLOG_BICHAR']).optional(),
+  type: z.enum(['NEWS', 'BLOG', 'OPINION', 'FACT', 'PERSONALITY', 'NEPALI_SAMANYA_SAMACHAR', 'NEPALI_ADALAT_SAMACHAR', 'NEPALI_MUKHYA_SAMACHAR', 'NEPALI_NAJIRHARU', 'NEPALI_AIN_KANUN', 'NEPALI_BLOG_BICHAR']).optional(),
   isPublished: z.boolean().optional(),
   status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).optional(),
   // Pinned by the edit page: the post only exists in one of the two WP installs.
@@ -40,6 +40,7 @@ const updatePostSchema = z.object({
 const deletePostSchema = z.object({
   id: z.coerce.number(),
   type: z.string().optional(),
+  lang: z.enum(['en', 'ne']).optional(),
 });
 
 // Bulk-list operation languages + target WP statuses ('trash' handled server
@@ -203,7 +204,7 @@ export const deletePostAction = createSafeAction(async (args: z.infer<typeof del
     throw new Error('Cannot perform write operations in Preview mode to protect production WordPress.');
   }
 
-  const lang = args.type ? (args.type.startsWith('NEPALI_') ? 'ne' : 'en') : 'en';
+  const lang = args.lang ?? (args.type ? (args.type.startsWith('NEPALI_') ? 'ne' : 'en') : 'en');
 
   try {
     const result = await deleteWordPressPost(args.id, false, lang);

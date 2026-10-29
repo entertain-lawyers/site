@@ -24,7 +24,7 @@ export default async function AdminDashboardPage() {
   // count them at the source (the fetch is cached like every WP list call).
   const wpCount = (lang: 'en' | 'ne', status?: 'publish') =>
     getWordPressPosts({ lang, perPage: 1, fields: 'id', status }).catch(() => null);
-  const [wpEn, wpNe, wpEnPublished, wpNePublished, pendingConsultations, upcomingEvents, publishedPages] = await Promise.all([
+  const [wpEn, wpNe, wpEnPublished, wpNePublished, pendingConsultations, upcomingEvents, publishedPages, consultationLawyerCount] = await Promise.all([
     wpCount('en'),
     wpCount('ne'),
     wpCount('en', 'publish'),
@@ -32,6 +32,7 @@ export default async function AdminDashboardPage() {
     prisma.consultationRequest.count({ where: { status: 'NEW' } }).catch(() => 0),
     prisma.event.count({ where: { eventDate: { gte: new Date() } } }).catch(() => 0),
     prisma.builderPage.count({ where: { status: 'PUBLISHED' } }).catch(() => 0),
+    prisma.consultationLawyer.count().catch(() => 0),
   ]);
   const postCount = (wpEn?.total ?? 0) + (wpNe?.total ?? 0);
   const activePostCount = (wpEnPublished?.total ?? 0) + (wpNePublished?.total ?? 0);
@@ -219,7 +220,7 @@ export default async function AdminDashboardPage() {
             <div className="flex items-center gap-5 relative z-10">
               <div className={`flex-shrink-0 rounded-2xl p-4 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 ${pendingConsultations > 0 ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400'}`}>
                 <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 43.95A5.3 5.3 0 0018 33.4V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                 </svg>
               </div>
               <div>
@@ -228,6 +229,21 @@ export default async function AdminDashboardPage() {
               </div>
             </div>
             <Link href="/admin/consultations" className="absolute inset-0" aria-label="Open consultations" />
+          </div>
+
+          <div className="group bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-black/5 dark:border-white/5 relative overflow-hidden">
+            <div className="flex items-center gap-5 relative z-10">
+              <div className="flex-shrink-0 bg-amber-50 dark:bg-amber-900/30 rounded-2xl p-4 text-amber-600 dark:text-amber-400 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
+                <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+                </svg>
+              </div>
+              <div>
+                <dt className="text-sm font-bold text-text-muted uppercase tracking-wider mb-1">Consult Lawyers</dt>
+                <dd className="text-3xl font-extrabold text-navy dark:text-white tracking-tight">{consultationLawyerCount}</dd>
+              </div>
+            </div>
+            <Link href="/admin/lawyers" className="absolute inset-0" aria-label="Open consultation lawyers" />
           </div>
 
           <div className="group bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-black/5 dark:border-white/5 relative overflow-hidden">

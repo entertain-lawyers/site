@@ -189,6 +189,7 @@ describe('WordPress REST API Client (src/lib/wordpress.ts)', () => {
     it('should map English types to correct categories', () => {
       expect(mapTypeToCategory('NEWS', 'en')).toEqual([58]);
       expect(mapTypeToCategory('BLOG', 'en')).toEqual([61]);
+      expect(mapTypeToCategory('OPINION', 'en')).toEqual([60]);
       expect(mapTypeToCategory('FACT', 'en')).toEqual([78]);
     });
 
@@ -224,7 +225,10 @@ describe('WordPress REST API Client (src/lib/wordpress.ts)', () => {
     it('should return correct type for known categories', () => {
       expect(mapCategoryToType([58], 'en')).toBe('NEWS');
       expect(mapCategoryToType([61], 'en')).toBe('BLOG');
+      expect(mapCategoryToType([60], 'en')).toBe('OPINION');
       expect(mapCategoryToType([58], 'ne')).toBe('NEPALI_SAMANYA_SAMACHAR');
+      expect(mapCategoryToType([68], 'ne')).toBe('NEPALI_ADALAT_SAMACHAR');
+      expect(mapCategoryToType([60], 'ne')).toBe('NEPALI_BLOG_BICHAR');
       expect(mapCategoryToType([64], 'ne')).toBe('NEPALI_AIN_KANUN');
     });
 });
