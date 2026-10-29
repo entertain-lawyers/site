@@ -10,7 +10,7 @@ export const POST_PREVIEW_STORAGE_KEY = 'el-post-preview-draft';
 
 /** Every post type the admin editor can select. */
 export type PostType =
-  | 'NEWS' | 'BLOG' | 'FACT' | 'PERSONALITY'
+  | 'NEWS' | 'BLOG' | 'OPINION' | 'FACT' | 'PERSONALITY'
   | 'NEPALI_SAMANYA_SAMACHAR' | 'NEPALI_ADALAT_SAMACHAR' | 'NEPALI_MUKHYA_SAMACHAR'
   | 'NEPALI_NAJIRHARU' | 'NEPALI_AIN_KANUN' | 'NEPALI_BLOG_BICHAR';
 

@@ -11,6 +11,7 @@ import { writePostPreviewDraft, type PostType } from '@/lib/post-preview';
 const POST_TYPE_LABELS: Record<string, string> = {
   NEWS: 'NEWS',
   BLOG: 'BLOG',
+  OPINION: 'OPINION',
   FACT: 'FACT',
   PERSONALITY: 'PERSONALITY',
   NEPALI_SAMANYA_SAMACHAR: 'सामान्य समाचार',
@@ -36,6 +37,7 @@ const TYPE_OPTIONS: Record<'en' | 'ne', Array<[PostType, string]>> = {
   en: [
     ['NEWS', 'News'],
     ['BLOG', 'Blog'],
+    ['OPINION', 'Opinion'],
     ['FACT', 'Historical Fact'],
     ['PERSONALITY', 'Legal Personality'],
   ],

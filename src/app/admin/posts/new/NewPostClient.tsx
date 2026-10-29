@@ -11,6 +11,7 @@ import { writePostPreviewDraft, type PostType } from '@/lib/post-preview';
 const POST_TYPE_LABELS: Record<string, string> = {
   NEWS: 'NEWS',
   BLOG: 'BLOG',
+  OPINION: 'OPINION',
   FACT: 'FACT',
   PERSONALITY: 'PERSONALITY',
   NEPALI_SAMANYA_SAMACHAR: 'सामान्य समाचार',
@@ -20,6 +21,23 @@ const POST_TYPE_LABELS: Record<string, string> = {
   NEPALI_AIN_KANUN: 'ऐन तथा कानून',
   NEPALI_BLOG_BICHAR: 'ब्लग, बिचार, अन्य',
 };
+
+const ENGLISH_POST_TYPES: Array<[PostType, string]> = [
+  ['NEWS', 'News'],
+  ['BLOG', 'Blog'],
+  ['OPINION', 'Opinion'],
+  ['FACT', 'Historical Fact'],
+  ['PERSONALITY', 'Legal Personality'],
+];
+
+const NEPALI_POST_TYPES: Array<[PostType, string]> = [
+  ['NEPALI_SAMANYA_SAMACHAR', 'सामान्य समाचार (General News)'],
+  ['NEPALI_ADALAT_SAMACHAR', 'अदालत समाचार (Court News)'],
+  ['NEPALI_MUKHYA_SAMACHAR', 'मुख्य समाचार (Major Decisions)'],
+  ['NEPALI_NAJIRHARU', 'नजिरहरु (Precedents)'],
+  ['NEPALI_AIN_KANUN', 'ऐन तथा कानून (Acts & Laws)'],
+  ['NEPALI_BLOG_BICHAR', 'ब्लग, बिचार, अन्य (Blog & Opinion)'],
+];
 
 export default function NewPostClient({ defaultLang = 'en' }: { defaultLang?: 'en' | 'ne' }) {
   const router = useRouter();
@@ -166,25 +184,33 @@ export default function NewPostClient({ defaultLang = 'en' }: { defaultLang?: 'e
                 onChange={(e) => setType(e.target.value as PostType)}
                 className="block w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 px-4 py-3 text-navy dark:text-white shadow-sm focus:border-accent focus:ring-1 focus:ring-accent transition-colors sm:text-sm font-medium"
               >
-                {[
-                  ...(defaultLang === 'ne'
-                    ? [
-                        ['NEPALI_SAMANYA_SAMACHAR', 'Nepali: सामान्य समाचार'],
-                        ['NEPALI_ADALAT_SAMACHAR', 'Nepali: अदालत समाचार'],
-                        ['NEPALI_MUKHYA_SAMACHAR', 'Nepali: मुख्य समाचार'],
-                        ['NEPALI_NAJIRHARU', 'Nepali: नजिरहरु'],
-                        ['NEPALI_AIN_KANUN', 'Nepali: ऐन तथा कानून'],
-                        ['NEPALI_BLOG_BICHAR', 'Nepali: ब्लग, बिचार, अन्य'],
-                      ]
-                    : [
-                        ['NEWS', 'News'],
-                        ['BLOG', 'Blog'],
-                        ['FACT', 'Historical Fact'],
-                        ['PERSONALITY', 'Legal Personality'],
-                      ]),
-                ].map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
+                {defaultLang === 'ne' ? (
+                  <>
+                    <optgroup label="Nepali Posts (नेपाली)">
+                      {NEPALI_POST_TYPES.map(([val, label]) => (
+                        <option key={val} value={val}>{label}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="English Posts">
+                      {ENGLISH_POST_TYPES.map(([val, label]) => (
+                        <option key={val} value={val}>{label}</option>
+                      ))}
+                    </optgroup>
+                  </>
+                ) : (
+                  <>
+                    <optgroup label="English Posts">
+                      {ENGLISH_POST_TYPES.map(([val, label]) => (
+                        <option key={val} value={val}>{label}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Nepali Posts (नेपाली)">
+                      {NEPALI_POST_TYPES.map(([val, label]) => (
+                        <option key={val} value={val}>{label}</option>
+                      ))}
+                    </optgroup>
+                  </>
+                )}
               </select>
             </div>
           </div>

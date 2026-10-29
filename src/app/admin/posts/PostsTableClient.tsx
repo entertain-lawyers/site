@@ -96,7 +96,15 @@ export default function PostsTableClient({
   };
 
   const typeDot = (type: string) =>
-    type === 'NEWS' ? 'bg-blue-500' : type.includes('NEPALI') ? 'bg-red-500' : type === 'BLOG' ? 'bg-purple-500' : 'bg-orange-500';
+    type === 'NEWS'
+      ? 'bg-blue-500'
+      : type.includes('NEPALI')
+      ? 'bg-red-500'
+      : type === 'BLOG'
+      ? 'bg-purple-500'
+      : type === 'OPINION'
+      ? 'bg-amber-500'
+      : 'bg-orange-500';
 
   return (
     <div>
@@ -181,7 +189,7 @@ export default function PostsTableClient({
                   <td className="px-4 py-5 whitespace-nowrap text-sm font-medium text-text-secondary">
                     <span className="inline-flex items-center gap-1.5">
                       <span className={`w-1.5 h-1.5 rounded-full ${typeDot(post.type)}`} />
-                      {post.type.replace('NEPALI_', 'NEPALI: ').replace(/_/g, ' ')}
+                      {post.type === 'UNKNOWN' ? (post.categories || 'Uncategorized') : post.type.replace('NEPALI_', 'NEPALI: ').replace(/_/g, ' ')}
                     </span>
                   </td>
                   <td className="px-4 py-5 whitespace-nowrap text-sm font-medium text-text-secondary">
@@ -227,14 +235,14 @@ export default function PostsTableClient({
                             </Link>
                           )}
                           <a
-                            href={`${wpAdminBase[post.lang]}/post.php?post=${post.id}&action=edit`}
+                            href={`${wpAdminBase[post.lang]}/wp-admin/post.php?post=${post.id}&action=edit`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="hidden xl:inline-flex items-center justify-center px-4 py-2 border border-black/5 dark:border-white/5 rounded-lg text-navy dark:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors shadow-sm"
                           >
                             WP Editor ↗
                           </a>
-                          <DeletePostButton id={post.id} type={post.type} />
+                          <DeletePostButton id={post.id} type={post.type} lang={post.lang} />
                         </>
                       )}
                     </div>
