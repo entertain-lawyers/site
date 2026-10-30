@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { consultationRequestSchema } from '../consultation.schema';
 import {
-  consultationRequestSchema,
   submitConsultationRequestAction,
   adminGetConsultationsAction,
   adminUpdateConsultationStatusAction,

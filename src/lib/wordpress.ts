@@ -110,6 +110,12 @@ export interface WordPressQueryOptions {
   embed?: boolean;
   /** Comma-separated WP `_fields` allow-list (keeps search-index fetches small). */
   fields?: string;
+  /**
+   * Reject instead of returning an empty page. Public pages keep the empty
+   * fallback so an outage degrades gracefully; admin screens opt in so they can
+   * tell "no posts" apart from "WordPress is unavailable".
+   */
+  throwOnError?: boolean;
 }
 
 export interface WordPressCreatePostInput {
@@ -140,6 +146,13 @@ export function getWordPressBaseUrl(lang: WordPressLanguage = 'en'): string {
     return (process.env.WP_NEPALI_URL || 'https://entertainlawyers.com/nepali/wp-json/wp/v2').replace(/\/+$/, '');
   }
   return (process.env.WP_ENGLISH_URL || 'https://entertainlawyers.com/wp-json/wp/v2').replace(/\/+$/, '');
+}
+
+export function hasWordPressCredentials(): boolean {
+  return Boolean(
+    process.env.WP_AUTH_HEADER ||
+      (process.env.WP_AUTH_USERNAME && process.env.WP_AUTH_APP_PASSWORD)
+  );
 }
 
 /**
@@ -180,21 +193,6 @@ async function fetchWordPress<T>(
   const baseUrl = getWordPressBaseUrl(lang);
   const timeoutMs = options.timeoutMs ?? 8000;
 
-  const url = new URL(`${baseUrl}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`);
-
-  if (options.page) url.searchParams.set('page', String(options.page));
-  if (options.perPage) url.searchParams.set('per_page', String(options.perPage));
-  if (options.search) url.searchParams.set('search', options.search);
-  if (options.categories && options.categories.length > 0) {
-    url.searchParams.set('categories', options.categories.join(','));
-  }
-  if (options.slug) url.searchParams.set('slug', options.slug);
-  if (options.status) url.searchParams.set('status', options.status);
-  if (options.order) url.searchParams.set('order', options.order);
-  if (options.orderBy) url.searchParams.set('orderby', options.orderBy);
-  if (options.embed) url.searchParams.set('_embed', 'true');
-  if (options.fields) url.searchParams.set('_fields', options.fields);
-
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -202,6 +200,23 @@ async function fetchWordPress<T>(
   const revalidate = options.revalidate !== undefined ? options.revalidate : 3600;
 
   try {
+    // A malformed WP_ENGLISH_URL/WP_NEPALI_URL must fail here (and be reported to
+    // the admin screen) instead of throwing before the error handler below.
+    const url = new URL(`${baseUrl}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`);
+
+    if (options.page) url.searchParams.set('page', String(options.page));
+    if (options.perPage) url.searchParams.set('per_page', String(options.perPage));
+    if (options.search) url.searchParams.set('search', options.search);
+    if (options.categories && options.categories.length > 0) {
+      url.searchParams.set('categories', options.categories.join(','));
+    }
+    if (options.slug) url.searchParams.set('slug', options.slug);
+    if (options.status) url.searchParams.set('status', options.status);
+    if (options.order) url.searchParams.set('order', options.order);
+    if (options.orderBy) url.searchParams.set('orderby', options.orderBy);
+    if (options.embed) url.searchParams.set('_embed', 'true');
+    if (options.fields) url.searchParams.set('_fields', options.fields);
+
     const fetchOptions: RequestInit & { next?: { tags?: string[]; revalidate?: number | false } } = {
       method: 'GET',
       headers: {
@@ -248,7 +263,8 @@ async function fetchWordPress<T>(
     };
   } catch (error: any) {
     // Public content must survive a WordPress outage. Return an empty page so
-    // list/detail pages render their empty state instead of a 500.
+    // list/detail pages render their empty state instead of a 500. Admin
+    // callers pass throwOnError so they can show the real outage instead.
     const reason =
       error?.name === 'AbortError'
         ? `timed out after ${timeoutMs}ms`
@@ -256,6 +272,11 @@ async function fetchWordPress<T>(
           ? error.message
           : String(error);
     console.error(`[wordpress] ${endpoint} failed: ${reason}`);
+    if (options.throwOnError) {
+      throw error instanceof WordPressApiError
+        ? error
+        : new WordPressApiError(reason, undefined, endpoint);
+    }
     return {
       data: [],
       total: 0,

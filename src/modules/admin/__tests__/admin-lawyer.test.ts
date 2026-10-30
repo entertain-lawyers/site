@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { consultationLawyerSchema } from '../admin-lawyer.schema';
 import {
-  consultationLawyerSchema,
   createConsultationLawyerAction,
   updateConsultationLawyerAction,
   deleteConsultationLawyerAction,

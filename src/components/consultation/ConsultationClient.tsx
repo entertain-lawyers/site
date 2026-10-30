@@ -51,9 +51,10 @@ const QUICK_CONTACTS = [
 
 interface ConsultationClientProps {
   lawyers: ConsultationLawyer[];
+  loadError?: boolean;
 }
 
-export default function ConsultationClient({ lawyers }: ConsultationClientProps) {
+export default function ConsultationClient({ lawyers, loadError = false }: ConsultationClientProps) {
   const [selectedLawyer, setSelectedLawyer] = useState<ConsultationLawyer | null>(null);
   const [isFormHighlighted, setIsFormHighlighted] = useState(false);
   const bookingFormRef = useRef<HTMLDivElement>(null);
@@ -147,9 +148,17 @@ export default function ConsultationClient({ lawyers }: ConsultationClientProps)
             </a>
           </div>
 
-          {lawyers.length === 0 ? (
+          {loadError ? (
+            <div role="alert" className="text-center py-12 bg-surface rounded-2xl border border-red-200 dark:border-red-900/50">
+              <p className="text-red-700 dark:text-red-300 font-bold text-sm">The lawyer directory is temporarily unavailable.</p>
+              <p className="text-text-secondary text-sm mt-1">
+                You can still submit a consultation request below, or call{' '}
+                <a href="tel:+9779822010737" className="font-bold underline underline-offset-4">+977 9822010737</a>.
+              </p>
+            </div>
+          ) : lawyers.length === 0 ? (
             <div className="text-center py-12 bg-surface rounded-2xl border border-border">
-              <p className="text-text-secondary text-sm">Lawyer profiles are loading or updating.</p>
+              <p className="text-text-secondary text-sm">No lawyer profiles are published yet.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
