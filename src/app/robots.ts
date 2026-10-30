@@ -1,8 +1,9 @@
 import type { MetadataRoute } from 'next';
-
-const BASE_URL = 'https://www.entertainlawyers.com';
+import { getSiteUrl } from '@/lib/seo';
 
 export default function robots(): MetadataRoute.Robots {
+  const baseUrl = getSiteUrl();
+
   return {
     rules: {
       userAgent: '*',
@@ -27,7 +28,7 @@ export default function robots(): MetadataRoute.Robots {
         '/search',
       ],
     },
-    sitemap: `${BASE_URL}/sitemap.xml`,
-    host: BASE_URL,
+    sitemap: `${baseUrl}/sitemap.xml`,
+    host: baseUrl,
   };
 }

@@ -14,7 +14,7 @@ import PublicOnly from '@/components/layout/PublicOnly';
 import AskAI from '@/components/ai/AskAI';
 import { getSiteSettings } from '@/lib/site-settings';
 import AnalyticsTracker from '@/components/AnalyticsTracker';
-import { serializeJsonLd } from '@/lib/seo';
+import { serializeJsonLd, getSiteUrl } from '@/lib/seo';
 
 /**
  * Site-wide typography. Restored Mukta as the requested legacy face
@@ -52,9 +52,10 @@ export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSiteSettings();
   const brand = settings.organizationName;
   const description = 'Legal resources, law notes, old questions, and case laws for BALLB and LLB students in Nepal.';
+  const siteUrl = getSiteUrl();
 
   return {
-    metadataBase: new URL('https://www.entertainlawyers.com'),
+    metadataBase: new URL(siteUrl),
     title: {
       default: `${brand} — Nepal Legal Education Platform`,
       template: `%s | ${brand}`,
@@ -63,7 +64,7 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       title: `${brand} — Nepal Legal Education Platform`,
       description,
-      url: 'https://www.entertainlawyers.com',
+      url: siteUrl,
       siteName: brand,
       locale: 'en_NP',
       type: 'website',
@@ -94,6 +95,7 @@ export default async function RootLayout({
   const dict = await getDictionary();
   const session = await auth();
   const settings = await getSiteSettings();
+  const siteUrl = getSiteUrl();
 
   const getCachedSemesters = unstable_cache(
     async () => {
@@ -141,9 +143,9 @@ export default async function RootLayout({
               "@graph": [
                 {
                   "@type": "Organization",
-                  "@id": "https://www.entertainlawyers.com/#organization",
+                  "@id": `${siteUrl}/#organization`,
                   "name": settings.organizationName,
-                  "url": "https://www.entertainlawyers.com",
+                  "url": siteUrl,
                   "email": settings.contactEmail,
                   "telephone": settings.contactPhone,
                   "address": {
@@ -163,12 +165,12 @@ export default async function RootLayout({
                 },
                 {
                   "@type": "WebSite",
-                  "@id": "https://www.entertainlawyers.com/#website",
-                  "url": "https://www.entertainlawyers.com",
+                  "@id": `${siteUrl}/#website`,
+                  "url": siteUrl,
                   "name": settings.organizationName,
                   "description": "Nepal Legal Education Platform",
                   "publisher": {
-                    "@id": "https://www.entertainlawyers.com/#organization"
+                    "@id": `${siteUrl}/#organization`
                   }
                 }
               ]

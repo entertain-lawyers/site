@@ -1,6 +1,42 @@
 import type { Metadata } from 'next';
+import { env } from '@/env';
 
-const SITE_URL = 'https://www.entertainlawyers.com';
+const FALLBACK_SITE_URL = 'https://www.entertainlawyers.com';
+
+/**
+ * Single source of truth for the public origin used by canonical links,
+ * robots.txt, the sitemap, Open Graph and JSON-LD.
+ *
+ * `NEXT_PUBLIC_APP_URL` is the validated configuration source (see
+ * `src/env.ts`: a real URL, never localhost in production) and is already the
+ * base URL for payment callbacks, so SEO cannot drift to a different host.
+ * The fallback only keeps a misconfigured build working instead of throwing.
+ */
+export function getSiteUrl(): string {
+  try {
+    return new URL(env.NEXT_PUBLIC_APP_URL).origin;
+  } catch {
+    return FALLBACK_SITE_URL;
+  }
+}
+
+/**
+ * Maps a WordPress post type to the public route that actually renders it, or
+ * `null` when this site has no route for that category (OPINION and the
+ * semester/case-note categories are not exposed as articles). Used by the
+ * sitemap so it never advertises a URL that would 404.
+ */
+export function wordPressArticlePath(
+  type: string,
+  id: number,
+  lang: 'en' | 'ne'
+): string | null {
+  if (lang === 'ne') return type.startsWith('NEPALI_') ? `/nepali/post/${id}` : null;
+  if (type === 'NEWS') return `/news/${id}`;
+  if (type === 'BLOG') return `/blogs/${id}`;
+  if (type === 'FACT' || type === 'PERSONALITY') return `/historical-facts/${id}`;
+  return null;
+}
 
 /**
  * Turns rendered WordPress HTML into plain text suitable for a meta
@@ -75,7 +111,7 @@ export function postMetadata({
     openGraph: {
       title,
       description,
-      url: `${SITE_URL}${canonical}`,
+      url: `${getSiteUrl()}${canonical}`,
       type: 'article',
       publishedTime: publishedTime || undefined,
       modifiedTime: modifiedTime || undefined,

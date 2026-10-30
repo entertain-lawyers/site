@@ -7,7 +7,7 @@ import { CheckoutButtons } from '@/components/payments/CheckoutButtons';
 import { env } from '@/env';
 import { Metadata } from 'next';
 import { getDictionary } from '@/lib/i18n';
-import { serializeJsonLd } from '@/lib/seo';
+import { serializeJsonLd, getSiteUrl } from '@/lib/seo';
 import { BookOpen, FileText, Lock, ChevronLeft, ChevronRight, LockOpen } from 'lucide-react';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -31,7 +31,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     openGraph: {
       title: `${resource.title}`,
       description: `${descriptionText} for ${(resource as any).subject?.name}`,
-      url: `https://www.entertainlawyers.com/resources/${id}`,
+      url: `${getSiteUrl()}/resources/${id}`,
     },
   };
 }
@@ -94,30 +94,32 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
   const prevResource = currentIndex > 0 ? allResourcesQuery[currentIndex - 1] : null;
   const nextResource = currentIndex < allResourcesQuery.length - 1 ? allResourcesQuery[currentIndex + 1] : null;
 
+  const siteUrl = getSiteUrl();
+
   const breadcrumbElements = [
     {
       "@type": "ListItem",
       "position": 1,
       "name": dict.home,
-      "item": "https://www.entertainlawyers.com/"
+      "item": `${siteUrl}/`
     },
     {
       "@type": "ListItem",
       "position": 2,
       "name": getResourceTypeLabel(resource.type) || 'Study',
-      "item": `https://www.entertainlawyers.com/study?type=${resource.type}`
+      "item": `${siteUrl}/study?type=${resource.type}`
     },
     {
       "@type": "ListItem",
       "position": 3,
       "name": typedResource.subject?.semester?.name || dict.semester,
-      "item": `https://www.entertainlawyers.com/semesters/${typedResource.subject?.semesterId}`
+      "item": `${siteUrl}/semesters/${typedResource.subject?.semesterId}`
     },
     {
       "@type": "ListItem",
       "position": 4,
       "name": typedResource.subject?.name || dict.subject,
-      "item": `https://www.entertainlawyers.com/study?type=${resource.type}&subject=${typedResource.subjectId}`
+      "item": `${siteUrl}/study?type=${resource.type}&subject=${typedResource.subjectId}`
     }
   ];
 
@@ -126,20 +128,20 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
       "@type": "ListItem",
       "position": 5,
       "name": resource.unit.name,
-      "item": `https://www.entertainlawyers.com/study?type=${resource.type}&subject=${typedResource.subjectId}&unit=${resource.unitId}`
+      "item": `${siteUrl}/study?type=${resource.type}&subject=${typedResource.subjectId}&unit=${resource.unitId}`
     });
     breadcrumbElements.push({
       "@type": "ListItem",
       "position": 6,
       "name": resource.title,
-      "item": `https://www.entertainlawyers.com/resources/${id}`
+      "item": `${siteUrl}/resources/${id}`
     });
   } else {
     breadcrumbElements.push({
       "@type": "ListItem",
       "position": 5,
       "name": resource.title,
-      "item": `https://www.entertainlawyers.com/resources/${id}`
+      "item": `${siteUrl}/resources/${id}`
     });
   }
 

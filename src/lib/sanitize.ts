@@ -20,19 +20,36 @@ import sanitizeHtmlLib from 'sanitize-html';
 // (`{ [tag]: { [cssProperty]: RegExp[] } }` in @types/sanitize-html).
 const cssRules: Record<string, RegExp[]> = {
   'text-align': [/^(left|center|right|justify)$/i],
+  // 3/6-digit hex only (no alpha channel) and rgb(a) with a non-zero alpha,
+  // so `#0000`, `#00000000`, `rgba(0,0,0,0)` and `transparent` cannot make
+  // text invisible.
   color: [
-    /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i,
-    /^rgba?\(\s*\d{1,3}\s*(?:,\s*\d{1,3}\s*){2}(?:,\s*(?:0(?:\.\d+)?|1(?:\.0+)?))?\s*\)$/i,
+    /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i,
+    /^rgba?\(\s*\d{1,3}\s*(?:,\s*\d{1,3}\s*){2}(?:,\s*(?:1(?:\.0+)?|0?\.\d*[1-9]\d*))?\s*\)$/i,
   ],
   'font-weight': [/^(?:normal|bold|bolder|lighter|inherit|[1-9]00)$/i],
+  // Bounded so a post cannot blow up the layout: 1-72px, 0.1-5rem/em,
+  // 1-54pt, 1-300%.
   'font-size': [
     /^(?:inherit|xx-small|x-small|small|medium|large|x-large|xx-large)$/i,
-    /^\d+(?:\.\d+)?(?:px|rem|em|pt|%)$/i,
+    /^(?:[1-9]|[1-6]\d|7[0-2])px$/i,
+    /^(?:0?\.[1-9]\d*|[1-4](?:\.\d+)?|5(?:\.0+)?)(?:rem|em)$/i,
+    /^(?:[1-9]|[1-4]\d|5[0-4])pt$/i,
+    /^(?:[1-9]|[1-9]\d|[12]\d\d|300)%$/i,
   ],
   'text-decoration': [/^(?:none|underline|line-through|underline line-through|line-through underline)$/i],
   'text-decoration-line': [/^(?:none|underline|line-through|underline line-through|line-through underline)$/i],
-  'margin-top': [/^(?:0|-\d+(?:\.\d+)?|\d+(?:\.\d+)?)(?:px|rem|em|%)?$/i],
-  'margin-bottom': [/^(?:0|-\d+(?:\.\d+)?|\d+(?:\.\d+)?)(?:px|rem|em|%)?$/i],
+  // Bounded: ±200px, ±10rem/em, ±100%.
+  'margin-top': [
+    /^(?:-?0|0px|-?(?:[1-9]\d?|1\d\d|200)px)$/i,
+    /^(?:-?0|0(?:rem|em)|-?(?:[1-9](?:\.\d+)?|10(?:\.0+)?)(?:rem|em))$/i,
+    /^(?:-?0|0%|-?(?:[1-9]\d?|100)%)$/i,
+  ],
+  'margin-bottom': [
+    /^(?:-?0|0px|-?(?:[1-9]\d?|1\d\d|200)px)$/i,
+    /^(?:-?0|0(?:rem|em)|-?(?:[1-9](?:\.\d+)?|10(?:\.0+)?)(?:rem|em))$/i,
+    /^(?:-?0|0%|-?(?:[1-9]\d?|100)%)$/i,
+  ],
   'list-style-type': [/^(?:none|disc|decimal|circle|square)$/i],
 };
 

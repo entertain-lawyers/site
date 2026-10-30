@@ -82,4 +82,35 @@ describe("sanitizeHtml inline styles", () => {
 
     expect(clean).toBe("<p>x</p>");
   });
+
+  it("rejects fully transparent text colours", () => {
+    const clean = sanitizeHtml(
+      '<p style="color: transparent;">a</p>' +
+        '<p style="color: #0000;">b</p>' +
+        '<p style="color: #00000000;">c</p>' +
+        '<p style="color: rgba(0, 0, 0, 0);">d</p>' +
+        '<p style="color: rgba(0, 0, 0, 0.0);">e</p>' +
+        '<p style="color: rgba(0, 0, 0, 0.4);">f</p>'
+    );
+
+    expect(clean).not.toContain("transparent");
+    expect(clean).not.toContain("#0000");
+    expect(clean).not.toContain("rgba(0, 0, 0, 0)");
+    // A visible alpha value is still ordinary formatting.
+    expect(clean).toContain("rgba(0, 0, 0, 0.4)");
+  });
+
+  it("bounds font sizes and margins", () => {
+    const clean = sanitizeHtml(
+      '<p style="font-size: 900px; margin-top: 5000px; margin-bottom: -900px;">a</p>' +
+        '<p style="font-size: 17px; margin-top: 0px; margin-bottom: 10px;">b</p>'
+    );
+
+    expect(clean).not.toContain("900px");
+    expect(clean).not.toContain("5000px");
+    expect(clean).not.toContain("-900px");
+    expect(clean).toContain("font-size:17px");
+    expect(clean).toContain("margin-top:0px");
+    expect(clean).toContain("margin-bottom:10px");
+  });
 });
