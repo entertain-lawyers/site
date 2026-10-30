@@ -182,6 +182,55 @@ describe('WordPress REST API Client (src/lib/wordpress.ts)', () => {
       expect(res.data).toEqual([]);
       expect(res.total).toBe(0);
     });
+
+    it('should surface the real error when throwOnError is set', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        statusText: 'Service Unavailable',
+        json: async () => ({ message: 'Maintenance' }),
+      } as Response);
+
+      await expect(getWordPressPosts({ throwOnError: true })).rejects.toMatchObject({
+        name: 'WordPressApiError',
+        status: 503,
+      });
+    });
+
+    it('should report an aborted request as a timeout when throwOnError is set', async () => {
+      const abort = Object.assign(new Error('This operation was aborted'), { name: 'AbortError' });
+      vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(abort);
+
+      await expect(getWordPressPosts({ throwOnError: true, timeoutMs: 5 })).rejects.toThrow(
+        /timed out after 5ms/
+      );
+    });
+
+    it('should report a malformed base URL instead of throwing before the handler', async () => {
+      process.env.WP_ENGLISH_URL = 'not-a-url';
+
+      await expect(getWordPressPosts({ throwOnError: true })).rejects.toThrow(/Invalid URL|Failed to parse URL/i);
+    });
+  });
+
+  describe('4b. Credential detection', () => {
+    it('detects each supported credential shape', async () => {
+      const { hasWordPressCredentials } = await import('../wordpress');
+
+      delete process.env.WP_AUTH_HEADER;
+      delete process.env.WP_AUTH_USERNAME;
+      delete process.env.WP_AUTH_APP_PASSWORD;
+      expect(hasWordPressCredentials()).toBe(false);
+
+      process.env.WP_AUTH_HEADER = 'Bearer token';
+      expect(hasWordPressCredentials()).toBe(true);
+
+      delete process.env.WP_AUTH_HEADER;
+      process.env.WP_AUTH_USERNAME = 'admin';
+      expect(hasWordPressCredentials()).toBe(false);
+      process.env.WP_AUTH_APP_PASSWORD = 'app password';
+      expect(hasWordPressCredentials()).toBe(true);
+    });
   });
 
   describe('5. Category Mapping', () => {

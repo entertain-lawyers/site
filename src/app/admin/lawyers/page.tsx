@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import Image from 'next/image';
+import { randomUUID } from 'crypto';
 import { Plus, Edit, Scale, ShieldCheck, Phone, Mail, MessageCircle, MapPin, ExternalLink } from 'lucide-react';
 import DeleteLawyerButton from './DeleteLawyerButton';
 import ToggleLawyerButton from './ToggleLawyerButton';
@@ -10,13 +11,18 @@ export const metadata = { title: 'Manage Consultation Lawyers | Admin' };
 export default async function AdminLawyersPage() {
   let lawyers: any[] = [];
   let dbError = false;
+  let errorId: string | null = null;
 
   try {
     lawyers = await prisma.consultationLawyer.findMany({
       orderBy: [{ isFeatured: 'desc' }, { displayOrder: 'asc' }],
     });
   } catch (error: any) {
-    console.error('[AdminLawyersPage] Error fetching consultation lawyers:', error);
+    errorId = randomUUID().slice(0, 8);
+    console.error(`[admin/lawyers] ${errorId}`, {
+      code: error?.code,
+      message: error?.message,
+    });
     dbError = true;
   }
 
@@ -67,7 +73,7 @@ export default async function AdminLawyersPage() {
           </div>
           <div>
             <span className="text-xs font-semibold text-text-muted uppercase">Total Profiles</span>
-            <p className="text-xl font-extrabold text-navy dark:text-white">{lawyers.length}</p>
+            <p className="text-xl font-extrabold text-navy dark:text-white">{dbError ? '—' : lawyers.length}</p>
           </div>
         </div>
 
@@ -77,7 +83,7 @@ export default async function AdminLawyersPage() {
           </div>
           <div>
             <span className="text-xs font-semibold text-text-muted uppercase">Active for Booking</span>
-            <p className="text-xl font-extrabold text-navy dark:text-white">{availableCount}</p>
+            <p className="text-xl font-extrabold text-navy dark:text-white">{dbError ? '—' : availableCount}</p>
           </div>
         </div>
 
@@ -87,7 +93,7 @@ export default async function AdminLawyersPage() {
           </div>
           <div>
             <span className="text-xs font-semibold text-text-muted uppercase">Bar Council Verified</span>
-            <p className="text-xl font-extrabold text-navy dark:text-white">{certifiedCount}</p>
+            <p className="text-xl font-extrabold text-navy dark:text-white">{dbError ? '—' : certifiedCount}</p>
           </div>
         </div>
       </div>
@@ -110,8 +116,15 @@ export default async function AdminLawyersPage() {
             <tbody className="divide-y divide-border text-sm">
               {dbError ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center bg-red-50 dark:bg-red-950/20 text-red-600">
-                    Unable to load consultation lawyers. Please verify the database table.
+                  <td colSpan={7} className="p-8 text-center bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-300">
+                    <p className="font-bold">Consultation lawyers could not be loaded.</p>
+                    <p className="mt-1 text-sm">
+                      The database query failed. This is not an empty directory — do not assume there are no lawyers.
+                    </p>
+                    {errorId ? <p className="mt-2 text-xs font-mono opacity-80">Reference: {errorId}</p> : null}
+                    <Link href="/admin/lawyers" className="mt-4 inline-flex rounded-lg bg-navy px-4 py-2 text-xs font-bold text-white hover:bg-navy/90">
+                      Try again
+                    </Link>
                   </td>
                 </tr>
               ) : lawyers.length === 0 ? (

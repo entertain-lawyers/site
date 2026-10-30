@@ -51,7 +51,6 @@ function buildCspHeader(): string {
 }
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ['isomorphic-dompurify'],
   poweredByHeader: false,
   experimental: {
     serverActions: {

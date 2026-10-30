@@ -24,6 +24,7 @@ export const metadata: Metadata = {
 
 export default async function ConsultationPage() {
   let lawyers: ConsultationLawyer[] = [];
+  let loadError = false;
 
   try {
     const list = await prisma.consultationLawyer.findMany({
@@ -34,36 +35,7 @@ export default async function ConsultationPage() {
     lawyers = list;
   } catch (error) {
     console.error('[ConsultationPage] Failed to fetch consultation lawyers from database:', error);
-  }
-
-  // Fallback: Ensure certified advocate Ram Babu Das is present if table is empty
-  if (lawyers.length === 0) {
-    lawyers = [
-      {
-        id: 'acc06d44-97d3-44e5-bc4a-0a2de6df5585',
-        name: 'Ram Babu Das',
-        slug: 'ram-babu-das',
-        title: 'Advocate / Senior Legal Counsel',
-        licenseNumber: 'Nepal Bar Council Regd. No. 24890',
-        specialization: 'Civil Litigation, Property Partition & Corporate Advisory',
-        practiceAreas: 'Civil & Commercial Law, Property Partition, Corporate Advisory, Constitutional Law, Contract Drafting',
-        courtJurisdiction: 'Supreme Court of Nepal, High Courts & District Courts',
-        experience: '7+ Years Legal Practice',
-        qualifications: 'LL.M. (Commercial Law), B.A. LL.B.',
-        languages: 'Nepali, English, Maithili, Hindi',
-        phone: '+977 9822010737',
-        email: 'baburam.jnk@gmail.com',
-        whatsappNumber: '+9779822010737',
-        location: 'Pokhara & Kathmandu Chambers',
-        shortBio: 'Certified Advocate licensed by Nepal Bar Council specializing in civil dispute resolution, ancestral property partitions, corporate advisory, and high-stakes commercial litigation.',
-        bio: 'Advocate Ram Babu Das is a licensed legal practitioner with extensive advocacy and litigation experience across Nepal judicial hierarchy, including the Supreme Court of Nepal and High Courts.',
-        imageUrl: '/uploads/editorial/team/2026-10-10-a37e81ad-b750-4da2-be04-51896e144475.jpg',
-        rating: 5.0,
-        displayOrder: 1,
-        isAvailable: true,
-        isFeatured: true,
-      },
-    ];
+    loadError = true;
   }
 
   return (
@@ -77,7 +49,7 @@ export default async function ConsultationPage() {
         </div>
       }
     >
-      <ConsultationClient lawyers={lawyers} />
+      <ConsultationClient lawyers={lawyers} loadError={loadError} />
     </Suspense>
   );
 }

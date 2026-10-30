@@ -30,7 +30,6 @@
     "@upstash/redis": "^1.38.4",
     "bcryptjs": "^3.0.3",
     "cheerio": "^1.2.0",
-    "isomorphic-dompurify": "^2.30.0",
     "lucide-react": "^1.47.0",
     "next": "16.4.3",
     "next-auth": "^5.0.0-beta.32",
@@ -40,6 +39,7 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "react-quill-new": "^3.8.3",
+    "sanitize-html": "^2.18.1",
     "uuid": "^14.0.2",
     "zod": "^4.6.5"
   },
@@ -49,6 +49,7 @@
     "@types/nodemailer": "^8.0.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/sanitize-html": "^2.16.2",
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
     "prisma": "^6.4.1",
