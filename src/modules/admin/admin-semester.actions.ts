@@ -1,14 +1,15 @@
 'use server';
 
-import { createSafeAction } from '@/lib/safe-action';
+import { createSafeAction, parseOrThrow } from '@/lib/safe-action';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
+import { SEMESTERS_CACHE_TAG } from '@/lib/cache-tags';
 import { isRecordInUseError, isUniqueConstraintError } from '@/lib/prisma-errors';
 
 const createSemesterSchema = z.object({
-  name: z.string().min(1, 'Semester name is required'),
+  name: z.string().trim().min(1, 'Semester name is required'),
   slug: z
     .string()
     .regex(/^[a-z0-9-]+$/, 'Slug must contain only lowercase letters, numbers, and hyphens')
@@ -19,7 +20,7 @@ const createSemesterSchema = z.object({
 
 const updateSemesterSchema = z.object({
   id: z.string().uuid(),
-  name: z.string().min(1, 'Semester name is required'),
+  name: z.string().trim().min(1, 'Semester name is required'),
   slug: z
     .string()
     .regex(/^[a-z0-9-]+$/, 'Slug must contain only lowercase letters, numbers, and hyphens')
@@ -36,6 +37,8 @@ export const createSemesterAction = createSafeAction(async (args: z.infer<typeof
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) {
     throw new Error('Unauthorized: Admin or Editor access required');
   }
+
+  args = parseOrThrow(createSemesterSchema, args);
 
   const slug = args.slug && args.slug.trim() !== '' ? args.slug.trim().toLowerCase() : null;
 
@@ -63,6 +66,7 @@ export const createSemesterAction = createSafeAction(async (args: z.infer<typeof
     revalidatePath('/admin/study/semesters');
     revalidatePath('/study');
     revalidatePath('/semesters');
+    revalidateTag(SEMESTERS_CACHE_TAG, { expire: 0 });
     return { id: semester.id };
   } catch (error) {
     if (isUniqueConstraintError(error)) {
@@ -76,6 +80,8 @@ export const updateSemesterAction = createSafeAction(async (args: z.infer<typeof
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) {
     throw new Error('Unauthorized: Admin or Editor access required');
   }
+
+  args = parseOrThrow(updateSemesterSchema, args);
 
   const existing = await prisma.semester.findUnique({
     where: { id: args.id },
@@ -112,6 +118,7 @@ export const updateSemesterAction = createSafeAction(async (args: z.infer<typeof
     revalidatePath('/admin/study/semesters');
     revalidatePath('/study');
     revalidatePath('/semesters');
+    revalidateTag(SEMESTERS_CACHE_TAG, { expire: 0 });
     return { success: true };
   } catch (error) {
     if (isUniqueConstraintError(error)) {
@@ -125,6 +132,8 @@ export const deleteSemesterAction = createSafeAction(async (args: z.infer<typeof
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) {
     throw new Error('Unauthorized: Admin or Editor access required');
   }
+
+  args = parseOrThrow(deleteSemesterSchema, args);
 
   const existing = await prisma.semester.findUnique({
     where: { id: args.id },
@@ -160,5 +169,6 @@ export const deleteSemesterAction = createSafeAction(async (args: z.infer<typeof
   revalidatePath('/admin/study/semesters');
   revalidatePath('/study');
   revalidatePath('/semesters');
+  revalidateTag(SEMESTERS_CACHE_TAG, { expire: 0 });
   return { success: true };
 });

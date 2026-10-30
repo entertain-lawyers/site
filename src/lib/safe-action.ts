@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getClientIp } from "@/lib/client-ip";
 import { Role } from "@prisma/client";
 import { headers } from "next/headers";
+import type { z } from "zod";
 
 type ActionOptions = {
   requireAuth?: boolean;
@@ -50,6 +51,20 @@ function toPublicErrorMessage(error: unknown): string {
     message.includes("do not have permission");
 
   return isSafeMessage ? message : GENERIC_ERROR;
+}
+
+/**
+ * `createSafeAction` passes the raw client payload through, so every action
+ * validates it before touching the database. The first issue message is
+ * surfaced to the admin form; the prefix keeps it visible through
+ * `toPublicErrorMessage`, which only forwards messages it recognises as safe.
+ */
+export function parseOrThrow<T extends z.ZodTypeAny>(schema: T, args: unknown): z.infer<T> {
+  const parsed = schema.safeParse(args);
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0]?.message || "please check the form"}`);
+  }
+  return parsed.data;
 }
 
 export function createSafeAction<TArgs, TReturn>(

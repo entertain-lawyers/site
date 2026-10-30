@@ -26,7 +26,7 @@ export default async function SearchPage({
   const result = q.length >= 2 ? await runSearch(q, ip) : null;
 
   return (
-    <main className="flex-grow flex flex-col w-full bg-background">
+    <div className="flex-grow flex flex-col w-full bg-background">
       <div className="w-full max-w-3xl mx-auto px-4 py-8 sm:py-12">
         {/* Query header */}
         <div className="mb-6">
@@ -121,6 +121,6 @@ export default async function SearchPage({
           </div>
         )}
       </div>
-    </main>
+    </div>
   );
 }

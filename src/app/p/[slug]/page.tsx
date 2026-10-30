@@ -25,9 +25,9 @@ export default async function PublicBuilderPage({ params }: { params: Promise<{ 
   if (!published || !page) notFound();
 
   return (
-    <main className="pb-16">
+    <div className="pb-16">
       <Render config={builderConfig} data={page.data as Data} />
-    </main>
+    </div>
   );
 }
 

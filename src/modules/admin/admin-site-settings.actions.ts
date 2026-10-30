@@ -1,6 +1,6 @@
 'use server';
 
-import { createSafeAction } from '@/lib/safe-action';
+import { createSafeAction, parseOrThrow } from '@/lib/safe-action';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
@@ -54,21 +54,6 @@ const homepageSchema = z.object({
 
 function requireAdmin(role?: Role) {
   if (role !== Role.ADMIN) throw new Error('Unauthorized: Admin access required.');
-}
-
-/**
- * `createSafeAction` passes the raw client payload through, so every action
- * validates it here before touching the database. The first issue message is
- * surfaced to the admin form.
- */
-function parseOrThrow<T extends z.ZodTypeAny>(schema: T, args: unknown): z.infer<T> {
-  const parsed = schema.safeParse(args);
-  if (!parsed.success) {
-    // Prefixing keeps the detail visible through `createSafeAction`, which
-    // only forwards messages it recognises as safe for users.
-    throw new Error(`Invalid input: ${parsed.error.issues[0]?.message || 'please check the form'}`);
-  }
-  return parsed.data;
 }
 
 function toNull(value: string | undefined) {

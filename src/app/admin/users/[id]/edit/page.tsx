@@ -6,7 +6,7 @@ import { Metadata } from 'next';
 import UserEditClient from './UserEditClient';
 
 export const metadata: Metadata = {
-  title: 'Edit User - Admin - Entertain Lawyers',
+  title: 'Edit User - Admin',
 };
 
 /**

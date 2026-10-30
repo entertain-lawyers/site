@@ -6,7 +6,7 @@ import UsersClient from './UsersClient';
 import { Role } from '@prisma/client';
 
 export const metadata: Metadata = {
-  title: 'Manage Users - Admin - Entertain Lawyers',
+  title: 'Manage Users - Admin',
 };
 
 export default async function AdminUsersPage() {

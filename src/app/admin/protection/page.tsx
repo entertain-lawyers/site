@@ -6,7 +6,7 @@ import { Metadata } from 'next';
 import { PROTECTION_ACTION_PREFIX, PROTECTION_LABELS, protectionSince, dailyAttemptBuckets } from '@/lib/protection';
 
 export const metadata: Metadata = {
-  title: 'Protection Center - Entertain Lawyers Admin',
+  title: 'Protection Center - Admin',
 };
 
 /**

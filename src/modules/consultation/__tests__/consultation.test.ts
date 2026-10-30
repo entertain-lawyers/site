@@ -43,6 +43,9 @@ vi.mock('@/lib/auth', () => ({
 }));
 import { auth } from '@/lib/auth';
 import { sendConsultationNotificationEmail, sendConsultationClientAckEmail } from '@/lib/mail';
+import type { Mock } from 'vitest';
+
+const mock = (fn: unknown) => fn as Mock;
 
 // Mock prisma
 vi.mock('@/lib/prisma', () => ({
@@ -52,6 +55,9 @@ vi.mock('@/lib/prisma', () => ({
       findUnique: vi.fn(async ({ where }: { where: { id: string } }) => ({
         role: where.id === 'admin1' ? 'ADMIN' : 'USER',
       })),
+    },
+    consultationLawyer: {
+      findFirst: vi.fn(async () => null),
     },
     consultationRequest: {
       create: vi.fn(),
@@ -177,13 +183,14 @@ describe('Consultation Request Module', () => {
       expect(sendConsultationClientAckEmail).toHaveBeenCalled();
     });
 
-    it('attaches selected lawyer to description and referralSource', async () => {
+    it('attaches the selected lawyer, resolved from the database, to description and referralSource', async () => {
       const fakeCreated = {
         id: 'lawyer-consultation-456',
         fullName: 'Hari Prasad',
         createdAt: new Date('2026-10-12T10:00:00Z'),
       };
-      (prisma.consultationRequest.create as any).mockResolvedValue(fakeCreated);
+      mock(prisma.consultationRequest.create).mockResolvedValue(fakeCreated);
+      mock(prisma.consultationLawyer.findFirst).mockResolvedValueOnce({ name: 'Ram Babu Das' });
 
       const payload = {
         fullName: 'Hari Prasad',
@@ -192,28 +199,86 @@ describe('Consultation Request Module', () => {
         practiceArea: 'CRIMINAL_DEFENSE',
         subject: 'Bail Application Advice',
         description: 'Need urgent consultation regarding a court appearance in Pokhara.',
-        lawyerName: 'Advocate Ram Babu Das',
-        lawyerId: 'lawyer-123',
+        lawyerName: 'Ram Babu Das',
+        lawyerId: '22222222-2222-4222-8222-222222222222',
       };
 
       const result = await submitConsultationRequestAction(payload);
       expect(result.success).toBe(true);
+      if (result.success) expect(result.data.lawyerName).toBe('Ram Babu Das');
 
+      expect(prisma.consultationLawyer.findFirst).toHaveBeenCalledWith({
+        where: { id: '22222222-2222-4222-8222-222222222222', isAvailable: true },
+        select: { name: true },
+      });
       expect(prisma.consultationRequest.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           fullName: 'Hari Prasad',
-          description: expect.stringContaining('[Requested Advocate: Advocate Ram Babu Das]'),
-          referralSource: 'Advocate: Advocate Ram Babu Das',
+          description: expect.stringContaining('[Requested Advocate: Ram Babu Das]'),
+          referralSource: 'Advocate: Ram Babu Das',
         }),
       });
 
       expect(sendConsultationNotificationEmail).toHaveBeenCalledWith(
         expect.objectContaining({
           request: expect.objectContaining({
-            lawyerName: 'Advocate Ram Babu Das',
+            lawyerName: 'Ram Babu Das',
           }),
         })
       );
+    });
+
+    it('ignores a client-supplied advocate name that does not match an available lawyer', async () => {
+      mock(prisma.consultationRequest.create).mockResolvedValue({
+        id: 'spoof-1',
+        fullName: 'Visitor',
+        createdAt: new Date(),
+      });
+
+      const result = await submitConsultationRequestAction({
+        fullName: 'Visitor',
+        email: 'victim@example.com',
+        phone: '9851000000',
+        practiceArea: 'CRIMINAL_DEFENSE',
+        subject: 'Hello there',
+        description: 'Some description that is long enough.',
+        lawyerName: '<a href="https://evil.example">Click to verify</a>',
+        lawyerId: 'not-a-uuid',
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.lawyerName).toBeNull();
+      expect(prisma.consultationLawyer.findFirst).not.toHaveBeenCalled();
+      const { data } = mock(prisma.consultationRequest.create).mock.calls[0][0];
+      expect(data.description).not.toContain('evil.example');
+      expect(data.referralSource).toBeNull();
+      expect(sendConsultationClientAckEmail).toHaveBeenCalledWith(
+        expect.objectContaining({ lawyerName: null })
+      );
+    });
+
+    it('keeps the saved request when notification emails fail', async () => {
+      mock(prisma.consultationRequest.create).mockResolvedValue({
+        id: 'saved-1',
+        fullName: 'Sita',
+        createdAt: new Date(),
+      });
+      mock(sendConsultationNotificationEmail).mockRejectedValueOnce(new Error('SMTP down'));
+      mock(sendConsultationClientAckEmail).mockRejectedValueOnce(new Error('SMTP down'));
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      const result = await submitConsultationRequestAction({
+        fullName: 'Sita',
+        email: 'sita@example.com',
+        phone: '9851000000',
+        practiceArea: 'CRIMINAL_DEFENSE',
+        subject: 'Hello there',
+        description: 'Some description that is long enough.',
+      });
+
+      expect(result).toEqual({ success: true, data: expect.objectContaining({ id: 'saved-1' }) });
+      expect(consoleSpy).toHaveBeenCalledTimes(2);
+      consoleSpy.mockRestore();
     });
   });
 

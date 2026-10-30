@@ -3,7 +3,7 @@ import { getCurrentUser } from '@/lib/api-auth';
 import { getClientIp } from '@/lib/client-ip';
 import { rateLimit } from '@/lib/rate-limit';
 import { prisma } from '@/lib/prisma';
-import { getWordPressPostById, mapCategoryToType } from '@/lib/wordpress';
+import { getWordPressPostById, mapCategoryToType, parseWordPressPostId } from '@/lib/wordpress';
 import {
   createComment,
   isPostType,
@@ -87,7 +87,19 @@ export async function POST(request: Request) {
 
   // Refuse comments attached to IDs that do not resolve to published content.
   if (postType === 'NEWS' || postType === 'BLOG') {
-    const wpPost = await getWordPressPostById(Number(postId), 'en');
+    const wpId = parseWordPressPostId(postId);
+    let wpPost = null;
+    if (wpId) {
+      try {
+        wpPost = await getWordPressPostById(wpId, 'en');
+      } catch {
+        // WordPress is down: the post may well exist, so do not call it invalid.
+        return NextResponse.json(
+          { error: 'unavailable', message: 'Comments are temporarily unavailable. Please try again shortly.' },
+          { status: 503 }
+        );
+      }
+    }
     if (
       !wpPost ||
       wpPost.status !== 'publish' ||

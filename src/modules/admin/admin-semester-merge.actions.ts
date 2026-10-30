@@ -4,7 +4,8 @@ import { createSafeAction } from '@/lib/safe-action';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
+import { SEMESTERS_CACHE_TAG } from '@/lib/cache-tags';
 
 const previewSemesterMergeSchema = z.object({
   sourceId: z.string().uuid('Invalid source semester ID'),
@@ -252,6 +253,7 @@ export const mergeSemestersAction = createSafeAction(
       revalidatePath('/admin/study/subjects');
       revalidatePath('/study');
       revalidatePath('/semesters');
+      revalidateTag(SEMESTERS_CACHE_TAG, { expire: 0 });
 
       return {
         success: true,

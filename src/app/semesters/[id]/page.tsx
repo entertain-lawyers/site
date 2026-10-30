@@ -152,7 +152,7 @@ export default async function SemesterPage({ params }: PageProps) {
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {activeSubjects.some(s => s.resources.length > 0) && (
           <div className="mb-10">
             <ResourceTypeFilter 
@@ -321,7 +321,7 @@ export default async function SemesterPage({ params }: PageProps) {
             <p className="text-text-secondary">{dict.noResourcesFound}</p>
           </div>
         )}
-      </main>
+      </div>
     </div>
   );
 }

@@ -14,7 +14,7 @@ export default async function AboutPage() {
   const dict = await getDictionary();
 
   return (
-    <main className="min-h-screen bg-background py-16 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-background py-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-16">
           <h1 className="text-4xl md:text-5xl font-black text-navy dark:text-white tracking-tight mb-6">
@@ -73,6 +73,6 @@ export default async function AboutPage() {
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 'use server';
 
-import { createSafeAction } from '@/lib/safe-action';
+import { createSafeAction, parseOrThrow } from '@/lib/safe-action';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
@@ -8,7 +8,7 @@ import { revalidatePath } from 'next/cache';
 import { isRecordInUseError, isUniqueConstraintError } from '@/lib/prisma-errors';
 
 const createSubjectSchema = z.object({
-  name: z.string().min(1, 'Subject name is required'),
+  name: z.string().trim().min(1, 'Subject name is required'),
   slug: z
     .string()
     .regex(/^[a-z0-9-]+$/, 'Slug must contain only lowercase letters, numbers, and hyphens')
@@ -20,7 +20,7 @@ const createSubjectSchema = z.object({
 
 const updateSubjectSchema = z.object({
   id: z.string().uuid(),
-  name: z.string().min(1, 'Subject name is required'),
+  name: z.string().trim().min(1, 'Subject name is required'),
   slug: z
     .string()
     .regex(/^[a-z0-9-]+$/, 'Slug must contain only lowercase letters, numbers, and hyphens')
@@ -38,6 +38,8 @@ export const createSubjectAction = createSafeAction(async (args: z.infer<typeof 
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) {
     throw new Error('Unauthorized: Admin or Editor access required');
   }
+
+  args = parseOrThrow(createSubjectSchema, args);
 
   const slug = args.slug && args.slug.trim() !== '' ? args.slug.trim().toLowerCase() : null;
 
@@ -79,6 +81,8 @@ export const updateSubjectAction = createSafeAction(async (args: z.infer<typeof 
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) {
     throw new Error('Unauthorized: Admin or Editor access required');
   }
+
+  args = parseOrThrow(updateSubjectSchema, args);
 
   const existing = await prisma.subject.findUnique({
     where: { id: args.id },
@@ -129,6 +133,8 @@ export const deleteSubjectAction = createSafeAction(async (args: z.infer<typeof 
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) {
     throw new Error('Unauthorized: Admin or Editor access required');
   }
+
+  args = parseOrThrow(deleteSubjectSchema, args);
 
   const existing = await prisma.subject.findUnique({
     where: { id: args.id },

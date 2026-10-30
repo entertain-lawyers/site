@@ -73,7 +73,9 @@ export async function PUT(request: Request) {
     const baseUploadsDir = path.resolve(process.cwd(), 'public', 'uploads');
     const targetFilePath = path.resolve(baseUploadsDir, intent.key);
 
-    if (!targetFilePath.startsWith(baseUploadsDir)) {
+    // Compare with a trailing separator: a bare prefix check also accepts a
+    // sibling such as "public/uploads-evil".
+    if (!targetFilePath.startsWith(baseUploadsDir + path.sep)) {
       throw new Error('Path traversal detected in generated key');
     }
 

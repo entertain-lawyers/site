@@ -1,31 +1,38 @@
-import { getWordPressPostById, getWordPressPosts, mapCategoryToType } from '@/lib/wordpress';
+import { getWordPressPostById, getWordPressPosts, mapCategoryToType, parseWordPressPostId } from '@/lib/wordpress';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { formatBSDate } from '@/lib/nepali-date';
 import { sanitizeHtml } from '@/lib/sanitize';
 import { Metadata } from 'next';
+import { postMetadata } from '@/lib/seo';
 
 export const revalidate = 60;
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
-  const wpId = Number(id);
-  if (isNaN(wpId)) notFound();
+  const wpId = parseWordPressPostId(id);
+  if (!wpId) notFound();
 
   const wpPost = await getWordPressPostById(wpId, 'ne');
   if (!wpPost || wpPost.status !== 'publish') notFound();
   if (!mapCategoryToType(wpPost.categories, 'ne').startsWith('NEPALI_')) notFound();
 
-  return {
+  return postMetadata({
     title: `${wpPost.title.rendered} - नेपाली`,
-    alternates: { canonical: `/nepali/post/${id}` },
-  };
+    excerpt: wpPost.excerpt?.rendered,
+    content: wpPost.content?.rendered,
+    canonical: `/nepali/post/${wpId}`,
+    image: wpPost._embedded?.['wp:featuredmedia']?.[0]?.source_url,
+    publishedTime: wpPost.date,
+    modifiedTime: wpPost.modified,
+    fallbackDescription: 'Entertain Lawyers मा पूरा लेख पढ्नुहोस्।',
+  });
 }
 
 export default async function NepaliPostPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const wpId = Number(id);
-  if (isNaN(wpId)) notFound();
+  const wpId = parseWordPressPostId(id);
+  if (!wpId) notFound();
 
   const wpPost = await getWordPressPostById(wpId, 'ne');
   if (!wpPost || wpPost.status !== 'publish') {

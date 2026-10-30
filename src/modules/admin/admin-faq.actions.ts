@@ -82,11 +82,15 @@ export const updateFAQAction = createSafeAction(async (args: z.infer<typeof upda
 export const deleteFAQAction = createSafeAction(async (args: z.infer<typeof deleteFAQSchema>, session) => {
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) throw new Error('Unauthorized');
 
-  const existing = await prisma.fAQ.findUnique({ where: { id: args.id } });
+  const parsed = deleteFAQSchema.safeParse(args);
+  if (!parsed.success) throw new Error('Invalid FAQ id');
+  const { id } = parsed.data;
+
+  const existing = await prisma.fAQ.findUnique({ where: { id } });
   if (!existing) throw new Error('FAQ not found');
 
   try {
-    await prisma.fAQ.delete({ where: { id: args.id } });
+    await prisma.fAQ.delete({ where: { id } });
   } catch (error) {
     if (isRecordNotFoundError(error)) throw new Error('FAQ not found');
     throw error;
@@ -109,16 +113,20 @@ const reorderFAQSchema = z.object({
 export const reorderFAQAction = createSafeAction(async (args: z.infer<typeof reorderFAQSchema>, session) => {
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) throw new Error('Unauthorized');
 
+  const parsed = reorderFAQSchema.safeParse(args);
+  if (!parsed.success) throw new Error('Invalid reorder request');
+  const { id, direction } = parsed.data;
+
   // Normalize first, then swap by position. Comparing raw `order` values fails
   // when several rows tie at 0.
   const ordered = await prisma.fAQ.findMany({
     orderBy: [{ order: 'asc' }, { id: 'asc' }],
     select: { id: true },
   });
-  const index = ordered.findIndex((faq) => faq.id === args.id);
+  const index = ordered.findIndex((faq) => faq.id === id);
   if (index === -1) throw new Error('FAQ not found');
 
-  const swapIndex = args.direction === 'UP' ? index - 1 : index + 1;
+  const swapIndex = direction === 'UP' ? index - 1 : index + 1;
   if (swapIndex < 0 || swapIndex >= ordered.length) return { success: true };
 
   const next = [...ordered];

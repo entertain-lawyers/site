@@ -9,7 +9,7 @@ interface EditSubjectPageProps {
 }
 
 export const metadata: Metadata = {
-  title: 'Edit Subject - Admin - Entertain Lawyers',
+  title: 'Edit Subject - Admin',
 };
 
 export default async function EditSubjectPage({ params }: EditSubjectPageProps) {

@@ -5,7 +5,8 @@ import ConsultationClient from '@/components/consultation/ConsultationClient';
 import { ConsultationLawyer } from '@/components/consultation/ConsultationForm';
 
 export const metadata: Metadata = {
-  title: 'Consult a Certified Lawyer | Legal Consultation in Nepal | Entertain Lawyers',
+  // The root layout's title template appends "| Entertain Lawyers".
+  title: 'Consult a Certified Lawyer | Legal Consultation in Nepal',
   description:
     'Book an executive legal consultation with licensed Nepal Bar Council advocates in Pokhara & Kathmandu. Direct call, WhatsApp messaging, and scheduled in-person or online legal advisory.',
   keywords: [

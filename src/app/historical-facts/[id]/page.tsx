@@ -1,4 +1,4 @@
-import { getWordPressPostById, getWordPressPosts, mapCategoryToType } from '@/lib/wordpress';
+import { getWordPressPostById, getWordPressPosts, mapCategoryToType, parseWordPressPostId } from '@/lib/wordpress';
 import { getLatestPosts } from '@/lib/latest-posts';
 import { notFound } from 'next/navigation';
 import PostDetail from '@/components/posts/PostDetail';
@@ -9,8 +9,8 @@ export const revalidate = 60;
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
-  const wpId = Number(id);
-  if (isNaN(wpId)) notFound();
+  const wpId = parseWordPressPostId(id);
+  if (!wpId) notFound();
 
   const wpPost = await getWordPressPostById(wpId, 'en');
   const type = wpPost ? mapCategoryToType(wpPost.categories, 'en') : null;
@@ -31,8 +31,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function FactDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const wpId = Number(id);
-  if (isNaN(wpId)) notFound();
+  const wpId = parseWordPressPostId(id);
+  if (!wpId) notFound();
 
   const wpPost = await getWordPressPostById(wpId, 'en');
   if (!wpPost || wpPost.status !== 'publish' || mapCategoryToType(wpPost.categories, 'en') !== 'FACT' && mapCategoryToType(wpPost.categories, 'en') !== 'PERSONALITY') {
@@ -50,13 +50,16 @@ export default async function FactDetailPage({ params }: { params: Promise<{ id:
     featuredImage: wpPost._embedded?.['wp:featuredmedia']?.[0]?.source_url || null
   };
 
-  const wpRelatedResponse = await getWordPressPosts({
-    categories: wpPost.categories,
-    status: 'publish',
-    lang: 'en',
-    perPage: 5,
-    embed: true
-  });
+  const [wpRelatedResponse, latestPosts] = await Promise.all([
+    getWordPressPosts({
+      categories: wpPost.categories,
+      status: 'publish',
+      lang: 'en',
+      perPage: 5,
+      embed: true
+    }),
+    getLatestPosts(wpId),
+  ]);
 
   const relatedPosts = wpRelatedResponse.data
     .filter(p => {
@@ -73,8 +76,6 @@ export default async function FactDetailPage({ params }: { params: Promise<{ id:
       featuredImage: p._embedded?.['wp:featuredmedia']?.[0]?.source_url || null,
       url: `/historical-facts/${p.id}`
     }));
-
-  const latestPosts = await getLatestPosts(wpId);
 
   const backUrl = postType === 'PERSONALITY' ? '/historical-facts/personalities' : '/historical-facts/historical';
   const backLabel = postType === 'PERSONALITY' ? 'Legal Personalities' : 'Historical Facts';

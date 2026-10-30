@@ -7,7 +7,7 @@ import DeleteResourceButton from './DeleteResourceButton';
 import { ResourceType, Prisma } from '@prisma/client';
 
 export const metadata: Metadata = {
-  title: 'Manage Resources - Admin - Entertain Lawyers',
+  title: 'Manage Resources - Admin',
 };
 
 export default async function AdminResourcesPage() {

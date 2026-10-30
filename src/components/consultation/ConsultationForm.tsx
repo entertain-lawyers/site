@@ -158,7 +158,8 @@ export default function ConsultationForm({
         setSuccessResult({
           id: res.data.id,
           fullName: res.data.fullName,
-          lawyerName: activeLawyerName,
+          // The server confirms which advocate (if any) the request is for.
+          lawyerName: res.data.lawyerName,
         });
       }
     } catch (err: any) {

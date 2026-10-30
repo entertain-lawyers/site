@@ -112,9 +112,9 @@ export default function LoginPage() {
           </div>
           <span className="sr-only">Entertain Lawyers</span>
         </Link>
-        <h2 className="text-fluid-h2 font-bold text-navy dark:text-white tracking-tight">
+        <h1 className="text-fluid-h2 font-bold text-navy dark:text-white tracking-tight">
           {mode === 'login' ? 'Welcome back' : 'Create an account'}
-        </h2>
+        </h1>
         <p className="mt-2 text-sm text-text-secondary">
           {mode === 'login' ? (
             <>

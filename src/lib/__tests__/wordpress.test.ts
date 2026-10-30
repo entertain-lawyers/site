@@ -14,6 +14,7 @@ import {
   WordPressAuthError,
   WordPressApiError,
   decodeHtmlEntities,
+  parseWordPressPostId,
 } from '../wordpress';
 
 describe('WordPress REST API Client (src/lib/wordpress.ts)', () => {
@@ -288,5 +289,77 @@ describe('decodeHtmlEntities', () => {
     expect(decodeHtmlEntities('&#8220;Test&#8221;')).toBe('“Test”');
     expect(decodeHtmlEntities('&#8230;')).toBe('…');
     expect(decodeHtmlEntities('&amp; &lt; &gt;')).toBe('& < >');
+  });
+});
+
+describe('single-post reads and outages (regression)', () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    process.env = { ...originalEnv };
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+    vi.restoreAllMocks();
+  });
+
+  const errorResponse = (status: number) =>
+    ({ ok: false, status, statusText: 'x', json: async () => ({}) }) as Response;
+
+  it('throws instead of returning null when WordPress is down', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(errorResponse(503));
+    await expect(getWordPressPostById(5769, 'en')).rejects.toBeInstanceOf(WordPressApiError);
+  });
+
+  it('throws on a network failure', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new TypeError('fetch failed'));
+    await expect(getWordPressPostById(5769, 'en')).rejects.toThrow('fetch failed');
+  });
+
+  it.each([401, 403, 404, 410])('treats HTTP %i as a missing post', async (status) => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(errorResponse(status));
+    await expect(getWordPressPostById(5769, 'en')).resolves.toBeNull();
+  });
+
+  it('sends credentials and bypasses the shared cache for authenticated reads', async () => {
+    process.env.WP_AUTH_HEADER = 'Basic abc';
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [],
+      headers: new Headers({ 'X-WP-Total': '0', 'X-WP-TotalPages': '0' }),
+    } as Response);
+
+    await getWordPressPosts({ status: 'draft', authenticated: true, throwOnError: true });
+
+    const init = fetchSpy.mock.calls[0][1] as RequestInit & { next?: unknown };
+    expect((init.headers as Record<string, string>).Authorization).toBe('Basic abc');
+    expect(init.cache).toBe('no-store');
+    expect(init.next).toBeUndefined();
+  });
+
+  it('never sends credentials on ordinary public reads', async () => {
+    process.env.WP_AUTH_HEADER = 'Basic abc';
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => [],
+      headers: new Headers(),
+    } as Response);
+
+    await getWordPressPosts({ status: 'publish' });
+
+    const init = fetchSpy.mock.calls[0][1] as RequestInit;
+    expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
+    expect(init.cache).toBeUndefined();
+  });
+});
+
+describe('parseWordPressPostId', () => {
+  it('accepts canonical decimal ids only', () => {
+    expect(parseWordPressPostId('5769')).toBe(5769);
+    for (const bad of ['0', '05769', '0x1F', '1e3', ' 31', '31 ', '-5', '1.5', '', 'abc', '12345678901']) {
+      expect(parseWordPressPostId(bad)).toBeNull();
+    }
   });
 });

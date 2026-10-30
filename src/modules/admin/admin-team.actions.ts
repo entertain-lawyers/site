@@ -6,10 +6,42 @@ import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { isRecordNotFoundError } from '@/lib/prisma-errors';
+import { slugify, slugifyWithFallback, withUniqueSlug } from '@/lib/slug';
+import { isSafeAssetUrl, SAFE_ASSET_URL_MESSAGE } from '@/lib/url-validation';
 
-const generateSlug = (name: string) => {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-};
+const slugIsTaken = (excludeId?: string) => async (slug: string) =>
+  Boolean(
+    await prisma.teamMember.findFirst({
+      where: { slug, ...(excludeId ? { id: { not: excludeId } } : {}) },
+      select: { id: true },
+    })
+  );
+
+type TeamMemberInput = z.infer<typeof teamMemberSchema>;
+
+/** Every column except slug, shared by create and update. */
+function memberFields(input: TeamMemberInput) {
+  return {
+    name: input.name,
+    designation: input.designation,
+    shortBio: input.shortBio || null,
+    biography: input.biography || null,
+    imageUrl: input.imageUrl || null,
+    phone: input.phone || null,
+    email: input.email || null,
+    linkedinUrl: input.linkedinUrl || null,
+    facebookUrl: input.facebookUrl || null,
+    websiteUrl: input.websiteUrl || null,
+    instagramUrl: input.instagramUrl || null,
+    qualifications: input.qualifications || null,
+    experience: input.experience || null,
+    achievements: input.achievements || null,
+    practiceAreas: input.practiceAreas || null,
+    languages: input.languages || null,
+    displayOrder: input.displayOrder,
+    isPublished: input.isPublished,
+  };
+}
 
 const teamMemberSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -17,7 +49,7 @@ const teamMemberSchema = z.object({
   slug: z.string().optional(),
   shortBio: z.string().optional(),
   biography: z.string().optional(),
-  imageUrl: z.string().optional(),
+  imageUrl: z.string().refine(isSafeAssetUrl, SAFE_ASSET_URL_MESSAGE).optional(),
   phone: z.string().optional(),
   email: z.string().email('Invalid email address').optional().or(z.literal('')),
   linkedinUrl: z.string().url('Invalid URL').optional().or(z.literal('')),
@@ -52,39 +84,11 @@ export const createTeamMemberAction = createSafeAction(async (data: z.infer<type
   }
   const input = parsed.data;
 
-  const finalSlug = input.slug || generateSlug(input.name);
+  const baseSlug = slugify(input.slug ?? '') || slugifyWithFallback(input.name, 'member');
 
-  // Ensure slug uniqueness
-  let counter = 1;
-  let uniqueSlug = finalSlug;
-  while (await prisma.teamMember.findUnique({ where: { slug: uniqueSlug } })) {
-    uniqueSlug = `${finalSlug}-${counter}`;
-    counter++;
-  }
-
-  const member = await prisma.teamMember.create({
-    data: {
-      name: input.name,
-      designation: input.designation,
-      slug: uniqueSlug,
-      shortBio: input.shortBio || null,
-      biography: input.biography || null,
-      imageUrl: input.imageUrl || null,
-      phone: input.phone || null,
-      email: input.email || null,
-      linkedinUrl: input.linkedinUrl || null,
-      facebookUrl: input.facebookUrl || null,
-      websiteUrl: input.websiteUrl || null,
-      instagramUrl: input.instagramUrl || null,
-      qualifications: input.qualifications || null,
-      experience: input.experience || null,
-      achievements: input.achievements || null,
-      practiceAreas: input.practiceAreas || null,
-      languages: input.languages || null,
-      displayOrder: input.displayOrder,
-      isPublished: input.isPublished,
-    },
-  });
+  const member = await withUniqueSlug(baseSlug, slugIsTaken(), (slug) =>
+    prisma.teamMember.create({ data: { slug, ...memberFields(input) } })
+  );
 
   await prisma.auditLog.create({
     data: {
@@ -112,46 +116,16 @@ export const updateTeamMemberAction = createSafeAction(async (data: z.infer<type
   }
   const input = parsed.data;
 
-  let finalSlug = input.slug || generateSlug(input.name);
-
-  // Ensure slug uniqueness if changed
   const existing = await prisma.teamMember.findUnique({ where: { id: input.id } });
-  if (!existing) throw new Error('Not found');
+  if (!existing) throw new Error('Team member not found');
 
-  if (existing.slug !== finalSlug) {
-    let counter = 1;
-    let uniqueSlug = finalSlug;
-    while (await prisma.teamMember.findFirst({ where: { slug: uniqueSlug, id: { not: input.id } } })) {
-      uniqueSlug = `${finalSlug}-${counter}`;
-      counter++;
-    }
-    finalSlug = uniqueSlug;
-  }
+  const requestedSlug = slugify(input.slug ?? '') || slugifyWithFallback(input.name, 'member');
 
-  const member = await prisma.teamMember.update({
-    where: { id: input.id },
-    data: {
-      name: input.name,
-      designation: input.designation,
-      slug: finalSlug,
-      shortBio: input.shortBio || null,
-      biography: input.biography || null,
-      imageUrl: input.imageUrl || null,
-      phone: input.phone || null,
-      email: input.email || null,
-      linkedinUrl: input.linkedinUrl || null,
-      facebookUrl: input.facebookUrl || null,
-      websiteUrl: input.websiteUrl || null,
-      instagramUrl: input.instagramUrl || null,
-      qualifications: input.qualifications || null,
-      experience: input.experience || null,
-      achievements: input.achievements || null,
-      practiceAreas: input.practiceAreas || null,
-      languages: input.languages || null,
-      displayOrder: input.displayOrder,
-      isPublished: input.isPublished,
-    },
-  });
+  const member = await withUniqueSlug(
+    requestedSlug,
+    requestedSlug === existing.slug ? async () => false : slugIsTaken(input.id),
+    (slug) => prisma.teamMember.update({ where: { id: input.id }, data: { slug, ...memberFields(input) } })
+  );
 
   await prisma.auditLog.create({
     data: {
@@ -165,6 +139,7 @@ export const updateTeamMemberAction = createSafeAction(async (data: z.infer<type
 
   revalidatePath('/team');
   revalidatePath(`/team/${member.slug}`);
+  if (existing.slug !== member.slug) revalidatePath(`/team/${existing.slug}`);
   revalidatePath('/admin/team');
   return member;
 });

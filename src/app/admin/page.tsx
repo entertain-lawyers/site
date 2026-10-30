@@ -8,7 +8,7 @@ import { PAGE_VIEW_ACTION, resolvePostTitles, friendlyPageLabel } from '@/lib/an
 import { getWordPressPosts } from '@/lib/wordpress';
 
 export const metadata: Metadata = {
-  title: 'Admin Dashboard - Entertain Lawyers',
+  title: 'Admin Dashboard',
 };
 
 export default async function AdminDashboardPage() {

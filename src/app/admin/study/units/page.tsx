@@ -7,7 +7,7 @@ import { Plus, Edit2, Layers } from 'lucide-react';
 import DeleteUnitButton from './DeleteUnitButton';
 
 export const metadata: Metadata = {
-  title: 'Manage Units - Admin - Entertain Lawyers',
+  title: 'Manage Units - Admin',
 };
 
 export default async function AdminUnitsPage() {

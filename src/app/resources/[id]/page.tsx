@@ -158,7 +158,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
         }}
       />
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-16">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-16">
 
         {/* Breadcrumbs */}
         <nav className="flex text-xs md:text-sm text-text-muted mb-10 overflow-x-auto pb-2 scrollbar-hide" aria-label="Breadcrumb">
@@ -383,7 +383,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
             ) : <div className="hidden sm:block flex-1" />}
           </div>
         )}
-      </main>
+      </div>
     </div>
   );
 }

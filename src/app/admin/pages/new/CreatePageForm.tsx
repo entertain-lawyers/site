@@ -72,7 +72,7 @@ export default function CreatePageForm() {
             setSlugWasAuto(false);
           }}
           required
-          pattern="[a-z0-9-]+"
+          pattern="[a-z0-9\-]+"
           className="w-full px-4 py-2.5 rounded-xl border border-border bg-surface text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50"
         />
         <p className="mt-1 text-xs text-text-muted">Lowercase letters, numbers and dashes only.</p>

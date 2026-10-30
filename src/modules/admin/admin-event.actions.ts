@@ -5,16 +5,17 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
-import { isRecordInUseError, isRecordNotFoundError } from '@/lib/prisma-errors';
+import { isRecordInUseError, isRecordNotFoundError, isUniqueConstraintError } from '@/lib/prisma-errors';
+import { isSafeAssetUrl, isValidDateString, SAFE_ASSET_URL_MESSAGE } from '@/lib/url-validation';
 
 const createEventSchema = z.object({
   title: z.string().min(1),
   slug: z.string().regex(/^[a-z0-9-]+$/),
   description: z.string().optional(),
   content: z.string().optional(),
-  eventDate: z.string(),
+  eventDate: z.string().refine(isValidDateString, 'Event date is invalid'),
   location: z.string().optional(),
-  featuredImage: z.string().optional(),
+  featuredImage: z.string().refine(isSafeAssetUrl, SAFE_ASSET_URL_MESSAGE).optional(),
   status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).default('DRAFT'),
 });
 
@@ -33,13 +34,19 @@ export const createEventAction = createSafeAction(async (args: z.infer<typeof cr
   if (!parsed.success) throw new Error(parsed.error.issues[0]?.message || 'Invalid event');
   const input = parsed.data;
 
-  const evt = await prisma.event.create({
-    data: {
-      ...input,
-      eventDate: new Date(input.eventDate),
-      authorId: session.userId!,
-    }
-  });
+  let evt;
+  try {
+    evt = await prisma.event.create({
+      data: {
+        ...input,
+        eventDate: new Date(input.eventDate),
+        authorId: session.userId!,
+      }
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) throw new Error('An event with this slug already exists. Choose a different slug.');
+    throw error;
+  }
 
   await prisma.auditLog.create({
     data: { userId: session.userId!, action: 'CREATE', entityType: 'EVENT', entityId: evt.id, details: { title: evt.title } }
@@ -60,10 +67,16 @@ export const updateEventAction = createSafeAction(async (args: z.infer<typeof up
   const existing = await prisma.event.findUnique({ where: { id: input.id } });
   if (!existing) throw new Error('Event not found');
 
-  const evt = await prisma.event.update({
-    where: { id: input.id },
-    data: { ...input, eventDate: new Date(input.eventDate) },
-  });
+  let evt;
+  try {
+    evt = await prisma.event.update({
+      where: { id: input.id },
+      data: { ...input, eventDate: new Date(input.eventDate) },
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) throw new Error('An event with this slug already exists. Choose a different slug.');
+    throw error;
+  }
 
   await prisma.auditLog.create({
     data: { userId: session.userId!, action: 'UPDATE', entityType: 'EVENT', entityId: evt.id, details: { title: evt.title } }
@@ -77,11 +90,15 @@ export const updateEventAction = createSafeAction(async (args: z.infer<typeof up
 export const deleteEventAction = createSafeAction(async (args: z.infer<typeof deleteEventSchema>, session) => {
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) throw new Error('Unauthorized');
 
-  const existing = await prisma.event.findUnique({ where: { id: args.id } });
+  const parsed = deleteEventSchema.safeParse(args);
+  if (!parsed.success) throw new Error('Invalid event id');
+  const { id } = parsed.data;
+
+  const existing = await prisma.event.findUnique({ where: { id } });
   if (!existing) throw new Error('Event not found');
 
   try {
-    await prisma.event.delete({ where: { id: args.id } });
+    await prisma.event.delete({ where: { id } });
   } catch (error) {
     if (isRecordInUseError(error)) {
       throw new Error('This event is still referenced by related records and cannot be deleted. Please archive it instead.');

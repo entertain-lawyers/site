@@ -53,8 +53,8 @@ async function getStatusCounts(lang: 'en' | 'ne', search?: string, category?: nu
   const settled = await Promise.allSettled([
     getWordPressPosts({ ...base }),
     getWordPressPosts({ ...base, status: 'publish' }),
-    hasWpAuth ? getWordPressPosts({ ...base, status: 'draft' }) : Promise.resolve({ total: undefined }),
-    hasWpAuth ? getWordPressPosts({ ...base, status: 'trash' }) : Promise.resolve({ total: undefined }),
+    hasWpAuth ? getWordPressPosts({ ...base, status: 'draft', authenticated: true }) : Promise.resolve({ total: undefined }),
+    hasWpAuth ? getWordPressPosts({ ...base, status: 'trash', authenticated: true }) : Promise.resolve({ total: undefined }),
   ]);
   const totalAt = (index: number) => {
     const result = settled[index];
@@ -97,7 +97,15 @@ export default async function AdminPostsPage({
   const [listOutcome, counts, categoryOutcome] = await Promise.all([
     lockedPrivateStatus
       ? Promise.resolve({ ok: true as const, value: null })
-      : getWordPressPosts({ ...query, embed: true, throwOnError: true, status: status === 'all' ? undefined : status })
+      : getWordPressPosts({
+          ...query,
+          embed: true,
+          throwOnError: true,
+          status: status === 'all' ? undefined : status,
+          // Drafts and trash are private in WordPress; the credentials were
+          // configured but never sent, so these tabs always failed with 401.
+          authenticated: privateStatus,
+        })
           .then((value) => ({ ok: true as const, value }))
           .catch((error) => ({ ok: false as const, error })),
     getStatusCounts(lang, search, category, hasWpAuth).catch(() => ({
