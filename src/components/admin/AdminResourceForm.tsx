@@ -6,6 +6,8 @@ import { ResourceType } from '@prisma/client';
 import { createResourceAction, deleteResourceAction } from '@/modules/admin/admin-resource.actions';
 import { confirmDocumentUpload, initiateDocumentUpload } from '@/modules/admin/admin-document.actions';
 import RichTextEditor from '@/components/editor/RichTextEditor';
+import { writePostPreviewDraft } from '@/lib/post-preview';
+import { htmlToText } from '@/lib/html';
 
 const RESOURCE_TYPES = [
   { value: ResourceType.LAW_NOTE, label: 'Law Note' },
@@ -65,6 +67,18 @@ export function AdminResourceForm({
     [units, subjectId]
   );
 
+  // Preview the note exactly through the shared /preview route the posts
+  // editor uses — same reading template, live updates, no server round-trip.
+  const handlePreview = () => {
+    writePostPreviewDraft({
+      title: title || 'Untitled Resource',
+      content,
+      type: RESOURCE_TYPES.find((t) => t.value === resourceType)?.label || 'Resource',
+      editorUrl: '/admin/study/resources/new',
+    });
+    window.open('/preview', 'el-resource-preview')?.focus();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -78,7 +92,9 @@ export function AdminResourceForm({
         return;
       }
     } else {
-      if (!content.trim() || content === '<p><br></p>') {
+      // Quill's semantic HTML renders an empty editor as <p></p>, so
+      // tag-strip instead of string-comparing (image-only notes still count).
+      if (!htmlToText(content) && !/<img\b/i.test(content)) {
         setError('Please write some content for the note');
         return;
       }
@@ -344,11 +360,20 @@ export function AdminResourceForm({
         </div>
       )}
 
-      <div className="pt-8">
+      <div className="pt-8 flex flex-col sm:flex-row gap-4">
+        {uploadMode === 'NOTE' && (
+          <button
+            type="button"
+            onClick={handlePreview}
+            className="flex-1 sm:flex-none sm:px-8 py-4 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 text-navy dark:text-white hover:border-gold hover:text-gold text-sm font-bold transition-all"
+          >
+            Preview
+          </button>
+        )}
         <button
           type="submit"
           disabled={loading}
-          className="w-full flex justify-center py-4 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-accent hover:bg-accent/90 transition-all hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent disabled:opacity-50"
+          className="flex-1 py-4 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-accent hover:bg-accent/90 transition-all hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent disabled:opacity-50"
         >
           {loading ? 'Creating Resource...' : 'Create Resource'}
         </button>

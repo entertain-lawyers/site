@@ -23,4 +23,12 @@ describe('htmlToText', () => {
       'A & B < C\n\nD'
     );
   });
+
+  it('treats Quill empty states (<p></p>, <p><br></p>) as empty', () => {
+    // Quill semantic-HTML mode emits <p></p>; older markups emitted <p><br></p>.
+    // The "Content cannot be empty" validators rely on this returning ''.
+    expect(htmlToText('<p></p>')).toBe('');
+    expect(htmlToText('<p><br></p>')).toBe('');
+    expect(htmlToText('   ')).toBe('');
+  });
 });
