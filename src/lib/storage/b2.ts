@@ -8,6 +8,10 @@ const s3Client = new S3Client({
   region: "auto",
   endpoint: process.env.B2_ENDPOINT,
   forcePathStyle: true,
+  // Browser uploads use presigned PUTs; see src/lib/b2.ts for why checksums
+  // must not be pre-signed for an empty body.
+  requestChecksumCalculation: "WHEN_REQUIRED",
+  responseChecksumValidation: "WHEN_REQUIRED",
   credentials: {
     accessKeyId: process.env.B2_ACCESS_KEY_ID || "",
     secretAccessKey: process.env.B2_SECRET_ACCESS_KEY || "",

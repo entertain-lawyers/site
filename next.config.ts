@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { storageOriginForCsp } from "./src/lib/storage-origin";
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -19,23 +20,8 @@ const cspHeader = `
     frame-ancestors 'none';
 `;
 
-const getB2EndpointDomain = () => {
-  if (process.env.B2_ENDPOINT) {
-    try {
-      const url = new URL(process.env.B2_ENDPOINT);
-      if (url.protocol === 'https:' && /^https:\/\/[a-zA-Z0-9.-]+(?::[0-9]+)?$/.test(url.origin)) {
-        return url.origin;
-      }
-      return '';
-    } catch {
-      return '';
-    }
-  }
-  return '';
-};
-
 function buildCspHeader(): string {
-  const b2Origin = getB2EndpointDomain();
+  const b2Origin = storageOriginForCsp(process.env.B2_ENDPOINT, isDev);
   const b2OriginPart = b2Origin ? ` ${b2Origin}` : '';
 
   return cspHeader

@@ -6,6 +6,11 @@ export const s3Client = new S3Client({
   region: "auto",
   endpoint: env.B2_ENDPOINT,
   forcePathStyle: true,
+  // Since SDK 3.729 presigned PUTs default to signing a CRC32 checksum of the
+  // (empty) request body; storage then rejects the browser's real PDF as a
+  // checksum mismatch. Only add checksums when an operation requires one.
+  requestChecksumCalculation: "WHEN_REQUIRED",
+  responseChecksumValidation: "WHEN_REQUIRED",
   credentials: {
     accessKeyId: env.B2_ACCESS_KEY_ID || "",
     secretAccessKey: env.B2_SECRET_ACCESS_KEY || "",
