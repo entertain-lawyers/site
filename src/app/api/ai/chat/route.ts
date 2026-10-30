@@ -152,11 +152,18 @@ function streamPayload(payload: ChatPayload, status: number, signal: AbortSignal
 }
 
 export async function POST(request: Request) {
-  const body = (await request.json().catch(() => ({}))) as {
-    message?: unknown;
-    history?: unknown;
-    stream?: unknown;
-  };
+  // Bound the body before parsing. The widget sends at most a few KB; this
+  // endpoint is public and must not be a memory-exhaustion vector.
+  const rawBody = await request.text().catch(() => '');
+  if (rawBody.length > 20_000) {
+    return NextResponse.json({ error: 'Payload too large' }, { status: 413 });
+  }
+  let body: { message?: unknown; history?: unknown; stream?: unknown } = {};
+  try {
+    body = rawBody ? (JSON.parse(rawBody) as typeof body) : {};
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
   const message = typeof body.message === 'string' ? body.message.trim().slice(0, 1000) : '';
   if (!message) {
     return NextResponse.json({ error: 'Message required' }, { status: 400 });

@@ -68,8 +68,20 @@ const destinationSchema = z
   .min(1, 'Destination is required')
   .max(1000)
   .refine(
-    (value) => value.startsWith('/') || /^https?:\/\//i.test(value),
-    'Destination must start with / or http(s)://'
+    (value) => {
+      // Protocol-relative URLs (`//evil.com`) also start with "/", so they must
+      // be rejected explicitly or the redirect becomes an open redirect.
+      if (value.startsWith('/')) {
+        return !value.startsWith('//') && !value.startsWith('/\\');
+      }
+      try {
+        const url = new URL(value);
+        return url.protocol === 'http:' || url.protocol === 'https:';
+      } catch {
+        return false;
+      }
+    },
+    'Destination must be a site path or an http(s) URL'
   );
 
 export const redirectSchema = z.object({

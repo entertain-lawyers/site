@@ -18,7 +18,18 @@ const transporter = isConfigured
     })
   : null;
 
-export async function sendEmail({ to, subject, html }: { to: string; subject: string; html: string }) {
+export async function sendEmail({
+  to,
+  subject,
+  html,
+  critical = false,
+}: {
+  to: string;
+  subject: string;
+  html: string;
+  /** Auth mail (OTP/reset) must fail loudly instead of silently succeeding. */
+  critical?: boolean;
+}) {
   if (isConfigured && transporter) {
     await transporter.sendMail({
       from: `"Entertain Lawyers" <${process.env.SMTP_FROM || 'noreply@entertainlawyers.com'}>`,
@@ -39,12 +50,18 @@ export async function sendEmail({ to, subject, html }: { to: string; subject: st
     // subject is enough to notice that mail is misconfigured without leaking
     // credentials or personal data into the platform logs.
     console.error('[mail] SMTP is not configured; email was not sent.', { subject });
+    if (critical) {
+      // Verification/reset cannot work without mail. Returning success here
+      // tells the user a code was sent when none was, and locks them out.
+      throw new Error('Email delivery is not configured');
+    }
   }
 }
 
 export async function sendVerificationOTP(email: string, token: string) {
   await sendEmail({
     to: email,
+    critical: true,
     subject: 'Verify your email address - Entertain Lawyers',
     html: `
       <div style="font-family: sans-serif; max-w: 600px; margin: 0 auto; padding: 20px; text-align: center;">
@@ -62,6 +79,7 @@ export async function sendVerificationOTP(email: string, token: string) {
 export async function sendPasswordResetOTP(email: string, token: string) {
   await sendEmail({
     to: email,
+    critical: true,
     subject: 'Reset your password - Entertain Lawyers',
     html: `
       <div style="font-family: sans-serif; max-w: 600px; margin: 0 auto; padding: 20px; text-align: center;">

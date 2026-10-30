@@ -29,6 +29,20 @@ export function truncateMeta(value: string, max = 158): string {
   return `${value.slice(0, max - 1).trimEnd()}…`;
 }
 
+/**
+ * Serialize JSON-LD for an inline <script>. JSON.stringify alone lets a
+ * `</script>` inside any CMS/editor value close the tag and inject markup, so
+ * escape the HTML-significant characters (the result is still valid JSON).
+ */
+export function serializeJsonLd(value: unknown): string {
+  return JSON.stringify(value)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+}
+
 interface PostMetadataInput {
   title: string;
   excerpt?: string | null;

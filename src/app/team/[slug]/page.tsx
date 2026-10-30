@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     if (error?.code !== 'P2021') throw error;
   }
 
-  if (!member || !member.isPublished) return {};
+  if (!member || !member.isPublished) notFound();
 
   return {
     title: `${member.name} - ${member.designation}`,

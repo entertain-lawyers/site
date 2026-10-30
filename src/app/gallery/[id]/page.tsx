@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     where: { id },
   });
 
-  if (!gallery || gallery.status !== 'PUBLISHED') return { title: 'Gallery Not Found' };
+  if (!gallery || gallery.status !== 'PUBLISHED') notFound();
 
   return {
     title: `${gallery.title}`,

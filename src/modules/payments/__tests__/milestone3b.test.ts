@@ -149,6 +149,21 @@ describeDb('Milestone 3B Integration Tests', () => {
       expect(tx?.subscriptionId).toBeDefined();
     });
 
+    it('8b. A transaction opened at one gateway cannot be finalized by another gateway', async () => {
+      // subIdempotencyKey was created as an ESEWA transaction. A KHALTI
+      // callback (even a genuinely completed Khalti payment for the same
+      // amount) must not unlock it.
+      await expect(
+        paymentCoreService.verifyAndFinalizePayment('KHALTI', {}, subIdempotencyKey)
+      ).rejects.toThrow('Payment provider does not match this transaction');
+
+      const tx = await prisma.paymentTransaction.findUnique({
+        where: { idempotencyKey: subIdempotencyKey },
+      });
+      expect(tx?.status).toBe('PENDING');
+      expect(tx?.subscriptionId).toBeNull();
+    });
+
     it('9. Failed payment does not grant access', async () => {
       vi.spyOn(esewaProvider, 'verifyPayment').mockResolvedValueOnce({
         success: false, providerRef: 'esewa-ref', amountPaid: 100000, currency: 'NPR', isComplete: false

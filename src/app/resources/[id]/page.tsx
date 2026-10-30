@@ -7,6 +7,7 @@ import { CheckoutButtons } from '@/components/payments/CheckoutButtons';
 import { env } from '@/env';
 import { Metadata } from 'next';
 import { getDictionary } from '@/lib/i18n';
+import { serializeJsonLd } from '@/lib/seo';
 import { BookOpen, FileText, Lock, ChevronLeft, ChevronRight, LockOpen } from 'lucide-react';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -16,7 +17,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     include: { subject: true }
   });
 
-  if (!resource) return { title: 'Resource Not Found' };
+  if (!resource) notFound();
 
   let descriptionText = "Study materials, notes, and case laws";
   if (resource.type === 'LAW_NOTE') descriptionText = "Comprehensive notes";
@@ -147,7 +148,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
+          __html: serializeJsonLd({
             "@context": "https://schema.org",
             "@type": "BreadcrumbList",
             "itemListElement": breadcrumbElements

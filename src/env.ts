@@ -30,6 +30,14 @@ export const envSchema = z.object({
   B2_SECRET_ACCESS_KEY: z.string().optional(),
   B2_BUCKET_NAME: z.string().optional(),
 
+  // Outbound email (verification and password-reset codes)
+  SMTP_HOST: z.string().optional(),
+  SMTP_PORT: z.string().optional(),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_FROM: z.string().optional(),
+  SMTP_SECURE: z.enum(["true", "false"]).optional(),
+
   // Upstash Redis (For Rate Limiting)
   UPSTASH_REDIS_REST_URL: z.string().url().optional(),
   UPSTASH_REDIS_REST_TOKEN: z.string().optional(),
@@ -90,6 +98,12 @@ const _env = envSchema.safeParse({
   B2_ACCESS_KEY_ID: process.env.B2_ACCESS_KEY_ID,
   B2_SECRET_ACCESS_KEY: process.env.B2_SECRET_ACCESS_KEY,
   B2_BUCKET_NAME: process.env.B2_BUCKET_NAME,
+  SMTP_HOST: process.env.SMTP_HOST,
+  SMTP_PORT: process.env.SMTP_PORT,
+  SMTP_USER: process.env.SMTP_USER,
+  SMTP_PASS: process.env.SMTP_PASS,
+  SMTP_FROM: process.env.SMTP_FROM,
+  SMTP_SECURE: process.env.SMTP_SECURE as "true" | "false" | undefined,
   UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
   UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
   GEMINI_API_KEY: process.env.GEMINI_API_KEY,

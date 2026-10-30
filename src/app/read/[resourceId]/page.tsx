@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: { params: Promise<{ resourceI
     where: { status: 'PUBLISHED',  id: resourceId },
   });
 
-  if (!resource) return { title: 'Resource Not Found' };
+  if (!resource) notFound();
 
   return {
     title: `Reading ${resource.title}`,

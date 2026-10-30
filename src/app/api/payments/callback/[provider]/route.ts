@@ -32,10 +32,17 @@ async function handleCallback(request: NextRequest, providerParam: string) {
     const query = Object.fromEntries(searchParams.entries());
 
     // Some providers might POST JSON, some might send URL query
-    let body = {};
+    let body: Record<string, unknown> = {};
     if (request.method === 'POST') {
       try {
-        body = await request.json();
+        const raw = await request.text();
+        // Gateways send a few hundred bytes. Refuse oversized bodies before
+        // parsing so an unauthenticated endpoint cannot be used to allocate
+        // arbitrary memory.
+        if (raw.length > 16_384) {
+          return NextResponse.json({ error: 'Payload too large' }, { status: 413 });
+        }
+        if (raw) body = JSON.parse(raw) as Record<string, unknown>;
       } catch {
         // Not JSON
       }
@@ -47,7 +54,7 @@ async function handleCallback(request: NextRequest, providerParam: string) {
     if (provider === 'ESEWA') {
       // eSewa data is base64 encoded in 'data'
       const data = (payload as Record<string, unknown>).data;
-      if (typeof data === 'string') {
+      if (typeof data === 'string' && data.length <= 16_384) {
         const decoded = JSON.parse(Buffer.from(data, 'base64').toString()) as Record<string, unknown>;
         idempotencyKey = typeof decoded.transaction_uuid === 'string' ? decoded.transaction_uuid : null;
       }

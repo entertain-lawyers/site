@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     where: { slug },
   });
 
-  if (!event || event.status !== 'PUBLISHED') return { title: 'Event Not Found' };
+  if (!event || event.status !== 'PUBLISHED') notFound();
 
   return {
     title: `${event.metaTitle || event.title}`,

@@ -28,6 +28,13 @@ export class EsewaProvider implements IPaymentProviderService {
     return hmac.digest('base64');
   }
 
+  private signaturesMatch(expected: string, received: unknown): boolean {
+    if (typeof received !== 'string') return false;
+    const a = Buffer.from(expected);
+    const b = Buffer.from(received);
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+  }
+
   async initiatePayment(idempotencyKey: string, amount: number, productName: string, returnUrl: string): Promise<PaymentInitiationResult> {
     const merchantCode = this.getMerchantCode();
     // eSewa expects amount in rupees, but we store in paisa. Wait! The DB has minor units (paisa).
@@ -63,6 +70,9 @@ export class EsewaProvider implements IPaymentProviderService {
     // eSewa returns a base64 encoded string in `data` query param
     const encodedData = payload.data;
     if (typeof encodedData !== 'string' || !encodedData) throw new Error("Missing data payload from eSewa");
+    // Bound the decode: base64 expands by 3/4, so this rejects oversized bodies
+    // before allocating the JSON object.
+    if (encodedData.length > 16_384) throw new Error("eSewa payload too large");
 
     const decodedString = Buffer.from(encodedData, 'base64').toString('utf-8');
     const data = JSON.parse(decodedString) as Record<string, unknown>;
@@ -86,7 +96,7 @@ export class EsewaProvider implements IPaymentProviderService {
     const messageToSign = fields.map(f => `${f}=${String(data[f])}`).join(',');
     
     const expectedSignature = this.generateSignature(messageToSign);
-    if (expectedSignature !== data.signature) {
+    if (!this.signaturesMatch(expectedSignature, data.signature)) {
       throw new Error("Invalid signature from eSewa callback");
     }
 

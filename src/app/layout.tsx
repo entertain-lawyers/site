@@ -14,6 +14,7 @@ import PublicOnly from '@/components/layout/PublicOnly';
 import AskAI from '@/components/ai/AskAI';
 import { getSiteSettings } from '@/lib/site-settings';
 import AnalyticsTracker from '@/components/AnalyticsTracker';
+import { serializeJsonLd } from '@/lib/seo';
 
 /**
  * Site-wide typography. Restored Mukta as the requested legacy face
@@ -135,7 +136,7 @@ export default async function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
+            __html: serializeJsonLd({
               "@context": "https://schema.org",
               "@graph": [
                 {

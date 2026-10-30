@@ -37,6 +37,7 @@ describeDb('Authentication & Security Foundation', () => {
   const adminEmail = `admin-${Date.now()}@auth.com`;
   let userId: string;
   let adminUserId: string;
+  let squatEmail: string;
 
   beforeAll(async () => {
     await assertTestDatabase(prisma);
@@ -57,6 +58,7 @@ describeDb('Authentication & Security Foundation', () => {
       await prisma.session.deleteMany({ where: { userId: { in: ids } } });
       await prisma.user.deleteMany({ where: { id: { in: ids } } });
     }
+    if (squatEmail) await prisma.user.deleteMany({ where: { email: squatEmail } });
     await prisma.$disconnect();
     vi.clearAllMocks();
   });
@@ -94,6 +96,21 @@ describeDb('Authentication & Security Foundation', () => {
       if (res.success) {
         expect(res.data.message).toBe('Verification email sent');
       }
+    });
+
+    it('does not let an unauthenticated signup change an unverified account password', async () => {
+      const email = `squat-${Date.now()}@auth.com`;
+      squatEmail = email;
+      const originalHash = '$2b$12$BC2HnljaAVW2CnR34dTYg.lctzpDZY.ZWCkkT4qR7gI3Z8AbV8TMq';
+      await prisma.user.create({
+        data: { email, passwordHash: originalHash },
+      });
+
+      const res = await register({ email, password: 'AttackerChosen123!' });
+      expect(res.success).toBe(true);
+
+      const after = await prisma.user.findUnique({ where: { email }, select: { passwordHash: true } });
+      expect(after?.passwordHash).toBe(originalHash);
     });
 
     it.skip('30. Admin restricted route redirects standard user', async () => {

@@ -25,15 +25,21 @@ const deleteFAQSchema = z.object({
 export const createFAQAction = createSafeAction(async (args: z.infer<typeof createFAQSchema>, session) => {
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) throw new Error('Unauthorized');
 
+  const parsed = createFAQSchema.safeParse(args);
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message || 'Invalid FAQ');
+  const input = parsed.data;
+
   // Keep new FAQs after existing ones. The form defaults `order` to 0, which
   // otherwise makes every row tie and breaks reordering.
   const last = await prisma.fAQ.findFirst({
     orderBy: { order: 'desc' },
     select: { order: true },
   });
-  const order = args.order !== 0 ? args.order : (last?.order ?? -1) + 1;
+  const order = input.order !== 0 ? input.order : (last?.order ?? -1) + 1;
 
-  const faq = await prisma.fAQ.create({ data: { ...args, order } });
+  const faq = await prisma.fAQ.create({
+    data: { question: input.question, answer: input.answer, status: input.status, order },
+  });
 
   await prisma.auditLog.create({
     data: { userId: session.userId!, action: 'CREATE', entityType: 'FAQ', entityId: faq.id, details: { question: faq.question } }
@@ -47,12 +53,21 @@ export const createFAQAction = createSafeAction(async (args: z.infer<typeof crea
 export const updateFAQAction = createSafeAction(async (args: z.infer<typeof updateFAQSchema>, session) => {
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) throw new Error('Unauthorized');
 
-  const existing = await prisma.fAQ.findUnique({ where: { id: args.id } });
+  const parsed = updateFAQSchema.safeParse(args);
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message || 'Invalid FAQ');
+  const input = parsed.data;
+
+  const existing = await prisma.fAQ.findUnique({ where: { id: input.id } });
   if (!existing) throw new Error('FAQ not found');
 
   const faq = await prisma.fAQ.update({
-    where: { id: args.id },
-    data: args,
+    where: { id: input.id },
+    data: {
+      question: input.question,
+      answer: input.answer,
+      order: input.order,
+      status: input.status,
+    },
   });
 
   await prisma.auditLog.create({

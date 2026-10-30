@@ -94,6 +94,14 @@ export class PaymentCoreService {
     });
 
     if (!transaction) throw new PaymentError("Transaction not found", "NOT_FOUND");
+
+    // The transaction was created for exactly one gateway. Without this check a
+    // valid payment at gateway B can finalize a pending transaction that was
+    // opened at gateway A, unlocking an item without paying that gateway.
+    if (transaction.provider !== providerName) {
+      throw new PaymentVerificationError("Payment provider does not match this transaction.");
+    }
+
     if (transaction.status === 'COMPLETED') {
       return { success: true, message: "Already processed" };
     }
@@ -119,7 +127,6 @@ export class PaymentCoreService {
     // another order could be replayed to unlock this one.
     if (
       transaction.providerRef &&
-      verifyResult.providerRef &&
       verifyResult.providerRef !== transaction.providerRef
     ) {
       throw new PaymentVerificationError(

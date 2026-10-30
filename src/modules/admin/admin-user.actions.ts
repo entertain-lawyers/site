@@ -132,6 +132,11 @@ export const updateUserAction = createSafeAction(async (args: z.infer<typeof upd
       await assertNotLastAdmin(targetUser.id);
     }
     updateData.role = input.role;
+    // Force a fresh JWT for the target user so a demotion/promotion takes
+    // effect even for a tab that already holds the old role.
+    if (input.role !== targetUser.role) {
+      updateData.sessionVersion = { increment: 1 };
+    }
   }
 
   if (input.password && input.password.length >= 8) {

@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import CourtFeeCalculator from '@/components/calculator/CourtFeeCalculator';
 import { Scale, HelpCircle, PhoneCall } from 'lucide-react';
+import { serializeJsonLd } from '@/lib/seo';
 
 export const metadata: Metadata = {
   title: 'Nepal Court Fee Calculator | Section 69 Muluki Diwani Samhita',
@@ -82,7 +83,7 @@ export default function CalculatorPage() {
     <div className="el-type-modern w-full bg-background min-h-screen pt-6 pb-24 sm:py-16">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSON_LD) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(FAQ_JSON_LD) }}
       />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 sm:space-y-12">
         {/* Breadcrumb & Hero */}
