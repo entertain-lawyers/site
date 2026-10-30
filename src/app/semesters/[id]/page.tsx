@@ -5,7 +5,7 @@ import { getDictionary } from '@/lib/i18n';
 import ResourceTypeFilter from '@/components/study/ResourceTypeFilter';
 import { BookOpen, ChevronRight, Lock, Library, GraduationCap, ChevronLeft } from 'lucide-react';
 import { SYLLABUS_CONFIG, isAuthoritativeSubject, findAuthoritativeSubject } from '@/lib/syllabus-config';
-import { serializeJsonLd } from '@/lib/seo';
+import { serializeJsonLd, getSiteUrl } from '@/lib/seo';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -35,7 +35,7 @@ export async function generateMetadata({ params }: PageProps) {
     openGraph: {
       title: `${semester.name} Resources`,
       description: `Study materials, notes, case laws, and old questions for ${semester.name}.`,
-      url: `https://www.entertainlawyers.com/semesters/${id}`,
+      url: `${getSiteUrl()}/semesters/${id}`,
     },
   };
 }
@@ -113,19 +113,19 @@ export default async function SemesterPage({ params }: PageProps) {
                 "@type": "ListItem",
                 "position": 1,
                 "name": "Home",
-                "item": "https://www.entertainlawyers.com/"
+                "item": `${getSiteUrl()}/`
               },
               {
                 "@type": "ListItem",
                 "position": 2,
                 "name": "Semesters",
-                "item": "https://www.entertainlawyers.com/semesters"
+                "item": `${getSiteUrl()}/semesters`
               },
               {
                 "@type": "ListItem",
                 "position": 3,
                 "name": semester.name,
-                "item": `https://www.entertainlawyers.com/semesters/${id}`
+                "item": `${getSiteUrl()}/semesters/${id}`
               }
             ]
           })

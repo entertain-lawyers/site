@@ -166,40 +166,96 @@ Then, on a deployed build of this branch:
 
 ### 3.1 WordPress articles (verified live, 2026-10-30)
 
-- English posts: **344** (`x-wp-total` on `/wp-json/wp/v2/posts`).
+- English posts: **344** (`x-wp-total` on `/wp-json/wp/v2/posts`; pages
+  100 + 100 + 100 + 44).
 - Nepali posts: **14** (`x-wp-total` on `/nepali/wp-json/wp/v2/posts`).
-- Both are served live at read time; no DB copy owns them.
+- English pages: **29**; English categories: **47** (was 46 in the earlier
+  audit; re-fetched, not assumed).
+- Both languages are served live at read time; no DB copy owns them.
+- Spot-checked full records for EN id 5769 and NE id 2411: title, excerpt,
+  content, categories, author, featured media and `_embedded` media all
+  present; `modified` is newer than `date` on the Nepali sample.
 
-### 3.2 Sitemap gap (not fixed in this PR)
+### 3.2 Sitemap and canonical origin (fixed in `fix/post-merge-production-audit`)
 
-`src/app/sitemap.ts` emits **38** URLs: 23 static routes + DB entities
-(semesters, events, publications, galleries, team). Article detail pages are
-not enumerated, so at most the two listing pages (`/news`, `/nepali`) plus
-`/blogs` are discoverable for 358 articles. Fixing this requires paging
-through all WordPress posts in the sitemap route; out of scope here and
-deliberately not attempted.
+Before the fix the sitemap emitted **38** URLs and hardcoded
+`https://www.entertainlawyers.com`, and no WordPress article was listed.
+
+The fix:
+- `src/lib/seo.ts` now exposes `getSiteUrl()`, the single origin source. It
+  reads the validated `NEXT_PUBLIC_APP_URL` (see `src/env.ts`; the same value
+  already drives payment callbacks) and normalises it to a bare origin. No
+  `www`/apex is assumed and no preview URL is used.
+- `src/app/sitemap.ts` pages through the WordPress REST API
+  (`per_page=100`, `X-WP-TotalPages`) for English and Nepali, and adds every
+  article that has a real public route:
+  - `NEWS` → `/news/{id}`
+  - `BLOG` → `/blogs/{id}`
+  - `FACT`, `PERSONALITY` → `/historical-facts/{id}`
+  - `NEPALI_*` → `/nepali/post/{id}`
+  It skips `OPINION` and the semester/case-note categories because the site
+  has no route for them (they 404), so the sitemap never advertises a dead URL.
+- WordPress failures are **not** swallowed: article enumeration uses
+  `throwOnError`, so an outage returns a failed sitemap (crawlers retry)
+  instead of a "complete" sitemap missing hundreds of articles.
+- `src/app/robots.ts`, the root `metadataBase`/Open Graph URL/JSON-LD and the
+  semester/resource breadcrumbs now use the same `getSiteUrl()` origin.
+
+Measured locally after the fix (real WP data, local `.env` origin
+`https://entertainlawyers.com`): **96 URLs** — 23 static, 15 DB-owned, and 58
+articles (38 NEWS, 2 BLOG, 4 historical-facts, 14 Nepali), zero duplicates.
+The remaining English posts are the 291 posts in unmapped semester/case-note
+categories and 9 `OPINION` posts; they have no public route and are reported
+below, not listed in the sitemap.
 
 ### 3.3 The 29 English WordPress pages
 
-Fetched live from `/wp-json/wp/v2/pages?per_page=100` (all `publish` status).
-Disposition against the new site's structure:
+Fetched live from `/wp-json/wp/v2/pages?per_page=100` (`X-WP-Total: 29`, all
+`publish`). The previous revision of this document grouped 30 pages because it
+listed a `contract-law-ii` page that does not exist and omitted
+`4th-semester-notes`. The reconciled list is exactly these 29 slugs:
+
+`property-law`, `legal-nepali-i`, `legal-method`, `criminal-law-i`,
+`contract-law-i`, `10th-semester`, `9th-semester`, `8th-semester`,
+`7th-semester`, `6th-semester`, `2nd-semester`, `1st-semester`, `5th-semester`,
+`3rd-semester`, `family-law`, `comparative-law`, `public-international-law-ii`,
+`criminal-law-ii`, `4th-semester-notes`, `old-questions`, `law-notes`,
+`historical-facts`, `case-page`, `home-2`, `home`, `contact`, `about-2`,
+`advertisement`, `privacy-policy`.
 
 | WP page (slug) | New-site equivalent | Disposition |
 |---|---|---|
-| `1st-semester` … `10th-semester` (10 pages) | DB-owned `Semester` model (`/semesters/[id]`) — 10 semesters in DB | Intentionally superseded by DB content |
-| `contract-law-i`, `contract-law-ii`, `criminal-law-i`, `criminal-law-ii`, `family-law`, `property-law`, `legal-method`, `legal-nepali-i`, `comparative-law`, `public-international-law-ii` | DB-owned `Subject`/`Unit` content — 115 subjects / 556 units in DB | Intentionally superseded; spot-check each subject during content QA |
-| `law-notes`, `old-questions` | `/study`, `/resources`, DB `Resource`Intentionally superseded |
+| `1st-semester` … `10th-semester` plus `4th-semester-notes` (10 pages) | DB-owned `Semester` model (`/semesters/[id]`) | Intentionally superseded by DB content |
+| `contract-law-i`, `criminal-law-i`, `criminal-law-ii`, `family-law`, `property-law`, `legal-method`, `legal-nepali-i`, `comparative-law`, `public-international-law-ii` (9 pages) | DB-owned `Subject`/`Unit` content | Intentionally superseded; spot-check each subject during content QA |
+| `law-notes`, `old-questions` | `/study`, `/resources`, DB `Resource` | Intentionally superseded |
 | `historical-facts` | `/historical-facts` route | Intentionally superseded |
 | `case-page` | Case-law sections under `/study` | Intentionally superseded; verify link coverage during QA |
 | `home`, `home-2` | Next homepage (`HomepageConfig`) | Intentionally excluded (legacy builder variants) |
 | `about-2` | `/about` | Intentionally excluded (duplicate) |
 | `contact` | `/contact` | Intentionally excluded |
-| `privacy-policy` | `/privacy-policy` | Intentionally excluded — **compare wording once**; the WP version may contain legally reviewed text the new page must keep |
+| `privacy-policy` | `/privacy-policy` | Intentionally excluded — wording differs materially, see 3.5; do not replace the reviewed text without approval |
 | `advertisement` | none found | **Needs a decision**: no obvious route carries it; either migrate as a static page or record as intentionally dropped |
 
-Counts in this table are per live WP REST; the "intentionally superseded"
-column is a structural mapping, not a content-identity audit — no per-paragraph
-diff has been performed.
+9 + 10 + 2 + 1 + 1 + 2 + 1 + 1 + 1 + 1 = **29**. The "intentionally
+superseded" column is a structural mapping, not a per-paragraph content diff.
+
+### 3.5 Privacy policy: legacy vs new wording (comparison only)
+
+| Topic | Legacy WordPress page | New `/privacy-policy` | Material? |
+|---|---|---|---|
+| Information collected | name, email, phone; browser/device/pages/time | name, email, **payment details**, educational information, IP address, browser, pages, access times | Yes — new adds payment/education/IP |
+| Use of data | answer questions, newsletters, site improvement, **targeted advertising / sponsored content** | transactions/subscriptions, identity verification, support, platform updates | Yes — advertising clause absent in the new page |
+| Sharing | "we do not sell or share" except legal obligation and confidential service providers | not covered | Yes — missing in the new page |
+| Cookies | explicitly covered | not covered | Yes — missing in the new page |
+| Data security | industry-standard measures | robust measures + payment gateways | Similar |
+| Third-party links | covered | not covered | Yes — missing in the new page |
+| Children's privacy (<13) | covered | not covered | Yes — missing in the new page |
+| Policy changes | "changes will be posted on this page" | not covered | Yes — missing in the new page |
+| Contact | contact email/phone | contact section | Equivalent |
+
+The new page is not a copy of the legacy one and drops several clauses. This
+is a **legal-review item**, not a code defect; the reviewed text was not
+replaced.
 
 ### 3.4 Production database counts (BLOCKED — not inferred)
 
@@ -218,9 +274,12 @@ the preflight evidence before sign-off.
 | Check | Result |
 |---|---|
 | `npx tsc --noEmit` | PASS |
-| `npx vitest run` | PASS (234 passed, 79 skipped) |
+| `npx vitest run` (no disposable DB) | PASS (236 passed, 79 skipped) |
+| `npx vitest run` with `TEST_DATABASE_URL` (disposable `entertain_lawyer_test`, all migrations applied) | PASS (318 passed, 1 skipped) |
 | `npm run build` | PASS |
-| Sanitizer vs 40 real WP articles | PASS — all article formatting declarations preserved; plugin-only declarations (`fill`, `cursor`, `display`, `font-family`, `font-style: inherit`) removed |
+| Sitemap local render with live WP data | PASS — 96 URLs, one origin, 58 article URLs, no duplicates |
+| Sanitizer vs 40 real WP articles | PASS — all article formatting preserved; plugin-only declarations (`fill`, `cursor`, `display`, `font-family`, `font-style: inherit`) removed; transparent colours and oversized font/margin values now rejected |
 | Lint | Pre-existing repo-wide failure unchanged; no new findings in changed files |
 | Staging publish flow | NOT EXECUTED — requires staging WP credentials (plan above) |
 | Production preflight | NOT EXECUTED — owner read-only access required (runbook above) |
+| Production authenticated admin/CRUD | BLOCKED — no authorised production ADMIN session available |

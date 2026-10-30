@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { prisma } from '@/lib/prisma';
-
-const BASE_URL = 'https://www.entertainlawyers.com';
+import { getWordPressPosts, mapCategoryToType, type WordPressLanguage } from '@/lib/wordpress';
+import { getSiteUrl, wordPressArticlePath } from '@/lib/seo';
 
 // Rebuild the sitemap hourly without rebuilding the whole site.
 export const revalidate = 3600;
@@ -13,7 +13,8 @@ interface StaticRoute {
 }
 
 // Publicly readable pages only. Gated material (`/resources/[id]`, `/read/*`)
-// is deliberately absent: crawlers would only ever see a login redirect.
+// is deliberately absent: those pages set `robots: { index: false }` and
+// crawlers would only ever see a login redirect.
 const staticRoutes: StaticRoute[] = [
   { path: '', changeFrequency: 'daily', priority: 1 },
   { path: '/about', changeFrequency: 'monthly', priority: 0.6 },
@@ -40,11 +41,67 @@ const staticRoutes: StaticRoute[] = [
   { path: '/terms', changeFrequency: 'yearly', priority: 0.3 },
 ];
 
+/** WordPress's maximum `per_page` value. */
+const WP_PAGE_SIZE = 100;
+/** Safety valve: 500 pages = 50,000 URLs, the sitemap protocol limit. */
+const WP_MAX_PAGES = 500;
+
+/**
+ * Pages through every published post of one language. `throwOnError` is
+ * deliberate: an outage must fail the sitemap request (5xx, retried by
+ * crawlers) instead of silently publishing a sitemap that is missing
+ * hundreds of article URLs.
+ */
+async function wordpressArticleRoutes(
+  origin: string,
+  lang: WordPressLanguage
+): Promise<MetadataRoute.Sitemap> {
+  const query = {
+    lang,
+    status: 'publish',
+    perPage: WP_PAGE_SIZE,
+    fields: 'id,modified,categories,status',
+    throwOnError: true,
+  } as const;
+
+  const first = await getWordPressPosts({ ...query, page: 1 });
+  const totalPages = Math.min(first.totalPages, WP_MAX_PAGES);
+  if (first.totalPages > WP_MAX_PAGES) {
+    console.warn(
+      `[sitemap] ${lang}: ${first.totalPages} WordPress pages exceeds the ${WP_MAX_PAGES}-page cap; later articles are omitted.`
+    );
+  }
+
+  const pages = [first];
+  for (let page = 2; page <= totalPages; page++) {
+    pages.push(await getWordPressPosts({ ...query, page }));
+  }
+
+  const routes: MetadataRoute.Sitemap = [];
+  for (const result of pages) {
+    for (const post of result.data) {
+      const type = mapCategoryToType(post.categories, lang);
+      const path = wordPressArticlePath(type, post.id, lang);
+      if (!path) continue;
+
+      const lastModified = post.modified ? new Date(post.modified) : undefined;
+      routes.push({
+        url: `${origin}${path}`,
+        lastModified,
+        changeFrequency: 'weekly',
+        priority: 0.6,
+      });
+    }
+  }
+  return routes;
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const origin = getSiteUrl();
   const now = new Date();
 
   const routes: MetadataRoute.Sitemap = staticRoutes.map(({ path, changeFrequency, priority }) => ({
-    url: `${BASE_URL}${path}`,
+    url: `${origin}${path}`,
     lastModified: now,
     changeFrequency,
     priority,
@@ -73,7 +130,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     for (const semester of semesters) {
       routes.push({
-        url: `${BASE_URL}/semesters/${semester.id}`,
+        url: `${origin}/semesters/${semester.id}`,
         lastModified: now,
         changeFrequency: 'weekly',
         priority: 0.7,
@@ -82,7 +139,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     for (const event of events) {
       routes.push({
-        url: `${BASE_URL}/events/${event.slug}`,
+        url: `${origin}/events/${event.slug}`,
         lastModified: event.updatedAt ?? now,
         changeFrequency: 'monthly',
         priority: 0.6,
@@ -91,7 +148,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     for (const publication of publications) {
       routes.push({
-        url: `${BASE_URL}/publications/${publication.slug}`,
+        url: `${origin}/publications/${publication.slug}`,
         lastModified: publication.updatedAt ?? now,
         changeFrequency: 'monthly',
         priority: 0.6,
@@ -100,7 +157,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     for (const gallery of galleries) {
       routes.push({
-        url: `${BASE_URL}/gallery/${gallery.id}`,
+        url: `${origin}/gallery/${gallery.id}`,
         lastModified: gallery.updatedAt ?? now,
         changeFrequency: 'monthly',
         priority: 0.5,
@@ -109,7 +166,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     for (const member of teamMembers) {
       routes.push({
-        url: `${BASE_URL}/team/${member.slug}`,
+        url: `${origin}/team/${member.slug}`,
         lastModified: member.updatedAt ?? now,
         changeFrequency: 'yearly',
         priority: 0.5,
@@ -123,6 +180,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       error instanceof Error ? error.message : error
     );
   }
+
+  // Article enumeration is intentionally not wrapped in the try/catch above:
+  // a WordPress outage must surface as a failed sitemap, not as a "complete"
+  // sitemap that dropped every article.
+  routes.push(...(await wordpressArticleRoutes(origin, 'en')));
+  routes.push(...(await wordpressArticleRoutes(origin, 'ne')));
 
   return routes;
 }
