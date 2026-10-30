@@ -91,6 +91,11 @@ describe('redirectSchema', () => {
     expect(redirectSchema.safeParse({ ...base, destination: 'javascript:alert(1)' }).success).toBe(false);
     expect(redirectSchema.safeParse({ ...base, destination: 'ftp://example.com' }).success).toBe(false);
   });
+
+  it('rejects protocol-relative destinations (open redirect)', () => {
+    expect(redirectSchema.safeParse({ ...base, destination: '//evil.example' }).success).toBe(false);
+    expect(redirectSchema.safeParse({ ...base, destination: '/\\evil.example' }).success).toBe(false);
+  });
 });
 
 describe('redirect identifiers', () => {

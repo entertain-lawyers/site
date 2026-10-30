@@ -10,10 +10,11 @@ export const revalidate = 60;
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const wpId = Number(id);
-  if (isNaN(wpId)) return { title: 'Not Found' };
+  if (isNaN(wpId)) notFound();
 
   const wpPost = await getWordPressPostById(wpId, 'ne');
-  if (!wpPost || wpPost.status !== 'publish') return { title: 'Not Found' };
+  if (!wpPost || wpPost.status !== 'publish') notFound();
+  if (!mapCategoryToType(wpPost.categories, 'ne').startsWith('NEPALI_')) notFound();
 
   return {
     title: `${wpPost.title.rendered} - नेपाली`,

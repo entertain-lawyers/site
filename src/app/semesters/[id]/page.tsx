@@ -5,6 +5,7 @@ import { getDictionary } from '@/lib/i18n';
 import ResourceTypeFilter from '@/components/study/ResourceTypeFilter';
 import { BookOpen, ChevronRight, Lock, Library, GraduationCap, ChevronLeft } from 'lucide-react';
 import { SYLLABUS_CONFIG, isAuthoritativeSubject, findAuthoritativeSubject } from '@/lib/syllabus-config';
+import { serializeJsonLd } from '@/lib/seo';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -23,11 +24,7 @@ export async function generateMetadata({ params }: PageProps) {
     where: { id },
   });
   
-  if (!semester) {
-    return {
-      title: 'Semester Not Found',
-    };
-  }
+  if (!semester) notFound();
 
   return {
     title: `${semester.name} Resources`,
@@ -108,7 +105,7 @@ export default async function SemesterPage({ params }: PageProps) {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
+          __html: serializeJsonLd({
             "@context": "https://schema.org",
             "@type": "BreadcrumbList",
             "itemListElement": [

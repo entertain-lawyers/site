@@ -10,11 +10,11 @@ export const revalidate = 60;
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
   const wpId = Number(id);
-  if (isNaN(wpId)) return { title: 'Article Not Found' };
+  if (isNaN(wpId)) notFound();
 
   const wpPost = await getWordPressPostById(wpId, 'en');
   if (!wpPost || wpPost.status !== 'publish' || mapCategoryToType(wpPost.categories, 'en') !== 'BLOG') {
-    return { title: 'Article Not Found' };
+    notFound();
   }
 
   return postMetadata({

@@ -24,7 +24,13 @@ const deleteGallerySchema = z.object({
 export const createGalleryAction = createSafeAction(async (args: z.infer<typeof createGallerySchema>, session) => {
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) throw new Error('Unauthorized');
 
-  const gallery = await prisma.gallery.create({ data: args });
+  const parsed = createGallerySchema.safeParse(args);
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message || 'Invalid gallery');
+  const input = parsed.data;
+
+  const gallery = await prisma.gallery.create({
+    data: { title: input.title, description: input.description, status: input.status },
+  });
 
   await prisma.auditLog.create({
     data: { userId: session.userId!, action: 'CREATE', entityType: 'GALLERY', entityId: gallery.id, details: { title: gallery.title } }
@@ -38,12 +44,16 @@ export const createGalleryAction = createSafeAction(async (args: z.infer<typeof 
 export const updateGalleryAction = createSafeAction(async (args: z.infer<typeof updateGallerySchema>, session) => {
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) throw new Error('Unauthorized');
 
-  const existing = await prisma.gallery.findUnique({ where: { id: args.id } });
+  const parsed = updateGallerySchema.safeParse(args);
+  if (!parsed.success) throw new Error(parsed.error.issues[0]?.message || 'Invalid gallery');
+  const input = parsed.data;
+
+  const existing = await prisma.gallery.findUnique({ where: { id: input.id } });
   if (!existing) throw new Error('Gallery not found');
 
   const gallery = await prisma.gallery.update({
-    where: { id: args.id },
-    data: args,
+    where: { id: input.id },
+    data: { title: input.title, description: input.description, status: input.status },
   });
 
   await prisma.auditLog.create({

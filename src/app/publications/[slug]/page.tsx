@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     where: { slug },
   });
 
-  if (!pub || pub.status !== 'PUBLISHED') return { title: 'Publication Not Found' };
+  if (!pub || pub.status !== 'PUBLISHED') notFound();
 
   return {
     title: `${pub.metaTitle || pub.title}`,

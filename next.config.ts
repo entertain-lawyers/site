@@ -1,8 +1,12 @@
 import type { NextConfig } from "next";
 
+const isDev = process.env.NODE_ENV !== 'production';
+
+// `unsafe-eval` is only needed by the dev runtime (and some editor tooling).
+// Production React/Next does not need it, so keep it out of the deployed CSP.
 const cspHeader = `
     default-src 'self';
-    script-src 'self' 'unsafe-eval' 'unsafe-inline';
+    script-src 'self'${isDev ? " 'unsafe-eval'" : ''} 'unsafe-inline';
     style-src 'self' 'unsafe-inline';
     img-src 'self' blob: data:;
     font-src 'self';
@@ -71,6 +75,10 @@ const nextConfig: NextConfig = {
       {
         key: 'Referrer-Policy',
         value: 'strict-origin-when-cross-origin',
+      },
+      {
+        key: 'Strict-Transport-Security',
+        value: 'max-age=63072000; includeSubDomains',
       },
       {
         key: 'Permissions-Policy',
