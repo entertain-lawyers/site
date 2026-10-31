@@ -19,3 +19,8 @@ export function isRecordInUseError(error: unknown) {
 export function isRecordNotFoundError(error: unknown) {
   return isPrismaKnownRequestError(error, 'P2025');
 }
+
+/** P2021: the table does not exist, i.e. a migration was never applied to this database. */
+export function isMissingTableError(error: unknown) {
+  return isPrismaKnownRequestError(error, 'P2021');
+}

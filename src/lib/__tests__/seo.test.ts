@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { serializeJsonLd, getSiteUrl, wordPressArticlePath } from '@/lib/seo';
+import { serializeJsonLd, getSiteUrl, wordPressArticlePath, isBlogRouteType } from '@/lib/seo';
+import { mapCategoryToType } from '@/lib/wordpress';
 
 describe('serializeJsonLd', () => {
   it('keeps normal structured data as valid JSON', () => {
@@ -36,12 +37,12 @@ describe('wordPressArticlePath', () => {
   it('maps each English type to the route that renders it', () => {
     expect(wordPressArticlePath('NEWS', 2768, 'en')).toBe('/news/2768');
     expect(wordPressArticlePath('BLOG', 12, 'en')).toBe('/blogs/12');
+    expect(wordPressArticlePath('OPINION', 7, 'en')).toBe('/blogs/7');
     expect(wordPressArticlePath('FACT', 34, 'en')).toBe('/historical-facts/34');
     expect(wordPressArticlePath('PERSONALITY', 56, 'en')).toBe('/historical-facts/56');
   });
 
   it('never advertises a URL for types the site has no route for', () => {
-    expect(wordPressArticlePath('OPINION', 7, 'en')).toBeNull();
     expect(wordPressArticlePath('UNKNOWN', 8, 'en')).toBeNull();
   });
 
@@ -49,5 +50,23 @@ describe('wordPressArticlePath', () => {
     expect(wordPressArticlePath('NEPALI_SAMANYA_SAMACHAR', 90, 'ne')).toBe('/nepali/post/90');
     expect(wordPressArticlePath('NEPALI_BLOG_BICHAR', 91, 'ne')).toBe('/nepali/post/91');
     expect(wordPressArticlePath('NEWS', 92, 'ne')).toBeNull();
+  });
+});
+
+describe('isBlogRouteType', () => {
+  it('serves blog and opinion posts on /blogs, nothing else', () => {
+    expect(isBlogRouteType('BLOG')).toBe(true);
+    expect(isBlogRouteType('OPINION')).toBe(true);
+    expect(isBlogRouteType('NEWS')).toBe(false);
+    expect(isBlogRouteType('UNKNOWN')).toBe(false);
+  });
+
+  it('accepts a post tagged both Blog (61) and Opinion (60), which /blogs lists', () => {
+    // mapCategoryToType checks Opinion first, so this post maps to OPINION;
+    // the /blogs/[id] route used to 404 on it (e.g. WordPress post 3392).
+    const type = mapCategoryToType([61, 60], 'en');
+    expect(type).toBe('OPINION');
+    expect(isBlogRouteType(type)).toBe(true);
+    expect(wordPressArticlePath(type, 3392, 'en')).toBe('/blogs/3392');
   });
 });

@@ -1,13 +1,26 @@
 'use server';
 
-import { createSafeAction } from '@/lib/safe-action';
+import { createSafeAction, UserFacingError } from '@/lib/safe-action';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { consultationLawyerSchema } from './admin-lawyer.schema';
 import { slugify, slugifyWithFallback, withUniqueSlug } from '@/lib/slug';
-import { isRecordNotFoundError } from '@/lib/prisma-errors';
+import { isMissingTableError, isRecordNotFoundError } from '@/lib/prisma-errors';
+
+const MISSING_TABLE_MESSAGE =
+  'Lawyer profiles cannot be saved: the database is missing the ConsultationLawyer table (pending migration). Ask the site administrator to run the database migration.';
+
+/** Name the real cause instead of the generic error when the migration is missing. */
+async function withLawyerTable<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    if (isMissingTableError(error)) throw new UserFacingError(MISSING_TABLE_MESSAGE);
+    throw error;
+  }
+}
 
 const slugIsTaken = (excludeId?: string) => async (slug: string) =>
   Boolean(
@@ -71,14 +84,16 @@ export const createConsultationLawyerAction = createSafeAction(
 
     const baseSlug = slugify(input.slug ?? '') || slugifyWithFallback(input.name, 'advocate');
 
-    const lawyer = await withUniqueSlug(baseSlug, slugIsTaken(), (slug) =>
-      prisma.consultationLawyer.create({
-        data: {
-          name: input.name.trim(),
-          slug,
-          ...lawyerFields(input),
-        },
-      })
+    const lawyer = await withLawyerTable(() =>
+      withUniqueSlug(baseSlug, slugIsTaken(), (slug) =>
+        prisma.consultationLawyer.create({
+          data: {
+            name: input.name.trim(),
+            slug,
+            ...lawyerFields(input),
+          },
+        })
+      )
     );
 
     revalidatePath('/admin/lawyers');
@@ -101,7 +116,9 @@ export const updateConsultationLawyerAction = createSafeAction(
     }
     const input = parsed.data;
 
-    const existing = await prisma.consultationLawyer.findUnique({ where: { id: input.id } });
+    const existing = await withLawyerTable(() =>
+      prisma.consultationLawyer.findUnique({ where: { id: input.id } })
+    );
     if (!existing) {
       throw new Error('Lawyer profile not found');
     }

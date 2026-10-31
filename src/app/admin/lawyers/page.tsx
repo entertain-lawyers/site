@@ -5,6 +5,7 @@ import { randomUUID } from 'crypto';
 import { Plus, Edit, Scale, ShieldCheck, Phone, Mail, MessageCircle, MapPin, ExternalLink } from 'lucide-react';
 import DeleteLawyerButton from './DeleteLawyerButton';
 import ToggleLawyerButton from './ToggleLawyerButton';
+import { isMissingTableError } from '@/lib/prisma-errors';
 
 export const metadata = { title: 'Manage Consultation Lawyers | Admin' };
 
@@ -12,6 +13,7 @@ export default async function AdminLawyersPage() {
   let lawyers: any[] = [];
   let dbError = false;
   let errorId: string | null = null;
+  let tableMissing = false;
 
   try {
     lawyers = await prisma.consultationLawyer.findMany({
@@ -24,6 +26,7 @@ export default async function AdminLawyersPage() {
       message: error?.message,
     });
     dbError = true;
+    tableMissing = isMissingTableError(error);
   }
 
   const availableCount = lawyers.filter((l) => l.isAvailable).length;
@@ -119,7 +122,9 @@ export default async function AdminLawyersPage() {
                   <td colSpan={7} className="p-8 text-center bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-300">
                     <p className="font-bold">Consultation lawyers could not be loaded.</p>
                     <p className="mt-1 text-sm">
-                      The database query failed. This is not an empty directory — do not assume there are no lawyers.
+                      {tableMissing
+                        ? 'The ConsultationLawyer table does not exist in this database: the migration 20261030120000_add_consultation_lawyer has not been applied. Run `prisma migrate deploy` against the production database.'
+                        : 'The database query failed. This is not an empty directory — do not assume there are no lawyers.'}
                     </p>
                     {errorId ? <p className="mt-2 text-xs font-mono opacity-80">Reference: {errorId}</p> : null}
                     <Link href="/admin/lawyers" className="mt-4 inline-flex rounded-lg bg-navy px-4 py-2 text-xs font-bold text-white hover:bg-navy/90">

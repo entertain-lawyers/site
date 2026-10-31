@@ -9,6 +9,7 @@ import { env } from '@/env';
 import { Metadata } from 'next';
 import { getDictionary } from '@/lib/i18n';
 import { serializeJsonLd, getSiteUrl } from '@/lib/seo';
+import { resourceBodyStatus } from '@/lib/resource-status';
 import { BookOpen, FileText, Lock, ChevronLeft, ChevronRight, LockOpen } from 'lucide-react';
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -307,7 +308,17 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
                   </Link>
                 )}
 
-                {!resource.documentId && (
+                {resourceBodyStatus(resource) === 'WRITTEN' && (
+                  <Link
+                    href={`/read/${resource.id}`}
+                    className="w-full sm:w-auto inline-flex items-center justify-center px-10 py-4 text-sm font-bold rounded-xl text-white bg-accent hover:bg-accent-hover transition-all shadow-[0_4px_15px_rgba(var(--color-accent),0.3)] hover:shadow-[0_6px_20px_rgba(var(--color-accent),0.4)] hover:-translate-y-0.5 group mb-6"
+                  >
+                    <BookOpen className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform" />
+                    {dict.readResource}
+                  </Link>
+                )}
+
+                {resourceBodyStatus(resource) === 'EMPTY' && (
                   <div className="inline-flex items-center justify-center px-8 py-4 border border-border text-sm font-bold rounded-xl text-text-muted bg-surface-alt cursor-not-allowed">
                     {dict.pdfComingSoon}
                   </div>

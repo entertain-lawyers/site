@@ -124,6 +124,39 @@ describe('Admin Consultation Lawyer Module', () => {
       }
       expect(prisma.consultationLawyer.create).toHaveBeenCalled();
     });
+
+    it('names the unapplied migration instead of a generic error when the table is missing', async () => {
+      mock(auth).mockResolvedValue({ user: { id: 'admin-1', role: Role.ADMIN } });
+      mock(prisma.consultationLawyer.findFirst).mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError(
+          'The table `public.ConsultationLawyer` does not exist in the current database.',
+          { code: 'P2021', clientVersion: 'test' }
+        )
+      );
+
+      const res = await createConsultationLawyerAction({ name: 'Amritesh Mishra', title: 'Advocate' });
+
+      expect(res.success).toBe(false);
+      if (!res.success) expect(res.error).toMatch(/missing the ConsultationLawyer table/);
+      expect(prisma.consultationLawyer.create).not.toHaveBeenCalled();
+    });
+
+    it('names the unapplied migration when updating and the table is missing', async () => {
+      mock(auth).mockResolvedValue({ user: { id: 'admin-1', role: Role.ADMIN } });
+      mock(prisma.consultationLawyer.findUnique).mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('The table does not exist.', { code: 'P2021', clientVersion: 'test' })
+      );
+
+      const res = await updateConsultationLawyerAction({
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        name: 'Amritesh Mishra',
+        title: 'Advocate',
+      });
+
+      expect(res.success).toBe(false);
+      if (!res.success) expect(res.error).toMatch(/missing the ConsultationLawyer table/);
+      expect(prisma.consultationLawyer.update).not.toHaveBeenCalled();
+    });
   });
 
   describe('updateConsultationLawyerAction & toggleConsultationLawyerAvailabilityAction', () => {
