@@ -27,6 +27,8 @@ import {
   Scale,
   Receipt
 } from 'lucide-react';
+import { useEscapeKey } from '@/hooks/use-escape-key';
+import { AnimatePresence, Backdrop, DialogPanel } from '@/components/motion/primitives';
 
 interface ConsultationItem {
   id: string;
@@ -68,6 +70,7 @@ export default function ConsultationManager({ initialItems, dbError }: Consultat
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedItem, setSelectedItem] = useState<ConsultationItem | null>(null);
+  useEscapeKey(selectedItem !== null, () => setSelectedItem(null));
   const [editNotes, setEditNotes] = useState<string>('');
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
   const [updateFeedback, setUpdateFeedback] = useState<string | null>(null);
@@ -362,14 +365,19 @@ export default function ConsultationManager({ initialItems, dbError }: Consultat
       </div>
 
       {/* Details Modal */}
+      <AnimatePresence>
       {selectedItem && (
-        <div
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+        <Backdrop
+          key="consultation-details"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setSelectedItem(null)}
         >
-          <div
-            className="bg-surface rounded-3xl border border-border shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 space-y-6 animate-in zoom-in-95 duration-200"
+          <DialogPanel
+            className="bg-surface rounded-3xl border border-border shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 space-y-6"
             onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Consultation request from ${selectedItem.fullName}`}
           >
             {/* Header */}
             <div className="flex items-start justify-between gap-4 border-b border-border pb-4">
@@ -521,9 +529,10 @@ export default function ConsultationManager({ initialItems, dbError }: Consultat
                 </button>
               </div>
             </div>
-          </div>
-        </div>
+          </DialogPanel>
+        </Backdrop>
       )}
+      </AnimatePresence>
     </div>
   );
 }

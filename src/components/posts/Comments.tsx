@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Loader2, LogIn, MessageSquare, Send, Trash2 } from 'lucide-react';
+import { AnimatePresence, Appear, MotionButton } from '@/components/motion/primitives';
 
 interface CommentItem {
   id: string;
@@ -169,14 +170,14 @@ export default function Comments({ postId, postType = 'NEWS' }: { postId: string
                 Signed in as <span className="font-semibold text-text-secondary">{user.name || user.email}</span>
                 <span className="ml-2" aria-live="polite">{draft.length}/{MAX_LENGTH}</span>
               </p>
-              <button
+              <MotionButton
                 type="submit"
                 disabled={submitting || !draft.trim()}
                 className="inline-flex min-h-[42px] items-center gap-2 rounded-full bg-navy px-5 text-sm font-bold text-white transition-colors hover:bg-navy-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-gold dark:text-navy dark:hover:bg-gold-light"
               >
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />}
                 {submitting ? 'Posting…' : 'Post comment'}
-              </button>
+              </MotionButton>
             </div>
             <p className="mt-2 text-xs text-text-muted">
               Be respectful. Comments are public and may be moderated.
@@ -200,11 +201,15 @@ export default function Comments({ postId, postType = 'NEWS' }: { postId: string
           </div>
         )}
 
+        <AnimatePresence initial={false}>
         {error && (
+          <Appear key="error">
           <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
             {error}
           </p>
+          </Appear>
         )}
+        </AnimatePresence>
         {notice && (
           <p role="status" className="mb-4 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300">
             {notice}

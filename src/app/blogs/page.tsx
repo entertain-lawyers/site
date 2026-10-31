@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
 import BrandSearchHeader from '@/components/posts/BrandSearchHeader';
 import type { Metadata } from 'next';
+import { Reveal } from '@/components/motion/primitives';
 
 export const metadata: Metadata = {
   title: 'Blogs & Articles',
@@ -40,10 +41,10 @@ export default async function BlogsPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {posts.map(post => {
+          {posts.map((post, i) => {
             const thumbnail = post.featuredImage || extractFirstImage(post.content);
             return (
-            <div key={post.id} className="group relative bg-surface border border-border rounded-2xl shadow-soft overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 flex flex-col">
+            <Reveal index={i} perRow={3} lift key={post.id} className="group relative bg-surface border border-border rounded-2xl shadow-soft overflow-hidden transition-[box-shadow,border-color,background-color] duration-300 hover:shadow-lg flex flex-col">
               <div className="w-full h-48 bg-slate-100 dark:bg-zinc-800 flex items-center justify-center border-b border-border overflow-hidden">
                 {thumbnail ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -72,7 +73,7 @@ export default async function BlogsPage() {
                   </span>
                 </div>
               </div>
-            </div>
+            </Reveal>
             );
           })}
 

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { BookOpen, Landmark, ScrollText, Newspaper, Clock, PenTool } from 'lucide-react';
+import { Reveal } from '@/components/motion/primitives';
 
 export const metadata = {
   title: 'Explore Materials',
@@ -81,13 +82,13 @@ export default function ExplorePage() {
       {/* Materials Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 mt-8 sm:mt-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-          {categories.map((category) => {
+          {categories.map((category, i) => {
             const Icon = category.icon;
             return (
+              <Reveal key={category.id} index={i} perRow={3} lift className="h-full">
               <Link
-                key={category.id}
                 href={category.href}
-                className="group relative flex flex-col p-8 bg-white dark:bg-surface border border-border dark:border-white/5 rounded-3xl shadow-sm hover:shadow-[0_20px_40px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_20px_40px_rgba(0,0,0,0.3)] transition-all duration-500 hover:-translate-y-2 overflow-hidden"
+                className="h-full group relative flex flex-col p-8 bg-white dark:bg-surface border border-border dark:border-white/5 rounded-3xl shadow-sm hover:shadow-[0_20px_40px_rgba(0,0,0,0.06)] dark:hover:shadow-[0_20px_40px_rgba(0,0,0,0.3)] transition-[box-shadow,border-color,background-color] duration-500 overflow-hidden"
               >
                 {/* Hover Gradient Effect */}
                 <div className="absolute inset-0 bg-gradient-to-br from-transparent to-accent/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
@@ -116,6 +117,7 @@ export default function ExplorePage() {
                   </svg>
                 </div>
               </Link>
+              </Reveal>
             );
           })}
         </div>

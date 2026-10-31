@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { requestPasswordReset } from '@/modules/auth/auth.actions';
 import Link from 'next/link';
+import { AnimatePresence, Appear, MotionButton } from '@/components/motion/primitives';
 
 export default function ForgotPasswordClient() {
   const router = useRouter();
@@ -59,11 +60,15 @@ export default function ForgotPasswordClient() {
       </div>
 
       <form className="mt-8 space-y-6 relative z-10" onSubmit={handleSubmit}>
+        <AnimatePresence initial={false}>
         {error && (
+          <Appear key="error">
           <div className="bg-red-50/80 dark:bg-red-900/20 text-red-600 p-4 rounded-2xl text-sm font-medium border border-red-100 dark:border-red-900/30 backdrop-blur-sm">
             {error}
           </div>
+          </Appear>
         )}
+        </AnimatePresence>
 
         <div className="space-y-5">
           <div>
@@ -84,13 +89,13 @@ export default function ForgotPasswordClient() {
         </div>
 
         <div>
-          <button
+          <MotionButton
             type="submit"
             disabled={loading}
-            className="group relative w-full flex justify-center py-3.5 px-4 border border-transparent rounded-2xl text-sm font-bold text-white bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent transition-all duration-300 shadow-[0_0_15px_rgba(var(--color-accent),0.4)] disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-0.5"
+            className="group relative w-full flex justify-center py-3.5 px-4 border border-transparent rounded-2xl text-sm font-bold text-white bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent transition-[background-color,border-color,color,box-shadow,opacity] duration-300 shadow-[0_0_15px_rgba(var(--color-accent),0.4)] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Sending...' : 'Send Reset Code'}
-          </button>
+          </MotionButton>
         </div>
 
         <div className="text-center mt-4">

@@ -24,6 +24,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import ConsultationForm, { ConsultationLawyer } from './ConsultationForm';
+import { Reveal } from '@/components/motion/primitives';
 
 const QUICK_CONTACTS = [
   {
@@ -162,7 +163,7 @@ export default function ConsultationClient({ lawyers, loadError = false }: Consu
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {lawyers.map((lawyer) => {
+              {lawyers.map((lawyer, i) => {
                 const phone = lawyer.phone || '+9779822010737';
                 const phoneHref = `tel:${phone.replace(/[^\d+]/g, '')}`;
                 const email = lawyer.email || 'contact@entertainlawyers.com';
@@ -174,9 +175,9 @@ export default function ConsultationClient({ lawyers, loadError = false }: Consu
                 const isSelected = selectedLawyer?.id === lawyer.id;
 
                 return (
-                  <div
+                  <Reveal index={i} perRow={3} lift
                     key={lawyer.id}
-                    className={`group relative bg-surface border rounded-3xl shadow-sm overflow-hidden flex flex-col h-full transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:hover:shadow-black/50 ${
+                    className={`group relative bg-surface border rounded-3xl shadow-sm overflow-hidden flex flex-col h-full transition-[box-shadow,border-color,background-color] duration-300 hover:shadow-xl dark:hover:shadow-black/50 ${
                       isSelected
                         ? 'border-accent ring-2 ring-accent ring-offset-2 ring-offset-background'
                         : 'border-border'
@@ -338,7 +339,7 @@ export default function ConsultationClient({ lawyers, loadError = false }: Consu
                         </button>
                       </div>
                     </div>
-                  </div>
+                  </Reveal>
                 );
               })}
             </div>

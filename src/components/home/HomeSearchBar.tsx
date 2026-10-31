@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { ArrowRight, ChevronRight, Loader2, Search, SearchX, Sparkles } from 'lucide-react';
 import { hitIcon, hitChip } from '@/components/search/search-results';
 import { useLiveSearch } from '@/hooks/use-live-search';
+import { AnimatePresence, PopoverPanel, m } from '@/components/motion/primitives';
+import { springSnappy } from '@/lib/motion';
 
 /**
  * Homepage hero search: live, real-time results under the input after every
@@ -102,10 +104,12 @@ export default function HomeSearchBar() {
       </form>
 
       {/* Live results dropdown — updates after every keystroke */}
+      <AnimatePresence>
       {open && query.trim().length > 0 && (
-        <div
+        <PopoverPanel
+          key="hero-search-results"
           id="hero-search-results"
-          className="absolute top-full left-0 right-0 mt-2 z-30 bg-surface dark:bg-[#0a1526] rounded-2xl shadow-2xl border border-border overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150"
+          className="absolute top-full left-0 right-0 mt-2 z-30 bg-surface dark:bg-[#0a1526] rounded-2xl shadow-2xl border border-border overflow-hidden"
         >
           <div className="max-h-[380px] overflow-y-auto" role="listbox">
             {loading && (
@@ -149,10 +153,18 @@ export default function HomeSearchBar() {
                         aria-selected={idx === highlighted}
                         onMouseEnter={() => setHighlighted(idx)}
                         onClick={() => go(hit.url)}
-                        className={`w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-left transition-colors ${
-                          idx === highlighted ? 'bg-accent/10' : 'hover:bg-surface-alt dark:hover:bg-white/5'
+                        className={`relative isolate w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-left transition-colors ${
+                          idx === highlighted ? '' : 'hover:bg-surface-alt dark:hover:bg-white/5'
                         }`}
                       >
+                        {idx === highlighted && (
+                          <m.span
+                            layoutId="hero-search-highlight"
+                            aria-hidden="true"
+                            className="absolute inset-0 -z-10 rounded-xl bg-accent/10"
+                            transition={springSnappy}
+                          />
+                        )}
                         <span className={`p-1.5 rounded-lg shrink-0 ${hitChip(hit.category)}`}>
                           <Icon className="w-4 h-4" />
                         </span>
@@ -193,8 +205,9 @@ export default function HomeSearchBar() {
               <ChevronRight className="w-3 h-3" />
             </button>
           </div>
-        </div>
+        </PopoverPanel>
       )}
+      </AnimatePresence>
     </div>
   );
 }

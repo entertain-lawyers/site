@@ -5,6 +5,8 @@ import { Role } from '@prisma/client';
 import { createUserAction, deleteUserAction } from '@/modules/admin/admin-user.actions';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useEscapeKey } from '@/hooks/use-escape-key';
+import { AnimatePresence, Appear, Backdrop, DialogPanel, MotionButton } from '@/components/motion/primitives';
 
 function Avatar({ image, label }: { image?: string | null; label: string }) {
   if (image) {
@@ -47,6 +49,7 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  useEscapeKey(isModalOpen && !loading, () => setIsModalOpen(false));
 
   const openNewUserModal = () => {
     setEmail('');
@@ -177,16 +180,21 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
         </div>
       </div>
 
+      <AnimatePresence>
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 sm:p-8 max-w-md w-full shadow-2xl">
+        <Backdrop key="add-user" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <DialogPanel role="dialog" aria-modal="true" className="bg-white dark:bg-zinc-900 rounded-2xl p-5 sm:p-8 max-w-md w-full shadow-2xl">
             <h2 className="text-2xl font-bold mb-6 text-navy dark:text-white">Add New User</h2>
 
+            <AnimatePresence initial={false}>
             {error && (
+              <Appear key="error">
               <div className="mb-4 p-4 rounded-xl bg-red-50 border border-red-100 text-red-700 text-sm">
                 {error}
               </div>
+              </Appear>
             )}
+            </AnimatePresence>
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
@@ -268,18 +276,19 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
                 >
                   Cancel
                 </button>
-                <button
+                <MotionButton
                   type="submit"
                   disabled={loading}
                   className="flex-1 py-3 px-4 rounded-xl font-bold text-white bg-accent hover:bg-accent/90 disabled:opacity-50"
                 >
                   {loading ? 'Saving...' : 'Save User'}
-                </button>
+                </MotionButton>
               </div>
             </form>
-          </div>
-        </div>
+          </DialogPanel>
+        </Backdrop>
       )}
+      </AnimatePresence>
     </div>
   );
 }

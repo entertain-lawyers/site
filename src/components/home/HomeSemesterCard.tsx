@@ -18,7 +18,7 @@ export function HomeSemesterCard({ order, href }: HomeSemesterCardProps) {
 
   return (
     <Link href={href} className="group block h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-2xl">
-      <div className="h-32 sm:h-36 bg-gradient-to-br from-navy to-navy/95 dark:from-navy dark:to-navy/90 px-5 sm:px-6 py-5 rounded-2xl border border-navy-800 shadow-md transition-all duration-400 ease-out hover:shadow-[0_8px_30px_rgba(26,41,66,0.3)] motion-safe:hover:-translate-y-1 flex flex-row items-center justify-between relative overflow-hidden z-0">
+      <div className="h-32 sm:h-36 bg-gradient-to-br from-navy to-navy/95 dark:from-navy dark:to-navy/90 px-5 sm:px-6 py-5 rounded-2xl border border-navy-800 shadow-md transition-[box-shadow,border-color,background-color] duration-400 ease-out hover:shadow-[0_8px_30px_rgba(26,41,66,0.3)] flex flex-row items-center justify-between relative overflow-hidden z-0">
         
         {/* Faint Background Number */}
         <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-2 text-[100px] sm:text-[130px] font-black text-white/5 dark:text-white/5 pointer-events-none select-none leading-none z-0 transition-transform duration-500 ease-out group-hover:-translate-x-1">

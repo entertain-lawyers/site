@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { BookOpen, FileText } from 'lucide-react';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
 import type { Metadata } from 'next';
+import { Reveal } from '@/components/motion/primitives';
 
 export const metadata: Metadata = {
   title: 'Publications',
@@ -31,10 +32,10 @@ export default async function PublicationsPage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-          {publications.map(pub => {
+          {publications.map((pub, i) => {
             const thumbnail = pub.coverImage || extractFirstImage(pub.content);
             return (
-              <div key={pub.id} className="group relative bg-surface border border-border rounded-2xl shadow-soft overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 flex flex-col">
+              <Reveal index={i} perRow={3} lift key={pub.id} className="group relative bg-surface border border-border rounded-2xl shadow-soft overflow-hidden transition-[box-shadow,border-color,background-color] duration-300 hover:shadow-lg flex flex-col">
                 <div className="w-full aspect-[3/4] bg-slate-100 dark:bg-zinc-800 flex items-center justify-center border-b border-border overflow-hidden relative">
                   {thumbnail ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -67,7 +68,7 @@ export default async function PublicationsPage() {
                 <Link href={`/publications/${pub.slug}`} className="absolute inset-0 z-10">
                   <span className="sr-only">View {pub.title}</span>
                 </Link>
-              </div>
+              </Reveal>
             );
           })}
 

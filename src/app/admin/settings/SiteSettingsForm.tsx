@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { CheckCircle2, Loader2, Save } from 'lucide-react';
 import { updateSiteSettingsAction } from '@/modules/admin/admin-site-settings.actions';
 import type { SiteSettings } from '@/lib/site-settings';
+import { MotionButton } from '@/components/motion/primitives';
 
 const inputClass =
   'w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 px-4 py-3 text-sm font-medium text-navy dark:text-white shadow-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20';
@@ -197,14 +198,14 @@ export default function SiteSettingsForm({ initial }: { initial: SiteSettings })
       </section>
 
       <div className="flex items-center justify-end gap-3">
-        <button
+        <MotionButton
           type="submit"
           disabled={loading}
           className="inline-flex items-center gap-2 rounded-xl bg-accent px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-accent/90 disabled:opacity-60"
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
           {loading ? 'Saving…' : 'Save settings'}
-        </button>
+        </MotionButton>
       </div>
     </form>
   );

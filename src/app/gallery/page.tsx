@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { ImageIcon, Images } from 'lucide-react';
 import type { Metadata } from 'next';
+import { Reveal } from '@/components/motion/primitives';
 
 export const metadata: Metadata = {
   title: 'Photo Galleries',
@@ -39,10 +40,10 @@ export default async function GalleryListPage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {galleries.map(gallery => {
+          {galleries.map((gallery, i) => {
             const coverImage = gallery.GalleryImage[0]?.url;
             return (
-              <div key={gallery.id} className="group relative bg-surface border border-border rounded-2xl shadow-soft overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1 flex flex-col">
+              <Reveal index={i} perRow={3} lift key={gallery.id} className="group relative bg-surface border border-border rounded-2xl shadow-soft overflow-hidden transition-[box-shadow,border-color,background-color] duration-300 hover:shadow-lg flex flex-col">
                 <div className="w-full h-64 bg-slate-100 dark:bg-zinc-800 flex items-center justify-center border-b border-border overflow-hidden relative">
                   {coverImage ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -72,7 +73,7 @@ export default async function GalleryListPage() {
                 <Link href={`/gallery/${gallery.id}`} className="absolute inset-0 z-10">
                   <span className="sr-only">View {gallery.title}</span>
                 </Link>
-              </div>
+              </Reveal>
             );
           })}
 

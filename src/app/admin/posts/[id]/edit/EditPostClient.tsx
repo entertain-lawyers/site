@@ -8,6 +8,7 @@ import { Eye } from 'lucide-react';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import { writePostPreviewDraft, type PostType } from '@/lib/post-preview';
 import { htmlToText } from '@/lib/html';
+import { AnimatePresence, Appear, MotionButton } from '@/components/motion/primitives';
 
 const POST_TYPE_LABELS: Record<string, string> = {
   NEWS: 'NEWS',
@@ -126,11 +127,15 @@ export default function EditPostClient({ post }: { post: EditablePost }) {
         <h1 className="text-3xl font-extrabold text-navy dark:text-white tracking-tight">Edit Post</h1>
       </div>
 
+      <AnimatePresence initial={false}>
       {error && (
+        <Appear key="error">
         <div className="mb-6 bg-red-50 text-red-700 p-4 rounded-xl text-sm border border-red-100 font-medium">
           {error}
         </div>
+        </Appear>
       )}
+      </AnimatePresence>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-10 lg:grid lg:grid-cols-[minmax(0,860px)_340px] lg:justify-center lg:gap-12">
 
@@ -173,13 +178,13 @@ export default function EditPostClient({ post }: { post: EditablePost }) {
               </label>
             </div>
 
-            <button
+            <MotionButton
               type="submit"
               disabled={loading}
-              className="w-full bg-accent hover:bg-accent-dark text-white px-6 py-3 rounded-xl font-bold transition-all transform hover:-translate-y-0.5 shadow-lg shadow-accent/20 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+              className="w-full bg-accent hover:bg-accent-dark text-white px-6 py-3 rounded-xl font-bold transition-[background-color,border-color,color,box-shadow,opacity] transform shadow-lg shadow-accent/20 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
             >
               {loading ? 'Saving...' : 'Update Post'}
-            </button>
+            </MotionButton>
 
             <button
               type="button"

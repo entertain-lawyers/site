@@ -1,5 +1,6 @@
 import { BookOpen, Landmark, Newspaper, Briefcase, ScrollText, MessageSquare, Scale, Calculator, Users, Gavel } from "lucide-react";
 import { HomeCategoryCard } from "./HomeCategoryCard";
+import { Reveal } from "@/components/motion/primitives";
 
 export function HomeCategoryGrid() {
   const categories = [
@@ -72,7 +73,9 @@ export function HomeCategoryGrid() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 lg:gap-8">
       {categories.map((category, idx) => (
-        <HomeCategoryCard key={typeof category.title === 'string' ? category.title : idx} {...category} />
+        <Reveal key={typeof category.title === 'string' ? category.title : idx} index={idx} perRow={3} lift className="h-full">
+          <HomeCategoryCard {...category} />
+        </Reveal>
       ))}
     </div>
   );

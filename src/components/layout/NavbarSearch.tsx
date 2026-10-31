@@ -6,6 +6,10 @@ import { useRouter } from 'next/navigation';
 import { Search, X, ArrowRight, Loader2, FileQuestion, Languages, Sparkles, GraduationCap } from 'lucide-react';
 import { hitIcon, hitChip, type SearchHit } from '@/components/search/search-results';
 import { useLiveSearch } from '@/hooks/use-live-search';
+import { useIsClient } from '@/hooks/use-is-client';
+import { useEscapeKey } from '@/hooks/use-escape-key';
+import { AnimatePresence, Backdrop, DialogPanel, m } from '@/components/motion/primitives';
+import { springSnappy } from '@/lib/motion';
 
 /**
  * Global navbar search: an icon button on every page that opens a large
@@ -22,6 +26,9 @@ export default function NavbarSearch({ variant = 'desktop' }: { variant?: 'deskt
   const [highlighted, setHighlighted] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const isClient = useIsClient();
+  // Escape closes the overlay even when focus has left the input.
+  useEscapeKey(open, () => setOpen(false));
 
   useEffect(() => {
     if (open) {
@@ -88,16 +95,22 @@ export default function NavbarSearch({ variant = 'desktop' }: { variant?: 'deskt
         <Search className={variant === 'mobile' ? 'w-5 h-5' : 'w-[18px] h-[18px]'} strokeWidth={2.4} />
       </button>
 
-      {showPanel &&
+      {isClient &&
         createPortal(
-          <div
-            className="fixed inset-0 z-[70] flex items-start justify-center bg-navy/50 dark:bg-black/70 backdrop-blur-sm px-4 pt-20 sm:pt-32 animate-in fade-in duration-150"
+          <AnimatePresence>
+          {showPanel && (
+          <Backdrop
+            key="navbar-search"
+            className="fixed inset-0 z-[70] flex items-start justify-center bg-navy/50 dark:bg-black/70 backdrop-blur-sm px-4 pt-20 sm:pt-32"
             onClick={() => setOpen(false)}
             role="presentation"
           >
-          <div
+          <DialogPanel
             className="w-full max-w-xl bg-surface rounded-2xl shadow-2xl border border-border overflow-hidden"
             onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Search the site"
           >
             {/* Input bar */}
             <div className="flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-4 border-b border-border">
@@ -177,7 +190,7 @@ export default function NavbarSearch({ variant = 'desktop' }: { variant?: 'deskt
               )}
 
               {!loading && hasResults && (
-                <div className="py-2">
+                <m.div className="py-2" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={springSnappy}>
                   {result!.groups.map((group) => (
                     <div key={group.label} className="px-4 sm:px-5">
                       <div className="flex items-center gap-2 pt-2.5 pb-1">
@@ -195,10 +208,18 @@ export default function NavbarSearch({ variant = 'desktop' }: { variant?: 'deskt
                             type="button"
                             onMouseEnter={() => setHighlighted(idx)}
                             onClick={() => go(hit.url)}
-                            className={`w-full flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-left transition-colors ${
-                              idx === highlighted ? 'bg-accent/10' : 'hover:bg-surface-alt dark:hover:bg-white/5'
+                            className={`relative isolate w-full flex items-center gap-3 px-2.5 py-2.5 rounded-xl text-left transition-colors ${
+                              idx === highlighted ? '' : 'hover:bg-surface-alt dark:hover:bg-white/5'
                             }`}
                           >
+                            {idx === highlighted && (
+                              <m.span
+                                layoutId="navbar-search-highlight"
+                                aria-hidden="true"
+                                className="absolute inset-0 -z-10 rounded-xl bg-accent/10"
+                                transition={springSnappy}
+                              />
+                            )}
                             <span className={`p-2 rounded-lg shrink-0 ${hitChip(hit.category)}`}>
                               <Icon className="w-4 h-4" />
                             </span>
@@ -218,7 +239,7 @@ export default function NavbarSearch({ variant = 'desktop' }: { variant?: 'deskt
                       })}
                     </div>
                   ))}
-                </div>
+                </m.div>
               )}
             </div>
 
@@ -239,8 +260,10 @@ export default function NavbarSearch({ variant = 'desktop' }: { variant?: 'deskt
                 View All Results
               </button>
             </div>
-          </div>
-        </div>,
+          </DialogPanel>
+        </Backdrop>
+          )}
+          </AnimatePresence>,
           document.body
       )}
     </>

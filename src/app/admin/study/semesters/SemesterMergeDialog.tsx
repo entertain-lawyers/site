@@ -7,6 +7,8 @@ import {
   previewSemesterMergeAction,
   mergeSemestersAction,
 } from '@/modules/admin/admin-semester-merge.actions';
+import { useEscapeKey } from '@/hooks/use-escape-key';
+import { AnimatePresence, Appear, Backdrop, DialogPanel } from '@/components/motion/primitives';
 
 interface SemesterOption {
   id: string;
@@ -45,6 +47,7 @@ export default function SemesterMergeDialog({ semesters }: SemesterMergeDialogPr
     setPreview(null);
     setError('');
   };
+  useEscapeKey(isOpen, handleClose);
 
   const handlePreview = async () => {
     if (!sourceId || !targetId) {
@@ -119,9 +122,10 @@ export default function SemesterMergeDialog({ semesters }: SemesterMergeDialogPr
         <span>Merge Semesters</span>
       </button>
 
+      <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-black/10 dark:border-white/10 w-full max-w-2xl overflow-hidden my-8">
+        <Backdrop key="semester-merge" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+          <DialogPanel role="dialog" aria-modal="true" className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-black/10 dark:border-white/10 w-full max-w-2xl overflow-hidden my-8">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-black/5 dark:border-white/5 bg-slate-50 dark:bg-zinc-800/50">
               <div className="flex items-center gap-3">
@@ -146,19 +150,27 @@ export default function SemesterMergeDialog({ semesters }: SemesterMergeDialogPr
 
             {/* Modal Body */}
             <div className="p-6 space-y-6">
+              <AnimatePresence initial={false}>
               {error && (
+                <Appear key="error">
                 <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 text-red-700 dark:text-red-300 text-sm flex items-start gap-2.5">
                   <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5 text-red-600" />
                   <span>{error}</span>
                 </div>
+                </Appear>
               )}
+              </AnimatePresence>
 
+              <AnimatePresence initial={false}>
               {success && (
+                <Appear key="success">
                 <div className="p-4 rounded-xl bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-900 text-green-700 dark:text-green-300 text-sm flex items-start gap-2.5">
                   <CheckCircle2 className="w-5 h-5 flex-shrink-0 mt-0.5 text-green-600" />
                   <span>{success}</span>
                 </div>
+                </Appear>
               )}
+              </AnimatePresence>
 
               {/* Step 1: Select Semesters */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
@@ -345,9 +357,10 @@ export default function SemesterMergeDialog({ semesters }: SemesterMergeDialogPr
                 </div>
               )}
             </div>
-          </div>
-        </div>
+          </DialogPanel>
+        </Backdrop>
       )}
+      </AnimatePresence>
     </>
   );
 }

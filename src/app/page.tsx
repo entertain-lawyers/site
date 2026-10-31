@@ -3,6 +3,7 @@ import Image from 'next/image';
 import { BookOpen, Landmark, Newspaper, Briefcase, Search, ScrollText, MessageSquare } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { getHomepageConfig } from '@/lib/site-settings';
+import { Press } from '@/components/motion/primitives';
 
 const HomeSearchBar = dynamic(() => import('@/components/home/HomeSearchBar'), {
   loading: () => <div className="h-12 w-full bg-surface-alt animate-pulse rounded-full"></div>
@@ -80,12 +81,14 @@ export default async function HomePage() {
           </p>
         )}
         {showCta ? (
-          <Link
-            href={config.heroCtaLink!}
-            className="mt-5 inline-flex items-center justify-center rounded-full bg-accent px-6 py-3 text-sm font-bold text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-accent/90"
-          >
-            {config.heroCtaText}
-          </Link>
+          <Press className="mt-5 inline-flex">
+            <Link
+              href={config.heroCtaLink!}
+              className="inline-flex items-center justify-center rounded-full bg-accent px-6 py-3 text-sm font-bold text-white shadow-sm transition-colors duration-300 hover:bg-accent/90"
+            >
+              {config.heroCtaText}
+            </Link>
+          </Press>
         ) : null}
       </section>
 

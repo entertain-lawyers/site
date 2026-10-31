@@ -8,6 +8,7 @@ import { confirmDocumentUpload, initiateDocumentUpload } from '@/modules/admin/a
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import { writePostPreviewDraft } from '@/lib/post-preview';
 import { htmlToText } from '@/lib/html';
+import { AnimatePresence, Appear, MotionButton } from '@/components/motion/primitives';
 
 const RESOURCE_TYPES = [
   { value: ResourceType.LAW_NOTE, label: 'Law Note' },
@@ -198,11 +199,15 @@ export function AdminResourceForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8 max-w-5xl">
+      <AnimatePresence initial={false}>
       {error && (
+        <Appear key="error">
         <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg font-medium">
           {error}
         </div>
+        </Appear>
       )}
+      </AnimatePresence>
 
       {/* Upload Mode Toggle */}
       <div className="flex bg-slate-100 dark:bg-zinc-800 p-1 rounded-xl w-fit">
@@ -381,13 +386,13 @@ export function AdminResourceForm({
             Preview
           </button>
         )}
-        <button
+        <MotionButton
           type="submit"
           disabled={loading}
-          className="flex-1 py-4 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-accent hover:bg-accent/90 transition-all hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent disabled:opacity-50"
+          className="flex-1 py-4 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-accent hover:bg-accent/90 transition-[background-color,border-color,color,box-shadow,opacity] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent disabled:opacity-50"
         >
           {loading ? 'Creating Resource...' : 'Create Resource'}
-        </button>
+        </MotionButton>
       </div>
     </form>
   );

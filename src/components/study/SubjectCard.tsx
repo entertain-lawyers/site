@@ -72,7 +72,7 @@ export function SubjectCard({ title, subtitle, href, icon: Icon, effects = false
           className={`pointer-events-none absolute -inset-x-1.5 -inset-y-1 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 ease-out -z-10 ${theme.halo}`}
         />
       )}
-      <div className="h-32 sm:h-36 bg-white dark:bg-surface px-5 sm:px-6 py-5 rounded-2xl border border-border/60 dark:border-white/10 shadow-sm transition-all duration-500 ease-out hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] dark:hover:shadow-[0_8px_30px_rgba(255,255,255,0.05)] hover:border-accent/30 dark:hover:border-accent/30 motion-safe:hover:-translate-y-1.5 flex flex-row items-center justify-between relative overflow-hidden group/card z-0">
+      <div className="h-32 sm:h-36 bg-white dark:bg-surface px-5 sm:px-6 py-5 rounded-2xl border border-border/60 dark:border-white/10 shadow-sm transition-[box-shadow,border-color,background-color] duration-500 ease-out hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] dark:hover:shadow-[0_8px_30px_rgba(255,255,255,0.05)] hover:border-accent/30 dark:hover:border-accent/30 flex flex-row items-center justify-between relative overflow-hidden group/card z-0">
 
         {/* Themed wash rising from the card's bottom edge on hover */}
         {theme && (

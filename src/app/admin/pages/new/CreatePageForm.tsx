@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBuilderPageAction } from '@/modules/admin/admin-page.actions';
+import { MotionButton } from '@/components/motion/primitives';
 
 export default function CreatePageForm() {
   const router = useRouter();
@@ -80,13 +81,13 @@ export default function CreatePageForm() {
 
       {error ? <p className="text-sm text-red-600 font-medium">{error}</p> : null}
 
-      <button
+      <MotionButton
         type="submit"
         disabled={loading}
-        className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-2.5 border border-transparent shadow-sm text-sm font-bold rounded-xl text-white bg-accent hover:bg-accent/90 transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-50"
+        className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-2.5 border border-transparent shadow-sm text-sm font-bold rounded-xl text-white bg-accent hover:bg-accent/90 transition-[background-color,border-color,color,box-shadow,opacity] duration-300 disabled:opacity-50"
       >
         {loading ? 'Creating…' : 'Create & open builder'}
-      </button>
+      </MotionButton>
     </form>
   );
 }

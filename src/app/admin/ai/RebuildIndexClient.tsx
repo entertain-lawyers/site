@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, RefreshCw, Sparkles, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { AnimatePresence, Appear } from '@/components/motion/primitives';
 
 interface Progress {
   processed: number;
@@ -182,12 +183,16 @@ export default function RebuildIndexClient() {
         </div>
       )}
 
+      <AnimatePresence initial={false}>
       {error && (
+        <Appear key="error">
         <div className="mt-4 flex items-start gap-2 rounded-xl border border-amber-300/50 bg-amber-50 dark:bg-amber-900/20 p-3 text-sm text-amber-800 dark:text-amber-300">
           <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
           <span>{error}</span>
         </div>
+        </Appear>
       )}
+      </AnimatePresence>
 
       {!!messages.length && (
         <div className="mt-4 space-y-1">

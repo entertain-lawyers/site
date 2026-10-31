@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createGalleryAction } from '@/modules/admin/admin-gallery.actions';
+import { MotionButton } from '@/components/motion/primitives';
 
 export default function NewGalleryPage() {
   const router = useRouter();
@@ -35,7 +36,7 @@ export default function NewGalleryPage() {
         <div><label htmlFor="gallery-title" className="block text-sm font-bold mb-2">Title</label><input id="gallery-title" required value={title} onChange={e => setTitle(e.target.value)} className="w-full border p-3 rounded-xl" /></div>
         <div><label htmlFor="gallery-description" className="block text-sm font-bold mb-2">Description</label><textarea id="gallery-description" value={description} onChange={e => setDescription(e.target.value)} className="w-full border p-3 rounded-xl h-24" /></div>
         <div><label htmlFor="gallery-status" className="block text-sm font-bold mb-2">Status</label><select id="gallery-status" value={status} onChange={e => setStatus(e.target.value as any)} className="w-full border p-3 rounded-xl"><option value="DRAFT">Draft</option><option value="PUBLISHED">Published</option><option value="ARCHIVED">Archived</option></select></div>
-        <button type="submit" disabled={loading} className="bg-accent text-white px-6 py-3 rounded-xl font-bold">{loading ? 'Saving...' : 'Save & Continue to Images'}</button>
+        <MotionButton type="submit" disabled={loading} className="bg-accent text-white px-6 py-3 rounded-xl font-bold">{loading ? 'Saving...' : 'Save & Continue to Images'}</MotionButton>
       </form>
     </div>
   );

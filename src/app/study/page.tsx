@@ -11,6 +11,7 @@ import { getDictionary } from '@/lib/i18n';
 import { BookOpen, Scale, FileQuestion, Library, ArrowRight, Lock } from 'lucide-react';
 import { SYLLABUS_CONFIG, normalizeSubjectName } from '@/lib/syllabus-config';
 import { searchMatches } from '@/lib/translit-search';
+import { Reveal } from '@/components/motion/primitives';
 
 export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
   const params = await searchParams;
@@ -338,13 +339,13 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {resources.map((resource) => {
+              {resources.map((resource, i) => {
                 const Icon = iconMap[resource.type] || Library;
                 return (
+                  <Reveal key={resource.id} index={i} perRow={3} lift className="h-full">
                   <Link
-                    key={resource.id}
                     href={`/resources/${resource.id}`}
-                    className="group flex flex-col bg-surface border border-border rounded-2xl hover:border-accent hover:shadow-[0_8px_30px_rgba(var(--color-accent),0.12)] hover:-translate-y-1 transition-all duration-300 p-6 h-full relative overflow-hidden"
+                    className="group flex flex-col bg-surface border border-border rounded-2xl hover:border-accent hover:shadow-[0_8px_30px_rgba(var(--color-accent),0.12)] transition-[box-shadow,border-color,background-color] duration-300 p-6 h-full relative overflow-hidden"
                   >
                     {/* Top Accent Bar */}
                     <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent/40 to-accent/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -411,6 +412,7 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
                       <ArrowRight className="w-4 h-4 text-accent opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
                     </div>
                   </Link>
+                  </Reveal>
                 );
               })}
             </div>

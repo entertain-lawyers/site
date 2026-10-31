@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, FileText, Database, Users, Settings, LogOut, Globe, History, Menu, X, MessageSquare, Brain, LayoutTemplate, Images, BookOpen, ShieldCheck, Home, ArrowRightLeft, Scale } from 'lucide-react';
 import { signOut } from 'next-auth/react';
+import { AnimatePresence, Backdrop, m } from '@/components/motion/primitives';
+import { springSnappy } from '@/lib/motion';
+import { useMediaQuery } from '@/hooks/use-media-query';
 
 type NavItem = {
   name: string;
@@ -23,6 +26,15 @@ export default function AdminSidebar({
 }) {
   const pathname = usePathname();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const isDesktop = useMediaQuery('(min-width: 64rem)', true);
+
+  // Navigating from the drawer used to leave it open over the new page.
+  // Adjusted during render (not in an effect) so it closes in the same pass.
+  const [lastPathname, setLastPathname] = useState(pathname);
+  if (lastPathname !== pathname) {
+    setLastPathname(pathname);
+    setIsMobileOpen(false);
+  }
 
   // Handle escape key
   useEffect(() => {
@@ -100,7 +112,9 @@ export default function AdminSidebar({
               {item.badge > 99 ? '99+' : item.badge}
             </span>
           ) : null}
-          {isActive ? <span className="w-1 h-5 rounded-full bg-accent" /> : null}
+          {isActive ? (
+            <m.span layoutId="admin-sidebar-active" className="w-1 h-5 rounded-full bg-accent" transition={springSnappy} />
+          ) : null}
         </span>
       </Link>
     );
@@ -123,16 +137,31 @@ export default function AdminSidebar({
       </div>
 
       {/* Mobile Backdrop */}
-      {isMobileOpen && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
-          onClick={() => setIsMobileOpen(false)}
-          aria-hidden="true"
-        />
-      )}
+      <AnimatePresence>
+        {isMobileOpen && (
+          <Backdrop
+            key="admin-sidebar-backdrop"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+            onClick={() => setIsMobileOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+      </AnimatePresence>
 
-      {/* Sidebar Drawer */}
-      <div className={`admin-sidebar w-64 bg-slate-50 dark:bg-zinc-950 h-dvh flex flex-col border-r border-black/5 dark:border-white/5 shrink-0 fixed top-0 bottom-0 z-50 transition-transform duration-300 ease-in-out safe-area-top safe-area-bottom lg:translate-x-0 ${isMobileOpen ? 'translate-x-0 left-0' : '-translate-x-full left-0 lg:left-0'}`}>
+      {/* Sidebar Drawer — the CSS `translate` slides it in on mobile; on top
+          of that, the open drawer can be swiped left to close. Motion's drag
+          uses `transform`, so the two never fight. While closed on mobile it
+          is `inert`, keeping off-screen links out of the tab order. */}
+      <m.div
+        drag={isMobileOpen && !isDesktop ? 'x' : false}
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={{ left: 0.5, right: 0 }}
+        dragSnapToOrigin
+        onDragEnd={(_, info) => {
+          if (info.offset.x < -80 || info.velocity.x < -500) setIsMobileOpen(false);
+        }}
+        inert={!isDesktop && !isMobileOpen}
+        className={`admin-sidebar w-64 bg-slate-50 dark:bg-zinc-950 h-dvh flex flex-col border-r border-black/5 dark:border-white/5 shrink-0 fixed top-0 bottom-0 z-50 transition-[translate] duration-300 ease-in-out safe-area-top safe-area-bottom lg:translate-x-0 ${isMobileOpen ? 'translate-x-0 left-0' : '-translate-x-full left-0 lg:left-0'}`}>
 
         {/* Mobile Close Button */}
         <button
@@ -179,7 +208,7 @@ export default function AdminSidebar({
             </div>
           </button>
         </div>
-      </div>
+      </m.div>
     </>
   );
 }

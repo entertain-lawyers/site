@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createFAQAction } from '@/modules/admin/admin-faq.actions';
 import RichTextEditor from '@/components/editor/RichTextEditor';
+import { MotionButton } from '@/components/motion/primitives';
 
 export default function NewFaqPage() {
   const router = useRouter();
@@ -36,7 +37,7 @@ export default function NewFaqPage() {
         <div><label htmlFor="faqs-question" className="block text-sm font-bold mb-2">Question</label><input id="faqs-question" required value={question} onChange={e => setQuestion(e.target.value)} className="w-full border p-3 rounded-xl" /></div>
         <div><label htmlFor="faqs-status" className="block text-sm font-bold mb-2">Status</label><select id="faqs-status" value={status} onChange={e => setStatus(e.target.value as any)} className="w-full border p-3 rounded-xl"><option value="DRAFT">Draft</option><option value="PUBLISHED">Published</option><option value="ARCHIVED">Archived</option></select></div>
         <div><label className="block text-sm font-bold mb-2">Answer (Rich Text)</label><RichTextEditor value={answer} onChange={setAnswer} /></div>
-        <button type="submit" disabled={loading} className="bg-accent text-white px-6 py-3 rounded-xl font-bold">{loading ? 'Saving...' : 'Save FAQ'}</button>
+        <MotionButton type="submit" disabled={loading} className="bg-accent text-white px-6 py-3 rounded-xl font-bold">{loading ? 'Saving...' : 'Save FAQ'}</MotionButton>
       </form>
     </div>
   );
