@@ -122,6 +122,8 @@ export interface WordPressQueryOptions {
    * responses are never written to the shared fetch cache.
    */
   authenticated?: boolean;
+  /** Extra endpoint-specific query parameters (e.g. `media_type` on /media). */
+  params?: Record<string, string>;
 }
 
 export interface WordPressCreatePostInput {
@@ -221,6 +223,7 @@ async function fetchWordPress<T>(
     if (options.orderBy) url.searchParams.set('orderby', options.orderBy);
     if (options.embed) url.searchParams.set('_embed', 'true');
     if (options.fields) url.searchParams.set('_fields', options.fields);
+    for (const [key, value] of Object.entries(options.params ?? {})) url.searchParams.set(key, value);
 
     const fetchOptions: RequestInit & { next?: { tags?: string[]; revalidate?: number | false } } = {
       method: 'GET',
@@ -435,16 +438,139 @@ export async function getWordPressCategoryBySlug(
  */
 export async function getWordPressMediaById(
   id: number,
-  lang: WordPressLanguage = 'en'
+  lang: WordPressLanguage = 'en',
+  { authenticated = false }: { authenticated?: boolean } = {}
 ): Promise<WordPressMedia | null> {
   try {
-    const result = await fetchWordPress<WordPressMedia>(`/media/${id}`, { lang, throwOnError: true });
+    const result = await fetchWordPress<WordPressMedia>(`/media/${id}`, { lang, throwOnError: true, authenticated });
     return result.data[0] || null;
   } catch (error: any) {
     if (error instanceof WordPressApiError && error.status && MISSING_POST_STATUSES.has(error.status)) {
       return null;
     }
     throw error;
+  }
+}
+
+/**
+ * Why WordPress writes are not allowed on this deployment, or null when they
+ * are. Preview deployments and WP_READ_ONLY protect production WordPress.
+ */
+export function getWordPressWriteBlock(): string | null {
+  if (process.env.VERCEL_ENV === 'preview' || process.env.WP_READ_ONLY === 'true') {
+    return 'WordPress writes are disabled on this Preview deployment to protect production WordPress.';
+  }
+  if (!hasWordPressCredentials()) {
+    return 'This server has no WordPress credentials. Set WP_AUTH_USERNAME and WP_AUTH_APP_PASSWORD and redeploy.';
+  }
+  return null;
+}
+
+/**
+ * Images in the Media Library, newest first. Uses the server's credentials when
+ * configured (so images attached to drafts are listed) and is never cached, so
+ * a fresh upload shows up immediately.
+ */
+export async function listWordPressMedia({
+  lang = 'en',
+  page = 1,
+  perPage = 24,
+  search,
+}: {
+  lang?: WordPressLanguage;
+  page?: number;
+  perPage?: number;
+  search?: string;
+}): Promise<WordPressPaginatedResponse<WordPressMedia>> {
+  return fetchWordPress<WordPressMedia>('/media', {
+    lang,
+    page,
+    perPage,
+    search: search?.trim() || undefined,
+    order: 'desc',
+    orderBy: 'date',
+    params: { media_type: 'image' },
+    fields: 'id,date,slug,link,title,author,source_url,mime_type,media_details',
+    throwOnError: true,
+    authenticated: hasWordPressCredentials(),
+    revalidate: 0,
+    timeoutMs: 10000,
+  });
+}
+
+/**
+ * Authenticated upload of one image to the Media Library of `lang`. The caller
+ * validates the bytes first; this only transports them.
+ */
+export async function uploadWordPressMedia(
+  file: { bytes: Uint8Array; filename: string; mimeType: string; title?: string },
+  lang: WordPressLanguage = 'en',
+  timeoutMs = 30000
+): Promise<WordPressMedia> {
+  const authHeader = getWordPressAuthHeader();
+  const baseUrl = getWordPressBaseUrl(lang);
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(`${baseUrl}/media`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': file.mimeType,
+        'Content-Disposition': `attachment; filename="${file.filename.replace(/["\\\r\n]/g, '')}"`,
+        'Authorization': authHeader,
+        'Accept': 'application/json',
+      },
+      body: file.bytes as BodyInit,
+      signal: controller.signal,
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      let errorData: unknown;
+      try {
+        errorData = await response.json();
+      } catch {
+        errorData = null;
+      }
+      throw new WordPressApiError(
+        `Failed to upload media to WordPress: ${response.status} ${response.statusText}`,
+        response.status,
+        '/media',
+        errorData
+      );
+    }
+
+    let media: WordPressMedia = await response.json();
+
+    // Use the editor's title instead of the slugified filename WordPress derives.
+    if (file.title?.trim()) {
+      try {
+        const titled = await fetch(`${baseUrl}/media/${media.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: authHeader, Accept: 'application/json' },
+          body: JSON.stringify({ title: file.title.trim(), alt_text: file.title.trim() }),
+          signal: controller.signal,
+          cache: 'no-store',
+        });
+        if (titled.ok) media = await titled.json();
+      } catch {
+        // The image is uploaded; a missing title is not worth failing over.
+      }
+    }
+
+    return media;
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new WordPressApiError(`Upload to WordPress timed out after ${Math.round(timeoutMs / 1000)}s`, 408, '/media');
+    }
+    if (error instanceof WordPressApiError || error instanceof WordPressAuthError) {
+      throw error;
+    }
+    throw new WordPressApiError(`Failed to upload media: ${error instanceof Error ? error.message : String(error)}`, 502, '/media');
+  } finally {
+    clearTimeout(timer);
   }
 }
 

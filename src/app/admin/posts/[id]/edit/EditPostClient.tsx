@@ -7,6 +7,8 @@ import Link from 'next/link';
 import { Eye } from 'lucide-react';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import WordPressCredentialsNotice from '@/components/admin/WordPressCredentialsNotice';
+import FeaturedImagePanel from '@/components/admin/FeaturedImagePanel';
+import type { FeaturedImageSelection } from '@/lib/wordpress-media';
 import { writePostPreviewDraft, type PostType } from '@/lib/post-preview';
 import { articleHtmlToEditorHtml, editorHtmlToArticleHtml } from '@/lib/editor-html';
 import { htmlToText } from '@/lib/html';
@@ -35,6 +37,10 @@ interface EditablePost {
   lang: 'en' | 'ne';
   /** WordPress category ids currently on the post. */
   categories: number[];
+  /** WordPress `featured_media` id; 0 when the post has none. */
+  featuredMediaId: number;
+  /** The current featured image, loaded on the server so it survives reloads. */
+  featuredImage: FeaturedImageSelection | null;
 }
 
 const TYPE_OPTIONS: Record<'en' | 'ne', Array<[PostType, string]>> = {
@@ -55,13 +61,22 @@ const TYPE_OPTIONS: Record<'en' | 'ne', Array<[PostType, string]>> = {
   ],
 };
 
-export default function EditPostClient({ post, canSave = true }: { post: EditablePost; canSave?: boolean }) {
+export default function EditPostClient({
+  post,
+  canSave = true,
+  uploadBlockedReason = null,
+}: {
+  post: EditablePost;
+  canSave?: boolean;
+  uploadBlockedReason?: string | null;
+}) {
   const router = useRouter();
   const [title, setTitle] = useState(post.title);
   // Quill needs blank lines between paragraphs; preview and save convert back.
   const [content, setContent] = useState(() => articleHtmlToEditorHtml(post.content));
   const [type, setType] = useState<PostType>(post.type as PostType);
   const [isPublished, setIsPublished] = useState(post.status === 'PUBLISHED');
+  const [featuredImage, setFeaturedImage] = useState<FeaturedImageSelection | null>(post.featuredImage);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -70,7 +85,7 @@ export default function EditPostClient({ post, canSave = true }: { post: Editabl
       title: title || 'Untitled Draft',
       content: editorHtmlToArticleHtml(content),
       type: POST_TYPE_LABELS[type] || type,
-      featuredImage: null,
+      featuredImage: featuredImage?.url ?? null,
       editorUrl: `/admin/posts/${post.id}/edit?lang=${post.lang}`,
     });
     window.open('/preview', 'el-post-preview')?.focus();
@@ -103,6 +118,8 @@ export default function EditPostClient({ post, canSave = true }: { post: Editabl
         // otherwise keep WordPress's own categories (including any the type
         // list does not map, such as "विचार").
         categories: type === post.type ? post.categories : undefined,
+        // Only send the featured image when it changed; 0 removes it.
+        ...((featuredImage?.id ?? 0) !== post.featuredMediaId ? { featuredMediaId: featuredImage?.id ?? 0 } : {}),
       });
 
       if (!res.success) {
@@ -225,12 +242,12 @@ export default function EditPostClient({ post, canSave = true }: { post: Editabl
             </div>
           </div>
 
-          <div className="bg-slate-50 dark:bg-zinc-950 p-6 rounded-2xl border border-black/5 dark:border-white/5 space-y-4">
-            <h3 className="font-bold text-navy dark:text-white border-b border-black/5 dark:border-white/10 pb-3">Featured Image</h3>
-            <p className="text-sm text-text-secondary">
-              Featured image uploads are currently disabled in this panel. Please upload and set the featured image directly in the <a href="https://entertainlawyers.com/wp-admin" target="_blank" rel="noreferrer" className="text-accent hover:underline">WordPress Dashboard</a>.
-            </p>
-          </div>
+          <FeaturedImagePanel
+            lang={post.lang}
+            value={featuredImage}
+            onChange={setFeaturedImage}
+            uploadBlockedReason={uploadBlockedReason}
+          />
 
 
         </div>

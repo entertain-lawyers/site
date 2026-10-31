@@ -31,8 +31,18 @@ function toWordPressWriteError(error: unknown): Error {
       `WordPress API Error: WordPress rejected the server credentials (HTTP ${error.status}). The application password in WP_AUTH_APP_PASSWORD may be wrong or revoked, or the user lacks permission to publish.`
     );
   }
+  if (error instanceof WordPressApiError && error.status === 400) {
+    // e.g. "Invalid featured media ID." — WordPress's own message says what to fix.
+    const message = (error.data as { message?: unknown } | null)?.message;
+    if (typeof message === 'string' && message.trim()) {
+      return new UserFacingError(`WordPress API Error: ${message.replace(/<[^>]*>/g, '').trim()}`);
+    }
+  }
   return new Error(`WordPress API Error: ${error instanceof Error ? error.message : String(error)}`);
 }
+
+// WordPress media id for the featured image; 0 removes it (updates only).
+const featuredMediaIdSchema = z.coerce.number().int().min(0).optional();
 
 const createPostSchema = z.object({
   title: z.string().min(1),
@@ -40,6 +50,7 @@ const createPostSchema = z.object({
   type: z.enum(['NEWS', 'BLOG', 'OPINION', 'FACT', 'PERSONALITY', 'NEPALI_SAMANYA_SAMACHAR', 'NEPALI_ADALAT_SAMACHAR', 'NEPALI_MUKHYA_SAMACHAR', 'NEPALI_NAJIRHARU', 'NEPALI_AIN_KANUN', 'NEPALI_BLOG_BICHAR']),
   isPublished: z.boolean().optional(),
   status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).optional(),
+  featuredMediaId: featuredMediaIdSchema,
 });
 
 const updatePostSchema = z.object({
@@ -54,6 +65,8 @@ const updatePostSchema = z.object({
   // Sent when the admin did not change the type, so editing a post in a
   // category the type list doesn't cover neither fails nor drops categories.
   categories: z.array(z.coerce.number()).optional(),
+  // Omitted when the featured image was not touched, so it is left as it is.
+  featuredMediaId: featuredMediaIdSchema,
 });
 
 const deletePostSchema = z.object({
@@ -150,6 +163,7 @@ export const createPostAction = createSafeAction(async (rawArgs: z.infer<typeof 
       content: args.content,
       status: status,
       categories: mapTypeToCategory(args.type, lang),
+      ...(args.featuredMediaId ? { featured_media: args.featuredMediaId } : {}),
     }, lang);
 
     try {
@@ -159,7 +173,7 @@ export const createPostAction = createSafeAction(async (rawArgs: z.infer<typeof 
           action: 'CREATE',
           entityType: 'POST_WP',
           entityId: String(wpPost.id),
-          details: { title: wpPost.title.rendered, type: args.type, wpLang: lang }
+          details: { title: wpPost.title.rendered, type: args.type, wpLang: lang, featuredMediaId: args.featuredMediaId ?? null }
         }
       });
     } catch (auditError) {
@@ -203,6 +217,7 @@ export const updatePostAction = createSafeAction(async (rawArgs: z.infer<typeof 
       content: args.content,
       status: status,
       categories: args.categories ?? (args.type ? mapTypeToCategory(args.type, lang) : undefined),
+      ...(args.featuredMediaId !== undefined ? { featured_media: args.featuredMediaId } : {}),
     }, lang);
 
     try {
@@ -212,7 +227,7 @@ export const updatePostAction = createSafeAction(async (rawArgs: z.infer<typeof 
           action: 'UPDATE',
           entityType: 'POST_WP',
           entityId: String(wpPost.id),
-          details: { title: wpPost.title.rendered, type: args.type, wpLang: lang }
+          details: { title: wpPost.title.rendered, type: args.type, wpLang: lang, ...(args.featuredMediaId !== undefined ? { featuredMediaId: args.featuredMediaId } : {}) }
         }
       });
     } catch (auditError) {

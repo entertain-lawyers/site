@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { Eye } from 'lucide-react';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import WordPressCredentialsNotice from '@/components/admin/WordPressCredentialsNotice';
+import FeaturedImagePanel from '@/components/admin/FeaturedImagePanel';
+import type { FeaturedImageSelection } from '@/lib/wordpress-media';
 import { createPostAction } from '@/modules/admin/admin-post.actions';
 import { writePostPreviewDraft, type PostType } from '@/lib/post-preview';
 import { editorHtmlToArticleHtml } from '@/lib/editor-html';
@@ -46,9 +48,11 @@ const NEPALI_POST_TYPES: Array<[PostType, string]> = [
 export default function NewPostClient({
   defaultLang = 'en',
   canSave = true,
+  uploadBlockedReason = null,
 }: {
   defaultLang?: 'en' | 'ne';
   canSave?: boolean;
+  uploadBlockedReason?: string | null;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -60,6 +64,28 @@ export default function NewPostClient({
   );
   const [content, setContent] = useState('');
   const [isPublished, setIsPublished] = useState(false);
+  const [featuredImage, setFeaturedImage] = useState<FeaturedImageSelection | null>(null);
+  const [featuredNotice, setFeaturedNotice] = useState<string | null>(null);
+
+  // The post is created in the WordPress install its type belongs to, and a
+  // media id only exists in that install's library.
+  const lang = type.startsWith('NEPALI_') ? 'ne' : 'en';
+
+  const changeType = (next: PostType) => {
+    const nextLang = next.startsWith('NEPALI_') ? 'ne' : 'en';
+    if (featuredImage && featuredImage.lang !== nextLang) {
+      setFeaturedImage(null);
+      setFeaturedNotice(
+        `The featured image was removed because it belongs to the ${featuredImage.lang === 'ne' ? 'Nepali' : 'English'} Media Library. Choose one from the ${nextLang === 'ne' ? 'Nepali' : 'English'} library.`
+      );
+    }
+    setType(next);
+  };
+
+  const changeFeaturedImage = (next: FeaturedImageSelection | null) => {
+    setFeaturedNotice(null);
+    setFeaturedImage(next);
+  };
 
   const handlePreview = () => {
     // Eyebrow label mirrors the real detail pages (Nepali types show
@@ -68,6 +94,7 @@ export default function NewPostClient({
       title: title || 'Untitled Draft',
       content: editorHtmlToArticleHtml(content),
       type: POST_TYPE_LABELS[type] || type,
+      featuredImage: featuredImage?.url ?? null,
       editorUrl: `/admin/posts/new${defaultLang === 'ne' ? '?lang=ne' : ''}`,
     });
     window.open('/preview', 'el-post-preview')?.focus();
@@ -91,6 +118,7 @@ export default function NewPostClient({
         type,
         content: editorHtmlToArticleHtml(content),
         isPublished,
+        ...(featuredImage && featuredImage.lang === lang ? { featuredMediaId: featuredImage.id } : {}),
       });
 
       if (!res.success) {
@@ -199,7 +227,7 @@ export default function NewPostClient({
                 id="type"
                 required
                 value={type}
-                onChange={(e) => setType(e.target.value as PostType)}
+                onChange={(e) => changeType(e.target.value as PostType)}
                 className="block w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 px-4 py-3 text-navy dark:text-white shadow-sm focus:border-accent focus:ring-1 focus:ring-accent transition-colors sm:text-sm font-medium"
               >
                 {defaultLang === 'ne' ? (
@@ -233,12 +261,13 @@ export default function NewPostClient({
             </div>
           </div>
 
-          <div className="bg-slate-50 dark:bg-zinc-950 p-6 rounded-2xl border border-black/5 dark:border-white/5 space-y-4">
-            <h3 className="font-bold text-navy dark:text-white border-b border-black/5 dark:border-white/10 pb-3">Featured Image</h3>
-            <p className="text-sm text-text-secondary">
-              Featured image uploads are currently disabled in this panel. Please upload and set the featured image directly in the <a href="https://entertainlawyers.com/wp-admin" target="_blank" rel="noreferrer" className="text-accent hover:underline">WordPress Dashboard</a>.
-            </p>
-          </div>
+          <FeaturedImagePanel
+            lang={lang}
+            value={featuredImage}
+            onChange={changeFeaturedImage}
+            uploadBlockedReason={uploadBlockedReason}
+            notice={featuredNotice}
+          />
 
 
         </div>
