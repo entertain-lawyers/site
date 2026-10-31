@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { initiateMediaUploadAction } from '@/modules/admin/admin-media.actions';
 import { articleFont } from '@/components/posts/article-font';
 import dynamic from 'next/dynamic';
+import EditorImageTools from '@/components/editor/EditorImageTools';
 import 'react-quill-new/dist/quill.snow.css';
 
 const ReactQuill = dynamic(() => import('react-quill-new'), { ssr: false });
@@ -24,6 +25,9 @@ const QUILL_FORMATS = [
   'list', 'indent',
   'link', 'image', 'video',
   'color', 'background',
+  // Used by the image tools to centre/right-align an image's paragraph; the
+  // article CSS already styles the resulting ql-align-* classes.
+  'align',
 ];
 
 type AllowedImageMimeType = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
@@ -69,6 +73,8 @@ export default function RichTextEditor({
 }: RichTextEditorProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const reactQuillRef = useRef<any>(null);
+  const quillBoxRef = useRef<HTMLDivElement>(null);
+  const getQuill = useCallback(() => reactQuillRef.current?.getEditor?.() ?? null, []);
   const [editorFont, setEditorFont] = useState<'english' | 'nepali'>('english');
 
   // Quill's semantic HTML is what the public article CSS understands (real
@@ -160,6 +166,11 @@ export default function RichTextEditor({
             border-top-left-radius: 0.75rem;
             border-top-right-radius: 0.75rem;
           }
+          .editor-wrapper .ql-editor img {
+            cursor: pointer;
+            max-width: 100%;
+            height: auto;
+          }
           .editor-wrapper .ql-container.ql-snow {
             border-bottom-left-radius: 0.75rem;
             border-bottom-right-radius: 0.75rem;
@@ -195,7 +206,7 @@ export default function RichTextEditor({
         </div>
       </div>
 
-      <div className="bg-white dark:bg-zinc-950 rounded-xl border border-black/10 dark:border-white/10">
+      <div ref={quillBoxRef} className="relative bg-white dark:bg-zinc-950 rounded-xl border border-black/10 dark:border-white/10">
         <ReactQuill
           {...{ ref: reactQuillRef }}
           theme="snow"
@@ -208,6 +219,7 @@ export default function RichTextEditor({
           formats={QUILL_FORMATS}
           placeholder={placeholder}
         />
+        <EditorImageTools getQuill={getQuill} containerRef={quillBoxRef} />
       </div>
     </div>
   );

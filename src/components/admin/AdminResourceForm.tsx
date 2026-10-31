@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { ResourceType } from '@prisma/client';
 import { createResourceAction, deleteResourceAction } from '@/modules/admin/admin-resource.actions';
+import { editorHtmlToArticleHtml } from '@/lib/editor-html';
 import { confirmDocumentUpload, initiateDocumentUpload } from '@/modules/admin/admin-document.actions';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import { writePostPreviewDraft } from '@/lib/post-preview';
@@ -34,6 +35,8 @@ export function AdminResourceForm({
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  // Which submit button is saving, so only that one shows progress.
+  const [savingAs, setSavingAs] = useState<'DRAFT' | 'PUBLISHED' | null>(null);
   const [error, setError] = useState('');
 
   const availableTypes = canManageLawTypes
@@ -73,15 +76,18 @@ export function AdminResourceForm({
   const handlePreview = () => {
     writePostPreviewDraft({
       title: title || 'Untitled Resource',
-      content,
+      content: editorHtmlToArticleHtml(content),
       type: RESOURCE_TYPES.find((t) => t.value === resourceType)?.label || 'Resource',
       editorUrl: '/admin/study/resources/new',
     });
     window.open('/preview', 'el-resource-preview')?.focus();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    // "Save as Draft" and "Create & Publish" both submit the form.
+    const submitter = (e.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+    const status = submitter?.value === 'DRAFT' ? 'DRAFT' : 'PUBLISHED';
 
     if (uploadMode === 'PDF') {
       if (!file) {
@@ -102,6 +108,7 @@ export function AdminResourceForm({
     }
 
     setLoading(true);
+    setSavingAs(status);
     setError('');
 
     // Track the created row so a failed PDF upload can remove it instead of
@@ -119,8 +126,10 @@ export function AdminResourceForm({
         priceAmount: isPremium ? parseFloat(priceAmount) * 100 : undefined,
         type: resourceType,
         unitId: (resourceType === ResourceType.OLD_QUESTION ? undefined : unitId) || undefined,
-        content: uploadMode === 'NOTE' ? content : undefined,
-              });
+        // Quill writes one <p> per line; store real paragraphs, as /read renders them.
+        content: uploadMode === 'NOTE' ? editorHtmlToArticleHtml(content) : undefined,
+        status,
+      });
 
       if (!createRes.success) {
         throw new Error(createRes.error || 'Failed to create resource');
@@ -194,6 +203,7 @@ export function AdminResourceForm({
       const message = err instanceof Error ? err.message : 'An error occurred during creation.';
       setError(message);
       setLoading(false);
+      setSavingAs(null);
     }
   };
 
@@ -386,12 +396,23 @@ export function AdminResourceForm({
             Preview
           </button>
         )}
+        <button
+          type="submit"
+          name="status"
+          value="DRAFT"
+          disabled={loading}
+          className="flex-1 sm:flex-none sm:px-8 py-4 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 text-navy dark:text-white hover:border-accent/50 hover:text-accent text-sm font-bold transition-all disabled:opacity-50"
+        >
+          {savingAs === 'DRAFT' ? 'Saving Draft...' : 'Save as Draft'}
+        </button>
         <MotionButton
           type="submit"
+          name="status"
+          value="PUBLISHED"
           disabled={loading}
           className="flex-1 py-4 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-accent hover:bg-accent/90 transition-[background-color,border-color,color,box-shadow,opacity] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent disabled:opacity-50"
         >
-          {loading ? 'Creating Resource...' : 'Create Resource'}
+          {savingAs === 'PUBLISHED' ? 'Creating Resource...' : 'Create & Publish'}
         </MotionButton>
       </div>
     </form>

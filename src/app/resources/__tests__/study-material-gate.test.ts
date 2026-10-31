@@ -56,6 +56,8 @@ vi.mock('@/lib/i18n', () => ({ getDictionary: vi.fn(async () => new Proxy({}, { 
 vi.mock('@/components/payments/CheckoutButtons', () => ({ CheckoutButtons: () => null }));
 vi.mock('@/components/SecurePdfViewer', () => ({ default: () => null }));
 vi.mock('@/components/study/StudyOutlineSidebar', () => ({ default: () => null }));
+// /read renders written notes with ArticleBody, which loads next/font (unavailable in Vitest).
+vi.mock('@/components/posts/ArticleBody', () => ({ default: () => null }));
 vi.mock('@/env', () => ({ env: { NEXT_PUBLIC_APP_URL: 'https://example.test', PAYMENTS_ENABLED: 'false' } }));
 
 import ResourcePage from '../[id]/page';

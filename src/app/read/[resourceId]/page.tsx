@@ -18,7 +18,7 @@ const SecurePdfViewer = dynamic(() => import('@/components/SecurePdfViewer'), {
 import StudyOutlineSidebar from '@/components/study/StudyOutlineSidebar';
 import { Metadata } from 'next';
 import { getDictionary } from '@/lib/i18n';
-import { htmlToText } from '@/lib/html';
+import ArticleBody from '@/components/posts/ArticleBody';
 
 export async function generateMetadata({ params }: { params: Promise<{ resourceId: string }> }): Promise<Metadata> {
   const { resourceId } = await params;
@@ -58,6 +58,8 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
             orderBy: { order: 'asc' },
             include: {
               resources: {
+                // Drafts and archived resources must not appear in the outline.
+                where: { status: 'PUBLISHED' },
                 orderBy: [
                   { order: 'asc' },
                   { title: 'asc' }
@@ -112,8 +114,9 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
   }
 
   if (!resource.documentId || !resource.document) {
-    // Notes created in the admin "Write Note" mode have no PDF; render the
-    // stored body instead of telling the reader the document is missing.
+    // Notes created in the admin "Write Note" mode, and case summaries migrated
+    // from WordPress, have no PDF; render the stored body instead of telling
+    // the reader the document is missing.
     if (resource.content) {
       return (
         <div className="min-h-dvh bg-background transition-colors duration-300">
@@ -140,9 +143,9 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
               </p>
             )}
 
-            <article className="mt-8 whitespace-pre-wrap text-base leading-relaxed text-text-secondary">
-              {htmlToText(resource.content)}
-            </article>
+            {/* Same sanitized renderer and reading typography as articles, so
+                headings, lists and inserted (resized) images survive. */}
+            <ArticleBody html={resource.content} />
           </div>
         </div>
       );

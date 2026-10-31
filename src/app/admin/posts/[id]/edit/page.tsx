@@ -4,11 +4,14 @@ import EditPostClient from './EditPostClient';
 import { Role } from '@prisma/client';
 import Link from 'next/link';
 import {
+  getWordPressMediaById,
   getWordPressPostById,
+  getWordPressWriteBlock,
   hasWordPressCredentials,
   mapCategoryToType,
   parseWordPressPostId,
 } from '@/lib/wordpress';
+import { toFeaturedImageSelection, toWordPressMediaItem, type FeaturedImageSelection } from '@/lib/wordpress-media';
 
 export default async function EditPostPage({
   params,
@@ -62,6 +65,22 @@ export default async function EditPostPage({
   // NOTE: WordPress doesn't store our internal User IDs, so we bypass the exact 
   // author ownership check here. Since it's WordPress, Editors and Admins have global access.
   
+  // Load the current featured image here so the editor shows it after a reload.
+  // A media lookup failure must not block editing: keep the id without a preview.
+  const featuredMediaId = wpPost.featured_media ?? 0;
+  let featuredImage: FeaturedImageSelection | null = null;
+  if (featuredMediaId > 0) {
+    try {
+      const media = await getWordPressMediaById(featuredMediaId, lang, { authenticated: hasWordPressCredentials() });
+      featuredImage = media
+        ? toFeaturedImageSelection(toWordPressMediaItem(media), lang)
+        : { id: featuredMediaId, lang, url: null, thumbnailUrl: null, title: `Image #${featuredMediaId}` };
+    } catch (error) {
+      console.error(`[admin/posts/${wpId}/edit] featured media ${featuredMediaId} lookup failed`, error);
+      featuredImage = { id: featuredMediaId, lang, url: null, thumbnailUrl: null, title: `Image #${featuredMediaId}` };
+    }
+  }
+
   const mappedPost = {
     id: String(wpPost.id),
     title: wpPost.title.rendered,
@@ -72,11 +91,18 @@ export default async function EditPostPage({
     lang,
     // Kept so an unchanged type re-sends the exact categories WordPress has.
     categories: wpPost.categories ?? [],
+    featuredMediaId,
+    featuredImage,
   };
 
   return (
     <div className="min-h-screen bg-transparent">
-      <EditPostClient key={mappedPost.id} post={mappedPost} canSave={hasWordPressCredentials()} />
+      <EditPostClient
+        key={mappedPost.id}
+        post={mappedPost}
+        canSave={hasWordPressCredentials()}
+        uploadBlockedReason={getWordPressWriteBlock()}
+      />
     </div>
   );
 }

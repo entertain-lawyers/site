@@ -18,6 +18,8 @@ const createResourceSchema = z.object({
   priceAmount: z.number().int().nonnegative().optional(),
   type: z.nativeEnum(ResourceType).optional(),
   unitId: z.string().uuid().optional(),
+  // Drafts are hidden from students until published from the resources list.
+  status: z.enum([ContentStatus.DRAFT, ContentStatus.PUBLISHED]).default(ContentStatus.PUBLISHED),
 }).refine(data => {
   if (data.type === ResourceType.OLD_QUESTION) {
     return !!data.semesterId;
@@ -27,7 +29,7 @@ const createResourceSchema = z.object({
   message: "Old Questions require a semester, other resources require a subject",
 });
 
-export const createResourceAction = createSafeAction(async (args: z.infer<typeof createResourceSchema>, session) => {
+export const createResourceAction = createSafeAction(async (args: z.input<typeof createResourceSchema>, session) => {
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) {
     throw new Error('Unauthorized');
   }
@@ -66,6 +68,7 @@ export const createResourceAction = createSafeAction(async (args: z.infer<typeof
         currency,
         type: resourceType,
         unitId: input.unitId || null,
+        status: input.status,
       }
     });
 
@@ -76,7 +79,7 @@ export const createResourceAction = createSafeAction(async (args: z.infer<typeof
           action: 'CREATE',
           entityType: 'RESOURCE',
           entityId: resource.id,
-          details: { title: resource.title, type: resource.type }
+          details: { title: resource.title, type: resource.type, status: resource.status }
         }
       });
     }
@@ -84,6 +87,7 @@ export const createResourceAction = createSafeAction(async (args: z.infer<typeof
     return resource.id;
   });
 
+  revalidatePath('/admin/study/resources');
   return { resourceId };
 });
 
@@ -242,6 +246,61 @@ export const setResourceArchivedAction = createSafeAction(async (args: z.infer<t
     if (isRecordNotFoundError(error)) throw new Error('Resource not found');
     throw error;
   }
+
+  if (session.userId) {
+    await prisma.auditLog.create({
+      data: {
+        userId: session.userId,
+        action: 'UPDATE',
+        entityType: 'RESOURCE',
+        entityId: resource.id,
+        details: { title: resource.title, change: resource.status },
+      },
+    });
+  }
+
+  revalidatePath('/admin/study/resources');
+  revalidatePath('/resources');
+  revalidatePath('/study');
+  return { status: resource.status };
+});
+
+const publishResourceSchema = z.object({
+  id: z.string().uuid(),
+  published: z.boolean(),
+});
+
+/**
+ * Publish a draft, or move a published resource back to draft while it is
+ * being prepared. Archived resources are restored with the Archive button.
+ */
+export const setResourcePublishedAction = createSafeAction(async (args: z.infer<typeof publishResourceSchema>, session) => {
+  if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) {
+    throw new Error('Unauthorized');
+  }
+  const parsed = publishResourceSchema.safeParse(args);
+  if (!parsed.success) {
+    throw new Error('Invalid resource id');
+  }
+  const { id, published } = parsed.data;
+
+  const existing = await prisma.resource.findUnique({ where: { id }, select: { status: true, type: true } });
+  if (!existing) throw new Error('Resource not found');
+  if (existing.status === ContentStatus.ARCHIVED) {
+    throw new UserFacingError('This resource is archived. Restore it before changing its draft status.');
+  }
+  if (
+    session.role === Role.EDITOR &&
+    (existing.type === ResourceType.LAW_NOTE || existing.type === ResourceType.CASE_LAW)
+  ) {
+    throw new UserFacingError('Only admins can publish or unpublish law notes and case laws');
+  }
+
+  const resource = await prisma.resource.update({
+    where: { id },
+    data: { status: published ? ContentStatus.PUBLISHED : ContentStatus.DRAFT },
+    select: { id: true, title: true, status: true },
+  });
 
   if (session.userId) {
     await prisma.auditLog.create({
