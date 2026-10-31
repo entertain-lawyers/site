@@ -347,6 +347,10 @@
   }
   .article-body ul { list-style: disc; }
   .article-body ol { list-style: decimal; }
+  /* Nested numbering matches the editor (Quill): 1. → a. → i. → 1. … */
+  .article-body ol ol { list-style: lower-alpha; }
+  .article-body ol ol ol { list-style: lower-roman; }
+  .article-body ol ol ol ol { list-style: decimal; }
   .article-body li {
     margin: 0 0 0.6em;
     padding-left: 0.35em;
@@ -372,6 +376,13 @@
     height: auto;
     border-radius: 0.75rem;
     margin: 0 0 1.75em;
+  }
+  /* Images aligned in the editor (paragraph with ql-align-*). */
+  .article-body .ql-align-center img {
+    margin-inline: auto;
+  }
+  .article-body .ql-align-right img {
+    margin-left: auto;
   }
   .article-body figure {
     margin: 0 0 1.8em;
