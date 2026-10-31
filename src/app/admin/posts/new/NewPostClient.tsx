@@ -7,6 +7,7 @@ import { Eye } from 'lucide-react';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import { createPostAction } from '@/modules/admin/admin-post.actions';
 import { writePostPreviewDraft, type PostType } from '@/lib/post-preview';
+import { editorHtmlToArticleHtml } from '@/lib/editor-html';
 import { htmlToText } from '@/lib/html';
 
 const POST_TYPE_LABELS: Record<string, string> = {
@@ -57,7 +58,7 @@ export default function NewPostClient({ defaultLang = 'en' }: { defaultLang?: 'e
     // their Nepali labels; English types show NEWS/BLOG/…).
     writePostPreviewDraft({
       title: title || 'Untitled Draft',
-      content,
+      content: editorHtmlToArticleHtml(content),
       type: POST_TYPE_LABELS[type] || type,
       editorUrl: `/admin/posts/new${defaultLang === 'ne' ? '?lang=ne' : ''}`,
     });
@@ -80,7 +81,7 @@ export default function NewPostClient({ defaultLang = 'en' }: { defaultLang?: 'e
       const res = await createPostAction({
         title,
         type,
-        content,
+        content: editorHtmlToArticleHtml(content),
         isPublished,
       });
 

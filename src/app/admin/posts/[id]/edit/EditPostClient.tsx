@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { Eye } from 'lucide-react';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import { writePostPreviewDraft, type PostType } from '@/lib/post-preview';
+import { articleHtmlToEditorHtml, editorHtmlToArticleHtml } from '@/lib/editor-html';
 import { htmlToText } from '@/lib/html';
 
 const POST_TYPE_LABELS: Record<string, string> = {
@@ -55,7 +56,8 @@ const TYPE_OPTIONS: Record<'en' | 'ne', Array<[PostType, string]>> = {
 export default function EditPostClient({ post }: { post: EditablePost }) {
   const router = useRouter();
   const [title, setTitle] = useState(post.title);
-  const [content, setContent] = useState(post.content);
+  // Quill needs blank lines between paragraphs; preview and save convert back.
+  const [content, setContent] = useState(() => articleHtmlToEditorHtml(post.content));
   const [type, setType] = useState<PostType>(post.type as PostType);
   const [isPublished, setIsPublished] = useState(post.status === 'PUBLISHED');
   const [loading, setLoading] = useState(false);
@@ -64,7 +66,7 @@ export default function EditPostClient({ post }: { post: EditablePost }) {
   const handlePreview = () => {
     writePostPreviewDraft({
       title: title || 'Untitled Draft',
-      content,
+      content: editorHtmlToArticleHtml(content),
       type: POST_TYPE_LABELS[type] || type,
       featuredImage: null,
       editorUrl: `/admin/posts/${post.id}/edit?lang=${post.lang}`,
@@ -89,7 +91,7 @@ export default function EditPostClient({ post }: { post: EditablePost }) {
       const res = await updatePostAction({
         id: Number(post.id),
         title,
-        content,
+        content: editorHtmlToArticleHtml(content),
         // Omit an unchanged type (which can be UNKNOWN for categories the
         // type list does not map) so the schema accepts it.
         type: type === post.type ? undefined : type,
