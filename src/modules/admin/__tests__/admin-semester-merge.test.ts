@@ -6,6 +6,7 @@ let mockUserRole = 'ADMIN';
 let mockUserId = 'admin-user-id';
 
 vi.mock('@/lib/safe-action', () => ({
+  UserFacingError: class UserFacingError extends Error {},
   createSafeAction: (fn: any) => async (args: any) => {
     try {
       const result = await fn(args, { role: mockUserRole, userId: mockUserId });

@@ -1,6 +1,6 @@
 'use server';
 
-import { createSafeAction } from '@/lib/safe-action';
+import { createSafeAction, UserFacingError } from '@/lib/safe-action';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
@@ -138,7 +138,7 @@ export const mergeSemestersAction = createSafeAction(
     const input = mergeSemestersSchema.parse(args);
 
     if (input.confirmationPhrase.trim().toUpperCase() !== 'CONFIRM') {
-      throw new Error('Please type "CONFIRM" to authorize this operation.');
+      throw new UserFacingError('Please type "CONFIRM" to authorize this operation.');
     }
 
     if (input.sourceId === input.targetId) {

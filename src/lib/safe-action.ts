@@ -17,12 +17,27 @@ type ActionOptions = {
 const GENERIC_ERROR = "An unexpected error occurred. Please try again.";
 
 /**
+ * An error whose message is written for the person using the form and is
+ * always shown to them. Plain `Error` messages only get through when they
+ * contain an allow-listed word, and that check is case-sensitive, so
+ * messages such as "…cannot be deleted. Archive it instead." or "You cannot
+ * delete yourself" used to reach the admin as "An unexpected error occurred".
+ */
+export class UserFacingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UserFacingError";
+  }
+}
+
+/**
  * Only forward messages that are meant for users. A substring allowlist alone
  * leaked internals because Prisma errors also contain "Invalid" (e.g.
  * "Invalid `prisma.user.create()` invocation ..."), so reject anything that
  * looks like a framework/database failure first.
  */
 function toPublicErrorMessage(error: unknown): string {
+  if (error instanceof UserFacingError) return error.message;
   if (!(error instanceof Error)) return GENERIC_ERROR;
 
   const message = error.message;

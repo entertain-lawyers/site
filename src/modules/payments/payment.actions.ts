@@ -1,6 +1,6 @@
 'use server';
 
-import { createSafeAction } from '@/lib/safe-action';
+import { createSafeAction, UserFacingError } from '@/lib/safe-action';
 import { paymentCoreService } from './core/payment.service';
 import { PaymentProvider } from './core/payment.types';
 import { env } from '@/env';
@@ -10,8 +10,8 @@ const getBaseUrl = () => env.NEXT_PUBLIC_APP_URL;
 
 export const initiatePurchaseAction = createSafeAction(async (args: { resourceId: string, provider: PaymentProvider }, session) => {
   if (!session.userId) throw new Error('Unauthorized');
-  if (env.PAYMENTS_ENABLED === 'false') throw new Error('Payments are temporarily unavailable.');
-  if (process.env.VERCEL_ENV === 'preview') throw new Error('Payments are disabled in Preview mode.');
+  if (env.PAYMENTS_ENABLED === 'false') throw new UserFacingError('Payments are temporarily unavailable.');
+  if (process.env.VERCEL_ENV === 'preview') throw new UserFacingError('Payments are disabled in Preview mode.');
   
   const returnUrl = `${getBaseUrl()}/api/payments/callback/${args.provider.toLowerCase()}`;
   
@@ -30,8 +30,8 @@ export const initiatePurchaseAction = createSafeAction(async (args: { resourceId
 
 export const initiateSubscriptionAction = createSafeAction(async (args: { planId: string, provider: PaymentProvider }, session) => {
   if (!session.userId) throw new Error('Unauthorized');
-  if (env.PAYMENTS_ENABLED === 'false') throw new Error('Payments are temporarily unavailable.');
-  if (process.env.VERCEL_ENV === 'preview') throw new Error('Payments are disabled in Preview mode.');
+  if (env.PAYMENTS_ENABLED === 'false') throw new UserFacingError('Payments are temporarily unavailable.');
+  if (process.env.VERCEL_ENV === 'preview') throw new UserFacingError('Payments are disabled in Preview mode.');
   
   const returnUrl = `${getBaseUrl()}/api/payments/callback/${args.provider.toLowerCase()}`;
   

@@ -1,6 +1,6 @@
 'use server';
 
-import { createSafeAction } from '@/lib/safe-action';
+import { createSafeAction, UserFacingError } from '@/lib/safe-action';
 import { z } from 'zod';
 import { Role } from '@prisma/client';
 import { mediaStorage } from '@/lib/storage';
@@ -31,7 +31,7 @@ export const initiateMediaUploadAction = createSafeAction(async (args: z.infer<t
   }
 
   if (process.env.VERCEL_ENV === 'preview') {
-    throw new Error('Media uploads are disabled in Preview mode to protect production storage.');
+    throw new UserFacingError('Media uploads are disabled in Preview mode to protect production storage.');
   }
 
   const input = parsed.data;

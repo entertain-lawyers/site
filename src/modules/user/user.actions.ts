@@ -1,6 +1,6 @@
 'use server';
 
-import { createSafeAction } from "@/lib/safe-action";
+import { createSafeAction, UserFacingError } from "@/lib/safe-action";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
@@ -61,7 +61,7 @@ export const changePassword = createSafeAction(
 
     const passwordsMatch = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!passwordsMatch) {
-      throw new Error("Incorrect current password");
+      throw new UserFacingError("Incorrect current password");
     }
 
     const salt = await bcrypt.genSalt(12);

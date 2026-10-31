@@ -1,6 +1,6 @@
 'use server';
 
-import { createSafeAction } from '@/lib/safe-action';
+import { createSafeAction, UserFacingError } from '@/lib/safe-action';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
@@ -80,7 +80,7 @@ export const deleteGalleryAction = createSafeAction(async (args: z.infer<typeof 
     await prisma.gallery.delete({ where: { id } }); // CASCADE deletes GalleryImage rows in DB, but orphaned B2 images remain!
   } catch (error) {
     if (isRecordInUseError(error)) {
-      throw new Error('This gallery is still referenced by related records and cannot be deleted. Please archive it instead.');
+      throw new UserFacingError('This gallery is still referenced by related records and cannot be deleted. Please archive it instead.');
     }
     if (isRecordNotFoundError(error)) {
       throw new Error('Gallery not found');

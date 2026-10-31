@@ -1,6 +1,6 @@
 'use server';
 
-import { createSafeAction, parseOrThrow } from '@/lib/safe-action';
+import { createSafeAction, parseOrThrow, UserFacingError } from '@/lib/safe-action';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
@@ -142,6 +142,19 @@ export const deleteSubjectAction = createSafeAction(async (args: z.infer<typeof 
 
   if (!existing) {
     throw new Error('Subject not found');
+  }
+
+  // Resource.subjectId is ON DELETE SET NULL, so the database does not stop
+  // this delete: a subject with resources but no units used to be removed
+  // and its resources silently lost their subject. Check explicitly.
+  const [unitCount, resourceCount] = await Promise.all([
+    prisma.unit.count({ where: { subjectId: existing.id } }),
+    prisma.resource.count({ where: { subjectId: existing.id } }),
+  ]);
+  if (unitCount > 0 || resourceCount > 0) {
+    throw new UserFacingError(
+      `Cannot delete this subject because it contains ${unitCount} unit(s) and ${resourceCount} study resource(s). Please delete or reassign them first.`
+    );
   }
 
   try {

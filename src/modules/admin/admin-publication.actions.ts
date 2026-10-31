@@ -1,6 +1,6 @@
 'use server';
 
-import { createSafeAction } from '@/lib/safe-action';
+import { createSafeAction, UserFacingError } from '@/lib/safe-action';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
@@ -97,12 +97,19 @@ export const deletePublicationAction = createSafeAction(async (args: z.infer<typ
   const existing = await prisma.publication.findUnique({ where: { id } });
   if (!existing) throw new Error('Publication not found');
 
+  // Publication -> Document is RESTRICT only on the Document side, so the
+  // database lets this delete through and orphans the secure document and
+  // its stored PDF. The admin UI documents the link as protected; enforce it.
+  if (existing.documentId) {
+    throw new UserFacingError('This publication has an attached secure document. You must detach or archive it first.');
+  }
+
   // Publication might have a document attached. Schema says `document Document? @relation(onDelete: Restrict)`
   try {
     await prisma.publication.delete({ where: { id } });
   } catch (err) {
     if (isRecordInUseError(err)) {
-      throw new Error('This publication has an attached secure document. You must detach or archive it first.');
+      throw new UserFacingError('This publication has an attached secure document. You must detach or archive it first.');
     }
     if (isRecordNotFoundError(err)) throw new Error('Publication not found');
     throw err;

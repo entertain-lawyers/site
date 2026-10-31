@@ -32,6 +32,7 @@ vi.mock('@/lib/prisma', () => ({
         role: where.id === 'admin-1' ? Role.ADMIN : Role.USER,
       })),
     },
+    auditLog: { create: vi.fn() },
     consultationLawyer: {
       findUnique: vi.fn(),
       findFirst: vi.fn(),
@@ -178,6 +179,9 @@ describe('Admin Consultation Lawyer Module', () => {
       expect(res.success).toBe(true);
       expect(prisma.consultationLawyer.delete).toHaveBeenCalledWith({
         where: { id: '11111111-1111-4111-8111-111111111111' },
+      });
+      expect(prisma.auditLog.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ action: 'DELETE', entityType: 'CONSULTATION_LAWYER' }),
       });
     });
   });

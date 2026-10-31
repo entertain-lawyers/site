@@ -1,10 +1,12 @@
 'use server';
 
-import { createSafeAction } from '@/lib/safe-action';
+import { createSafeAction, UserFacingError } from '@/lib/safe-action';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { ContentStatus, Role, ResourceType } from '@prisma/client';
 import { isRecordInUseError, isRecordNotFoundError } from '@/lib/prisma-errors';
+import { deleteObject } from '@/lib/b2';
+import { revalidatePath } from 'next/cache';
 
 const createResourceSchema = z.object({
   title: z.string().min(3),
@@ -43,7 +45,7 @@ export const createResourceAction = createSafeAction(async (args: z.infer<typeof
     session.role === Role.EDITOR &&
     (resourceType === ResourceType.LAW_NOTE || resourceType === ResourceType.CASE_LAW)
   ) {
-    throw new Error('Only admins can create law notes and case laws');
+    throw new UserFacingError('Only admins can create law notes and case laws');
   }
   // Honour the admin's Premium checkbox instead of deriving it from the type;
   // "Write Note" resources can be free or paid.
@@ -89,21 +91,38 @@ const deleteResourceSchema = z.object({
   id: z.string().uuid(),
 });
 
-export const deleteResourceAction = createSafeAction(async (args: z.infer<typeof deleteResourceSchema>, session) => {
+/** Only keys this app generates for resource PDFs may be removed from storage. */
+const DOCUMENT_KEY_PREFIX = 'documents/';
+
+export type DeleteResourceResult = {
+  success: true;
+  /** Stored PDFs removed after the database delete committed. */
+  filesRemoved: number;
+  /** Stored PDFs that could not be removed (database is already consistent). */
+  filesFailed: number;
+};
+
+export const deleteResourceAction = createSafeAction(async (args: z.infer<typeof deleteResourceSchema>, session): Promise<DeleteResourceResult> => {
   const parsed = deleteResourceSchema.safeParse(args);
   if (!parsed.success) {
     throw new Error('Invalid resource id');
   }
 
   // Physical deletion is destructive. Admins may delete any resource without
-  // purchase/entitlement/access history; editors may only clean up orphaned
+  // purchase or entitlement history; editors may only clean up orphaned
   // drafts (e.g. a PDF upload that failed after the row was created).
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) {
     throw new Error('Forbidden: Admin access required.');
   }
 
   const { id } = parsed.data;
-  const resource = await prisma.resource.findUnique({ where: { id } });
+  const resource = await prisma.resource.findUnique({
+    where: { id },
+    include: {
+      document: { select: { id: true, storageKey: true, Publication: { select: { id: true } } } },
+      uploadIntents: { select: { storageKey: true } },
+    },
+  });
   if (!resource) {
     throw new Error('Resource not found');
   }
@@ -112,48 +131,50 @@ export const deleteResourceAction = createSafeAction(async (args: z.infer<typeof
     throw new Error('Forbidden: Only admins can delete resources with a document.');
   }
 
-  // 1. Check dependencies to prevent destructive loss of history.
-  const dependencies = await prisma.$transaction([
+  // Purchases and entitlements are financial/access records that must keep
+  // pointing at the resource, so those resources are archived, not deleted.
+  // Access logs used to block deletion too, but opening a PDF (including the
+  // admin's own "View") writes one, which made every viewed resource
+  // undeletable. They are history only: the foreign key is ON DELETE SET
+  // NULL, so the rows are kept and simply lose the link.
+  const [purchaseCount, entitlementCount] = await prisma.$transaction([
     prisma.purchase.count({ where: { resourceId: id } }),
     prisma.entitlement.count({ where: { resourceId: id } }),
-    prisma.accessLog.count({ where: { resourceId: id } }),
   ]);
 
-  const [purchaseCount, entitlementCount, accessCount] = dependencies;
-
-  if (purchaseCount > 0 || entitlementCount > 0 || accessCount > 0) {
-    throw new Error('This resource has existing purchases, entitlements, or access logs and cannot be physically deleted. Please Archive it instead.');
+  if (purchaseCount > 0 || entitlementCount > 0) {
+    throw new UserFacingError('This resource has purchases or entitlements and cannot be deleted. Archive it instead to hide it from students.');
   }
 
-  // Safe to delete if we reached here (e.g. genuinely disposable draft).
-  // We can clean up ephemeral UploadIntents safely.
-  await prisma.uploadIntent.deleteMany({ where: { resourceId: id } });
-
-  // NOTE: We do not delete the document if it has access logs, but we already checked accessCount is 0!
-  // However, a document could be shared? No, it's 1:1 with resource usually.
-  // We will leave the Document orphaned for future async GC, ensuring total safety.
+  // The resource's own Document row goes with it, unless a publication also
+  // points at it (Publication.documentId is RESTRICT).
+  const ownDocument =
+    resource.document && !resource.document.Publication ? resource.document : null;
 
   try {
     await prisma.$transaction(async (tx) => {
-      await tx.resource.delete({
-        where: { id }
-      });
+      // UploadIntent rows cascade with the resource.
+      await tx.resource.delete({ where: { id } });
 
-      if (resource && session.userId) {
+      if (ownDocument) {
+        await tx.document.delete({ where: { id: ownDocument.id } });
+      }
+
+      if (session.userId) {
         await tx.auditLog.create({
           data: {
             userId: session.userId,
             action: 'DELETE',
             entityType: 'RESOURCE',
             entityId: resource.id,
-            details: { title: resource.title, type: resource.type }
-          }
+            details: { title: resource.title, type: resource.type, documentDeleted: Boolean(ownDocument) },
+          },
         });
       }
     });
   } catch (error) {
     if (isRecordInUseError(error)) {
-      throw new Error('This resource is still referenced by related records and cannot be deleted. Please archive it instead.');
+      throw new UserFacingError('This resource is still referenced by related records and cannot be deleted. Archive it instead.');
     }
     if (isRecordNotFoundError(error)) {
       throw new Error('Resource not found');
@@ -161,7 +182,83 @@ export const deleteResourceAction = createSafeAction(async (args: z.infer<typeof
     throw error;
   }
 
-  return { success: true };
+  // Storage is cleaned up only after the database commit, so a storage outage
+  // can never leave a resource row pointing at a missing file. A key is
+  // removed only if it is one of ours and no remaining Document uses it.
+  const candidateKeys = new Set(
+    [ownDocument?.storageKey, ...resource.uploadIntents.map((intent) => intent.storageKey)].filter(
+      (key): key is string => typeof key === 'string' && key.startsWith(DOCUMENT_KEY_PREFIX)
+    )
+  );
+
+  let filesRemoved = 0;
+  let filesFailed = 0;
+  for (const key of candidateKeys) {
+    const stillReferenced = await prisma.document.count({ where: { storageKey: key } });
+    if (stillReferenced > 0) continue;
+    try {
+      await deleteObject(key);
+      filesRemoved++;
+    } catch (error) {
+      filesFailed++;
+      console.error(`[resources] Deleted resource ${id} but could not remove stored file ${key}:`, error);
+    }
+  }
+
+  revalidatePath('/admin/study/resources');
+  revalidatePath('/resources');
+  revalidatePath('/study');
+
+  return { success: true, filesRemoved, filesFailed };
+});
+
+const archiveResourceSchema = z.object({
+  id: z.string().uuid(),
+  archived: z.boolean(),
+});
+
+/**
+ * Hides a resource from students without deleting it — the path for
+ * resources whose purchases or entitlements must be preserved.
+ */
+export const setResourceArchivedAction = createSafeAction(async (args: z.infer<typeof archiveResourceSchema>, session) => {
+  if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) {
+    throw new Error('Unauthorized');
+  }
+  const parsed = archiveResourceSchema.safeParse(args);
+  if (!parsed.success) {
+    throw new Error('Invalid resource id');
+  }
+  const { id, archived } = parsed.data;
+
+  let resource;
+  try {
+    resource = await prisma.resource.update({
+      where: { id },
+      data: { status: archived ? ContentStatus.ARCHIVED : ContentStatus.PUBLISHED },
+      select: { id: true, title: true, status: true },
+    });
+  } catch (error) {
+    if (isRecordNotFoundError(error)) throw new Error('Resource not found');
+    throw error;
+  }
+
+  if (session.userId) {
+    await prisma.auditLog.create({
+      data: {
+        userId: session.userId,
+        action: 'UPDATE',
+        entityType: 'RESOURCE',
+        entityId: resource.id,
+        details: { title: resource.title, change: resource.status },
+      },
+    });
+  }
+
+  revalidatePath('/admin/study/resources');
+  revalidatePath('/resources');
+  revalidatePath('/study');
+  return { status: resource.status };
 });
 
 const updateResourceSchema = z.object({

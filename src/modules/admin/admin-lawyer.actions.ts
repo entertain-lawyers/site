@@ -146,13 +146,27 @@ export const deleteConsultationLawyerAction = createSafeAction(
       throw new Error('Invalid delete request');
     }
 
+    let removed;
     try {
-      await prisma.consultationLawyer.delete({
+      removed = await prisma.consultationLawyer.delete({
         where: { id: parsed.data.id },
       });
     } catch (error) {
       if (isRecordNotFoundError(error)) throw new Error('Lawyer profile not found');
       throw error;
+    }
+
+    // Every other admin delete is audited; lawyer profiles were not.
+    if (session.userId) {
+      await prisma.auditLog.create({
+        data: {
+          userId: session.userId,
+          action: 'DELETE',
+          entityType: 'CONSULTATION_LAWYER',
+          entityId: removed.id,
+          details: { name: removed.name, slug: removed.slug },
+        },
+      });
     }
 
     revalidatePath('/admin/lawyers');

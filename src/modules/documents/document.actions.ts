@@ -1,6 +1,6 @@
 "use server";
 
-import { createSafeAction } from "@/lib/safe-action";
+import { createSafeAction, UserFacingError } from "@/lib/safe-action";
 import { prisma } from "@/lib/prisma";
 import { canAccessResource } from "@/modules/entitlements/entitlement.service";
 import { generatePresignedGetUrl } from "@/lib/b2";
@@ -58,7 +58,7 @@ export const getSecureDocumentUrl = createSafeAction(
     }
 
     if (!resource.document) {
-      throw new Error("This resource does not have an associated document.");
+      throw new UserFacingError("This resource does not have an associated document.");
     }
 
     // 4. Generate short-lived Signed URL (5 minutes)

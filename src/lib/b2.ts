@@ -1,4 +1,4 @@
-import { S3Client, GetObjectCommand, PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand, PutObjectCommand, HeadObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { env } from "@/env";
 
@@ -81,4 +81,18 @@ export async function getObjectHeadBytes(storageKey: string, numBytes: number = 
     chunks.push(Buffer.from(chunk));
   }
   return Buffer.concat(chunks).toString('ascii');
+}
+
+/**
+ * Deletes one stored object. S3-compatible stores answer a delete of a key
+ * that does not exist with success, so a file that is already gone is not an
+ * error. Callers pass keys read from the database, never from the browser.
+ */
+export async function deleteObject(storageKey: string): Promise<void> {
+  await s3Client.send(
+    new DeleteObjectCommand({
+      Bucket: env.B2_BUCKET_NAME || "",
+      Key: storageKey,
+    })
+  );
 }
