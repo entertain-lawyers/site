@@ -15,6 +15,7 @@ import AskAI from '@/components/ai/AskAI';
 import { getSiteSettings } from '@/lib/site-settings';
 import AnalyticsTracker from '@/components/AnalyticsTracker';
 import { serializeJsonLd, getSiteUrl } from '@/lib/seo';
+import { SEMESTERS_CACHE_TAG } from '@/lib/cache-tags';
 
 /**
  * Site-wide typography. Restored Mukta as the requested legacy face
@@ -41,6 +42,19 @@ const notoDevanagari = Noto_Sans_Devanagari({
   variable: '--font-chat-devanagari',
   display: 'swap',
 });
+
+// Defined once at module scope rather than re-created on every render.
+const getCachedSemesters = unstable_cache(
+  async () => {
+    return prisma.semester.findMany({
+      orderBy: { order: 'asc' },
+      select: { id: true, name: true }
+    });
+  },
+  ['layout-semesters'],
+  // Tagged so semester edits in the admin show in the navbar immediately.
+  { revalidate: 3600, tags: [SEMESTERS_CACHE_TAG] }
+);
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -91,24 +105,16 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const locale = await getLocale();
-  const dict = await getDictionary();
-  const session = await auth();
-  const settings = await getSiteSettings();
+  // Independent lookups: run them together instead of one after another.
+  const [locale, dict, session, settings, semesters] = await Promise.all([
+    getLocale(),
+    getDictionary(),
+    auth(),
+    getSiteSettings(),
+    getCachedSemesters(),
+  ]);
   const siteUrl = getSiteUrl();
 
-  const getCachedSemesters = unstable_cache(
-    async () => {
-      return prisma.semester.findMany({
-        orderBy: { order: 'asc' },
-        select: { id: true, name: true }
-      });
-    },
-    ['layout-semesters'],
-    { revalidate: 3600 }
-  );
-
-  const semesters = await getCachedSemesters();
   // Defensive guard: collapse any duplicate semester rows (bad seeds/scripts
   // have leaked 'S1' stubs into this table before) to a single entry each.
   const uniqueSemesters = semesters.filter((s, i) => {
@@ -179,6 +185,13 @@ export default async function RootLayout({
         />
       </head>
       <body className={`${mukta.variable} ${jakarta.variable} ${inter.variable} ${notoDevanagari.variable} bg-background text-text-primary flex flex-col min-h-screen transition-colors duration-200`}>
+        {/* Keyboard users can bypass the utility bar and navbar. */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:rounded-lg focus:bg-surface focus:px-4 focus:py-2 focus:text-sm focus:font-bold focus:text-navy focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-accent dark:focus:text-white"
+        >
+          Skip to main content
+        </a>
         <NextTopLoader color="var(--color-accent)" showSpinner={false} shadow="0 0 10px var(--color-accent),0 0 5px var(--color-accent)" />
         <AnalyticsTracker />
         <ContentProtection />
@@ -186,7 +199,7 @@ export default async function RootLayout({
           <TopUtilityBar locale={locale} dict={dict} />
           <Navbar dict={dict} session={session} semesters={uniqueSemesters} locale={locale} />
         </PublicOnly>
-        <main className="flex-grow flex flex-col">
+        <main id="main-content" tabIndex={-1} className="flex-grow flex flex-col focus:outline-none">
           {children}
         </main>
         <PublicOnly>

@@ -51,7 +51,7 @@ export default async function ResourcesPage() {
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {resources.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {resources.map((resource) => {
@@ -111,7 +111,7 @@ export default async function ResourcesPage() {
             <p className="text-text-secondary text-base">{dict.resourcesComingSoon}</p>
           </div>
         )}
-      </main>
+      </div>
     </div>
   );
 }

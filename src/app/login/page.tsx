@@ -1,16 +1,33 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { register } from '@/modules/auth/auth.actions';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Lock } from 'lucide-react';
+import {
+  safeCallbackUrl,
+  STUDY_MATERIAL_LOGIN_MESSAGE,
+  STUDY_MATERIAL_LOGIN_REASON,
+} from '@/lib/callback-url';
+
+/** Same-origin absolute URL → path; anything else → null (rejected). */
+function toRelative(url: string): string | null {
+  try {
+    const parsed = new URL(url, window.location.origin);
+    return parsed.origin === window.location.origin ? `${parsed.pathname}${parsed.search}${parsed.hash}` : null;
+  } catch {
+    return null;
+  }
+}
 
 export default function LoginPage() {
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
+  // Untrusted query input: only same-site paths survive (no open redirect).
+  const callbackUrl = safeCallbackUrl(searchParams.get('callbackUrl'));
+  const isStudyMaterial = searchParams.get('reason') === STUDY_MATERIAL_LOGIN_REASON;
   const errorParam = searchParams.get('error');
   const codeParam = searchParams.get('code');
 
@@ -31,6 +48,22 @@ export default function LoginPage() {
       : null
   );
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Someone who is already signed in goes straight to where they were headed.
+  // /api/auth/session is validated against the database, so an invalidated
+  // session gets the form instead of a redirect loop.
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/auth/session', { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((session) => {
+        if (!cancelled && session?.user) window.location.replace(callbackUrl);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [callbackUrl]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,8 +100,9 @@ export default function LoginPage() {
         return;
       }
 
-      const destination = result.url || callbackUrl || '/dashboard';
-      window.location.href = destination;
+      // NextAuth already restricts result.url to this origin; validate it
+      // again so neither branch can send the user off-site.
+      window.location.href = safeCallbackUrl(result.url ? toRelative(result.url) : null, callbackUrl);
     } catch (err: any) {
       setError(err?.message || 'Failed to sign in. Please try again.');
       setLoading(false);
@@ -112,9 +146,18 @@ export default function LoginPage() {
           </div>
           <span className="sr-only">Entertain Lawyers</span>
         </Link>
-        <h2 className="text-fluid-h2 font-bold text-navy dark:text-white tracking-tight">
+        {isStudyMaterial && (
+          <div
+            role="status"
+            className="mb-6 flex items-center justify-center gap-2 rounded-xl border border-accent/20 bg-accent/5 px-4 py-3 text-sm font-semibold text-navy dark:text-white"
+          >
+            <Lock className="h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
+            {STUDY_MATERIAL_LOGIN_MESSAGE}
+          </div>
+        )}
+        <h1 className="text-fluid-h2 font-bold text-navy dark:text-white tracking-tight">
           {mode === 'login' ? 'Welcome back' : 'Create an account'}
-        </h2>
+        </h1>
         <p className="mt-2 text-sm text-text-secondary">
           {mode === 'login' ? (
             <>

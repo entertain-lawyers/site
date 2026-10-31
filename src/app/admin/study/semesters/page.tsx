@@ -8,7 +8,7 @@ import DeleteSemesterButton from './DeleteSemesterButton';
 import SemesterMergeDialog from './SemesterMergeDialog';
 
 export const metadata: Metadata = {
-  title: 'Manage Semesters - Admin - Entertain Lawyers',
+  title: 'Manage Semesters - Admin',
 };
 
 export default async function AdminSemestersPage() {

@@ -1,6 +1,7 @@
 'use server';
 
-import { createSafeAction } from '@/lib/safe-action';
+import { createSafeAction, parseOrThrow } from '@/lib/safe-action';
+import { isUniqueConstraintError, isRecordNotFoundError } from '@/lib/prisma-errors';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { Role, type Prisma } from '@prisma/client';
@@ -37,6 +38,12 @@ const publishPageSchema = z.object({
   status: z.enum(['PUBLISHED', 'DRAFT']).default('PUBLISHED'),
 });
 
+function friendlyPageError(error: unknown): unknown {
+  if (isUniqueConstraintError(error)) return new Error('A page with this slug already exists. Choose a different slug.');
+  if (isRecordNotFoundError(error)) return new Error('Page not found');
+  return error;
+}
+
 function authorize(role?: Role) {
   if (role !== Role.ADMIN && role !== Role.EDITOR) throw new Error('Unauthorized');
 }
@@ -44,6 +51,7 @@ function authorize(role?: Role) {
 export const createBuilderPageAction = createSafeAction(
   async (args: z.infer<typeof createPageSchema>, context) => {
     authorize(context.role);
+    args = parseOrThrow(createPageSchema, args);
 
     const data: Record<string, unknown> = args.data?.content
       ? args.data
@@ -52,17 +60,22 @@ export const createBuilderPageAction = createSafeAction(
           root: { props: { title: args.title, metaTitle: args.metaTitle ?? '', metaDesc: args.metaDesc ?? '' } },
         };
 
-    const page = await prisma.builderPage.create({
-      data: {
-        title: args.title,
-        slug: args.slug,
-        status: args.status,
-        metaTitle: args.metaTitle,
-        metaDesc: args.metaDesc,
-        data: data as Prisma.InputJsonValue,
-        authorId: context.userId!,
-      },
-    });
+    let page;
+    try {
+      page = await prisma.builderPage.create({
+        data: {
+          title: args.title,
+          slug: args.slug,
+          status: args.status,
+          metaTitle: args.metaTitle,
+          metaDesc: args.metaDesc,
+          data: data as Prisma.InputJsonValue,
+          authorId: context.userId!,
+        },
+      });
+    } catch (error) {
+      throw friendlyPageError(error);
+    }
 
     await prisma.auditLog.create({
       data: {
@@ -83,6 +96,7 @@ export const createBuilderPageAction = createSafeAction(
 export const updateBuilderPageAction = createSafeAction(
   async (args: z.infer<typeof updatePageSchema>, context) => {
     authorize(context.role);
+    args = parseOrThrow(updatePageSchema, args);
 
     const { id, ...rest } = args;
     const updateData: Prisma.BuilderPageUpdateInput = {
@@ -97,10 +111,15 @@ export const updateBuilderPageAction = createSafeAction(
     const prev = await prisma.builderPage.findUnique({ where: { id }, select: { slug: true } });
     if (!prev) throw new Error('Page not found');
 
-    const page = await prisma.builderPage.update({
-      where: { id },
-      data: updateData,
-    });
+    let page;
+    try {
+      page = await prisma.builderPage.update({
+        where: { id },
+        data: updateData,
+      });
+    } catch (error) {
+      throw friendlyPageError(error);
+    }
 
     await prisma.auditLog.create({
       data: {
@@ -122,11 +141,17 @@ export const updateBuilderPageAction = createSafeAction(
 export const publishBuilderPageAction = createSafeAction(
   async (args: z.infer<typeof publishPageSchema>, context) => {
     authorize(context.role);
+    args = parseOrThrow(publishPageSchema, args);
 
-    const page = await prisma.builderPage.update({
-      where: { id: args.id },
-      data: { status: args.status },
-    });
+    let page;
+    try {
+      page = await prisma.builderPage.update({
+        where: { id: args.id },
+        data: { status: args.status },
+      });
+    } catch (error) {
+      throw friendlyPageError(error);
+    }
 
     await prisma.auditLog.create({
       data: {
@@ -147,8 +172,14 @@ export const publishBuilderPageAction = createSafeAction(
 export const deleteBuilderPageAction = createSafeAction(
   async (args: z.infer<typeof deletePageSchema>, context) => {
     authorize(context.role);
+    args = parseOrThrow(deletePageSchema, args);
 
-    const page = await prisma.builderPage.delete({ where: { id: args.id } });
+    let page;
+    try {
+      page = await prisma.builderPage.delete({ where: { id: args.id } });
+    } catch (error) {
+      throw friendlyPageError(error);
+    }
 
     await prisma.auditLog.create({
       data: {

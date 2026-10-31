@@ -2,7 +2,13 @@ import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import EditPostClient from './EditPostClient';
 import { Role } from '@prisma/client';
-import { getWordPressPostById, mapCategoryToType } from '@/lib/wordpress';
+import Link from 'next/link';
+import {
+  getWordPressPostById,
+  hasWordPressCredentials,
+  mapCategoryToType,
+  parseWordPressPostId,
+} from '@/lib/wordpress';
 
 export default async function EditPostPage({
   params,
@@ -19,8 +25,35 @@ export default async function EditPostPage({
 
   const { id } = await params;
   const { lang: queryLang } = await searchParams;
-  const lang = queryLang || 'en';
-  const wpPost = await getWordPressPostById(Number(id), lang);
+  // Anything but "ne" is English; an unknown value must not pin the editor
+  // to a language the save action would reject.
+  const lang: 'en' | 'ne' = queryLang === 'ne' ? 'ne' : 'en';
+  const wpId = parseWordPressPostId(id);
+  if (!wpId) {
+    redirect('/admin/posts');
+  }
+
+  // Drafts and trashed posts are only visible with credentials. Without them
+  // WordPress answers 401 and the post is treated as missing.
+  let wpPost;
+  try {
+    wpPost = await getWordPressPostById(wpId, lang, { authenticated: hasWordPressCredentials() });
+  } catch (error) {
+    console.error(`[admin/posts/${wpId}/edit] WordPress request failed`, error);
+    return (
+      <div className="p-6 lg:p-10 max-w-3xl">
+        <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+          <h1 className="text-lg font-bold">WordPress could not be reached</h1>
+          <p className="mt-2 text-sm">
+            Post #{wpId} could not be loaded, so it cannot be edited right now. Nothing has been changed. Try again in a moment.
+          </p>
+          <Link href="/admin/posts" className="mt-4 inline-block text-sm font-semibold underline">
+            Back to posts
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (!wpPost) {
     redirect('/admin/posts');

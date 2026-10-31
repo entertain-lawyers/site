@@ -5,7 +5,7 @@ import { Metadata } from 'next';
 import UnitForm from '../UnitForm';
 
 export const metadata: Metadata = {
-  title: 'Create Unit - Admin - Entertain Lawyers',
+  title: 'Create Unit - Admin',
 };
 
 export default async function NewUnitPage() {

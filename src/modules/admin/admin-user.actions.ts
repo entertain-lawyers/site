@@ -1,6 +1,6 @@
 'use server';
 
-import { createSafeAction } from '@/lib/safe-action';
+import { createSafeAction, UserFacingError } from '@/lib/safe-action';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { Prisma, Role } from '@prisma/client';
@@ -123,10 +123,10 @@ export const updateUserAction = createSafeAction(async (args: z.infer<typeof upd
 
   if (input.role) {
     if (targetUser.email === 'admin@entertainlawyers.com' && input.role !== Role.ADMIN) {
-      throw new Error('The main admin role cannot be changed.');
+      throw new UserFacingError('The main admin role cannot be changed.');
     }
     if (input.id === session.userId && input.role !== Role.ADMIN) {
-      throw new Error('You cannot remove your own admin role.');
+      throw new UserFacingError('You cannot remove your own admin role.');
     }
     if (targetUser.role === Role.ADMIN && input.role !== Role.ADMIN) {
       await assertNotLastAdmin(targetUser.id);
@@ -230,7 +230,7 @@ export const deleteUserAction = createSafeAction(async (args: z.infer<typeof del
   const { id } = parsed.data;
 
   if (id === session.userId) {
-    throw new Error('You cannot delete yourself');
+    throw new UserFacingError('You cannot delete yourself');
   }
 
   const targetUser = await prisma.user.findUnique({
@@ -240,7 +240,7 @@ export const deleteUserAction = createSafeAction(async (args: z.infer<typeof del
   if (!targetUser) throw new Error('User not found');
 
   if (targetUser.email === 'admin@entertainlawyers.com') {
-    throw new Error('The main admin account cannot be deleted.');
+    throw new UserFacingError('The main admin account cannot be deleted.');
   }
 
   if (targetUser.role === Role.ADMIN) {
@@ -253,7 +253,7 @@ export const deleteUserAction = createSafeAction(async (args: z.infer<typeof del
     });
   } catch (error) {
     if (isRecordInUseError(error)) {
-      throw new Error('This user has related sessions, content, payments, entitlements, or logs and cannot be deleted safely. Disable or change their role instead.');
+      throw new UserFacingError('This user has related sessions, content, payments, entitlements, or logs and cannot be deleted safely. Disable or change their role instead.');
     }
     if (isRecordNotFoundError(error)) throw new Error('User not found');
     throw error;

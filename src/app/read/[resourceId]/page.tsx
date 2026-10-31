@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { canAccessResource } from '@/modules/entitlements/entitlement.service';
+import { studyMaterialLoginUrl } from '@/lib/callback-url';
 import { getSecureDocumentUrl } from '@/modules/documents/document.actions';
 import dynamic from 'next/dynamic';
 
@@ -42,7 +43,7 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
   const session = await auth();
 
   if (!session?.user?.id) {
-    redirect(`/login?callbackUrl=${encodeURIComponent(`/read/${resourceId}`)}`);
+    redirect(studyMaterialLoginUrl(`/read/${resourceId}`));
   }
 
   const resource = await prisma.resource.findUnique({

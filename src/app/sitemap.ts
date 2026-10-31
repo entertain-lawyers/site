@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next';
+import { PHASE_PRODUCTION_BUILD } from 'next/constants';
 import { prisma } from '@/lib/prisma';
 import { getWordPressPosts, mapCategoryToType, type WordPressLanguage } from '@/lib/wordpress';
 import { getSiteUrl, wordPressArticlePath } from '@/lib/seo';
@@ -96,6 +97,32 @@ async function wordpressArticleRoutes(
   return routes;
 }
 
+/**
+ * Every WordPress article URL. At request time (hourly regeneration) a
+ * WordPress outage must fail the sitemap, not publish a "complete" sitemap
+ * that dropped every article: Next keeps serving the last good sitemap.
+ *
+ * During `next build` there is no previous sitemap to fall back on and a
+ * throw fails the whole deploy, so the build ships the static and database
+ * URLs and the first hourly regeneration adds the articles.
+ */
+async function articleRoutes(origin: string): Promise<MetadataRoute.Sitemap> {
+  try {
+    const [english, nepali] = await Promise.all([
+      wordpressArticleRoutes(origin, 'en'),
+      wordpressArticleRoutes(origin, 'ne'),
+    ]);
+    return [...english, ...nepali];
+  } catch (error) {
+    if (process.env.NEXT_PHASE !== PHASE_PRODUCTION_BUILD) throw error;
+    console.error(
+      '[sitemap] WordPress unavailable during build; article URLs will be added on the next regeneration:',
+      error instanceof Error ? error.message : error
+    );
+    return [];
+  }
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const origin = getSiteUrl();
   const now = new Date();
@@ -181,11 +208,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     );
   }
 
-  // Article enumeration is intentionally not wrapped in the try/catch above:
-  // a WordPress outage must surface as a failed sitemap, not as a "complete"
-  // sitemap that dropped every article.
-  routes.push(...(await wordpressArticleRoutes(origin, 'en')));
-  routes.push(...(await wordpressArticleRoutes(origin, 'ne')));
+  routes.push(...(await articleRoutes(origin)));
 
   return routes;
 }

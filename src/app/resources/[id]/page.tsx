@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { canAccessResource, requiresSignIn } from '@/modules/entitlements/entitlement.service';
+import { studyMaterialLoginUrl } from '@/lib/callback-url';
 import { CheckoutButtons } from '@/components/payments/CheckoutButtons';
 import { env } from '@/env';
 import { Metadata } from 'next';
@@ -70,8 +71,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
   // authentication before the content page is served. Anonymous visitors are
   // asked to sign in and are returned here after login.
   if (!session?.user && requiresSignIn(resource.type)) {
-    const callbackUrl = encodeURIComponent(`/resources/${id}`);
-    redirect(`/login?callbackUrl=${callbackUrl}`);
+    redirect(studyMaterialLoginUrl(`/resources/${id}`));
   }
 
   const typedResource = resource as any;
@@ -158,7 +158,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
         }}
       />
 
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-16">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 lg:py-16">
 
         {/* Breadcrumbs */}
         <nav className="flex text-xs md:text-sm text-text-muted mb-10 overflow-x-auto pb-2 scrollbar-hide" aria-label="Breadcrumb">
@@ -283,7 +283,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
                 <h3 className="text-2xl font-bold text-navy dark:text-white mb-3 tracking-tight">Login Required</h3>
                 <p className="text-text-secondary mb-8 text-lg">{dict.signInToAccess}</p>
                 <Link
-                  href={`/login?callbackUrl=/resources/${id}`}
+                  href={studyMaterialLoginUrl(`/resources/${id}`)}
                   className="w-full sm:w-auto inline-flex items-center justify-center px-10 py-4 text-sm font-bold rounded-xl text-white bg-accent hover:bg-accent-hover transition-all shadow-[0_4px_15px_rgba(var(--color-accent),0.3)] hover:shadow-[0_6px_20px_rgba(var(--color-accent),0.4)] hover:-translate-y-0.5"
                 >
                   {dict.signInToContinue}
@@ -383,7 +383,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
             ) : <div className="hidden sm:block flex-1" />}
           </div>
         )}
-      </main>
+      </div>
     </div>
   );
 }

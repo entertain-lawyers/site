@@ -48,7 +48,7 @@ const VIRAMA = '\u094D';
 const NUKTA = '\u093C';
 
 /** Devanagari → roman key with inherent-'a' handled after every consonant. */
-function romanizeDevanagari(text: string): string {
+export function romanizeDevanagari(text: string): string {
   let out = '';
   for (let i = 0; i < text.length; i++) {
     const ch = text[i];

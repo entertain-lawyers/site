@@ -4,10 +4,11 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Metadata } from 'next';
 import DeleteResourceButton from './DeleteResourceButton';
+import ArchiveResourceButton from './ArchiveResourceButton';
 import { ResourceType, Prisma } from '@prisma/client';
 
 export const metadata: Metadata = {
-  title: 'Manage Resources - Admin - Entertain Lawyers',
+  title: 'Manage Resources - Admin',
 };
 
 export default async function AdminResourcesPage() {
@@ -87,6 +88,11 @@ export default async function AdminResourcesPage() {
                         <td className="px-8 py-5">
                           <div className="text-sm font-bold text-navy dark:text-white line-clamp-2 max-w-xs">{resource.title}</div>
                           <div className="text-xs text-text-muted font-mono mt-1" title={resource.id}>ID: {resource.id.split('-')[0]}...</div>
+                          {resource.status !== 'PUBLISHED' && (
+                            <span className="mt-1.5 inline-flex px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
+                              {resource.status === 'ARCHIVED' ? 'Archived' : 'Draft'}
+                            </span>
+                          )}
                         </td>
                         <td className="px-8 py-5 whitespace-nowrap">
                           <div className="text-sm font-medium text-navy dark:text-white">{typedResource.subject?.name}</div>
@@ -127,6 +133,7 @@ export default async function AdminResourcesPage() {
                           <Link href={`/resources/${resource.id}`} className="inline-flex items-center justify-center px-4 py-2 border border-black/5 dark:border-white/5 rounded-lg text-navy dark:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors shadow-sm">
                             View
                           </Link>
+                          <ArchiveResourceButton id={resource.id} archived={resource.status === 'ARCHIVED'} />
                           {(session?.user?.role === 'ADMIN' ) && (
                             <DeleteResourceButton id={resource.id} />
                           )}

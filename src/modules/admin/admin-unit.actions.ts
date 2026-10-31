@@ -1,6 +1,6 @@
 'use server';
 
-import { createSafeAction } from '@/lib/safe-action';
+import { createSafeAction, parseOrThrow } from '@/lib/safe-action';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
@@ -8,7 +8,7 @@ import { revalidatePath } from 'next/cache';
 import { isRecordInUseError } from '@/lib/prisma-errors';
 
 const createUnitSchema = z.object({
-  name: z.string().min(1, 'Unit name is required'),
+  name: z.string().trim().min(1, 'Unit name is required'),
   title: z.string().optional().or(z.literal('')),
   order: z.number().int().default(0),
   subjectId: z.string().uuid('Please select a valid subject'),
@@ -16,7 +16,7 @@ const createUnitSchema = z.object({
 
 const updateUnitSchema = z.object({
   id: z.string().uuid(),
-  name: z.string().min(1, 'Unit name is required'),
+  name: z.string().trim().min(1, 'Unit name is required'),
   title: z.string().optional().or(z.literal('')),
   order: z.number().int().default(0),
   subjectId: z.string().uuid('Please select a valid subject'),
@@ -30,6 +30,8 @@ export const createUnitAction = createSafeAction(async (args: z.infer<typeof cre
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) {
     throw new Error('Unauthorized: Admin or Editor access required');
   }
+
+  args = parseOrThrow(createUnitSchema, args);
 
   const title = args.title && args.title.trim() !== '' ? args.title.trim() : null;
 
@@ -64,6 +66,8 @@ export const updateUnitAction = createSafeAction(async (args: z.infer<typeof upd
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) {
     throw new Error('Unauthorized: Admin or Editor access required');
   }
+
+  args = parseOrThrow(updateUnitSchema, args);
 
   const existing = await prisma.unit.findUnique({
     where: { id: args.id },
@@ -107,6 +111,8 @@ export const deleteUnitAction = createSafeAction(async (args: z.infer<typeof del
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) {
     throw new Error('Unauthorized: Admin or Editor access required');
   }
+
+  args = parseOrThrow(deleteUnitSchema, args);
 
   const existing = await prisma.unit.findUnique({
     where: { id: args.id },

@@ -7,7 +7,7 @@ import { Plus, Edit2, BookOpen } from 'lucide-react';
 import DeleteSubjectButton from './DeleteSubjectButton';
 
 export const metadata: Metadata = {
-  title: 'Manage Subjects - Admin - Entertain Lawyers',
+  title: 'Manage Subjects - Admin',
 };
 
 export default async function AdminSubjectsPage() {

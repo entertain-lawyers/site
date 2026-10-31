@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isSafeAssetUrl, SAFE_ASSET_URL_MESSAGE } from '@/lib/url-validation';
 
 /**
  * Kept out of the `'use server'` action module: Next.js only allows async
@@ -21,7 +22,7 @@ export const consultationLawyerSchema = z.object({
   location: z.string().optional().nullable(),
   shortBio: z.string().optional().nullable(),
   bio: z.string().optional().nullable(),
-  imageUrl: z.string().optional().nullable(),
+  imageUrl: z.string().refine(isSafeAssetUrl, SAFE_ASSET_URL_MESSAGE).optional().nullable(),
   rating: z.number().min(1).max(5).default(5.0),
   displayOrder: z.number().int().default(0),
   isAvailable: z.boolean().default(true),

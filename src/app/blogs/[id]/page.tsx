@@ -1,4 +1,4 @@
-import { getWordPressPostById, getWordPressPosts, mapCategoryToType } from '@/lib/wordpress';
+import { getWordPressPostById, getWordPressPosts, mapCategoryToType, parseWordPressPostId } from '@/lib/wordpress';
 import { getLatestPosts } from '@/lib/latest-posts';
 import { notFound } from 'next/navigation';
 import PostDetail from '@/components/posts/PostDetail';
@@ -9,8 +9,8 @@ export const revalidate = 60;
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
-  const wpId = Number(id);
-  if (isNaN(wpId)) notFound();
+  const wpId = parseWordPressPostId(id);
+  if (!wpId) notFound();
 
   const wpPost = await getWordPressPostById(wpId, 'en');
   if (!wpPost || wpPost.status !== 'publish' || mapCategoryToType(wpPost.categories, 'en') !== 'BLOG') {
@@ -30,8 +30,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function BlogDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const wpId = Number(id);
-  if (isNaN(wpId)) notFound();
+  const wpId = parseWordPressPostId(id);
+  if (!wpId) notFound();
 
   const wpPost = await getWordPressPostById(wpId, 'en');
   if (!wpPost || wpPost.status !== 'publish' || mapCategoryToType(wpPost.categories, 'en') !== 'BLOG') {
@@ -48,13 +48,16 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ id:
     featuredImage: wpPost._embedded?.['wp:featuredmedia']?.[0]?.source_url || null
   };
 
-  const wpRelatedResponse = await getWordPressPosts({
-    categories: wpPost.categories,
-    status: 'publish',
-    lang: 'en',
-    perPage: 5,
-    embed: true
-  });
+  const [wpRelatedResponse, latestPosts] = await Promise.all([
+    getWordPressPosts({
+      categories: wpPost.categories,
+      status: 'publish',
+      lang: 'en',
+      perPage: 5,
+      embed: true
+    }),
+    getLatestPosts(wpId),
+  ]);
 
   const relatedPosts = wpRelatedResponse.data
     .filter(p => p.id !== wpPost.id && mapCategoryToType(p.categories, 'en') === 'BLOG')
@@ -67,8 +70,6 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ id:
       featuredImage: p._embedded?.['wp:featuredmedia']?.[0]?.source_url || null,
       url: `/blogs/${p.id}`
     }));
-
-  const latestPosts = await getLatestPosts(wpId);
 
   return <PostDetail post={post} backUrl="/blogs" backLabel="Blogs" relatedPosts={relatedPosts} latestPosts={latestPosts} />;
 }

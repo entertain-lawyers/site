@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getClientIp } from "@/lib/client-ip";
 import { Role } from "@prisma/client";
 import { headers } from "next/headers";
+import type { z } from "zod";
 
 type ActionOptions = {
   requireAuth?: boolean;
@@ -16,12 +17,27 @@ type ActionOptions = {
 const GENERIC_ERROR = "An unexpected error occurred. Please try again.";
 
 /**
+ * An error whose message is written for the person using the form and is
+ * always shown to them. Plain `Error` messages only get through when they
+ * contain an allow-listed word, and that check is case-sensitive, so
+ * messages such as "…cannot be deleted. Archive it instead." or "You cannot
+ * delete yourself" used to reach the admin as "An unexpected error occurred".
+ */
+export class UserFacingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "UserFacingError";
+  }
+}
+
+/**
  * Only forward messages that are meant for users. A substring allowlist alone
  * leaked internals because Prisma errors also contain "Invalid" (e.g.
  * "Invalid `prisma.user.create()` invocation ..."), so reject anything that
  * looks like a framework/database failure first.
  */
 function toPublicErrorMessage(error: unknown): string {
+  if (error instanceof UserFacingError) return error.message;
   if (!(error instanceof Error)) return GENERIC_ERROR;
 
   const message = error.message;
@@ -50,6 +66,20 @@ function toPublicErrorMessage(error: unknown): string {
     message.includes("do not have permission");
 
   return isSafeMessage ? message : GENERIC_ERROR;
+}
+
+/**
+ * `createSafeAction` passes the raw client payload through, so every action
+ * validates it before touching the database. The first issue message is
+ * surfaced to the admin form; the prefix keeps it visible through
+ * `toPublicErrorMessage`, which only forwards messages it recognises as safe.
+ */
+export function parseOrThrow<T extends z.ZodTypeAny>(schema: T, args: unknown): z.infer<T> {
+  const parsed = schema.safeParse(args);
+  if (!parsed.success) {
+    throw new Error(`Invalid input: ${parsed.error.issues[0]?.message || "please check the form"}`);
+  }
+  return parsed.data;
 }
 
 export function createSafeAction<TArgs, TReturn>(

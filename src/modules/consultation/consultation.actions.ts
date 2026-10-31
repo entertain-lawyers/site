@@ -11,6 +11,17 @@ import { consultationRequestSchema } from './consultation.schema';
 
 import { sendConsultationNotificationEmail, sendConsultationClientAckEmail } from '@/lib/mail';
 
+async function resolveRequestedLawyerName(lawyerId: string | null | undefined): Promise<string | null> {
+  const id = lawyerId?.trim();
+  if (!id || !z.string().uuid().safeParse(id).success) return null;
+
+  const lawyer = await prisma.consultationLawyer.findFirst({
+    where: { id, isAvailable: true },
+    select: { name: true },
+  });
+  return lawyer?.name ?? null;
+}
+
 export const submitConsultationRequestAction = createSafeAction(
   async (data: z.input<typeof consultationRequestSchema>) => {
     // createSafeAction does not validate arguments, so parse here before any
@@ -25,7 +36,11 @@ export const submitConsultationRequestAction = createSafeAction(
     const ip = getClientIp(headersList);
     const userAgent = headersList.get('user-agent') || null;
 
-    const chosenLawyer = input.lawyerName?.trim() || null;
+    // The advocate is resolved from the database by id. The client-supplied
+    // name was previously stored and emailed verbatim, so anyone could attach
+    // an arbitrary "advocate" (or markup) to a request. An unknown or
+    // unavailable advocate falls back to a general chambers request.
+    const chosenLawyer = await resolveRequestedLawyerName(input.lawyerId);
     const enrichedDescription = chosenLawyer
       ? `[Requested Advocate: ${chosenLawyer}]\n\n${input.description.trim()}`
       : input.description.trim();
@@ -55,9 +70,10 @@ export const submitConsultationRequestAction = createSafeAction(
 
     const chambersEmail = process.env.ADMIN_NOTIFICATION_EMAIL || process.env.CONTACT_EMAIL || 'contact@entertainlawyers.com';
 
-    // Send notifications (errors are non-blocking for intake registration)
-    try {
-      await sendConsultationNotificationEmail({
+    // The request is already saved; mail is best-effort and must neither fail
+    // the submission nor make the visitor wait for two SMTP round-trips.
+    const [chambersResult, ackResult] = await Promise.allSettled([
+      sendConsultationNotificationEmail({
         recipient: chambersEmail,
         request: {
           id: request.id,
@@ -75,26 +91,26 @@ export const submitConsultationRequestAction = createSafeAction(
           lawyerName: chosenLawyer,
           createdAt: request.createdAt,
         },
-      });
-    } catch (mailError) {
-      console.error('[Consultation Email Error - Chambers Notification]:', mailError);
-    }
-
-    try {
-      await sendConsultationClientAckEmail({
+      }),
+      sendConsultationClientAckEmail({
         recipient: request.email,
         fullName: request.fullName,
         requestId: request.id,
         lawyerName: chosenLawyer,
-      });
-    } catch (mailError) {
-      console.error('[Consultation Email Error - Client Acknowledgment]:', mailError);
+      }),
+    ]);
+    if (chambersResult.status === 'rejected') {
+      console.error('[Consultation Email Error - Chambers Notification]:', chambersResult.reason);
+    }
+    if (ackResult.status === 'rejected') {
+      console.error('[Consultation Email Error - Client Acknowledgment]:', ackResult.reason);
     }
 
     return {
       id: request.id,
       fullName: request.fullName,
       createdAt: request.createdAt,
+      lawyerName: chosenLawyer,
     };
   },
   {

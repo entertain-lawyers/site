@@ -12,7 +12,7 @@ export default function StudyLoading() {
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 relative z-20 -mt-4 sm:-mt-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 relative z-20 -mt-4 sm:-mt-6">
         <div className="bg-surface shadow-soft border border-border rounded-2xl p-4 sm:p-6 mb-8 sm:mb-12 animate-pulse h-32"></div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -32,7 +32,7 @@ export default function StudyLoading() {
             </div>
           ))}
         </div>
-      </main>
+      </div>
     </div>
   );
 }

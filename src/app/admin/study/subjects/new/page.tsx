@@ -5,7 +5,7 @@ import { Metadata } from 'next';
 import SubjectForm from '../SubjectForm';
 
 export const metadata: Metadata = {
-  title: 'Create Subject - Admin - Entertain Lawyers',
+  title: 'Create Subject - Admin',
 };
 
 export default async function NewSubjectPage() {

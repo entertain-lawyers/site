@@ -116,6 +116,12 @@ export interface WordPressQueryOptions {
    * tell "no posts" apart from "WordPress is unavailable".
    */
   throwOnError?: boolean;
+  /**
+   * Send the server's WordPress credentials (admin screens only). Required for
+   * `draft`/`trash` statuses and for opening an unpublished post. These
+   * responses are never written to the shared fetch cache.
+   */
+  authenticated?: boolean;
 }
 
 export interface WordPressCreatePostInput {
@@ -186,8 +192,7 @@ export function getWordPressAuthHeader(): string {
  */
 async function fetchWordPress<T>(
   endpoint: string,
-  options: WordPressQueryOptions = {},
-  customHeaders?: Record<string, string>
+  options: WordPressQueryOptions = {}
 ): Promise<WordPressPaginatedResponse<T>> {
   const lang = options.lang || 'en';
   const baseUrl = getWordPressBaseUrl(lang);
@@ -221,12 +226,15 @@ async function fetchWordPress<T>(
       method: 'GET',
       headers: {
         'Accept': 'application/json',
-        ...customHeaders,
+        ...(options.authenticated ? { Authorization: getWordPressAuthHeader() } : {}),
       },
       signal: controller.signal,
     };
 
-    if (revalidate !== undefined || tags.length > 0) {
+    if (options.authenticated) {
+      // Drafts and trash must never land in the cache public pages read from.
+      fetchOptions.cache = 'no-store';
+    } else if (revalidate !== undefined || tags.length > 0) {
       fetchOptions.next = {
         tags,
         ...(revalidate !== undefined ? { revalidate } : {}),
@@ -309,10 +317,10 @@ export function decodeHtmlEntities(str: string | undefined | null): string {
  */
 function invalidateCacheTags(lang: WordPressLanguage) {
   try {
-    // @ts-ignore - Next.js 16.3 beta typings might incorrectly expect 2 arguments
-    revalidateTag('wordpress');
-    // @ts-ignore
-    revalidateTag(`wordpress-${lang}`);
+    // `{ expire: 0 }`: the next visitor gets fresh content, not a stale copy
+    // (the deprecated one-argument form behaved the same way).
+    revalidateTag('wordpress', { expire: 0 });
+    revalidateTag(`wordpress-${lang}`, { expire: 0 });
   } catch {
     // Graceful fallback when outside Next.js request context (e.g., unit testing)
   }
@@ -352,15 +360,30 @@ export async function getWordPressPostBySlug(
   };
 }
 
+/** WordPress answers these for ids that do not exist or are not public. */
+const MISSING_POST_STATUSES = new Set([401, 403, 404, 410]);
+
 /**
- * GET single post by ID
+ * GET single post by ID.
+ *
+ * Returns `null` only when WordPress says the post does not exist (or is not
+ * visible to this request). Any other failure — timeout, 5xx, bad config —
+ * throws. Callers previously got `null` for outages too, so article pages
+ * answered a WordPress outage with a 404, which replaced the cached page and
+ * told crawlers the article was gone.
  */
 export async function getWordPressPostById(
   id: number,
-  lang: WordPressLanguage = 'en'
+  lang: WordPressLanguage = 'en',
+  { authenticated = false }: { authenticated?: boolean } = {}
 ): Promise<WordPressPost | null> {
   try {
-    const result = await fetchWordPress<WordPressPost>(`/posts/${id}`, { lang, embed: true });
+    const result = await fetchWordPress<WordPressPost>(`/posts/${id}`, {
+      lang,
+      embed: true,
+      throwOnError: true,
+      authenticated,
+    });
     const post = result.data[0];
     if (!post) return null;
     return {
@@ -370,11 +393,21 @@ export async function getWordPressPostById(
       content: { ...post.content, rendered: post.content?.rendered?.split('<div class="wpra-reactions-wrap')[0] || '' }
     };
   } catch (error: any) {
-    if (error instanceof WordPressApiError && error.status === 404) {
+    if (error instanceof WordPressApiError && error.status && MISSING_POST_STATUSES.has(error.status)) {
       return null;
     }
     throw error;
   }
+}
+
+/**
+ * Parses a WordPress post id from a route segment. Only canonical decimal ids
+ * are accepted: `Number()` also took "0x1F", "1e3" and " 31 ", which served
+ * the same article under many URLs.
+ */
+export function parseWordPressPostId(segment: string): number | null {
+  if (!/^[1-9]\d{0,9}$/.test(segment)) return null;
+  return Number(segment);
 }
 
 /**
@@ -405,10 +438,10 @@ export async function getWordPressMediaById(
   lang: WordPressLanguage = 'en'
 ): Promise<WordPressMedia | null> {
   try {
-    const result = await fetchWordPress<WordPressMedia>(`/media/${id}`, { lang });
+    const result = await fetchWordPress<WordPressMedia>(`/media/${id}`, { lang, throwOnError: true });
     return result.data[0] || null;
   } catch (error: any) {
-    if (error instanceof WordPressApiError && error.status === 404) {
+    if (error instanceof WordPressApiError && error.status && MISSING_POST_STATUSES.has(error.status)) {
       return null;
     }
     throw error;

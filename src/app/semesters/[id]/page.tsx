@@ -61,12 +61,18 @@ export default async function SemesterPage({ params }: PageProps) {
             orderBy: { order: 'asc' },
             include: {
               resources: {
+                // Titles only: never load note text into a public listing, and
+                // never list draft or archived material.
+                where: { status: 'PUBLISHED' },
                 orderBy: [{ order: 'asc' }, { title: 'asc' }],
+                select: { id: true, title: true, type: true, isPremium: true, unitId: true },
               },
             },
           },
           resources: {
+            where: { status: 'PUBLISHED' },
             orderBy: [{ order: 'asc' }, { title: 'asc' }],
+            select: { id: true, title: true, type: true, isPremium: true, unitId: true },
           },
         },
       },
@@ -152,7 +158,7 @@ export default async function SemesterPage({ params }: PageProps) {
         </div>
       </div>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {activeSubjects.some(s => s.resources.length > 0) && (
           <div className="mb-10">
             <ResourceTypeFilter 
@@ -321,7 +327,7 @@ export default async function SemesterPage({ params }: PageProps) {
             <p className="text-text-secondary">{dict.noResourcesFound}</p>
           </div>
         )}
-      </main>
+      </div>
     </div>
   );
 }

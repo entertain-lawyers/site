@@ -142,13 +142,24 @@ export function AdminResourceForm({
 
         const uploadUrl = initRes.data.uploadUrl;
 
-        const r2Response = await fetch(uploadUrl, {
-          method: 'PUT',
-          body: file,
-          headers: {
-            'Content-Type': 'application/pdf',
-          },
-        });
+        // A network-level failure (storage unreachable, CSP or CORS block)
+        // rejects with a bare "Failed to fetch"; say what actually failed.
+        let r2Response: Response;
+        try {
+          r2Response = await fetch(uploadUrl, {
+            method: 'PUT',
+            body: file,
+            headers: {
+              'Content-Type': 'application/pdf',
+            },
+          });
+        } catch {
+          throw new Error(
+            process.env.NODE_ENV === 'development'
+              ? 'Could not reach file storage at B2_ENDPOINT. If it points at a local mock (e.g. http://localhost:9000), make sure that server is running, then try again.'
+              : 'Could not reach file storage. Check your connection and try again.'
+          );
+        }
 
         if (!r2Response.ok) {
           throw new Error(`Upload failed with status ${r2Response.status}`);

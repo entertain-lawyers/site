@@ -1,11 +1,12 @@
 'use server';
 
-import { createSafeAction } from '@/lib/safe-action';
+import { createSafeAction, UserFacingError } from '@/lib/safe-action';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
 import { revalidatePath } from 'next/cache';
 import { isRecordInUseError, isRecordNotFoundError } from '@/lib/prisma-errors';
+import { isSafeAssetUrl } from '@/lib/url-validation';
 
 const createGallerySchema = z.object({
   title: z.string().min(1),
@@ -68,14 +69,18 @@ export const updateGalleryAction = createSafeAction(async (args: z.infer<typeof 
 export const deleteGalleryAction = createSafeAction(async (args: z.infer<typeof deleteGallerySchema>, session) => {
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) throw new Error('Unauthorized');
 
-  const existing = await prisma.gallery.findUnique({ where: { id: args.id } });
+  const parsed = deleteGallerySchema.safeParse(args);
+  if (!parsed.success) throw new Error('Invalid gallery id');
+  const { id } = parsed.data;
+
+  const existing = await prisma.gallery.findUnique({ where: { id } });
   if (!existing) throw new Error('Gallery not found');
 
   try {
-    await prisma.gallery.delete({ where: { id: args.id } }); // CASCADE deletes GalleryImage rows in DB, but orphaned B2 images remain!
+    await prisma.gallery.delete({ where: { id } }); // CASCADE deletes GalleryImage rows in DB, but orphaned B2 images remain!
   } catch (error) {
     if (isRecordInUseError(error)) {
-      throw new Error('This gallery is still referenced by related records and cannot be deleted. Please archive it instead.');
+      throw new UserFacingError('This gallery is still referenced by related records and cannot be deleted. Please archive it instead.');
     }
     if (isRecordNotFoundError(error)) {
       throw new Error('Gallery not found');
@@ -97,7 +102,7 @@ const addGalleryImageSchema = z.object({
   // Storage returns relative paths (/uploads/... or /api/media/...), so a bare
   // z.string().url() rejects every image the admin uploads.
   url: z.string().min(1).max(2048).refine(
-    (value) => value.startsWith('/') || /^https?:\/\//i.test(value),
+    isSafeAssetUrl,
     'Image URL must be a path starting with / or an http(s) URL'
   ),
   altText: z.string().optional(),
@@ -135,15 +140,19 @@ const reorderGalleryImageSchema = z.object({
 export const reorderGalleryImageAction = createSafeAction(async (args: z.infer<typeof reorderGalleryImageSchema>, session) => {
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) throw new Error('Unauthorized');
 
-  const img = await prisma.galleryImage.findUnique({ where: { id: args.id } });
+  const parsed = reorderGalleryImageSchema.safeParse(args);
+  if (!parsed.success) throw new Error('Invalid reorder request');
+  const { id, direction } = parsed.data;
+
+  const img = await prisma.galleryImage.findUnique({ where: { id } });
   if (!img) throw new Error('Image not found');
 
   const targetImg = await prisma.galleryImage.findFirst({
     where: {
       galleryId: img.galleryId,
-      order: args.direction === 'UP' ? { lt: img.order } : { gt: img.order },
+      order: direction === 'UP' ? { lt: img.order } : { gt: img.order },
     },
-    orderBy: { order: args.direction === 'UP' ? 'desc' : 'asc' },
+    orderBy: { order: direction === 'UP' ? 'desc' : 'asc' },
   });
 
   if (!targetImg) return { success: true }; // Nothing to swap with
@@ -162,11 +171,15 @@ const deleteGalleryImageSchema = z.object({ id: z.string().uuid() });
 export const deleteGalleryImageAction = createSafeAction(async (args: z.infer<typeof deleteGalleryImageSchema>, session) => {
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) throw new Error('Unauthorized');
 
-  const img = await prisma.galleryImage.findUnique({ where: { id: args.id } });
+  const parsed = deleteGalleryImageSchema.safeParse(args);
+  if (!parsed.success) throw new Error('Invalid image id');
+  const { id } = parsed.data;
+
+  const img = await prisma.galleryImage.findUnique({ where: { id } });
   if (!img) throw new Error('Image not found');
 
   try {
-    await prisma.galleryImage.delete({ where: { id: args.id } });
+    await prisma.galleryImage.delete({ where: { id } });
   } catch (error) {
     if (isRecordNotFoundError(error)) throw new Error('Image not found');
     throw error;

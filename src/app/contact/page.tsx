@@ -61,7 +61,7 @@ export default async function ContactPage() {
   ].filter(Boolean) as Array<{ name: string; url: string; icon: typeof FacebookIcon; label: string; iconColor: string; hoverBg: string }>;
 
   return (
-    <main className="min-h-screen bg-background py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+    <div className="min-h-screen bg-background py-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
       
       {/* Header */}
       <div className="text-center mb-16">
@@ -137,6 +137,6 @@ export default async function ContactPage() {
         </div>
       </div>
 
-    </main>
+    </div>
   );
 }

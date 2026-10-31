@@ -3,6 +3,7 @@ import NextAuth from "next-auth";
 import { authConfig } from "@/lib/auth.config";
 import { prisma } from "@/lib/prisma";
 import { isRedirectExempt, normalizePath } from "@/lib/redirect-rules";
+import { studyMaterialLoginUrl } from "@/lib/callback-url";
 
 const { auth } = NextAuth(authConfig);
 
@@ -39,25 +40,25 @@ export default auth(async (req) => {
   const nextUrl = req.nextUrl;
 
   const isAuthRoute = nextUrl.pathname.startsWith('/login') || nextUrl.pathname.startsWith('/register');
-  // Law notes, case laws and old questions are member content: the study
-  // listing and the secure reader require an account. Resource detail pages
-  // apply the same type-aware check server-side (see /resources/[id]).
-  const studyType = nextUrl.searchParams.get('type');
-  const isStudyContent =
-    nextUrl.pathname.startsWith('/study') &&
-    !!studyType &&
-    ['LAW_NOTE', 'CASE_LAW', 'OLD_QUESTION'].includes(studyType);
+  // Study listings (/study, /semesters) are public so visitors can browse
+  // titles. Opening the material itself needs an account: the secure reader
+  // is gated here, and /resources/[id] applies a type-aware check
+  // server-side (Law Notes, Case Laws and Old Questions).
+  const isReader = nextUrl.pathname.startsWith('/read');
   const isProtectedRoute =
     nextUrl.pathname.startsWith('/dashboard') ||
     nextUrl.pathname.startsWith('/admin') ||
-    nextUrl.pathname.startsWith('/read') ||
-    isStudyContent;
+    isReader;
   const isAdminRoute = nextUrl.pathname.startsWith('/admin');
 
+  // The auth pages are never redirected from here. The proxy only checks that
+  // the session cookie is well-formed; pages also check the database
+  // (deleted user, demoted role, password changed elsewhere). Bouncing a
+  // "logged-in" cookie away from /login therefore looped forever for an
+  // invalidated session: page -> /login -> callback/dashboard -> page.
+  // The login page asks the database-backed session instead (see
+  // src/app/login/page.tsx).
   if (isAuthRoute) {
-    if (isLoggedIn) {
-      return NextResponse.redirect(new URL('/dashboard', nextUrl));
-    }
     return NextResponse.next();
   }
 
@@ -65,6 +66,9 @@ export default auth(async (req) => {
     let callbackUrl = nextUrl.pathname;
     if (nextUrl.search) {
       callbackUrl += nextUrl.search;
+    }
+    if (isReader) {
+      return NextResponse.redirect(new URL(studyMaterialLoginUrl(callbackUrl), nextUrl));
     }
     const encodedCallbackUrl = encodeURIComponent(callbackUrl);
     return NextResponse.redirect(new URL(`/login?callbackUrl=${encodedCallbackUrl}`, nextUrl));

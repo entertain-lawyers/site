@@ -1,4 +1,4 @@
-import { S3Client, GetObjectCommand, PutObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand, PutObjectCommand, HeadObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { env } from "@/env";
 
@@ -6,6 +6,11 @@ export const s3Client = new S3Client({
   region: "auto",
   endpoint: env.B2_ENDPOINT,
   forcePathStyle: true,
+  // Since SDK 3.729 presigned PUTs default to signing a CRC32 checksum of the
+  // (empty) request body; storage then rejects the browser's real PDF as a
+  // checksum mismatch. Only add checksums when an operation requires one.
+  requestChecksumCalculation: "WHEN_REQUIRED",
+  responseChecksumValidation: "WHEN_REQUIRED",
   credentials: {
     accessKeyId: env.B2_ACCESS_KEY_ID || "",
     secretAccessKey: env.B2_SECRET_ACCESS_KEY || "",
@@ -76,4 +81,18 @@ export async function getObjectHeadBytes(storageKey: string, numBytes: number = 
     chunks.push(Buffer.from(chunk));
   }
   return Buffer.concat(chunks).toString('ascii');
+}
+
+/**
+ * Deletes one stored object. S3-compatible stores answer a delete of a key
+ * that does not exist with success, so a file that is already gone is not an
+ * error. Callers pass keys read from the database, never from the browser.
+ */
+export async function deleteObject(storageKey: string): Promise<void> {
+  await s3Client.send(
+    new DeleteObjectCommand({
+      Bucket: env.B2_BUCKET_NAME || "",
+      Key: storageKey,
+    })
+  );
 }

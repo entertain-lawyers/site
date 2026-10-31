@@ -1,10 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { prisma } from '@/lib/prisma';
+import { revalidateTag } from 'next/cache';
 
 let mockUserRole = 'ADMIN';
 let mockUserId = 'admin-user-id';
 
 vi.mock('@/lib/safe-action', () => ({
+  UserFacingError: class UserFacingError extends Error {},
   createSafeAction: (fn: any) => async (args: any) => {
     try {
       const result = await fn(args, { role: mockUserRole, userId: mockUserId });
@@ -17,6 +19,7 @@ vi.mock('@/lib/safe-action', () => ({
 
 vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
+  revalidateTag: vi.fn(),
 }));
 
 vi.mock('@/lib/prisma', () => {
@@ -190,6 +193,7 @@ describe('admin-semester-merge.actions', () => {
       });
 
       expect(res.success).toBe(true);
+      expect(revalidateTag).toHaveBeenCalledWith('semesters', { expire: 0 });
       expect(prisma.resource.updateMany).toHaveBeenCalledWith({
         where: { semesterId: VALID_SOURCE_ID },
         data: { semesterId: VALID_TARGET_ID },

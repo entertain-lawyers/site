@@ -4,7 +4,7 @@ import { Metadata } from 'next';
 import SemesterForm from '../SemesterForm';
 
 export const metadata: Metadata = {
-  title: 'Create Semester - Admin - Entertain Lawyers',
+  title: 'Create Semester - Admin',
 };
 
 export default async function NewSemesterPage() {

@@ -11,12 +11,27 @@ const transporter = isConfigured
       host: process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT),
       secure: process.env.SMTP_SECURE === 'true',
+      // Nodemailer waits up to two minutes by default. Callers await delivery
+      // inside a request, so an unreachable SMTP host must fail fast instead.
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
+      socketTimeout: 20_000,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
       },
     })
   : null;
+
+/** Escapes text interpolated into email HTML (names and messages are user input). */
+export function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
 
 export async function sendEmail({
   to,
@@ -126,13 +141,7 @@ export async function sendConsultationNotificationEmail({
     ? new Date(request.createdAt).toLocaleString('en-US', { timeZone: 'Asia/Kathmandu' })
     : request.createdAt.toLocaleString('en-US', { timeZone: 'Asia/Kathmandu' });
 
-  const escape = (str: string) =>
-    str
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
+  const escape = escapeHtml;
 
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 650px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
@@ -241,11 +250,11 @@ export async function sendConsultationClientAckEmail({
       <div style="padding: 24px 30px;">
         <h2 style="color: #0f172a; font-size: 18px; font-weight: 700; margin-top: 0;">Consultation Request Received</h2>
         <p style="font-size: 14px; color: #334155; line-height: 1.6;">
-          Dear <strong>${fullName}</strong>,
+          Dear <strong>${escapeHtml(fullName)}</strong>,
         </p>
         <p style="font-size: 14px; color: #334155; line-height: 1.6;">
           Thank you for reaching out to Entertain Lawyers. Your legal consultation request has been safely logged in our chambers registry.
-          ${lawyerName ? `Your inquiry has been designated for review with <strong>${lawyerText}</strong>.` : ''}
+          ${lawyerName ? `Your inquiry has been designated for review with <strong>${escapeHtml(lawyerText)}</strong>.` : ''}
         </p>
 
         <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 20px 0;">

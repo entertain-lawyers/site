@@ -74,9 +74,9 @@ export default function EditGalleryClient({ gal }: { gal: any }) {
 
       <form onSubmit={handleSubmit} className="space-y-6 bg-white dark:bg-zinc-900 p-6 rounded-xl border border-black/5 dark:border-white/5 shadow-sm mb-10">
         <h2 className="text-xl font-bold mb-4">Gallery Details</h2>
-        <div><label className="block text-sm font-bold mb-2">Title</label><input required value={title} onChange={e => setTitle(e.target.value)} className="w-full border p-3 rounded-xl" /></div>
-        <div><label className="block text-sm font-bold mb-2">Description</label><textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full border p-3 rounded-xl h-24" /></div>
-        <div><label className="block text-sm font-bold mb-2">Status</label><select value={status} onChange={e => setStatus(e.target.value as any)} className="w-full border p-3 rounded-xl"><option value="DRAFT">Draft</option><option value="PUBLISHED">Published</option><option value="ARCHIVED">Archived</option></select></div>
+        <div><label htmlFor="gallery-title" className="block text-sm font-bold mb-2">Title</label><input id="gallery-title" required value={title} onChange={e => setTitle(e.target.value)} className="w-full border p-3 rounded-xl" /></div>
+        <div><label htmlFor="gallery-description" className="block text-sm font-bold mb-2">Description</label><textarea id="gallery-description" value={description} onChange={e => setDescription(e.target.value)} className="w-full border p-3 rounded-xl h-24" /></div>
+        <div><label htmlFor="gallery-status" className="block text-sm font-bold mb-2">Status</label><select id="gallery-status" value={status} onChange={e => setStatus(e.target.value as any)} className="w-full border p-3 rounded-xl"><option value="DRAFT">Draft</option><option value="PUBLISHED">Published</option><option value="ARCHIVED">Archived</option></select></div>
         <button type="submit" disabled={loading} className="bg-accent text-white px-6 py-3 rounded-xl font-bold">{loading ? 'Saving...' : 'Save Gallery Details'}</button>
       </form>
 
@@ -109,8 +109,8 @@ export default function EditGalleryClient({ gal }: { gal: any }) {
         <ImageUpload value={newImageUrl} onChange={setNewImageUrl} type="GALLERY" label="Upload Image" />
         {newImageUrl && (
           <>
-            <div><label className="block text-sm font-bold mb-2">Alt Text</label><input value={newImageAlt} onChange={e => setNewImageAlt(e.target.value)} className="w-full border p-3 rounded-xl" /></div>
-            <div><label className="block text-sm font-bold mb-2">Caption</label><input value={newImageCaption} onChange={e => setNewImageCaption(e.target.value)} className="w-full border p-3 rounded-xl" /></div>
+            <div><label htmlFor="gallery-alt-text" className="block text-sm font-bold mb-2">Alt Text</label><input id="gallery-alt-text" value={newImageAlt} onChange={e => setNewImageAlt(e.target.value)} className="w-full border p-3 rounded-xl" /></div>
+            <div><label htmlFor="gallery-caption" className="block text-sm font-bold mb-2">Caption</label><input id="gallery-caption" value={newImageCaption} onChange={e => setNewImageCaption(e.target.value)} className="w-full border p-3 rounded-xl" /></div>
             <button onClick={handleAddImage} disabled={loading} className="bg-green-600 text-white px-6 py-3 rounded-xl font-bold">{loading ? 'Adding...' : 'Add Image to Gallery'}</button>
           </>
         )}

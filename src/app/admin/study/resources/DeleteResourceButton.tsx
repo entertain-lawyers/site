@@ -16,7 +16,13 @@ export default function DeleteResourceButton({ id }: { id: string }) {
       const res = await deleteResourceAction({ id });
       if (!res.success) {
         alert(res.error);
+        // e.g. "Resource not found" after it was deleted in another tab.
+        router.refresh();
       } else {
+        if (res.data.filesFailed > 0) {
+          // The resource is gone; only the stored PDF is left behind.
+          alert('The resource was deleted, but its stored PDF could not be removed from file storage. It is logged on the server for manual cleanup.');
+        }
         router.refresh();
       }
     } catch (err: any) {

@@ -1,6 +1,6 @@
 "use server";
 
-import { createSafeAction } from "@/lib/safe-action";
+import { createSafeAction, UserFacingError } from "@/lib/safe-action";
 import { prisma } from "@/lib/prisma";
 import { generatePresignedPutUrl, getObjectMetadata, getObjectHeadBytes } from "@/lib/b2";
 import { z } from "zod";
@@ -92,10 +92,10 @@ export const confirmDocumentUpload = createSafeAction(
       throw new Error(`Upload intent is already ${intent.status}`);
     }
     if (intent.resourceId !== resourceId) {
-      throw new Error("Intent does not match the provided resource");
+      throw new UserFacingError("Intent does not match the provided resource");
     }
     if (intent.adminId !== userId) {
-      throw new Error("You are not the admin who initiated this upload");
+      throw new UserFacingError("You are not the admin who initiated this upload");
     }
     if (intent.expiresAt < new Date()) {
       await prisma.uploadIntent.update({
@@ -110,7 +110,7 @@ export const confirmDocumentUpload = createSafeAction(
     try {
       metadata = await getObjectMetadata(intent.storageKey);
     } catch {
-      throw new Error("Failed to verify file upload in storage. The file may not have been uploaded yet.");
+      throw new UserFacingError("Failed to verify file upload in storage. The file may not have been uploaded yet.");
     }
 
     const actualSize = metadata.ContentLength ?? 0;
@@ -118,17 +118,17 @@ export const confirmDocumentUpload = createSafeAction(
 
     if (actualSize === 0) {
       await markUploadIntentFailed(intent.id);
-      throw new Error("Uploaded file is empty");
+      throw new UserFacingError("Uploaded file is empty");
     }
 
     if (actualSize !== intent.expectedSize) {
       await markUploadIntentFailed(intent.id);
-      throw new Error("Uploaded file size does not match the authorized upload size.");
+      throw new UserFacingError("Uploaded file size does not match the authorized upload size.");
     }
 
     if (actualMimeType && actualMimeType !== intent.expectedMimeType) {
       await markUploadIntentFailed(intent.id);
-      throw new Error("Uploaded file MIME type does not match the authorized upload type.");
+      throw new UserFacingError("Uploaded file MIME type does not match the authorized upload type.");
     }
 
     // 4. Verify Magic Bytes (%PDF-)

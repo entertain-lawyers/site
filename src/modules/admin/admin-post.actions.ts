@@ -46,7 +46,7 @@ const deletePostSchema = z.object({
 // Bulk-list operation languages + target WP statuses ('trash' handled server
 // side via deleteWordPressPost, permanent deletion additionally flags force).
 const bulkSchema = z.object({
-  ids: z.array(z.coerce.number()).min(1).max(50),
+  ids: z.array(z.coerce.number().int().positive()).min(1).max(50),
   lang: z.enum(['en', 'ne']).default('en'),
   action: z.enum(['TRASH', 'PUBLISH', 'DRAFT', 'DELETE_PERMANENTLY']),
 });

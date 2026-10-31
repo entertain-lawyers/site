@@ -9,7 +9,7 @@ interface EditUnitPageProps {
 }
 
 export const metadata: Metadata = {
-  title: 'Edit Unit - Admin - Entertain Lawyers',
+  title: 'Edit Unit - Admin',
 };
 
 export default async function EditUnitPage({ params }: EditUnitPageProps) {

@@ -9,7 +9,7 @@ interface EditSemesterPageProps {
 }
 
 export const metadata: Metadata = {
-  title: 'Edit Semester - Admin - Entertain Lawyers',
+  title: 'Edit Semester - Admin',
 };
 
 export default async function EditSemesterPage({ params }: EditSemesterPageProps) {
