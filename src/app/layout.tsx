@@ -16,6 +16,7 @@ import { getSiteSettings } from '@/lib/site-settings';
 import AnalyticsTracker from '@/components/AnalyticsTracker';
 import { serializeJsonLd, getSiteUrl } from '@/lib/seo';
 import { SEMESTERS_CACHE_TAG } from '@/lib/cache-tags';
+import MotionProvider from '@/components/motion/MotionProvider';
 
 /**
  * Site-wide typography. Restored Mukta as the requested legacy face
@@ -195,17 +196,19 @@ export default async function RootLayout({
         <NextTopLoader color="var(--color-accent)" showSpinner={false} shadow="0 0 10px var(--color-accent),0 0 5px var(--color-accent)" />
         <AnalyticsTracker />
         <ContentProtection />
-        <PublicOnly>
-          <TopUtilityBar locale={locale} dict={dict} />
-          <Navbar dict={dict} session={session} semesters={uniqueSemesters} locale={locale} />
-        </PublicOnly>
-        <main id="main-content" tabIndex={-1} className="flex-grow flex flex-col focus:outline-none">
-          {children}
-        </main>
-        <PublicOnly>
-          <Footer dict={dict} settings={settings} />
-          <AskAI />
-        </PublicOnly>
+        <MotionProvider>
+          <PublicOnly>
+            <TopUtilityBar locale={locale} dict={dict} />
+            <Navbar dict={dict} session={session} semesters={uniqueSemesters} locale={locale} />
+          </PublicOnly>
+          <main id="main-content" tabIndex={-1} className="flex-grow flex flex-col focus:outline-none">
+            {children}
+          </main>
+          <PublicOnly>
+            <Footer dict={dict} settings={settings} />
+            <AskAI />
+          </PublicOnly>
+        </MotionProvider>
       </body>
     </html>
   );

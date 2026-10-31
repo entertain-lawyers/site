@@ -3,6 +3,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Mail, Phone } from 'lucide-react';
 import { Metadata } from 'next';
+import { Reveal } from '@/components/motion/primitives';
 
 const FacebookIcon = () => (
   <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -69,8 +70,8 @@ export default async function TeamDirectoryPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {members.map((member) => (
-              <div key={member.id} className="group relative bg-surface border border-border rounded-2xl shadow-sm overflow-hidden flex flex-col h-full hover:-translate-y-1 hover:shadow-lg dark:hover:shadow-black/40 transition-all duration-300">
+            {members.map((member, i) => (
+              <Reveal index={i} lift key={member.id} className="group relative bg-surface border border-border rounded-2xl shadow-sm overflow-hidden flex flex-col h-full hover:shadow-lg dark:hover:shadow-black/40 transition-[box-shadow,border-color,background-color] duration-300">
                 {/* Entire card clickable */}
                 <Link
                   href={`/team/${member.slug}`}
@@ -168,7 +169,7 @@ export default async function TeamDirectoryPage() {
                     )}
                   </div>
                 )}
-              </div>
+              </Reveal>
             ))}
           </div>
         )}

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Locale, Dictionary } from '@/lib/i18n';
 import { formatBSDate } from '@/lib/nepali-date';
 import { Sun, Moon, Globe, Clock, Loader2 } from 'lucide-react';
+import { SwapFade } from '@/components/motion/primitives';
 
 interface TopUtilityBarProps {
   locale: Locale;
@@ -101,17 +102,10 @@ export default function TopUtilityBar({ locale, dict }: TopUtilityBarProps) {
             aria-label={theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}
             title={theme === 'light' ? 'Night Study Mode' : 'Light Mode'}
           >
-            {theme === 'light' ? (
-              <>
-                <Moon className="w-3.5 h-3.5" />
-                <span className="font-bold hidden sm:inline">Dark</span>
-              </>
-            ) : (
-              <>
-                <Sun className="w-3.5 h-3.5" />
-                <span className="font-bold hidden sm:inline">Light</span>
-              </>
-            )}
+            <SwapFade id={theme} className="flex">
+              {theme === 'light' ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
+            </SwapFade>
+            <span className="font-bold hidden sm:inline">{theme === 'light' ? 'Dark' : 'Light'}</span>
           </button>
 
           {/* Divider removed */}

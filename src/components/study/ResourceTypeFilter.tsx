@@ -2,6 +2,8 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback } from 'react';
+import { m } from '@/components/motion/primitives';
+import { springSnappy } from '@/lib/motion';
 
 interface ResourceTypeFilterProps {
   dict: {
@@ -59,7 +61,11 @@ export default function ResourceTypeFilter({ dict }: ResourceTypeFilterProps) {
           >
             {type.label}
             {isActive && (
-              <span className="absolute bottom-0 left-0 w-full h-[2px] bg-gold rounded-t-sm" />
+              <m.span
+                layoutId="resource-type-underline"
+                className="absolute bottom-0 left-0 w-full h-[2px] bg-gold rounded-t-sm"
+                transition={springSnappy}
+              />
             )}
           </button>
         );

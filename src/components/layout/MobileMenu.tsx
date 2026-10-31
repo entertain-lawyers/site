@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { Dictionary } from '@/lib/i18n';
 import { Menu, X, Home, BookOpen, CreditCard, Info, Mail, LayoutDashboard, Shield, LogOut, LogIn, User, FileEdit, Calculator, Users } from 'lucide-react';
 import { signOut } from 'next-auth/react';
+import { AnimatePresence, Backdrop, Collapse, PopoverPanel, SwapFade } from '@/components/motion/primitives';
 
 interface NavLink {
   href: string;
@@ -22,12 +23,24 @@ interface MobileMenuProps {
 
 export default function MobileMenu({ links, session, dict, semesters, isNepaliMode = false }: MobileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [openSection, setOpenSection] = useState<string | null>(null);
   const pathname = usePathname();
 
   // Close menu when route changes
   useEffect(() => {
     setIsOpen(false);
+    setOpenSection(null);
   }, [pathname]);
+
+  // Escape closes the menu, like the desktop dropdowns.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [isOpen]);
 
   // Prevent scroll when menu is open
   useEffect(() => {
@@ -53,26 +66,32 @@ export default function MobileMenu({ links, session, dict, semesters, isNepaliMo
         aria-label="Toggle navigation menu"
       >
         <span className="sr-only">Open main menu</span>
-        {isOpen ? (
-          <X className="block h-6 w-6" strokeWidth={2.5} />
-        ) : (
-          <Menu className="block h-6 w-6" strokeWidth={2.5} />
-        )}
+        <SwapFade id={isOpen ? 'close' : 'menu'} className="block">
+          {isOpen ? (
+            <X className="block h-6 w-6" strokeWidth={2.5} />
+          ) : (
+            <Menu className="block h-6 w-6" strokeWidth={2.5} />
+          )}
+        </SwapFade>
       </button>
 
+      <AnimatePresence>
       {/* Backdrop */}
       {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden animate-in fade-in duration-300"
+        <Backdrop
+          key="backdrop"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
           onClick={closeMenu}
+          aria-hidden="true"
         />
       )}
 
-      {/* Mobile menu dropdown */}
-      <div
-        className={`absolute top-[calc(100%+12px)] sm:top-[calc(100%+16px)] left-0 right-0 w-full bg-white dark:bg-[#0a1526] border border-white/10 shadow-2xl rounded-2xl z-50 lg:hidden overflow-hidden transition-all duration-300 ease-in-out origin-top ${
-          isOpen ? 'scale-y-100 opacity-100' : 'scale-y-0 opacity-0 pointer-events-none'
-        }`}
+      {/* Mobile menu dropdown — unmounted while closed so its links are not
+          reachable by keyboard or screen readers when hidden. */}
+      {isOpen && (
+      <PopoverPanel
+        key="panel"
+        className="absolute top-[calc(100%+12px)] sm:top-[calc(100%+16px)] left-0 right-0 w-full bg-white dark:bg-[#0a1526] border border-white/10 shadow-2xl rounded-2xl z-50 lg:hidden overflow-hidden"
       >
         <div className="px-4 py-6 space-y-2 max-h-[calc(100vh-6rem)] overflow-y-auto">
           <nav aria-label="Mobile navigation" className="space-y-1">
@@ -98,13 +117,19 @@ export default function MobileMenu({ links, session, dict, semesters, isNepaliMo
               <div className="space-y-1 mt-1 pl-4 border-l-2 border-border ml-6">
 
                 {/* Law Notes Accordion */}
-                <details className="group/details [&_summary::-webkit-details-marker]:hidden">
-                  <summary className="flex items-center justify-between px-4 py-3 min-h-[44px] text-sm font-semibold text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all cursor-pointer list-none select-none">
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setOpenSection(openSection === 'law_notes' ? null : 'law_notes')}
+                    aria-expanded={openSection === 'law_notes'}
+                    className="w-full flex items-center justify-between px-4 py-3 min-h-[44px] text-sm font-semibold text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-colors cursor-pointer select-none"
+                  >
                     <span>{dict.catLawNotes || 'Law Notes'}</span>
-                    <svg className="w-4 h-4 transition-transform group-open/details:rotate-180 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7 7" />
+                    <svg className={`w-4 h-4 transition-transform duration-300 opacity-50 ${openSection === 'law_notes' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
-                  </summary>
+                  </button>
+                  <Collapse open={openSection === 'law_notes'}>
                   <div className="pl-4 mt-1 space-y-1 border-l-2 border-border/30 ml-4 pb-2">
                     <Link href="/study?type=LAW_NOTE" onClick={closeMenu} className="flex items-center px-4 py-2.5 min-h-[40px] text-[13px] font-medium text-text-secondary hover:text-accent rounded-lg transition-all">
                       All Notes
@@ -115,20 +140,27 @@ export default function MobileMenu({ links, session, dict, semesters, isNepaliMo
                       </Link>
                     ))}
                   </div>
-                </details>
+                </Collapse>
+                </div>
 
                 <Link href="/study?type=CASE_LAW" onClick={closeMenu} className="flex items-center px-4 py-3 min-h-[44px] text-sm font-semibold text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all">
                   {dict.catCaseLaws || 'Case Laws'}
                 </Link>
 
                 {/* Old Questions Accordion */}
-                <details className="group/details [&_summary::-webkit-details-marker]:hidden">
-                  <summary className="flex items-center justify-between px-4 py-3 min-h-[44px] text-sm font-semibold text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all cursor-pointer list-none select-none">
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setOpenSection(openSection === 'old_questions' ? null : 'old_questions')}
+                    aria-expanded={openSection === 'old_questions'}
+                    className="w-full flex items-center justify-between px-4 py-3 min-h-[44px] text-sm font-semibold text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-colors cursor-pointer select-none"
+                  >
                     <span>{dict.catOldQuestions || 'Old Questions'}</span>
-                    <svg className="w-4 h-4 transition-transform group-open/details:rotate-180 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7 7" />
+                    <svg className={`w-4 h-4 transition-transform duration-300 opacity-50 ${openSection === 'old_questions' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
-                  </summary>
+                  </button>
+                  <Collapse open={openSection === 'old_questions'}>
                   <div className="pl-4 mt-1 space-y-1 border-l-2 border-border/30 ml-4 pb-2">
                     <Link href="/study?type=OLD_QUESTION" onClick={closeMenu} className="flex items-center px-4 py-2.5 min-h-[40px] text-[13px] font-medium text-text-secondary hover:text-accent rounded-lg transition-all">
                       All Questions
@@ -139,7 +171,8 @@ export default function MobileMenu({ links, session, dict, semesters, isNepaliMo
                       </Link>
                     ))}
                   </div>
-                </details>
+                </Collapse>
+                </div>
 
                 <Link href="/semesters" onClick={closeMenu} className="flex items-center px-4 py-3 min-h-[44px] text-sm font-semibold text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5 rounded-xl transition-all">
                   {dict.browseSemesters || 'Browse by Semester'}
@@ -280,7 +313,9 @@ export default function MobileMenu({ links, session, dict, semesters, isNepaliMo
             )}
           </div>
         </div>
-      </div>
+      </PopoverPanel>
+      )}
+      </AnimatePresence>
     </>
   );
 }

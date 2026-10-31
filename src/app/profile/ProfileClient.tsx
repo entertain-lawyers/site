@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { updateProfile, changePassword } from '@/modules/user/user.actions';
 import { User, BookOpen, Shield, Phone, Mail, GraduationCap } from 'lucide-react';
+import { MotionButton } from '@/components/motion/primitives';
 
 interface ProfileClientProps {
   user: {
@@ -215,13 +216,13 @@ export default function ProfileClient({ user }: ProfileClientProps) {
             </div>
 
             <div className="pt-4 border-t border-border flex justify-end">
-              <button
+              <MotionButton
                 type="submit"
                 disabled={detailsLoading}
-                className="inline-flex items-center justify-center px-6 py-2.5 border border-transparent rounded-xl text-sm font-bold text-white bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent transition-all duration-300 shadow-sm disabled:opacity-50"
+                className="inline-flex items-center justify-center px-6 py-2.5 border border-transparent rounded-xl text-sm font-bold text-white bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent transition-[background-color,border-color,color,box-shadow,opacity] duration-300 shadow-sm disabled:opacity-50"
               >
                 {detailsLoading ? 'Saving...' : 'Save Changes'}
-              </button>
+              </MotionButton>
             </div>
           </form>
         )}
@@ -323,13 +324,13 @@ export default function ProfileClient({ user }: ProfileClientProps) {
                 </div>
 
                 <div className="pt-4">
-                  <button
+                  <MotionButton
                     type="submit"
                     disabled={securityLoading}
-                    className="w-full inline-flex items-center justify-center px-6 py-2.5 border border-transparent rounded-xl text-sm font-bold text-white bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent transition-all duration-300 shadow-sm disabled:opacity-50"
+                    className="w-full inline-flex items-center justify-center px-6 py-2.5 border border-transparent rounded-xl text-sm font-bold text-white bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent transition-[background-color,border-color,color,box-shadow,opacity] duration-300 shadow-sm disabled:opacity-50"
                   >
                     {securityLoading ? 'Updating...' : 'Update Password'}
-                  </button>
+                  </MotionButton>
                 </div>
               </>
             )}

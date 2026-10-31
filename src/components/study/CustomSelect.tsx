@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { AnimatePresence, PopoverPanel } from '@/components/motion/primitives';
 
 interface Option {
   value: string;
@@ -60,8 +61,9 @@ export default function CustomSelect({
         />
       </button>
 
+      <AnimatePresence>
       {isOpen && !disabled && (
-        <div className="absolute z-50 w-full mt-2 bg-surface border border-border rounded-xl shadow-lg overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+        <PopoverPanel key="options" className="absolute z-50 w-full mt-2 bg-surface border border-border rounded-xl shadow-lg overflow-hidden">
           <div className="max-h-60 overflow-y-auto py-2 custom-scrollbar">
             {options.length === 0 ? (
               <div className="px-4 py-3 text-sm text-center text-text-muted">
@@ -87,8 +89,9 @@ export default function CustomSelect({
               ))
             )}
           </div>
-        </div>
+        </PopoverPanel>
       )}
+      </AnimatePresence>
     </div>
   );
 }

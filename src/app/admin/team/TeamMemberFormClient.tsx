@@ -6,6 +6,7 @@ import { createTeamMemberAction, updateTeamMemberAction } from '@/modules/admin/
 import ImageUpload from '@/components/admin/ImageUpload';
 import Link from 'next/link';
 import { Loader2 } from 'lucide-react';
+import { MotionButton } from '@/components/motion/primitives';
 
 interface TeamMemberFormClientProps {
   member?: any;
@@ -193,10 +194,10 @@ export default function TeamMemberFormClient({ member }: TeamMemberFormClientPro
         <Link href="/admin/team" className="px-6 py-3 font-bold text-text-secondary hover:text-navy dark:hover:text-white transition-colors">
           Cancel
         </Link>
-        <button type="submit" disabled={loading} className="bg-accent hover:bg-accent-dark text-white px-8 py-3 rounded-xl font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2 min-w-[160px]">
+        <MotionButton type="submit" disabled={loading} className="bg-accent hover:bg-accent-dark text-white px-8 py-3 rounded-xl font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2 min-w-[160px]">
           {loading && <Loader2 className="w-5 h-5 animate-spin" />}
           {loading ? 'Saving...' : 'Save Member'}
-        </button>
+        </MotionButton>
       </div>
     </form>
   );

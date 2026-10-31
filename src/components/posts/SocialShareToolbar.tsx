@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import { Link, Mail } from 'lucide-react';
+import { AnimatePresence, m } from '@/components/motion/primitives';
+import { springSnappy } from '@/lib/motion';
 
 interface SocialShareToolbarProps {
   title: string;
@@ -194,11 +196,21 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
         className={`${compact ? 'min-w-[36px] min-h-[36px] p-1.5' : 'min-w-[44px] min-h-[44px] p-2'} rounded-full transition-colors flex items-center justify-center bg-slate-200 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-zinc-700 text-navy dark:text-white relative group`}
       >
         <Link className="w-4 h-4" />
-        {copied && (
-          <span className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-white text-xs py-1 px-2 rounded font-medium whitespace-nowrap">
-            Copied!
-          </span>
-        )}
+        <AnimatePresence>
+          {copied && (
+            <m.span
+              key="copied"
+              role="status"
+              initial={{ opacity: 0, y: 6, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 4, scale: 0.95 }}
+              transition={springSnappy}
+              className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-white text-xs py-1 px-2 rounded font-medium whitespace-nowrap"
+            >
+              Copied!
+            </m.span>
+          )}
+        </AnimatePresence>
       </button>
     </div>
   );

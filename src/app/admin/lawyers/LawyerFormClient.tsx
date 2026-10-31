@@ -9,6 +9,7 @@ import {
 import ImageUpload from '@/components/admin/ImageUpload';
 import Link from 'next/link';
 import { Loader2, ArrowLeft, Save, Scale, ShieldCheck, Phone, Mail, MapPin } from 'lucide-react';
+import { AnimatePresence, Appear, MotionButton } from '@/components/motion/primitives';
 
 interface LawyerFormClientProps {
   lawyer?: any;
@@ -93,11 +94,15 @@ export default function LawyerFormClient({ lawyer }: LawyerFormClientProps) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
+      <AnimatePresence initial={false}>
       {error && (
+        <Appear key="error">
         <div className="bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 p-4 rounded-xl border border-red-200 dark:border-red-900 text-sm font-medium">
           {error}
         </div>
+        </Appear>
       )}
+      </AnimatePresence>
 
       {/* Top action bar */}
       <div className="flex items-center justify-between border-b border-border pb-4">
@@ -108,14 +113,14 @@ export default function LawyerFormClient({ lawyer }: LawyerFormClientProps) {
           <ArrowLeft size={16} />
           <span>Back to Lawyers Directory</span>
         </Link>
-        <button
+        <MotionButton
           type="submit"
           disabled={loading}
-          className="bg-accent hover:bg-accent-hover text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-sm disabled:opacity-50"
+          className="bg-accent hover:bg-accent-hover text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-[background-color,border-color,color,box-shadow,opacity] shadow-sm disabled:opacity-50"
         >
           {loading ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
           <span>{lawyer?.id ? 'Update Profile' : 'Save Advocate'}</span>
-        </button>
+        </MotionButton>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

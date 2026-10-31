@@ -1,5 +1,6 @@
 import { SubjectCard } from '@/components/study/SubjectCard';
 import { Scale, Landmark } from 'lucide-react';
+import { Lift } from '@/components/motion/primitives';
 
 function PrisonerIcon(props: any) {
   return (
@@ -63,15 +64,17 @@ export default function CaseLawLanding() {
           style={{ animationDelay: `${i * 160}ms` }}
           className="motion-safe:animate-[el-card-in_0.7s_ease-out_both] focus-within:animate-none"
         >
-          <SubjectCard
-            title={cat.title}
-            subtitle={cat.subtitle}
-            href={cat.href}
-            icon={cat.icon}
-            effects
-            effectsDelay={i * 160}
-            variant={cat.id as 'civil' | 'criminal' | 'writs'}
-          />
+          <Lift className="h-full">
+            <SubjectCard
+              title={cat.title}
+              subtitle={cat.subtitle}
+              href={cat.href}
+              icon={cat.icon}
+              effects
+              effectsDelay={i * 160}
+              variant={cat.id as 'civil' | 'criminal' | 'writs'}
+            />
+          </Lift>
         </div>
       ))}
     </div>

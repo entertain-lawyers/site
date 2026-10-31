@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { createEventAction } from '@/modules/admin/admin-event.actions';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import ImageUpload from '@/components/admin/ImageUpload';
+import { MotionButton } from '@/components/motion/primitives';
 
 export default function NewEventPage() {
   const router = useRouter();
@@ -49,7 +50,7 @@ export default function NewEventPage() {
         <div><label htmlFor="events-status" className="block text-sm font-bold mb-2">Status</label><select id="events-status" value={status} onChange={e => setStatus(e.target.value as any)} className="w-full border p-3 rounded-xl"><option value="DRAFT">Draft</option><option value="PUBLISHED">Published</option><option value="ARCHIVED">Archived</option></select></div>
         <ImageUpload value={featuredImage} onChange={setFeaturedImage} type="EVENT" label="Featured Image" />
         <div><label className="block text-sm font-bold mb-2">Content</label><RichTextEditor value={content} onChange={setContent} /></div>
-        <button type="submit" disabled={loading} className="bg-accent text-white px-6 py-3 rounded-xl font-bold">{loading ? 'Saving...' : 'Save Event'}</button>
+        <MotionButton type="submit" disabled={loading} className="bg-accent text-white px-6 py-3 rounded-xl font-bold">{loading ? 'Saving...' : 'Save Event'}</MotionButton>
       </form>
     </div>
   );

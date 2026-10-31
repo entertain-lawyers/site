@@ -2,6 +2,7 @@ import { SubjectCard } from '@/components/study/SubjectCard';
 import { Hourglass, Users } from 'lucide-react';
 import BrandSearchHeader from '@/components/posts/BrandSearchHeader';
 import type { Metadata } from 'next';
+import { Reveal } from '@/components/motion/primitives';
 
 export const metadata: Metadata = {
   title: 'Historical Facts & Legal Personalities',
@@ -27,18 +28,22 @@ export default function HistoricalFactsLandingPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 max-w-4xl mx-auto mb-16">
-          <SubjectCard 
-            title="Historical Facts"
-            subtitle=""
-            href="/historical-facts/historical"
-            icon={Hourglass}
-          />
-          <SubjectCard 
-            title="Legal Personalities"
-            subtitle=""
-            href="/historical-facts/personalities"
-            icon={Users}
-          />
+          <Reveal index={0} lift className="h-full">
+            <SubjectCard 
+              title="Historical Facts"
+              subtitle=""
+              href="/historical-facts/historical"
+              icon={Hourglass}
+            />
+          </Reveal>
+          <Reveal index={1} lift className="h-full">
+            <SubjectCard 
+              title="Legal Personalities"
+              subtitle=""
+              href="/historical-facts/personalities"
+              icon={Users}
+            />
+          </Reveal>
         </div>
       </div>
     </div>

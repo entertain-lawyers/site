@@ -6,6 +6,7 @@ import { Metadata } from 'next';
 import { PROTECTION_ACTION_PREFIX, PROTECTION_LABELS, protectionSince } from '@/lib/protection';
 import { PAGE_VIEW_ACTION, resolvePostTitles, friendlyPageLabel } from '@/lib/analytics';
 import { getWordPressPosts } from '@/lib/wordpress';
+import { Lift, Reveal } from '@/components/motion/primitives';
 
 export const metadata: Metadata = {
   title: 'Admin Dashboard',
@@ -188,7 +189,7 @@ export default async function AdminDashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
 
           {/* Post Stats (Available to both) */}
-          <div className="group bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-black/5 dark:border-white/5 relative overflow-hidden">
+          <Reveal index={0} perRow={3} lift className="group bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-[box-shadow,border-color,background-color] duration-300 border border-black/5 dark:border-white/5 relative overflow-hidden">
             <div className="flex items-center gap-5 relative z-10">
               <div className="flex-shrink-0 bg-blue-50 dark:bg-blue-900/30 rounded-2xl p-4 text-blue-600 dark:text-blue-400  group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
                 <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -200,9 +201,9 @@ export default async function AdminDashboardPage() {
                 <dd className="text-3xl font-extrabold text-navy dark:text-white tracking-tight">{postCount}</dd>
               </div>
             </div>
-          </div>
+          </Reveal>
 
-          <div className="group bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-black/5 dark:border-white/5 relative overflow-hidden">
+          <Reveal index={1} perRow={3} lift className="group bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-[box-shadow,border-color,background-color] duration-300 border border-black/5 dark:border-white/5 relative overflow-hidden">
             <div className="flex items-center gap-5 relative z-10">
               <div className="flex-shrink-0 bg-green-50 dark:bg-green-900/30 rounded-2xl p-4 text-green-600 dark:text-green-400  group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
                 <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -214,9 +215,9 @@ export default async function AdminDashboardPage() {
                 <dd className="text-3xl font-extrabold text-navy dark:text-white tracking-tight">{activePostCount}</dd>
               </div>
             </div>
-          </div>
+          </Reveal>
 
-          <div className="group bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-black/5 dark:border-white/5 relative overflow-hidden">
+          <Reveal index={2} perRow={3} lift className="group bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-[box-shadow,border-color,background-color] duration-300 border border-black/5 dark:border-white/5 relative overflow-hidden">
             <div className="flex items-center gap-5 relative z-10">
               <div className={`flex-shrink-0 rounded-2xl p-4 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3 ${pendingConsultations > 0 ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400' : 'bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400'}`}>
                 <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -229,9 +230,9 @@ export default async function AdminDashboardPage() {
               </div>
             </div>
             <Link href="/admin/consultations" className="absolute inset-0" aria-label="Open consultations" />
-          </div>
+          </Reveal>
 
-          <div className="group bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-black/5 dark:border-white/5 relative overflow-hidden">
+          <Reveal index={3} perRow={3} lift className="group bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-[box-shadow,border-color,background-color] duration-300 border border-black/5 dark:border-white/5 relative overflow-hidden">
             <div className="flex items-center gap-5 relative z-10">
               <div className="flex-shrink-0 bg-amber-50 dark:bg-amber-900/30 rounded-2xl p-4 text-amber-600 dark:text-amber-400 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
                 <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -244,9 +245,9 @@ export default async function AdminDashboardPage() {
               </div>
             </div>
             <Link href="/admin/lawyers" className="absolute inset-0" aria-label="Open consultation lawyers" />
-          </div>
+          </Reveal>
 
-          <div className="group bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-black/5 dark:border-white/5 relative overflow-hidden">
+          <Reveal index={4} perRow={3} lift className="group bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-[box-shadow,border-color,background-color] duration-300 border border-black/5 dark:border-white/5 relative overflow-hidden">
             <div className="flex items-center gap-5 relative z-10">
               <div className="flex-shrink-0 bg-teal-50 dark:bg-teal-900/30 rounded-2xl p-4 text-teal-600 dark:text-teal-400  group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
                 <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -259,9 +260,9 @@ export default async function AdminDashboardPage() {
               </div>
             </div>
             <Link href="/admin/events" className="absolute inset-0" aria-label="Open events" />
-          </div>
+          </Reveal>
 
-            <div className="group bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-black/5 dark:border-white/5 relative overflow-hidden">
+            <Reveal index={5} perRow={3} lift className="group bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-[box-shadow,border-color,background-color] duration-300 border border-black/5 dark:border-white/5 relative overflow-hidden">
               <div className="flex items-center gap-5 relative z-10">
                 <div className="flex-shrink-0 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl p-4 text-indigo-600 dark:text-indigo-400  group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-300">
                   <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -274,12 +275,12 @@ export default async function AdminDashboardPage() {
                 </div>
               </div>
               <Link href="/admin/pages" className="absolute inset-0" aria-label="Open visual pages" />
-            </div>
+            </Reveal>
 
           {isAdmin && (
             <>
 
-              <div className="group bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-black/5 dark:border-white/5 relative overflow-hidden">
+              <Reveal index={6} perRow={3} lift className="group bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-[box-shadow,border-color,background-color] duration-300 border border-black/5 dark:border-white/5 relative overflow-hidden">
                 <div className="flex items-center gap-5 relative z-10">
                   <div className="flex-shrink-0 bg-accent/10 rounded-2xl p-4 text-accent  group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-300">
                     <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -291,9 +292,9 @@ export default async function AdminDashboardPage() {
                     <dd className="text-3xl font-extrabold text-navy dark:text-white tracking-tight">{resourceCount}</dd>
                   </div>
                 </div>
-              </div>
+              </Reveal>
 
-              <div className="group bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-black/5 dark:border-white/5 relative overflow-hidden">
+              <Reveal index={7} perRow={3} lift className="group bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-[box-shadow,border-color,background-color] duration-300 border border-black/5 dark:border-white/5 relative overflow-hidden">
                 <div className="flex items-center gap-5 relative z-10">
                   <div className="flex-shrink-0 bg-orange-50 dark:bg-orange-900/30 rounded-2xl p-4 text-orange-500  group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300">
                     <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -305,9 +306,9 @@ export default async function AdminDashboardPage() {
                     <dd className="text-3xl font-extrabold text-navy dark:text-white tracking-tight">{userCount}</dd>
                   </div>
                 </div>
-              </div>
+              </Reveal>
 
-              <div className="group bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-black/5 dark:border-white/5 relative overflow-hidden">
+              <Reveal index={8} perRow={3} lift className="group bg-white dark:bg-zinc-900 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-[box-shadow,border-color,background-color] duration-300 border border-black/5 dark:border-white/5 relative overflow-hidden">
                 <div className="flex items-center gap-5 relative z-10">
                   <div className="flex-shrink-0 bg-purple-50 dark:bg-purple-900/30 rounded-2xl p-4 text-purple-600 dark:text-purple-400  group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-300">
                     <svg className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -319,7 +320,7 @@ export default async function AdminDashboardPage() {
                     <dd className="text-3xl font-extrabold text-navy dark:text-white tracking-tight">{activeSubCount}</dd>
                   </div>
                 </div>
-              </div>
+              </Reveal>
 
               <div className="group bg-navy dark:bg-zinc-900 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-white/10 relative overflow-hidden">
                 <div className="flex items-center gap-5 relative z-10">
@@ -353,30 +354,36 @@ export default async function AdminDashboardPage() {
               </span>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">
-              <Link
-                href="/admin/settings"
-                className="group rounded-xl border border-black/5 p-5 transition hover:-translate-y-0.5 hover:border-accent hover:shadow-md dark:border-white/10"
-              >
-                <p className="text-sm font-bold text-navy dark:text-white">Site Settings</p>
-                <p className="mt-1 text-xs font-medium text-text-secondary">Organisation, contact and social links</p>
-                <span className="mt-3 inline-block text-xs font-bold text-accent">Open &rarr;</span>
-              </Link>
-              <Link
-                href="/admin/homepage"
-                className="group rounded-xl border border-black/5 p-5 transition hover:-translate-y-0.5 hover:border-accent hover:shadow-md dark:border-white/10"
-              >
-                <p className="text-sm font-bold text-navy dark:text-white">Homepage</p>
-                <p className="mt-1 text-xs font-medium text-text-secondary">Hero copy, call-to-action and banner</p>
-                <span className="mt-3 inline-block text-xs font-bold text-accent">Open &rarr;</span>
-              </Link>
-              <Link
-                href="/admin/redirects"
-                className="group rounded-xl border border-black/5 p-5 transition hover:-translate-y-0.5 hover:border-accent hover:shadow-md dark:border-white/10"
-              >
-                <p className="text-sm font-bold text-navy dark:text-white">Redirects</p>
-                <p className="mt-1 text-xs font-medium text-text-secondary">Send old URLs to the right page</p>
-                <span className="mt-3 inline-block text-xs font-bold text-accent">Open &rarr;</span>
-              </Link>
+              <Lift className="h-full">
+                <Link
+                  href="/admin/settings"
+                  className="group block h-full rounded-xl border border-black/5 p-5 transition-[border-color,box-shadow] hover:border-accent hover:shadow-md dark:border-white/10"
+                >
+                  <p className="text-sm font-bold text-navy dark:text-white">Site Settings</p>
+                  <p className="mt-1 text-xs font-medium text-text-secondary">Organisation, contact and social links</p>
+                  <span className="mt-3 inline-block text-xs font-bold text-accent">Open &rarr;</span>
+                </Link>
+              </Lift>
+              <Lift className="h-full">
+                <Link
+                  href="/admin/homepage"
+                  className="group block h-full rounded-xl border border-black/5 p-5 transition-[border-color,box-shadow] hover:border-accent hover:shadow-md dark:border-white/10"
+                >
+                  <p className="text-sm font-bold text-navy dark:text-white">Homepage</p>
+                  <p className="mt-1 text-xs font-medium text-text-secondary">Hero copy, call-to-action and banner</p>
+                  <span className="mt-3 inline-block text-xs font-bold text-accent">Open &rarr;</span>
+                </Link>
+              </Lift>
+              <Lift className="h-full">
+                <Link
+                  href="/admin/redirects"
+                  className="group block h-full rounded-xl border border-black/5 p-5 transition-[border-color,box-shadow] hover:border-accent hover:shadow-md dark:border-white/10"
+                >
+                  <p className="text-sm font-bold text-navy dark:text-white">Redirects</p>
+                  <p className="mt-1 text-xs font-medium text-text-secondary">Send old URLs to the right page</p>
+                  <span className="mt-3 inline-block text-xs font-bold text-accent">Open &rarr;</span>
+                </Link>
+              </Lift>
             </div>
           </div>
         )}

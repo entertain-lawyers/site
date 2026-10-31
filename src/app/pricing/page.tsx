@@ -4,6 +4,7 @@ import { env } from '@/env';
 import { getDictionary } from '@/lib/i18n';
 import { CheckCircle2, HelpCircle } from 'lucide-react';
 import { unstable_cache } from 'next/cache';
+import { Reveal } from '@/components/motion/primitives';
 
 export async function generateMetadata() {
   const dict = await getDictionary();
@@ -85,9 +86,9 @@ export default async function PricingPage() {
           <div className="flex justify-center mb-24">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-5xl">
               {plans.map((plan, index) => (
-                <div
+                <Reveal index={index} perRow={3} lift
                   key={plan.id}
-                  className={`bg-surface/90 backdrop-blur-xl rounded-3xl border ${index === 0 ? 'border-accent shadow-[0_0_40px_rgba(var(--color-accent),0.15)]' : 'border-border shadow-soft'} flex flex-col relative overflow-hidden transition-all duration-500 hover:shadow-[0_20px_40px_rgba(var(--color-accent),0.2)] hover:-translate-y-2 group`}
+                  className={`bg-surface/90 backdrop-blur-xl rounded-3xl border ${index === 0 ? 'border-accent shadow-[0_0_40px_rgba(var(--color-accent),0.15)]' : 'border-border shadow-soft'} flex flex-col relative overflow-hidden transition-[box-shadow,border-color,background-color] duration-500 hover:shadow-[0_20px_40px_rgba(var(--color-accent),0.2)] group`}
                 >
                   {/* Highlight Ribbon */}
                   {index === 0 && (
@@ -128,7 +129,7 @@ export default async function PricingPage() {
                       paymentsEnabled={env.PAYMENTS_ENABLED === 'true'}
                     />
                   </div>
-                </div>
+                </Reveal>
               ))}
             </div>
           </div>

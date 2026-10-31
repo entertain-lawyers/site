@@ -12,6 +12,7 @@ import {
   STUDY_MATERIAL_LOGIN_MESSAGE,
   STUDY_MATERIAL_LOGIN_REASON,
 } from '@/lib/callback-url';
+import { AnimatePresence, Appear, MotionButton } from '@/components/motion/primitives';
 
 /** Same-origin absolute URL → path; anything else → null (rejected). */
 function toRelative(url: string): string | null {
@@ -185,7 +186,9 @@ export default function LoginPage() {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-surface py-8 px-4 shadow-soft border border-border sm:rounded-2xl sm:px-10">
+          <AnimatePresence initial={false}>
           {error && (
+            <Appear key="error">
             <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl">
               {error}
               {(codeParam === 'UnverifiedEmail' || errorParam === 'UnverifiedEmail') && (
@@ -196,12 +199,18 @@ export default function LoginPage() {
                 </div>
               )}
             </div>
+            </Appear>
           )}
+          </AnimatePresence>
+          <AnimatePresence initial={false}>
           {success && (
+            <Appear key="success">
             <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 text-sm rounded-xl">
               {success}
             </div>
+            </Appear>
           )}
+          </AnimatePresence>
 
           <form
             className="space-y-6"
@@ -271,10 +280,10 @@ export default function LoginPage() {
             </div>
 
             <div className="pt-2">
-              <button
+              <MotionButton
                 type="submit"
                 disabled={loading}
-                className="w-full flex justify-center items-center gap-2 py-3.5 px-4 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent disabled:opacity-50 transition-all duration-300 hover:shadow-[0_0_15px_rgba(var(--color-accent),0.4)] active:scale-[0.98]"
+                className="w-full flex justify-center items-center gap-2 py-3.5 px-4 border border-transparent rounded-xl shadow-md text-sm font-bold text-white bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent disabled:opacity-50 transition-[background-color,border-color,color,box-shadow,opacity] duration-300 hover:shadow-[0_0_15px_rgba(var(--color-accent),0.4)]"
               >
                 {loading && <Loader2 className="w-5 h-5 animate-spin" />}
                 {loading
@@ -282,7 +291,7 @@ export default function LoginPage() {
                   : mode === 'login'
                     ? 'Sign In to Continue'
                     : 'Create Account'}
-              </button>
+              </MotionButton>
             </div>
           </form>
 

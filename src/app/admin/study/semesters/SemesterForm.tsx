@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createSemesterAction, updateSemesterAction } from '@/modules/admin/admin-semester.actions';
 import { ArrowLeft, Save } from 'lucide-react';
+import { AnimatePresence, Appear, MotionButton } from '@/components/motion/primitives';
 
 interface SemesterFormProps {
   initialData?: {
@@ -104,7 +105,9 @@ export default function SemesterForm({ initialData }: SemesterFormProps) {
         </p>
       </div>
 
+      <AnimatePresence initial={false}>
       {error && (
+        <Appear key="error">
         <div className="mb-6 p-4 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 rounded-2xl border border-red-200 dark:border-red-900/50 font-medium text-sm flex items-center justify-between">
           <span>{error}</span>
           <button
@@ -115,7 +118,9 @@ export default function SemesterForm({ initialData }: SemesterFormProps) {
             ✕
           </button>
         </div>
+        </Appear>
       )}
+      </AnimatePresence>
 
       <form
         onSubmit={handleSubmit}
@@ -195,14 +200,14 @@ export default function SemesterForm({ initialData }: SemesterFormProps) {
           >
             Cancel
           </Link>
-          <button
+          <MotionButton
             type="submit"
             disabled={loading}
-            className="inline-flex items-center justify-center gap-2 px-6 py-2.5 border border-transparent shadow-[0_4px_14px_0_rgba(var(--color-accent),0.39)] text-sm font-bold rounded-xl text-white bg-accent hover:bg-accent/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent transition-all duration-300 disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 px-6 py-2.5 border border-transparent shadow-[0_4px_14px_0_rgba(var(--color-accent),0.39)] text-sm font-bold rounded-xl text-white bg-accent hover:bg-accent/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent transition-[background-color,border-color,color,box-shadow,opacity] duration-300 disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             <span>{loading ? 'Saving...' : isEditing ? 'Update Semester' : 'Create Semester'}</span>
-          </button>
+          </MotionButton>
         </div>
       </form>
     </div>

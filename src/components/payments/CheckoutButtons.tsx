@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { initiatePurchaseAction } from '@/modules/payments/payment.actions';
 import { submitPaymentForm } from '@/lib/payment-form';
+import { AnimatePresence, Appear } from '@/components/motion/primitives';
 
 interface CheckoutButtonsProps {
   resourceId: string;
@@ -39,11 +40,15 @@ export function CheckoutButtons({ resourceId, priceAmount, currency, paymentsEna
 
   return (
     <div className="flex flex-col space-y-3 w-full">
+      <AnimatePresence initial={false}>
       {error && (
+        <Appear key="error">
         <div className="p-3 bg-red-50 text-red-700 text-sm rounded-md text-left">
           {error}
         </div>
+        </Appear>
       )}
+      </AnimatePresence>
       
       {paymentsEnabled === false ? (
         <div className="p-4 text-center text-sm font-medium text-amber-700 bg-amber-50 rounded-xl border border-amber-200">

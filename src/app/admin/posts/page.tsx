@@ -12,6 +12,7 @@ import { randomUUID } from 'crypto';
 import Link from 'next/link';
 import { sanitizeHtml } from '@/lib/sanitize';
 import PostsTableClient, { type AdminPostRow } from './PostsTableClient';
+import { MotionButton } from '@/components/motion/primitives';
 
 const PER_PAGE = 20;
 
@@ -305,12 +306,12 @@ export default async function AdminPostsPage({
             className="w-full px-4 py-2 rounded-lg border border-border bg-white dark:bg-zinc-800 text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/50"
           />
         </div>
-        <button
+        <MotionButton
           type="submit"
           className="px-6 py-2 rounded-lg text-sm font-bold bg-navy text-white hover:bg-navy/90 transition-colors"
         >
           Filter
-        </button>
+        </MotionButton>
       </form>
 
       {/* Result count + pagination header, WP-admin style */}

@@ -9,6 +9,7 @@ import {
   toggleRedirectAction,
   updateRedirectAction,
 } from '@/modules/admin/admin-site-settings.actions';
+import { MotionButton } from '@/components/motion/primitives';
 
 export interface RedirectRow {
   id: string;
@@ -220,14 +221,14 @@ export default function RedirectsClient({ initialRedirects }: { initialRedirects
           </label>
 
           <div className="flex justify-end">
-            <button
+            <MotionButton
               type="submit"
               disabled={loading}
               className="inline-flex items-center gap-2 rounded-xl bg-accent px-6 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-accent/90 disabled:opacity-60"
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               {loading ? 'Saving…' : editingId ? 'Save changes' : 'Add redirect'}
-            </button>
+            </MotionButton>
           </div>
         </form>
       </section>

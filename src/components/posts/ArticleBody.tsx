@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { articleFont } from './article-font';
 import { sanitizeHtml } from '@/lib/sanitize';
+import { AnimatePresence, Backdrop, m } from '@/components/motion/primitives';
+import { springSmooth } from '@/lib/motion';
 
 /**
  * Article body renderer.
@@ -57,8 +59,10 @@ export default function ArticleBody({ html }: { html: string }) {
         dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
       />
 
+      <AnimatePresence>
       {zoomSrc && (
-        <div
+        <Backdrop
+          key="article-lightbox"
           role="dialog"
           aria-modal="true"
           aria-label="Enlarged article image"
@@ -74,15 +78,26 @@ export default function ArticleBody({ html }: { html: string }) {
           >
             <X className="h-5 w-5" aria-hidden="true" />
           </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          {/* Swipe the image up or down to dismiss it on touch screens. */}
+          <m.img
             src={zoomSrc}
             alt=""
             onClick={(event) => event.stopPropagation()}
-            className="max-h-full max-w-full rounded-xl object-contain shadow-2xl"
+            initial={{ opacity: 0, scale: 0.92 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={springSmooth}
+            drag="y"
+            dragSnapToOrigin
+            dragElastic={0.6}
+            onDragEnd={(_, info) => {
+              if (Math.abs(info.offset.y) > 120 || Math.abs(info.velocity.y) > 700) setZoomSrc(null);
+            }}
+            className="max-h-full max-w-full rounded-xl object-contain shadow-2xl cursor-grab active:cursor-grabbing"
           />
-        </div>
+        </Backdrop>
       )}
+      </AnimatePresence>
     </>
   );
 }

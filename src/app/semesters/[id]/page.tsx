@@ -6,6 +6,7 @@ import ResourceTypeFilter from '@/components/study/ResourceTypeFilter';
 import { BookOpen, ChevronRight, Lock, Library, GraduationCap, ChevronLeft } from 'lucide-react';
 import { SYLLABUS_CONFIG, isAuthoritativeSubject, findAuthoritativeSubject } from '@/lib/syllabus-config';
 import { serializeJsonLd, getSiteUrl } from '@/lib/seo';
+import { Reveal } from '@/components/motion/primitives';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -175,12 +176,13 @@ export default async function SemesterPage({ params }: PageProps) {
 
         {activeSubjects.length > 0 ? (
           <div className="space-y-10">
-            {activeSubjects.map((subject) => {
+            {activeSubjects.map((subject, i) => {
               const hasUnits = subject.units.length > 0;
               const unassignedResources = subject.resources.filter(r => !r.unitId);
 
               return (
-                <section key={subject.id} className="bg-surface border border-border rounded-2xl overflow-hidden shadow-soft transition-all hover:shadow-soft-lg">
+                <Reveal key={subject.id} index={i} perRow={1}>
+                <section className="bg-surface border border-border rounded-2xl overflow-hidden shadow-soft transition-[box-shadow,border-color,background-color] hover:shadow-soft-lg">
                   <div className="bg-navy dark:bg-navy-dark px-6 py-5 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <BookOpen className="w-6 h-6 text-blue-200" />
@@ -315,6 +317,7 @@ export default async function SemesterPage({ params }: PageProps) {
                     )}
                   </div>
                 </section>
+                </Reveal>
               );
             })}
           </div>

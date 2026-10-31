@@ -561,6 +561,15 @@
   }
 }
 
+/* Scroll reveals (components/motion) hide below-the-fold content until it is
+   scrolled to. Printing must never drop that content. */
+@media print {
+  [data-reveal] {
+    opacity: 1 !important;
+    translate: none !important;
+  }
+}
+
 /* Desktop focus mode for post editing. Hiding the admin sidebar gives the
    editor the full width it needs to match the public article column. */
 @media (min-width: 64rem) {

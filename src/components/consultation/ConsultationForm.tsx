@@ -22,6 +22,7 @@ import {
   X,
   User,
 } from 'lucide-react';
+import { AnimatePresence, Appear, DialogPanel, MotionButton, m } from '@/components/motion/primitives';
 
 export interface ConsultationLawyer {
   id: string;
@@ -171,10 +172,15 @@ export default function ConsultationForm({
 
   if (successResult) {
     return (
-      <div className="bg-surface rounded-3xl border border-emerald-500/30 p-8 sm:p-10 shadow-xl space-y-6 text-center max-w-2xl mx-auto animate-in fade-in zoom-in-95 duration-300">
-        <div className="w-16 h-16 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto border border-emerald-500/20">
+      <DialogPanel className="bg-surface rounded-3xl border border-emerald-500/30 p-8 sm:p-10 shadow-xl space-y-6 text-center max-w-2xl mx-auto" role="status">
+        <m.div
+          initial={{ scale: 0.4, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 380, damping: 18, delay: 0.1 }}
+          className="w-16 h-16 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto border border-emerald-500/20"
+        >
           <CheckCircle2 className="w-9 h-9" />
-        </div>
+        </m.div>
 
         <div className="space-y-2">
           <h3 className="text-2xl font-black text-navy dark:text-white">
@@ -258,7 +264,7 @@ export default function ConsultationForm({
             <span>Court Fee Calculator</span>
           </Link>
         </div>
-      </div>
+      </DialogPanel>
     );
   }
 
@@ -282,8 +288,10 @@ export default function ConsultationForm({
       </div>
 
       {/* Selected Advocate Banner */}
+      <AnimatePresence initial={false}>
       {selectedLawyer && (
-        <div className="p-4 rounded-2xl bg-accent/10 border border-accent/30 flex items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+        <Appear key="selected-lawyer">
+        <div className="p-4 rounded-2xl bg-accent/10 border border-accent/30 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3.5 min-w-0">
             <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-slate-200 dark:bg-zinc-800 shrink-0 ring-2 ring-accent/30">
               {selectedLawyer.imageUrl ? (
@@ -325,7 +333,9 @@ export default function ConsultationForm({
             <span className="hidden sm:inline">Clear</span>
           </button>
         </div>
+        </Appear>
       )}
+      </AnimatePresence>
 
       {/* Banner if redirected from Court Fee Calculator */}
       {prefilledClaim && (
@@ -340,12 +350,16 @@ export default function ConsultationForm({
         </div>
       )}
 
+      <AnimatePresence initial={false}>
       {errorMessage && (
+        <Appear key="error" role="alert">
         <div className="p-4 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-start gap-3 text-xs sm:text-sm text-red-600 dark:text-red-400">
           <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
           <div>{errorMessage}</div>
         </div>
+        </Appear>
       )}
+      </AnimatePresence>
 
       {/* Step 1: Advocate Selection */}
       {lawyers && lawyers.length > 0 && (
@@ -591,10 +605,11 @@ export default function ConsultationForm({
       </div>
 
       {/* Submit Button */}
-      <button
+      <MotionButton
         type="submit"
         disabled={isSubmitting}
-        className="w-full py-4 px-6 rounded-2xl bg-accent hover:bg-accent-hover text-white text-base font-bold shadow-lg transition-all flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(var(--color-accent),0.4)] disabled:opacity-50 disabled:cursor-not-allowed"
+        whileHover={isSubmitting ? undefined : { scale: 1.01 }}
+        className="w-full py-4 px-6 rounded-2xl bg-accent hover:bg-accent-hover text-white text-base font-bold shadow-lg transition-[background-color,box-shadow,opacity] flex items-center justify-center gap-2 hover:shadow-[0_0_20px_rgba(var(--color-accent),0.4)] disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isSubmitting ? (
           <>
@@ -611,7 +626,7 @@ export default function ConsultationForm({
             </span>
           </>
         )}
-      </button>
+      </MotionButton>
     </form>
   );
 }

@@ -4,6 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { SubjectCard } from '@/components/study/SubjectCard';
 import { HomeSemesterCard } from '@/components/home/HomeSemesterCard';
 import { BookOpen, Layers } from 'lucide-react';
+import { Reveal } from '@/components/motion/primitives';
 
 interface SelectorOption {
   id: string;
@@ -75,18 +76,19 @@ export default function StudyCardNavigator({
           Select Semester
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 lg:gap-8">
-          {canonicalSemesters.map((s) => {
+          {canonicalSemesters.map((s, i) => {
             let order = s.order;
             if (typeof order !== 'number') {
               const match = s.name.match(/^(\d+)/);
               order = match ? parseInt(match[1], 10) : 1;
             }
             return (
-              <HomeSemesterCard
-                key={s.id}
+              <Reveal key={s.id} index={i} perRow={3} lift className="h-full">
+                <HomeSemesterCard
                 order={order}
                 href={buildHref('semester', s.id)}
               />
+            </Reveal>
             );
           })}
         </div>
@@ -106,16 +108,17 @@ export default function StudyCardNavigator({
         </h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 lg:gap-8">
-          {orderedSubjects.map((s) => {
+          {orderedSubjects.map((s, i) => {
             const subtitle = s.isSeminar ? 'SEMINAR' : (s.isElective ? 'ELECTIVE' : 'VIEW UNITS');
             return (
-              <SubjectCard
-                key={s.id}
+              <Reveal key={s.id} index={i} perRow={3} lift className="h-full">
+                <SubjectCard
                 title={s.name}
                 subtitle={subtitle}
                 href={buildHref('subject', s.id)}
                 icon={BookOpen}
               />
+            </Reveal>
             );
           })}
         </div>
@@ -131,14 +134,15 @@ export default function StudyCardNavigator({
           Select Unit
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 lg:gap-8">
-          {units.map((u) => (
-            <SubjectCard
-              key={u.id}
+          {units.map((u, i) => (
+            <Reveal key={u.id} index={i} perRow={3} lift className="h-full">
+              <SubjectCard
               title={u.name}
               subtitle={u.title || "Read Materials"}
               href={buildHref('unit', u.id)}
               icon={Layers}
             />
+          </Reveal>
           ))}
         </div>
       </div>

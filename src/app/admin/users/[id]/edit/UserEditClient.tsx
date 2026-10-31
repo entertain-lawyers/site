@@ -11,6 +11,7 @@ import { Camera, Loader2, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { initiateMediaUploadAction } from '@/modules/admin/admin-media.actions';
 import { updateUserAction } from '@/modules/admin/admin-user.actions';
+import { AnimatePresence, Appear, MotionButton } from '@/components/motion/primitives';
 
 interface EditableUser {
   id: string;
@@ -148,21 +149,29 @@ export default function UserEditClient({
 
   return (
     <form onSubmit={handleSave} className="space-y-6">
+      <AnimatePresence initial={false}>
       {error && (
+        <Appear key="error">
         <div className="p-4 rounded-xl bg-red-50 border border-red-100 text-red-700 text-sm font-medium">{error}</div>
+        </Appear>
       )}
+      </AnimatePresence>
+      <AnimatePresence initial={false}>
       {success && (
+        <Appear key="success">
         <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm font-medium">{success}</div>
+        </Appear>
       )}
+      </AnimatePresence>
 
-      <button
+      <MotionButton
         type="submit"
         disabled={saving}
-        className="w-full sm:w-auto inline-flex justify-center items-center gap-2 bg-accent hover:bg-accent/90 text-white px-6 py-2.5 rounded-xl font-bold transition-all disabled:opacity-60"
+        className="w-full sm:w-auto inline-flex justify-center items-center gap-2 bg-accent hover:bg-accent/90 text-white px-6 py-2.5 rounded-xl font-bold transition-[background-color,border-color,color,box-shadow,opacity] disabled:opacity-60"
       >
         {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
         {saving ? 'Saving...' : 'Update User'}
-      </button>
+      </MotionButton>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
         {/* ============================================================================

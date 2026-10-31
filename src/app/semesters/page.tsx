@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { getDictionary } from '@/lib/i18n';
 import { GraduationCap, ChevronRight, BookOpen } from 'lucide-react';
+import { Reveal } from '@/components/motion/primitives';
 
 export async function generateMetadata() {
   const dict = await getDictionary();
@@ -68,16 +69,16 @@ export default async function SemestersPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {semesters.map((semester) => {
+            {semesters.map((semester, i) => {
               const totalResources = semester.subjects.reduce(
                 (sum, subject) => sum + (subject as any)._count.resources,
                 0
               );
               return (
+                <Reveal key={semester.id} index={i} perRow={3} lift className="h-full">
                 <Link
-                  key={semester.id}
                   href={`/semesters/${semester.id}`}
-                  className="group flex flex-col bg-surface border border-border rounded-2xl hover:border-accent hover:shadow-[0_8px_30px_rgba(var(--color-accent),0.12)] hover:-translate-y-1 transition-all duration-300 overflow-hidden relative"
+                  className="h-full group flex flex-col bg-surface border border-border rounded-2xl hover:border-accent hover:shadow-[0_8px_30px_rgba(var(--color-accent),0.12)] transition-[box-shadow,border-color,background-color] duration-300 overflow-hidden relative"
                 >
                   {/* Top Accent Bar */}
                   <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent/40 to-accent/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -134,6 +135,7 @@ export default async function SemestersPage() {
                     <ChevronRight className="w-5 h-5 text-text-muted group-hover:text-accent group-hover:translate-x-1 transition-all" />
                   </div>
                 </Link>
+                </Reveal>
               );
             })}
           </div>

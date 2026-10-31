@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { updatePublicationAction } from '@/modules/admin/admin-publication.actions';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import ImageUpload from '@/components/admin/ImageUpload';
+import { MotionButton } from '@/components/motion/primitives';
 
 export default function EditPubClient({ pub }: { pub: any }) {
   const router = useRouter();
@@ -57,7 +58,7 @@ export default function EditPubClient({ pub }: { pub: any }) {
         <div><label htmlFor="publications-public-document-url-optional" className="block text-sm font-bold mb-2">Public Document URL (Optional)</label><input id="publications-public-document-url-optional" type="url" value={documentUrl} onChange={e => setDocumentUrl(e.target.value)} className="w-full border p-3 rounded-xl" placeholder="https://..." /></div>
         <ImageUpload value={coverImage} onChange={setCoverImage} type="PUBLICATION" label="Cover Image" />
         <div><label className="block text-sm font-bold mb-2">Content</label><RichTextEditor value={content} onChange={setContent} /></div>
-        <button type="submit" disabled={loading} className="bg-accent text-white px-6 py-3 rounded-xl font-bold">{loading ? 'Saving...' : 'Save Publication'}</button>
+        <MotionButton type="submit" disabled={loading} className="bg-accent text-white px-6 py-3 rounded-xl font-bold">{loading ? 'Saving...' : 'Save Publication'}</MotionButton>
       </form>
     </div>
   );

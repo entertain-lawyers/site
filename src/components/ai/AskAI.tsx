@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Sparkles, X, SendHorizonal, Scale } from 'lucide-react';
+import { AnimatePresence, SwapFade, m as M } from '@/components/motion/primitives';
+import { springSmooth } from '@/lib/motion';
 
 /**
  * Floating "Kanun Saathi" AI assistant.
@@ -195,17 +197,26 @@ export default function AskAI() {
             className="el-ai-ring pointer-events-none absolute inset-0 rounded-full border-2 border-gold/70"
           />
         )}
-        {open ? (
-          <X className="w-5 h-5" strokeWidth={2} />
-        ) : (
-          <Sparkles className="w-5 h-5 text-gold" strokeWidth={2} />
-        )}
+        <SwapFade id={open ? 'close' : 'open'} className="flex">
+          {open ? (
+            <X className="w-5 h-5" strokeWidth={2} />
+          ) : (
+            <Sparkles className="w-5 h-5 text-gold" strokeWidth={2} />
+          )}
+        </SwapFade>
         <span className="text-[15px] font-bold tracking-tight">{open ? 'Close' : 'Kanun Saathi'}</span>
       </button>
 
       {/* Panel */}
+      <AnimatePresence>
       {open && (
-        <div
+        <M.div
+          key="ask-ai-panel"
+          initial={{ opacity: 0, y: 16, scale: 0.96 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 12, scale: 0.97, transition: { duration: 0.14 } }}
+          transition={springSmooth}
+          style={{ transformOrigin: 'bottom right' }}
           role="dialog"
           aria-label="Kanun Saathi assistant"
           className="chat-font fixed bottom-20 right-5 z-[30] w-[calc(100vw-2.5rem)] max-w-[400px] h-[min(620px,74vh)] flex flex-col overflow-hidden rounded-2xl border border-border/70 dark:border-white/10 bg-white dark:bg-surface shadow-2xl"
@@ -229,7 +240,13 @@ export default function AskAI() {
               const isLast = i === messages.length - 1;
               const awaitingFirstWord = m.role === 'assistant' && !m.content && loading && isLast;
               return (
-                <div key={i} className={m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
+                <M.div
+                  key={i}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={springSmooth}
+                  className={m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}
+                >
                   <div
                     aria-live={m.role === 'assistant' ? 'polite' : undefined}
                     className={
@@ -270,7 +287,7 @@ export default function AskAI() {
                       </div>
                     )}
                   </div>
-                </div>
+                </M.div>
               );
             })}
           </div>
@@ -323,8 +340,9 @@ export default function AskAI() {
               </Link>
             </p>
           </div>
-        </div>
+        </M.div>
       )}
+      </AnimatePresence>
     </>
   );
 }
