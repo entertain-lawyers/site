@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { initiateMediaUploadAction } from '@/modules/admin/admin-media.actions';
 import { articleFont } from '@/components/posts/article-font';
+import { restoreVideoEmbeds } from '@/lib/editor-html';
 import dynamic from 'next/dynamic';
 import EditorImageTools from '@/components/editor/EditorImageTools';
 import 'react-quill-new/dist/quill.snow.css';
@@ -81,13 +82,16 @@ export default function RichTextEditor({
   // <ul>/<ol>, no editor-only ql-* classes). It escapes every space as
   // &nbsp;, which would stop preview lines wrapping, so normalise those back.
   const handleChange = useCallback(
-    (html: string) => onChange(html.replaceAll('&nbsp;', ' ')),
+    (html: string) => onChange(restoreVideoEmbeds(html).replaceAll('&nbsp;', ' ')),
     [onChange]
   );
 
   // Build the real image handler as a stable callback so the relay closure
   // holds the latest ref without creating a new relay function.
   const imageHandler = useCallback(() => {
+    // The editor loses its selection while the file picker is open, so
+    // remember where the cursor was; otherwise the image lands at the top.
+    const insertAt = reactQuillRef.current?.getEditor()?.getSelection(true)?.index ?? null;
     const input = document.createElement('input');
     input.setAttribute('type', 'file');
     input.setAttribute('accept', 'image/jpeg,image/png,image/webp,image/gif');
@@ -117,8 +121,9 @@ export default function RichTextEditor({
 
         const editor = reactQuillRef.current?.getEditor();
         if (editor) {
-          const range = editor.getSelection();
-          editor.insertEmbed(range ? range.index : 0, 'image', res.data.publicUrl);
+          const index = insertAt ?? editor.getLength() - 1;
+          editor.insertEmbed(index, 'image', res.data.publicUrl, 'user');
+          editor.setSelection(index + 1, 0, 'user');
         }
       } catch (err) {
         alert('Failed to upload image: ' + (err as Error).message);
@@ -166,11 +171,29 @@ export default function RichTextEditor({
             border-top-left-radius: 0.75rem;
             border-top-right-radius: 0.75rem;
           }
+          /* Images and headings as the article draws them, so the editor's
+             line breaks and heights match the preview. */
           .editor-wrapper .ql-editor img {
             cursor: pointer;
+            display: block;
             max-width: 100%;
             height: auto;
           }
+          .editor-wrapper .ql-editor .ql-video {
+            width: 100%;
+            height: auto;
+            aspect-ratio: 16 / 9;
+            border-radius: 0.75rem;
+          }
+          .editor-wrapper .ql-editor .ql-align-center img { margin-inline: auto; }
+          .editor-wrapper .ql-editor .ql-align-right img { margin-left: auto; }
+          .editor-wrapper .ql-editor :is(h1, h2, h3, h4, h5, h6) {
+            line-height: 1.3 !important;
+          }
+          .editor-wrapper .ql-editor h1 { font-size: 2em; }
+          .editor-wrapper .ql-editor h2 { font-size: 1.75rem; }
+          .editor-wrapper .ql-editor h3 { font-size: 1.5rem; }
+          .editor-wrapper .ql-editor :is(h4, h5, h6) { font-size: 1.25rem; }
           .editor-wrapper .ql-container.ql-snow {
             border-bottom-left-radius: 0.75rem;
             border-bottom-right-radius: 0.75rem;

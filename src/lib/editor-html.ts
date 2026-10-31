@@ -1,97 +1,182 @@
 /**
  * Converts post HTML between the article model and the Quill editor model.
  *
- * WordPress and the public article CSS treat <p> as a paragraph with a 1.6em
- * gap after it, and put line breaks inside a paragraph as <br>. Quill has no
- * soft line break: it turns every <br> into its own <p> line, shows <p> with
- * no gap, and writes blank lines as <p><br></p>. Feeding Quill's HTML straight
- * to the article template therefore spread every line of a case header
- * ("Case:", "Plaintiff:", ...) a paragraph apart in /preview and, after
- * saving, on the live post.
+ * The editor (Quill) shows every block with no margin: lines touch, and the
+ * only vertical space is a blank line (<p><br></p>). The article template
+ * instead gives paragraphs, lists, list items, headings and images their own
+ * margins. Passing Quill's HTML straight through therefore spread out
+ * anything the editor showed together: a "Legal Issues:" line and the list
+ * under it, the items of a list, every line of a case header.
  *
- * Only runs of top-level <p> elements are rewritten; headings, lists, quotes,
- * images in their own blocks and everything else pass through unchanged.
+ * Saving keeps the editor's layout exactly:
+ * - consecutive lines with the same formatting join into one <p> with <br>
+ *   (so the old WordPress theme also renders them as one paragraph);
+ * - every top-level block gets `el-ed` plus how many blank lines followed it:
+ *   `el-tight` (none), nothing (one), or `el-gap-2` … `el-gap-4`;
+ * - the article CSS gives `el-ed` blocks zero margins and turns each blank
+ *   line into exactly one line of space.
+ * Loading reverses it, so load -> save gives back the same HTML. Content
+ * without `el-ed` (written in WordPress) gets one blank line between blocks.
  */
 
-// Quill output is flat, so a top-level <p> never contains another <p>.
-const PARAGRAPH = /<p(\s[^>]*)?>([\s\S]*?)<\/p>/gi;
 const BLANK_LINE = /^(?:\s|&nbsp;|&#160;|<br\s*\/?>)*$/i;
+const VOID_TAGS = new Set(['area', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'wbr']);
+const MAX_GAP = 4;
+const MARKER_CLASS = /^el-(?:ed|tight|gap-\d+)$/;
 
-type Token = { kind: 'p'; attrs: string; inner: string } | { kind: 'other'; html: string };
+type Block = {
+  tag: string; // lower-case tag name, or '#text' for loose text/comments
+  attrs: string; // raw attributes of the opening tag (leading space included)
+  inner: string; // content between the opening and closing tag
+  html: string; // the whole block as written
+};
 
-function tokenize(html: string): Token[] {
-  const tokens: Token[] = [];
-  let last = 0;
-  for (const match of html.matchAll(PARAGRAPH)) {
-    const between = html.slice(last, match.index);
-    if (between.trim()) tokens.push({ kind: 'other', html: between });
-    tokens.push({ kind: 'p', attrs: match[1] ?? '', inner: match[2] });
-    last = match.index + match[0].length;
-  }
-  const rest = html.slice(last);
-  if (rest.trim()) tokens.push({ kind: 'other', html: rest });
-  return tokens;
-}
-
-const isBlank = (t: Token) => t.kind === 'p' && BLANK_LINE.test(t.inner);
-const paragraph = (attrs: string, inner: string) => `<p${attrs}>${inner}</p>`;
-
-/**
- * Quill HTML → article HTML, for preview and for saving. Consecutive lines with
- * the same formatting join into one paragraph with <br>; blank lines become
- * paragraph breaks (several in a row count as one).
- */
-export function editorHtmlToArticleHtml(html: string): string {
-  const out: string[] = [];
-  let current: { attrs: string; lines: string[] } | null = null;
-  const flush = () => {
-    if (current) out.push(paragraph(current.attrs, current.lines.join('<br>')));
-    current = null;
-  };
-
-  for (const token of tokenize(html)) {
-    if (token.kind === 'other') {
-      flush();
-      out.push(token.html);
-    } else if (isBlank(token)) {
-      flush();
-    } else if (current && current.attrs === token.attrs) {
-      current.lines.push(token.inner);
-    } else {
-      flush();
-      current = { attrs: token.attrs, lines: [token.inner] };
-    }
-  }
-  flush();
-  return out.join('');
-}
-
-/**
- * Article HTML → Quill HTML, when a saved post is loaded into the editor. Puts
- * exactly one blank line between adjacent paragraphs so Quill keeps them apart
- * (it drops paragraph margins), and collapses existing spacer paragraphs such
- * as WordPress's <p>&nbsp;</p> into that one blank line. Saving the result
- * with editorHtmlToArticleHtml gives back the same paragraphs.
- */
-export function articleHtmlToEditorHtml(html: string): string {
-  const out: string[] = [];
-  let previous: Token | null = null;
-  let pendingGap = false;
-
-  for (const token of tokenize(html)) {
-    if (isBlank(token)) {
-      pendingGap = previous !== null;
+/** Split HTML into its top-level nodes (nested elements stay inside their parent). */
+function topLevelBlocks(html: string): Block[] {
+  const blocks: Block[] = [];
+  let i = 0;
+  while (i < html.length) {
+    if (/\s/.test(html[i])) {
+      i++;
       continue;
     }
-    if (token.kind === 'p' && previous?.kind === 'p') {
-      out.push('<p><br></p>');
-    } else if (pendingGap && previous) {
-      // A spacer between a paragraph and another block: keep one blank line.
-      out.push('<p><br></p>');
+    if (html.startsWith('<!--', i)) {
+      const end = html.indexOf('-->', i);
+      const stop = end === -1 ? html.length : end + 3;
+      blocks.push({ tag: '#text', attrs: '', inner: '', html: html.slice(i, stop) });
+      i = stop;
+      continue;
     }
-    out.push(token.kind === 'p' ? paragraph(token.attrs, token.inner) : token.html);
-    previous = token;
-    pendingGap = false;
+    const open = /^<([a-zA-Z][\w-]*)(\s[^>]*)?>/.exec(html.slice(i));
+    if (!open) {
+      // Loose text up to the next tag.
+      const next = html.indexOf('<', i + 1);
+      const stop = next === -1 ? html.length : next;
+      blocks.push({ tag: '#text', attrs: '', inner: '', html: html.slice(i, stop) });
+      i = stop;
+      continue;
+    }
+    const tag = open[1].toLowerCase();
+    const attrs = (open[2] ?? '').replace(/\/\s*$/, '');
+    const afterOpen = i + open[0].length;
+    if (VOID_TAGS.has(tag) || open[0].endsWith('/>')) {
+      blocks.push({ tag, attrs, inner: '', html: open[0] });
+      i = afterOpen;
+      continue;
+    }
+    // Find the matching close tag, counting nested elements of the same name.
+    const tagRe = new RegExp(`<(/?)${tag}(?=[\\s>/])[^>]*>`, 'gi');
+    tagRe.lastIndex = afterOpen;
+    let depth = 1;
+    let end = html.length;
+    let innerEnd = html.length;
+    for (let m = tagRe.exec(html); m; m = tagRe.exec(html)) {
+      if (m[1]) depth--;
+      else if (!m[0].endsWith('/>')) depth++;
+      if (depth === 0) {
+        innerEnd = m.index;
+        end = m.index + m[0].length;
+        break;
+      }
+    }
+    blocks.push({ tag, attrs, inner: html.slice(afterOpen, innerEnd), html: html.slice(i, end) });
+    i = end;
   }
-  return out.join('');
+  return blocks;
+}
+
+const isBlank = (b: Block) => b.tag === 'p' && BLANK_LINE.test(b.inner);
+
+function classesOf(attrs: string): string[] {
+  const m = /\sclass\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(attrs);
+  return (m?.[1] ?? m?.[2] ?? '').split(/\s+/).filter(Boolean);
+}
+
+function withClasses(attrs: string, classes: string[]): string {
+  const without = attrs.replace(/\sclass\s*=\s*(?:"[^"]*"|'[^']*')/i, '');
+  return classes.length ? ` class="${classes.join(' ')}"${without}` : without;
+}
+
+/** Rebuild a block with its classes replaced (markers are added or removed by the caller). */
+function rebuild(block: Block, classes: string[]): string {
+  if (block.tag === '#text') return block.html;
+  const attrs = withClasses(block.attrs, classes);
+  if (VOID_TAGS.has(block.tag)) return `<${block.tag}${attrs}>`;
+  return `<${block.tag}${attrs}>${block.inner}</${block.tag}>`;
+}
+
+/**
+ * Quill HTML -> article HTML, for preview and for saving. See the module
+ * comment for the markers it writes.
+ */
+export function editorHtmlToArticleHtml(html: string): string {
+  type Unit = { block: Block; lines: string[]; gapAfter: number };
+  const units: Unit[] = [];
+  let blanks = 0;
+
+  for (const block of topLevelBlocks(html)) {
+    if (isBlank(block)) {
+      blanks++;
+      continue;
+    }
+    const prev = units[units.length - 1];
+    if (prev && blanks === 0 && block.tag === 'p' && prev.block.tag === 'p' && prev.block.attrs === block.attrs) {
+      prev.lines.push(block.inner);
+    } else {
+      if (prev) prev.gapAfter = blanks;
+      units.push({ block, lines: [block.inner], gapAfter: 0 });
+    }
+    blanks = 0;
+  }
+  // Leading and trailing blank lines are dropped.
+
+  return units
+    .map((unit, index) => {
+      const own = classesOf(unit.block.attrs).filter((c) => !MARKER_CLASS.test(c));
+      const isLast = index === units.length - 1;
+      const gap = Math.min(unit.gapAfter, MAX_GAP);
+      const markers = ['el-ed', ...(isLast ? [] : gap === 0 ? ['el-tight'] : gap > 1 ? [`el-gap-${gap}`] : [])];
+      if (unit.block.tag === '#text') return unit.block.html;
+      const block = unit.block.tag === 'p' ? { ...unit.block, inner: unit.lines.join('<br>') } : unit.block;
+      return rebuild(block, [...own, ...markers]);
+    })
+    .join('');
+}
+
+// Quill's semantic HTML (what react-quill-new reports) writes a video embed as
+// a plain link to its own URL, so the player would be lost on preview/save.
+const VIDEO_EMBED_URL =
+  /^https:\/\/(?:(?:www\.)?youtube(?:-nocookie)?\.com\/embed\/[\w-]+|player\.vimeo\.com\/video\/\d+(?:\/)?)(?:[?&][^<>"' ]*)?$/;
+
+/** Turn Quill's semantic video link back into the embed iframe the article CSS draws. */
+export function restoreVideoEmbeds(html: string): string {
+  return html.replace(/<a href="([^"]+)"[^>]*>([^<]*)<\/a>/g, (match, href: string, text: string) =>
+    href === text && VIDEO_EMBED_URL.test(href)
+      ? `<iframe class="ql-video" frameborder="0" allowfullscreen="true" src="${href}"></iframe>`
+      : match
+  );
+}
+
+/**
+ * Article HTML -> Quill HTML, when a saved post is loaded into the editor.
+ * Editor-authored blocks get back exactly the blank lines they were saved
+ * with; other content gets one blank line between blocks, with existing
+ * spacer paragraphs such as WordPress's <p>&nbsp;</p> folded into it.
+ */
+export function articleHtmlToEditorHtml(html: string): string {
+  const blocks = topLevelBlocks(html).filter((b) => !isBlank(b));
+  return blocks
+    .map((block, index) => {
+      const classes = classesOf(block.attrs);
+      const own = classes.filter((c) => !MARKER_CLASS.test(c));
+      const out = rebuild(block, own);
+      if (index === blocks.length - 1) return out;
+      let gap = 1;
+      if (classes.includes('el-ed')) {
+        const n = classes.map((c) => /^el-gap-(\d+)$/.exec(c)?.[1]).find(Boolean);
+        gap = classes.includes('el-tight') ? 0 : n ? Number(n) : 1;
+      }
+      return out + '<p><br></p>'.repeat(gap);
+    })
+    .join('');
 }

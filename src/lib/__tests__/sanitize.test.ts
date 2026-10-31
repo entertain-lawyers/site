@@ -114,3 +114,39 @@ describe("sanitizeHtml inline styles", () => {
     expect(clean).toContain("margin-bottom:10px");
   });
 });
+
+describe("sanitizeHtml editor output (regression)", () => {
+  it("keeps video embeds from the editor's video button for YouTube and Vimeo over https", () => {
+    const youtube =
+      '<iframe class="ql-video el-ed" frameborder="0" allowfullscreen="true" src="https://www.youtube.com/embed/dQw4w9WgXcQ?showinfo=0"></iframe>';
+    expect(sanitizeHtml(youtube)).toBe(youtube);
+    expect(sanitizeHtml('<iframe src="https://player.vimeo.com/video/1"></iframe>')).toBe(
+      '<iframe src="https://player.vimeo.com/video/1"></iframe>'
+    );
+  });
+
+  it("removes iframes from other hosts, other protocols and relative URLs entirely", () => {
+    for (const src of ["https://evil.example/x", "javascript:alert(1)", "//www.youtube.com/embed/x", "http://www.youtube.com/embed/x", "/local"]) {
+      expect(sanitizeHtml(`<p>a</p><iframe src="${src}"></iframe>`)).toBe("<p>a</p>");
+    }
+  });
+
+  it("strips srcdoc and event handlers from allowed iframes", () => {
+    expect(
+      sanitizeHtml('<iframe srcdoc="<script>alert(1)</script>" onload="alert(1)" src="https://www.youtube.com/embed/x"></iframe>')
+    ).toBe('<iframe src="https://www.youtube.com/embed/x"></iframe>');
+  });
+
+  it("keeps the editor's highlight colour but not invisible or url() backgrounds", () => {
+    expect(sanitizeHtml('<span style="background-color: rgb(255, 255, 0)">h</span>')).toBe(
+      '<span style="background-color:rgb(255, 255, 0)">h</span>'
+    );
+    expect(sanitizeHtml('<span style="background-color: transparent">h</span>')).toBe("<span>h</span>");
+    expect(sanitizeHtml('<span style="background-color: url(https://evil.example/x.png)">h</span>')).toBe("<span>h</span>");
+  });
+
+  it("keeps the editor's layout markers and resized, aligned images", () => {
+    const html = '<p class="ql-align-center el-ed el-tight"><img src="https://www.entertainlawyers.com/a.jpg" width="278" /></p>';
+    expect(sanitizeHtml(html)).toBe(html);
+  });
+});

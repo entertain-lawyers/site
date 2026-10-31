@@ -27,6 +27,11 @@ const cssRules: Record<string, RegExp[]> = {
     /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i,
     /^rgba?\(\s*\d{1,3}\s*(?:,\s*\d{1,3}\s*){2}(?:,\s*(?:1(?:\.0+)?|0?\.\d*[1-9]\d*))?\s*\)$/i,
   ],
+  // The editor's highlight button; same safe colour forms as `color`.
+  'background-color': [
+    /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i,
+    /^rgba?\(\s*\d{1,3}\s*(?:,\s*\d{1,3}\s*){2}(?:,\s*(?:1(?:\.0+)?|0?\.\d*[1-9]\d*))?\s*\)$/i,
+  ],
   'font-weight': [/^(?:normal|bold|bolder|lighter|inherit|[1-9]00)$/i],
   // Bounded so a post cannot blow up the layout: 1-72px, 0.1-5rem/em,
   // 1-54pt, 1-300%.
@@ -59,11 +64,13 @@ const cssRules: Record<string, RegExp[]> = {
 const styleRules: Record<string, Record<string, RegExp[]>> = { '*': cssRules };
 
 const options: sanitizeHtmlLib.IOptions = {
-  allowedTags: sanitizeHtmlLib.defaults.allowedTags.concat(['img']),
+  // iframe is only for the editor's video button; see allowedIframeHostnames.
+  allowedTags: sanitizeHtmlLib.defaults.allowedTags.concat(['img', 'iframe']),
   allowedAttributes: {
     '*': ['class', 'id', 'title', 'dir', 'lang', 'style'],
     a: ['href', 'name', 'target', 'rel'],
     img: ['src', 'srcset', 'sizes', 'alt', 'width', 'height', 'loading'],
+    iframe: ['src', 'width', 'height', 'frameborder', 'allowfullscreen', 'allow', 'title', 'loading'],
     blockquote: ['cite'],
     col: ['span', 'width'],
     colgroup: ['span', 'width'],
@@ -74,7 +81,12 @@ const options: sanitizeHtmlLib.IOptions = {
   },
   allowedStyles: styleRules,
   allowedSchemes: ['http', 'https', 'mailto', 'tel'],
-  allowedSchemesByTag: { img: ['http', 'https', 'data'] },
+  allowedSchemesByTag: { img: ['http', 'https', 'data'], iframe: ['https'] },
+  // Video embeds from the editor; any other iframe is removed.
+  allowedIframeHostnames: ['www.youtube.com', 'youtube.com', 'www.youtube-nocookie.com', 'player.vimeo.com'],
+  allowIframeRelativeUrls: false,
+  // An iframe whose src was rejected would render as an empty box; drop it.
+  exclusiveFilter: (frame) => frame.tag === 'iframe' && !frame.attribs.src,
   allowProtocolRelative: false,
   transformTags: {
     a: (tagName, attribs) => ({
