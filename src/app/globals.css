@@ -377,6 +377,25 @@
     border-radius: 0.75rem;
     margin: 0 0 1.75em;
   }
+  /* Content written in the admin editor (see src/lib/editor-html.ts) keeps
+     the editor's layout: blocks touch, and each blank line typed in the
+     editor is exactly one line of space (the reading line height). */
+  .article-body { --el-blank: calc(1.125rem * 1.85); }
+  .article-body--reading { --el-blank: calc(1rem * 2.25); }
+  @media (min-width: 768px) {
+    .article-body--reading { --el-blank: calc(1.125rem * 2.14); }
+  }
+  .article-body .el-ed { margin-top: 0; margin-bottom: var(--el-blank); }
+  .article-body .el-ed.el-tight,
+  .article-body .el-ed:last-child { margin-bottom: 0; }
+  .article-body .el-ed.el-gap-2 { margin-bottom: calc(var(--el-blank) * 2); }
+  .article-body .el-ed.el-gap-3 { margin-bottom: calc(var(--el-blank) * 3); }
+  .article-body .el-ed.el-gap-4 { margin-bottom: calc(var(--el-blank) * 4); }
+  /* Lists as the editor draws them: items touch, text starts 3em in. */
+  .article-body :is(ol, ul).el-ed { padding-left: 2.75em; }
+  .article-body .el-ed li > :is(ol, ul) { padding-left: 2.75em; margin: 0; }
+  .article-body .el-ed li { margin: 0; padding-left: 0.25em; }
+  .article-body .el-ed img { margin-bottom: 0; }
   /* Images aligned in the editor (paragraph with ql-align-*). */
   .article-body .ql-align-center img {
     margin-inline: auto;
@@ -426,6 +445,13 @@
     max-width: 100%;
     border-radius: 0.75rem;
     margin-bottom: 1.75em;
+  }
+  /* Videos inserted with the editor's video button (same size in the editor). */
+  .article-body iframe.ql-video {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
   }
   .article-body code {
     font-size: 0.9em;
