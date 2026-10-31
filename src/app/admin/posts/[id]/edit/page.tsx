@@ -76,7 +76,7 @@ export default async function EditPostPage({
 
   return (
     <div className="min-h-screen bg-transparent">
-      <EditPostClient key={mappedPost.id} post={mappedPost} />
+      <EditPostClient key={mappedPost.id} post={mappedPost} canSave={hasWordPressCredentials()} />
     </div>
   );
 }

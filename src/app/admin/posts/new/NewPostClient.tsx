@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Eye } from 'lucide-react';
 import RichTextEditor from '@/components/editor/RichTextEditor';
+import WordPressCredentialsNotice from '@/components/admin/WordPressCredentialsNotice';
 import { createPostAction } from '@/modules/admin/admin-post.actions';
 import { writePostPreviewDraft, type PostType } from '@/lib/post-preview';
+import { editorHtmlToArticleHtml } from '@/lib/editor-html';
 import { htmlToText } from '@/lib/html';
 import { AnimatePresence, Appear, MotionButton } from '@/components/motion/primitives';
 
@@ -41,7 +43,13 @@ const NEPALI_POST_TYPES: Array<[PostType, string]> = [
   ['NEPALI_BLOG_BICHAR', 'ब्लग, बिचार, अन्य (Blog & Opinion)'],
 ];
 
-export default function NewPostClient({ defaultLang = 'en' }: { defaultLang?: 'en' | 'ne' }) {
+export default function NewPostClient({
+  defaultLang = 'en',
+  canSave = true,
+}: {
+  defaultLang?: 'en' | 'ne';
+  canSave?: boolean;
+}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -58,7 +66,7 @@ export default function NewPostClient({ defaultLang = 'en' }: { defaultLang?: 'e
     // their Nepali labels; English types show NEWS/BLOG/…).
     writePostPreviewDraft({
       title: title || 'Untitled Draft',
-      content,
+      content: editorHtmlToArticleHtml(content),
       type: POST_TYPE_LABELS[type] || type,
       editorUrl: `/admin/posts/new${defaultLang === 'ne' ? '?lang=ne' : ''}`,
     });
@@ -81,7 +89,7 @@ export default function NewPostClient({ defaultLang = 'en' }: { defaultLang?: 'e
       const res = await createPostAction({
         title,
         type,
-        content,
+        content: editorHtmlToArticleHtml(content),
         isPublished,
       });
 
@@ -108,6 +116,8 @@ export default function NewPostClient({ defaultLang = 'en' }: { defaultLang?: 'e
         </Link>
         <h1 className="text-3xl font-extrabold text-navy dark:text-white tracking-tight">Create New Post</h1>
       </div>
+
+      {!canSave && <WordPressCredentialsNotice />}
 
       <AnimatePresence initial={false}>
       {error && (
@@ -162,7 +172,7 @@ export default function NewPostClient({ defaultLang = 'en' }: { defaultLang?: 'e
 
             <MotionButton
               type="submit"
-              disabled={loading}
+              disabled={loading || !canSave}
               className="w-full bg-accent hover:bg-accent-dark text-white px-6 py-3 rounded-xl font-bold transition-[background-color,border-color,color,box-shadow,opacity] transform shadow-lg shadow-accent/20 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
             >
               {loading ? 'Saving...' : 'Save Post'}
