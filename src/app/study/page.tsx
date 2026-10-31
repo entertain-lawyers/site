@@ -1,7 +1,5 @@
 import { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
-import { auth } from '@/lib/auth';
-import { redirect } from 'next/navigation';
 import { unstable_cache } from 'next/cache';
 import StudySelector from '@/components/study/StudySelector';
 import StudyCardNavigator from '@/components/study/StudyCardNavigator';
@@ -18,8 +16,8 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
   const params = await searchParams;
   const type = params.type;
 
-  // Gated collections are only readable after signing in, so keep them out of
-  // search results instead of exposing a login redirect as the canonical page.
+  // The material behind these listings needs an account to open, so the
+  // per-type listings stay out of search results (robots.txt agrees).
   if (type === 'LAW_NOTE') return { title: 'Law Notes', description: 'Comprehensive notes covering the BALLB & LLB syllabus.', robots: { index: false } };
   if (type === 'CASE_LAW') return { title: 'Precedent Case Laws', description: 'Landmark judgments and essential case summaries.', robots: { index: false } };
   if (type === 'OLD_QUESTION') return { title: 'Past Examination Questions', description: 'Previous year university examination question papers.', robots: { index: false } };
@@ -70,17 +68,9 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
   const selectedType = searchParams.type as ResourceType | undefined;
   const searchQuery = searchParams.q;
 
-  // Law notes, case laws and old questions are member content. The general
-  // study browser stays public so visitors can see the syllabus.
-  const isMemberContent =
-    !!selectedType && ['LAW_NOTE', 'CASE_LAW', 'OLD_QUESTION'].includes(selectedType);
-  if (isMemberContent) {
-    const session = await auth();
-    if (!session?.user) {
-      const callbackUrl = `/study${searchParams.type ? `?type=${searchParams.type}` : ''}`;
-      redirect(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
-    }
-  }
+  // The listing is public for every type: it only shows titles, subjects and
+  // prices. Opening a Law Note, Case Law or Old Question is sign-in gated on
+  // /resources/[id] and /read/[id], which is where the content lives.
 
   // 1. Fetch reference data for selectors
   const getCachedSemesters = unstable_cache(

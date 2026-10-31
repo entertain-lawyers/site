@@ -61,12 +61,18 @@ export default async function SemesterPage({ params }: PageProps) {
             orderBy: { order: 'asc' },
             include: {
               resources: {
+                // Titles only: never load note text into a public listing, and
+                // never list draft or archived material.
+                where: { status: 'PUBLISHED' },
                 orderBy: [{ order: 'asc' }, { title: 'asc' }],
+                select: { id: true, title: true, type: true, isPremium: true, unitId: true },
               },
             },
           },
           resources: {
+            where: { status: 'PUBLISHED' },
             orderBy: [{ order: 'asc' }, { title: 'asc' }],
+            select: { id: true, title: true, type: true, isPremium: true, unitId: true },
           },
         },
       },
