@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import NewPostClient from './NewPostClient';
+import { hasWordPressCredentials } from '@/lib/wordpress';
 
 export default async function NewPostPage({
   searchParams,
@@ -15,5 +16,5 @@ export default async function NewPostPage({
 
   const { lang } = await searchParams;
 
-  return <NewPostClient defaultLang={lang === 'ne' ? 'ne' : 'en'} />;
+  return <NewPostClient defaultLang={lang === 'ne' ? 'ne' : 'en'} canSave={hasWordPressCredentials()} />;
 }
