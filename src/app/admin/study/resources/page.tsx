@@ -5,14 +5,26 @@ import Link from 'next/link';
 import { Metadata } from 'next';
 import DeleteResourceButton from './DeleteResourceButton';
 import ArchiveResourceButton from './ArchiveResourceButton';
-import { ResourceType, Prisma } from '@prisma/client';
+import PublishResourceButton from './PublishResourceButton';
+import { ContentStatus, ResourceType, Prisma } from '@prisma/client';
 import { resourceBodyStatus } from '@/lib/resource-status';
 
 export const metadata: Metadata = {
   title: 'Manage Resources - Admin',
 };
 
-export default async function AdminResourcesPage() {
+const STATUS_TABS = [
+  { key: 'all', label: 'All' },
+  { key: 'published', label: 'Published', status: ContentStatus.PUBLISHED },
+  { key: 'draft', label: 'Drafts', status: ContentStatus.DRAFT },
+  { key: 'archived', label: 'Archived', status: ContentStatus.ARCHIVED },
+] as const;
+
+export default async function AdminResourcesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
   const session = await auth();
 
   if (!session?.user?.id || (session.user.role !== 'ADMIN' && session.user.role !== 'EDITOR')) {
@@ -29,8 +41,23 @@ export default async function AdminResourcesPage() {
         ]
       };
 
-  const resources = await prisma.resource.findMany({
+  const { status: statusParam } = await searchParams;
+  const activeTab = STATUS_TABS.find((t) => t.key === statusParam) ?? STATUS_TABS[0];
+  const listWhere: Prisma.ResourceWhereInput =
+    'status' in activeTab ? { AND: [whereClause, { status: activeTab.status }] } : whereClause;
+
+  const statusCounts = await prisma.resource.groupBy({
+    by: ['status'],
     where: whereClause,
+    _count: { _all: true },
+  });
+  const countFor = (status?: ContentStatus) =>
+    statusCounts
+      .filter((c) => !status || c.status === status)
+      .reduce((sum, c) => sum + c._count._all, 0);
+
+  const resources = await prisma.resource.findMany({
+    where: listWhere,
     include: {
       subject: {
         include: {
@@ -66,6 +93,30 @@ export default async function AdminResourcesPage() {
             </Link>
           </div>
         </div>
+
+        {/* Status filter */}
+        <nav aria-label="Filter resources by status" className="mb-6 flex flex-wrap gap-2">
+          {STATUS_TABS.map((tab) => {
+            const active = tab.key === activeTab.key;
+            return (
+              <Link
+                key={tab.key}
+                href={tab.key === 'all' ? '/admin/study/resources' : `/admin/study/resources?status=${tab.key}`}
+                aria-current={active ? 'page' : undefined}
+                className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-bold transition-colors ${
+                  active
+                    ? 'border-accent bg-accent text-white'
+                    : 'border-black/10 bg-white text-navy hover:border-accent/50 dark:border-white/10 dark:bg-zinc-900 dark:text-white'
+                }`}
+              >
+                {tab.label}
+                <span className={`rounded-full px-2 py-0.5 text-xs tabular-nums ${active ? 'bg-white/20' : 'bg-slate-100 dark:bg-zinc-800'}`}>
+                  {countFor('status' in tab ? tab.status : undefined)}
+                </span>
+              </Link>
+            );
+          })}
+        </nav>
 
         {/* Table */}
         <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-black/5 dark:border-white/5 overflow-hidden">
@@ -141,6 +192,9 @@ export default async function AdminResourcesPage() {
                           <Link href={`/resources/${resource.id}`} className="inline-flex items-center justify-center px-4 py-2 border border-black/5 dark:border-white/5 rounded-lg text-navy dark:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors shadow-sm">
                             View
                           </Link>
+                          {resource.status !== 'ARCHIVED' && (
+                            <PublishResourceButton id={resource.id} published={resource.status === 'PUBLISHED'} />
+                          )}
                           <ArchiveResourceButton id={resource.id} archived={resource.status === 'ARCHIVED'} />
                           {(session?.user?.role === 'ADMIN' ) && (
                             <DeleteResourceButton id={resource.id} />
@@ -158,8 +212,12 @@ export default async function AdminResourcesPage() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                           </svg>
                         </div>
-                        <h3 className="text-lg font-bold text-navy dark:text-white">No resources found</h3>
-                        <p className="text-sm text-text-secondary">Click "Add Resource" to create one.</p>
+                        <h3 className="text-lg font-bold text-navy dark:text-white">
+                          {activeTab.key === 'draft' ? 'No drafts' : activeTab.key === 'archived' ? 'No archived resources' : 'No resources found'}
+                        </h3>
+                        <p className="text-sm text-text-secondary">
+                          {activeTab.key === 'draft' ? 'Resources saved as drafts appear here until you publish them.' : 'Click "Add Resource" to create one.'}
+                        </p>
                       </div>
                     </td>
                   </tr>
