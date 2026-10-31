@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export const revalidate = 60; // Revalidate every minute
 
 export default async function BlogsPage() {
-  const wpRes = await getWordPressPosts({ categories: [61], status: 'publish', lang: 'en', perPage: 20, embed: true });
+  const wpRes = await getWordPressPosts({ categories: [61, 60], status: 'publish', lang: 'en', perPage: 20, embed: true });
   const posts = wpRes.data.map(p => ({
     id: String(p.id),
     title: p.title.rendered,

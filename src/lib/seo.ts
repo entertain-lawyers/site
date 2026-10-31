@@ -21,10 +21,19 @@ export function getSiteUrl(): string {
 }
 
 /**
+ * Opinion pieces are listed and rendered under /blogs (the home page groups
+ * them as "Blog, Opinion, Others"). A post tagged both Blog and Opinion maps
+ * to OPINION, so checking for BLOG alone made /blogs link to its own 404s.
+ */
+export function isBlogRouteType(type: string): boolean {
+  return type === 'BLOG' || type === 'OPINION';
+}
+
+/**
  * Maps a WordPress post type to the public route that actually renders it, or
- * `null` when this site has no route for that category (OPINION and the
- * semester/case-note categories are not exposed as articles). Used by the
- * sitemap so it never advertises a URL that would 404.
+ * `null` when this site has no route for that category (the semester/case-note
+ * categories are not exposed as articles). Used by the sitemap so it never
+ * advertises a URL that would 404.
  */
 export function wordPressArticlePath(
   type: string,
@@ -33,7 +42,7 @@ export function wordPressArticlePath(
 ): string | null {
   if (lang === 'ne') return type.startsWith('NEPALI_') ? `/nepali/post/${id}` : null;
   if (type === 'NEWS') return `/news/${id}`;
-  if (type === 'BLOG') return `/blogs/${id}`;
+  if (isBlogRouteType(type)) return `/blogs/${id}`;
   if (type === 'FACT' || type === 'PERSONALITY') return `/historical-facts/${id}`;
   return null;
 }

@@ -3,7 +3,7 @@ import { getLatestPosts } from '@/lib/latest-posts';
 import { notFound } from 'next/navigation';
 import PostDetail from '@/components/posts/PostDetail';
 import type { Metadata } from 'next';
-import { postMetadata } from '@/lib/seo';
+import { isBlogRouteType, postMetadata } from '@/lib/seo';
 
 export const revalidate = 60;
 
@@ -13,7 +13,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   if (!wpId) notFound();
 
   const wpPost = await getWordPressPostById(wpId, 'en');
-  if (!wpPost || wpPost.status !== 'publish' || mapCategoryToType(wpPost.categories, 'en') !== 'BLOG') {
+  if (!wpPost || wpPost.status !== 'publish' || !isBlogRouteType(mapCategoryToType(wpPost.categories, 'en'))) {
     notFound();
   }
 
@@ -34,7 +34,7 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ id:
   if (!wpId) notFound();
 
   const wpPost = await getWordPressPostById(wpId, 'en');
-  if (!wpPost || wpPost.status !== 'publish' || mapCategoryToType(wpPost.categories, 'en') !== 'BLOG') {
+  if (!wpPost || wpPost.status !== 'publish' || !isBlogRouteType(mapCategoryToType(wpPost.categories, 'en'))) {
     notFound();
   }
 
@@ -60,7 +60,7 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ id:
   ]);
 
   const relatedPosts = wpRelatedResponse.data
-    .filter(p => p.id !== wpPost.id && mapCategoryToType(p.categories, 'en') === 'BLOG')
+    .filter(p => p.id !== wpPost.id && isBlogRouteType(mapCategoryToType(p.categories, 'en')))
     .slice(0, 4)
     .map(p => ({
       id: String(p.id),
