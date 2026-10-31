@@ -6,6 +6,7 @@ import { updatePostAction } from '@/modules/admin/admin-post.actions';
 import Link from 'next/link';
 import { Eye } from 'lucide-react';
 import RichTextEditor from '@/components/editor/RichTextEditor';
+import WordPressCredentialsNotice from '@/components/admin/WordPressCredentialsNotice';
 import { writePostPreviewDraft, type PostType } from '@/lib/post-preview';
 import { articleHtmlToEditorHtml, editorHtmlToArticleHtml } from '@/lib/editor-html';
 import { htmlToText } from '@/lib/html';
@@ -53,7 +54,7 @@ const TYPE_OPTIONS: Record<'en' | 'ne', Array<[PostType, string]>> = {
   ],
 };
 
-export default function EditPostClient({ post }: { post: EditablePost }) {
+export default function EditPostClient({ post, canSave = true }: { post: EditablePost; canSave?: boolean }) {
   const router = useRouter();
   const [title, setTitle] = useState(post.title);
   // Quill needs blank lines between paragraphs; preview and save convert back.
@@ -128,6 +129,8 @@ export default function EditPostClient({ post }: { post: EditablePost }) {
         <h1 className="text-3xl font-extrabold text-navy dark:text-white tracking-tight">Edit Post</h1>
       </div>
 
+      {!canSave && <WordPressCredentialsNotice />}
+
       {error && (
         <div className="mb-6 bg-red-50 text-red-700 p-4 rounded-xl text-sm border border-red-100 font-medium">
           {error}
@@ -177,7 +180,7 @@ export default function EditPostClient({ post }: { post: EditablePost }) {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !canSave}
               className="w-full bg-accent hover:bg-accent-dark text-white px-6 py-3 rounded-xl font-bold transition-all transform hover:-translate-y-0.5 shadow-lg shadow-accent/20 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
             >
               {loading ? 'Saving...' : 'Update Post'}

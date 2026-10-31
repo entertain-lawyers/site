@@ -1,6 +1,6 @@
 'use server';
 
-import { createSafeAction } from '@/lib/safe-action';
+import { createSafeAction, UserFacingError } from '@/lib/safe-action';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
@@ -14,6 +14,25 @@ import {
   mapTypeToCategory,
   mapCategoryToType
 } from '@/lib/wordpress';
+
+/**
+ * Turn a failed WordPress write into a message that says what to fix. A
+ * missing credential and a credential WordPress rejects need different fixes,
+ * but both used to read "Server credentials missing or invalid."
+ */
+function toWordPressWriteError(error: unknown): Error {
+  if (error instanceof WordPressAuthError) {
+    return new UserFacingError(
+      'WordPress API Error: this server has no WordPress credentials, so posts cannot be saved. Set WP_AUTH_USERNAME and WP_AUTH_APP_PASSWORD (a WordPress application password) in the hosting environment and redeploy.'
+    );
+  }
+  if (error instanceof WordPressApiError && (error.status === 401 || error.status === 403)) {
+    return new UserFacingError(
+      `WordPress API Error: WordPress rejected the server credentials (HTTP ${error.status}). The application password in WP_AUTH_APP_PASSWORD may be wrong or revoked, or the user lacks permission to publish.`
+    );
+  }
+  return new Error(`WordPress API Error: ${error instanceof Error ? error.message : String(error)}`);
+}
 
 const createPostSchema = z.object({
   title: z.string().min(1),
@@ -150,10 +169,7 @@ export const createPostAction = createSafeAction(async (rawArgs: z.infer<typeof 
     revalidatePath('/admin/posts');
     return { id: String(wpPost.id) };
   } catch (error: unknown) {
-    if (error instanceof WordPressAuthError) {
-      throw new Error('WordPress API Error: Server credentials missing or invalid.');
-    }
-    throw new Error(`WordPress API Error: ${error instanceof Error ? error.message : String(error)}`);
+    throw toWordPressWriteError(error);
   }
 });
 
@@ -206,10 +222,7 @@ export const updatePostAction = createSafeAction(async (rawArgs: z.infer<typeof 
     revalidatePath('/admin/posts');
     return { success: true };
   } catch (error: unknown) {
-    if (error instanceof WordPressAuthError) {
-      throw new Error('WordPress API Error: Server credentials missing or invalid.');
-    }
-    throw new Error(`WordPress API Error: ${error instanceof Error ? error.message : String(error)}`);
+    throw toWordPressWriteError(error);
   }
 });
 
@@ -250,9 +263,6 @@ export const deletePostAction = createSafeAction(async (rawArgs: z.infer<typeof 
     revalidatePath('/admin/posts');
     return { success: true };
   } catch (error: unknown) {
-    if (error instanceof WordPressAuthError) {
-      throw new Error('WordPress API Error: Server credentials missing or invalid.');
-    }
-    throw new Error(`WordPress API Error: ${error instanceof Error ? error.message : String(error)}`);
+    throw toWordPressWriteError(error);
   }
 });

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Eye } from 'lucide-react';
 import RichTextEditor from '@/components/editor/RichTextEditor';
+import WordPressCredentialsNotice from '@/components/admin/WordPressCredentialsNotice';
 import { createPostAction } from '@/modules/admin/admin-post.actions';
 import { writePostPreviewDraft, type PostType } from '@/lib/post-preview';
 import { editorHtmlToArticleHtml } from '@/lib/editor-html';
@@ -41,7 +42,13 @@ const NEPALI_POST_TYPES: Array<[PostType, string]> = [
   ['NEPALI_BLOG_BICHAR', 'ब्लग, बिचार, अन्य (Blog & Opinion)'],
 ];
 
-export default function NewPostClient({ defaultLang = 'en' }: { defaultLang?: 'en' | 'ne' }) {
+export default function NewPostClient({
+  defaultLang = 'en',
+  canSave = true,
+}: {
+  defaultLang?: 'en' | 'ne';
+  canSave?: boolean;
+}) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -109,6 +116,8 @@ export default function NewPostClient({ defaultLang = 'en' }: { defaultLang?: 'e
         <h1 className="text-3xl font-extrabold text-navy dark:text-white tracking-tight">Create New Post</h1>
       </div>
 
+      {!canSave && <WordPressCredentialsNotice />}
+
       {error && (
         <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl border border-red-100 font-medium">
           {error}
@@ -158,7 +167,7 @@ export default function NewPostClient({ defaultLang = 'en' }: { defaultLang?: 'e
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !canSave}
               className="w-full bg-accent hover:bg-accent-dark text-white px-6 py-3 rounded-xl font-bold transition-all transform hover:-translate-y-0.5 shadow-lg shadow-accent/20 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
             >
               {loading ? 'Saving...' : 'Save Post'}
