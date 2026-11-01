@@ -56,20 +56,62 @@ export default async function AdminResourcesPage({
       .filter((c) => !status || c.status === status)
       .reduce((sum, c) => sum + c._count._all, 0);
 
-  const resources = await prisma.resource.findMany({
-    where: listWhere,
-    include: {
-      subject: {
-        include: {
-          semester: true
-        }
+  let resources;
+  try {
+    resources = await prisma.resource.findMany({
+      where: listWhere,
+      include: {
+        subject: {
+          include: {
+            semester: true,
+          },
+        },
+        document: true,
+        author: { select: { name: true, email: true } },
+        createdBy: { select: { name: true, email: true } },
       },
-      document: true,
-      author: { select: { name: true, email: true } },
-      createdBy: { select: { name: true, email: true } },
-    },
-    orderBy: { title: 'asc' }
-  });
+      orderBy: { title: 'asc' },
+    });
+  } catch (error) {
+    const { isSpecificMissingColumnError } = await import('@/lib/prisma-errors');
+    if (!isSpecificMissingColumnError(error, ['authorId', 'createdById'])) {
+      console.error('[admin/study/resources] database error loading resources:', error);
+      throw error;
+    }
+
+    console.warn(
+      '[admin/study/resources] resource findMany failed (authorId/createdById migration pending), falling back to base fields:',
+      error
+    );
+
+    const fallbackResources = await prisma.resource.findMany({
+      where: listWhere,
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        status: true,
+        isPremium: true,
+        priceAmount: true,
+        currency: true,
+        content: true,
+        documentId: true,
+        document: true,
+        subject: {
+          include: {
+            semester: true,
+          },
+        },
+      },
+      orderBy: { title: 'asc' },
+    });
+
+    resources = fallbackResources.map((item) => ({
+      ...item,
+      author: null,
+      createdBy: null,
+    }));
+  }
 
   return (
     <div className="min-h-screen bg-transparent py-10 max-w-[1400px] mx-auto">
@@ -136,7 +178,6 @@ export default async function AdminResourcesPage({
               <tbody className="bg-white dark:bg-zinc-900 divide-y divide-black/5 dark:divide-white/5">
                 {resources.length > 0 ? (
                   resources.map((resource) => {
-                    const typedResource = resource as any;
                     return (
                       <tr key={resource.id} className="hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors group">
                         <td className="px-8 py-5">
@@ -155,8 +196,8 @@ export default async function AdminResourcesPage({
                           )}
                         </td>
                         <td className="px-8 py-5 whitespace-nowrap">
-                          <div className="text-sm font-medium text-navy dark:text-white">{typedResource.subject?.name}</div>
-                          <div className="text-xs text-text-secondary mt-0.5">{typedResource.subject?.semester?.name}</div>
+                          <div className="text-sm font-medium text-navy dark:text-white">{resource.subject?.name}</div>
+                          <div className="text-xs text-text-secondary mt-0.5">{resource.subject?.semester?.name}</div>
                         </td>
                         <td className="px-8 py-5 whitespace-nowrap">
                           <span className={`px-3 py-1 inline-flex text-xs font-bold rounded-full border mb-1 ${
