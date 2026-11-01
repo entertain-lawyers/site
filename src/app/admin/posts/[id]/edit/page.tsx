@@ -12,7 +12,7 @@ import {
   mapCategoryToType,
   parseWordPressPostId,
 } from '@/lib/wordpress';
-import { listLocalAuthors } from '@/lib/content-authors';
+import { listLocalAuthorsWithStatus } from '@/lib/content-authors';
 import { toFeaturedImageSelection, toWordPressMediaItem, type FeaturedImageSelection } from '@/lib/wordpress-media';
 
 export default async function EditPostPage({
@@ -100,14 +100,19 @@ export default async function EditPostPage({
   // Preselect the local user linked to WordPress's current author. When no
   // local user is linked, show the WordPress name and leave the selection
   // empty so saving cannot silently change the author.
-  const authors = await listLocalAuthors();
+  const { authors, authorMappingAvailable } = await listLocalAuthorsWithStatus();
   const currentAuthorUserId =
     authors.find(
       (author) => (lang === 'ne' ? author.wpAuthorIdNe : author.wpAuthorIdEn) === wpPost.author
     )?.id ?? '';
-  const currentWpAuthorName = currentAuthorUserId
-    ? null
-    : (await getWordPressAuthor(wpPost.author, lang))?.name ?? null;
+  let currentWpAuthorName: string | null = null;
+  if (!currentAuthorUserId) {
+    try {
+      currentWpAuthorName = (await getWordPressAuthor(wpPost.author, lang))?.name ?? null;
+    } catch {
+      currentWpAuthorName = null;
+    }
+  }
 
   return (
     <div className="min-h-screen bg-transparent">
@@ -115,6 +120,7 @@ export default async function EditPostPage({
         key={mappedPost.id}
         post={{ ...mappedPost, currentAuthorUserId, currentWpAuthorName }}
         authors={authors}
+        authorMappingAvailable={authorMappingAvailable}
         canSave={hasWordPressCredentials(lang)}
         uploadBlockedReason={getWordPressWriteBlock(lang)}
       />

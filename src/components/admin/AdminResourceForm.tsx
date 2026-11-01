@@ -40,12 +40,16 @@ export type EditableResource = {
   hasDocument: boolean;
 };
 
+import { getInitialResourceAuthorId, getSubmittedResourceAuthorId } from './resource-form-author';
+export { getInitialResourceAuthorId, getSubmittedResourceAuthorId };
+
 export function AdminResourceForm({
   semesters,
   subjects,
   units,
   canManageLawTypes = false,
   authors = [],
+  authorMappingAvailable = true,
   defaultAuthorId = '',
   resource,
 }: {
@@ -54,6 +58,7 @@ export function AdminResourceForm({
   units: UnitOption[];
   canManageLawTypes?: boolean;
   authors?: AuthorOption[];
+  authorMappingAvailable?: boolean;
   defaultAuthorId?: string;
   resource?: EditableResource;
 }) {
@@ -81,7 +86,14 @@ export function AdminResourceForm({
   const [priceAmount, setPriceAmount] = useState(
     resource?.priceAmount ? String(resource.priceAmount / 100) : ''
   );
-  const [authorUserId, setAuthorUserId] = useState(resource?.authorId ?? defaultAuthorId);
+  const [authorUserId, setAuthorUserId] = useState(() =>
+    getInitialResourceAuthorId({
+      authorMappingAvailable,
+      resourceAuthorId: resource?.authorId,
+      isEdit,
+      defaultAuthorId,
+    })
+  );
 
   // Mode selection: 'PDF' or 'NOTE'. An existing PDF keeps its document, and a
   // resource without a PDF is edited as a written note.
@@ -149,6 +161,10 @@ export function AdminResourceForm({
     // Track the created row so a failed PDF upload can remove it instead of
     // leaving an orphan that a retry would duplicate.
     let createdResourceId: string | null = null;
+    const submittedAuthorUserId = getSubmittedResourceAuthorId({
+      authorMappingAvailable,
+      authorUserId,
+    });
 
     try {
       if (resource) {
@@ -164,7 +180,7 @@ export function AdminResourceForm({
           unitId: (resourceType === ResourceType.OLD_QUESTION ? undefined : unitId) || undefined,
           content: uploadMode === 'NOTE' ? editorHtmlToArticleHtml(content) : undefined,
           status: status as ContentStatus,
-          authorUserId: authorUserId || undefined,
+          authorUserId: submittedAuthorUserId,
         });
 
         if (!updateRes.success) {
@@ -189,7 +205,7 @@ export function AdminResourceForm({
         // Quill writes one <p> per line; store real paragraphs, as /read renders them.
         content: uploadMode === 'NOTE' ? editorHtmlToArticleHtml(content) : undefined,
         status,
-        authorUserId: authorUserId || undefined,
+        authorUserId: submittedAuthorUserId,
       });
 
       if (!createRes.success) {
@@ -326,8 +342,18 @@ export function AdminResourceForm({
             authors={authors}
             value={authorUserId}
             onChange={setAuthorUserId}
-            emptyMessage="No eligible author accounts found."
-            hint="Shown as the resource author. The creator is recorded separately."
+            disabled={!authorMappingAvailable}
+            placeholder={!authorMappingAvailable ? 'Author assignment unavailable (migration pending)' : undefined}
+            emptyMessage={
+              !authorMappingAvailable
+                ? 'Author assignment is temporarily unavailable because database migrations are pending.'
+                : 'No eligible author accounts found.'
+            }
+            hint={
+              !authorMappingAvailable
+                ? 'Author assignment is disabled until database migration 20261101000000 is applied.'
+                : 'Shown as the resource author. The creator is recorded separately.'
+            }
           />
         </div>
 

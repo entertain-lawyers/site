@@ -2,7 +2,7 @@ import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import NewPostClient from './NewPostClient';
 import { getWordPressWriteBlock, hasWordPressCredentials } from '@/lib/wordpress';
-import { listLocalAuthors } from '@/lib/content-authors';
+import { listLocalAuthorsWithStatus } from '@/lib/content-authors';
 
 export default async function NewPostPage({
   searchParams,
@@ -16,7 +16,7 @@ export default async function NewPostPage({
   }
 
   const { lang } = await searchParams;
-  const authors = await listLocalAuthors();
+  const { authors, authorMappingAvailable } = await listLocalAuthorsWithStatus();
 
   return (
     <NewPostClient
@@ -27,6 +27,7 @@ export default async function NewPostPage({
         ne: getWordPressWriteBlock('ne'),
       }}
       authors={authors}
+      authorMappingAvailable={authorMappingAvailable}
       defaultAuthorId={session.user.id}
     />
   );

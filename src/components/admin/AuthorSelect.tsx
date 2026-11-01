@@ -19,6 +19,7 @@ export default function AuthorSelect({
   value,
   onChange,
   loading = false,
+  disabled = false,
   error = null,
   emptyMessage = 'No eligible authors found.',
   hint,
@@ -29,6 +30,7 @@ export default function AuthorSelect({
   value: string;
   onChange: (authorId: string) => void;
   loading?: boolean;
+  disabled?: boolean;
   error?: string | null;
   emptyMessage?: string;
   hint?: string;
@@ -37,6 +39,7 @@ export default function AuthorSelect({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const isDisabled = loading || disabled;
 
   const selected = authors.find((author) => author.id === value) ?? null;
   const filtered = useMemo(() => {
@@ -67,8 +70,8 @@ export default function AuthorSelect({
         type="button"
         aria-haspopup="listbox"
         aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
-        disabled={loading}
+        onClick={() => !isDisabled && setOpen((current) => !current)}
+        disabled={isDisabled}
         className="flex w-full items-center justify-between gap-3 rounded-xl border border-black/10 bg-white px-4 py-3 text-left shadow-sm transition-colors hover:border-accent/50 focus:border-accent focus:ring-1 focus:ring-accent disabled:opacity-60 dark:border-white/10 dark:bg-zinc-900"
       >
         <span className="min-w-0">
@@ -93,6 +96,11 @@ export default function AuthorSelect({
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                // Enter would submit the surrounding post/resource form.
+                if (event.key === 'Enter') event.preventDefault();
+                if (event.key === 'Escape') setOpen(false);
+              }}
               placeholder="Search authors"
               aria-label="Search authors"
               className="w-full bg-transparent py-1 text-sm text-navy outline-none placeholder:text-text-muted dark:text-white"

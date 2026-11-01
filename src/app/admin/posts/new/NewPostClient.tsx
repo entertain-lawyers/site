@@ -54,12 +54,14 @@ export default function NewPostClient({
   canSave = true,
   uploadBlockedReasons = { en: null, ne: null },
   authors = [],
+  authorMappingAvailable = true,
   defaultAuthorId = '',
 }: {
   defaultLang?: 'en' | 'ne';
   canSave?: boolean;
   uploadBlockedReasons?: Record<'en' | 'ne', string | null>;
   authors?: AuthorOption[];
+  authorMappingAvailable?: boolean;
   defaultAuthorId?: string;
 }) {
   const router = useRouter();
@@ -82,7 +84,7 @@ export default function NewPostClient({
   // Only authors explicitly linked to this install are offered; a local id is
   // never treated as a WordPress id.
   const authorOptions = authors.filter((author) =>
-    lang === 'ne' ? author.wpAuthorIdNe !== null : author.wpAuthorIdEn !== null
+    lang === 'ne' ? Boolean(author.wpAuthorIdNe) : Boolean(author.wpAuthorIdEn)
   );
   const selectedAuthorId = authorOptions.some((author) => author.id === authorUserId)
     ? authorUserId
@@ -225,11 +227,19 @@ export default function NewPostClient({
                 authors={authorOptions}
                 value={selectedAuthorId}
                 onChange={setAuthorUserId}
-                emptyMessage="No user is linked to a WordPress author on this site yet."
+                disabled={!authorMappingAvailable}
+                placeholder={!authorMappingAvailable ? 'Author mapping unavailable (migration pending)' : undefined}
+                emptyMessage={
+                  !authorMappingAvailable
+                    ? 'Author mapping is temporarily unavailable because database migrations are pending.'
+                    : 'No user is linked to a WordPress author on this site yet.'
+                }
                 hint={
-                  currentUserIsLinked
-                    ? 'Posts are published under this person. You remain the creator in the audit log.'
-                    : 'Your account is not linked to a WordPress author, so the post saves under the WordPress account unless you pick a linked author.'
+                  !authorMappingAvailable
+                    ? 'Author mapping is temporarily unavailable because database migration 20261101000000 has not been applied yet. Posts will save under the default WordPress account.'
+                    : currentUserIsLinked
+                      ? 'Posts are published under this person. You remain the creator in the audit log.'
+                      : 'Your account is not linked to a WordPress author, so the post saves under the WordPress account unless you pick a linked author.'
                 }
               />
             </div>

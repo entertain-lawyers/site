@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth';
 import { notFound, redirect } from 'next/navigation';
 import { ResourceType } from '@prisma/client';
 import { AdminResourceForm } from '@/components/admin/AdminResourceForm';
-import { listLocalAuthors } from '@/lib/content-authors';
+import { listLocalAuthorsWithStatus } from '@/lib/content-authors';
 
 export default async function EditResourcePage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -14,18 +14,67 @@ export default async function EditResourcePage({ params }: { params: Promise<{ i
 
   const { id } = await params;
 
-  const [resource, semesters, subjects, units, authors] = await Promise.all([
-    prisma.resource.findUnique({
+  let resource: {
+    id: string;
+    title: string;
+    content: string | null;
+    metaDesc: string | null;
+    semesterId: string | null;
+    subjectId: string | null;
+    unitId: string | null;
+    type: ResourceType;
+    isPremium: boolean;
+    priceAmount: number | null;
+    status: import('@prisma/client').ContentStatus;
+    authorId?: string | null;
+    document?: { id: string } | null;
+    subject?: { semesterId: string | null } | null;
+  } | null = null;
+
+  try {
+    resource = await prisma.resource.findUnique({
       where: { id },
       include: {
         document: { select: { id: true } },
         subject: { select: { semesterId: true } },
       },
-    }),
+    });
+  } catch (resourceError) {
+    const { isSpecificMissingColumnError } = await import('@/lib/prisma-errors');
+    if (!isSpecificMissingColumnError(resourceError, ['authorId', 'createdById'])) {
+      console.error(`[admin/study/resources/${id}/edit] database error loading resource:`, resourceError);
+      throw resourceError;
+    }
+
+    console.warn(
+      `[admin/study/resources/${id}/edit] resource findUnique failed (authorId/createdById migration pending), falling back to base fields:`,
+      resourceError
+    );
+    resource = await prisma.resource.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        title: true,
+        content: true,
+        metaDesc: true,
+        semesterId: true,
+        subjectId: true,
+        unitId: true,
+        type: true,
+        isPremium: true,
+        priceAmount: true,
+        status: true,
+        document: { select: { id: true } },
+        subject: { select: { semesterId: true } },
+      },
+    });
+  }
+
+  const [semesters, subjects, units, { authors, authorMappingAvailable }] = await Promise.all([
     prisma.semester.findMany({ orderBy: { order: 'asc' } }),
     prisma.subject.findMany({ include: { semester: true }, orderBy: { name: 'asc' } }),
     prisma.unit.findMany({ orderBy: { order: 'asc' } }),
-    listLocalAuthors(),
+    listLocalAuthorsWithStatus(),
   ]);
 
   if (!resource) notFound();
@@ -58,6 +107,7 @@ export default async function EditResourcePage({ params }: { params: Promise<{ i
           units={units.map((unit) => ({ id: unit.id, name: unit.name, subjectId: unit.subjectId }))}
           canManageLawTypes={session.user.role === 'ADMIN'}
           authors={authors}
+          authorMappingAvailable={authorMappingAvailable}
           defaultAuthorId={session.user.id}
           resource={{
             id: resource.id,
@@ -71,7 +121,7 @@ export default async function EditResourcePage({ params }: { params: Promise<{ i
             isPremium: resource.isPremium,
             priceAmount: resource.priceAmount,
             status: resource.status,
-            authorId: resource.authorId,
+            authorId: resource.authorId ?? null,
             hasDocument: Boolean(resource.document),
           }}
         />

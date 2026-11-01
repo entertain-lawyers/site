@@ -72,11 +72,13 @@ const TYPE_OPTIONS: Record<'en' | 'ne', Array<[PostType, string]>> = {
 export default function EditPostClient({
   post,
   authors = [],
+  authorMappingAvailable = true,
   canSave = true,
   uploadBlockedReason = null,
 }: {
   post: EditablePost;
   authors?: AuthorOption[];
+  authorMappingAvailable?: boolean;
   canSave?: boolean;
   uploadBlockedReason?: string | null;
 }) {
@@ -92,7 +94,7 @@ export default function EditPostClient({
   const [error, setError] = useState('');
 
   const authorOptions = authors.filter((author) =>
-    post.lang === 'ne' ? author.wpAuthorIdNe !== null : author.wpAuthorIdEn !== null
+    post.lang === 'ne' ? Boolean(author.wpAuthorIdNe) : Boolean(author.wpAuthorIdEn)
   );
   const selectedAuthorId = authorOptions.some((author) => author.id === authorUserId)
     ? authorUserId
@@ -229,12 +231,25 @@ export default function EditPostClient({
                 authors={authorOptions}
                 value={selectedAuthorId}
                 onChange={setAuthorUserId}
-                placeholder={post.currentWpAuthorName ? `Unmapped: ${post.currentWpAuthorName} (WordPress)` : undefined}
-                emptyMessage="No user is linked to a WordPress author on this site yet."
+                disabled={!authorMappingAvailable}
+                placeholder={
+                  !authorMappingAvailable
+                    ? 'Author mapping unavailable (migration pending)'
+                    : post.currentWpAuthorName
+                      ? `Unmapped: ${post.currentWpAuthorName} (WordPress)`
+                      : undefined
+                }
+                emptyMessage={
+                  !authorMappingAvailable
+                    ? 'Author mapping is temporarily unavailable because database migrations are pending.'
+                    : 'No user is linked to a WordPress author on this site yet.'
+                }
                 hint={
-                  post.currentWpAuthorName
-                    ? `Currently credited to WordPress user “${post.currentWpAuthorName}”, which is not linked to a local account. Saving without choosing an author keeps it.`
-                    : 'The post is published under this person. You remain the editor in the audit log.'
+                  !authorMappingAvailable
+                    ? 'Author mapping is temporarily unavailable because database migration 20261101000000 has not been applied yet. Saving leaves the current WordPress author unchanged.'
+                    : post.currentWpAuthorName
+                      ? `Currently credited to WordPress user “${post.currentWpAuthorName}”, which is not linked to a local account. Saving without choosing an author keeps it.`
+                      : 'The post is published under this person. You remain the editor in the audit log.'
                 }
               />
             </div>
