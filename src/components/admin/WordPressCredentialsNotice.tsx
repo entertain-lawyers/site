@@ -12,8 +12,9 @@ export default function WordPressCredentialsNotice() {
       <p className="font-bold">Saving to WordPress is not configured on this server.</p>
       <p className="mt-1">
         Posts are stored on WordPress, and this deployment has no credentials to write there. Ask the site
-        administrator to add <code>WP_AUTH_USERNAME</code> and <code>WP_AUTH_APP_PASSWORD</code> (a WordPress
-        application password) to the hosting environment and redeploy. You can still use Preview.
+        administrator to add <code>WP_AUTH_USERNAME</code> and <code>WP_AUTH_APP_PASSWORD</code> (English) or{' '}
+        <code>WP_NEPALI_AUTH_USERNAME</code> and <code>WP_NEPALI_AUTH_APP_PASSWORD</code> (Nepali) to the hosting
+        environment and redeploy. You can still use Preview.
       </p>
     </div>
   );

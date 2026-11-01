@@ -11,14 +11,17 @@ against production, and nothing may be without explicit owner approval.
 
 All post writes go through server actions in
 `src/modules/admin/admin-post.actions.ts` and the WP client in
-`src/lib/wordpress.ts`. Every write calls `getWordPressAuthHeader()`, which
-throws `WordPressAuthError` when `WP_AUTH_HEADER` (or
-`WP_AUTH_USERNAME` + `WP_AUTH_APP_PASSWORD`) is missing, and each action
-surfaces that as "WordPress API Error: Server credentials missing or invalid."
+`src/lib/wordpress.ts`. Every write calls `getWordPressAuthHeader(lang)`, which
+throws `WordPressAuthError` when the credentials for that install are missing,
+and each action surfaces that as a missing-credentials message.
+English uses `WP_AUTH_HEADER` (or `WP_AUTH_USERNAME` +
+`WP_AUTH_APP_PASSWORD`). Nepali uses `WP_NEPALI_AUTH_HEADER` (or
+`WP_NEPALI_AUTH_USERNAME` + `WP_NEPALI_AUTH_APP_PASSWORD`) only; it never
+falls back to the English `WP_AUTH_*` pair, so Nepali writes need these set.
 The actions additionally hard-stop writes when `VERCEL_ENV === 'preview'` or
 `WP_READ_ONLY === 'true'`.
 
-| Operation (UI entry) | Server path | Reads/writes | Requires `WP_AUTH_*`? |
+| Operation (UI entry) | Server path | Reads/writes | Requires WP credentials? |
 |---|---|---|---|
 | List posts (all tabs) | `getWordPressPosts` | read | Only for `draft`/`trash` tabs (WP returns 401 for private statuses otherwise; those tabs show a lock notice) |
 | Search / filter / categories | `getWordPressPosts`, `getWordPressCategories` | read | No |

@@ -379,7 +379,7 @@ export async function buildCorpus(): Promise<CorpusItem[]> {
         meta: p.date
           ? new Date(p.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
           : null,
-        url: wpUrl(type, p.id),
+        url: type === 'CASE_LAW' ? p.link : wpUrl(type, p.id),
         category: type,
         lang,
         summary: excerpt.slice(0, 350),

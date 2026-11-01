@@ -8,6 +8,7 @@ import { revalidatePath } from 'next/cache';
 import bcrypt from 'bcryptjs';
 import { normalizeEmail } from '@/lib/auth-utils';
 import { isRecordInUseError, isRecordNotFoundError, isUniqueConstraintError } from '@/lib/prisma-errors';
+import { isContentAuthorRole } from '@/lib/content-authors';
 
 const createUserSchema = z.object({
   email: z.string().trim().email(),
@@ -16,7 +17,7 @@ const createUserSchema = z.object({
 });
 
 const updateUserSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().min(1),
   email: z.string().trim().email().optional(),
   password: z.string().min(6).optional().or(z.literal('')),
   role: z.nativeEnum(Role).optional(),
@@ -33,6 +34,9 @@ const updateUserSchema = z.object({
   displayName: z.string().max(150).optional(),
   // Profile picture — "" clears it, URL sets it (uploaded via media intent flow).
   image: z.string().max(2048).optional().or(z.literal('')),
+  // Explicit local-user → WordPress author id mapping, one per install.
+  wpAuthorIdEn: z.number().int().positive().nullable().optional(),
+  wpAuthorIdNe: z.number().int().positive().nullable().optional(),
 });
 
 const deleteUserSchema = z.object({
@@ -157,6 +161,38 @@ export const updateUserAction = createSafeAction(async (args: z.infer<typeof upd
   }
   if (input.image !== undefined) updateData.image = input.image || null;
 
+  const targetRole = input.role ?? targetUser.role;
+  if ((input.wpAuthorIdEn || input.wpAuthorIdNe) && !isContentAuthorRole(targetRole)) {
+    throw new UserFacingError('Only Administrators and Editors can be mapped to WordPress authors.');
+  }
+
+  if (input.wpAuthorIdEn) {
+    const existing = await prisma.user.findFirst({
+      where: { wpAuthorIdEn: input.wpAuthorIdEn, id: { not: targetUser.id } },
+      select: { id: true, name: true, email: true },
+    });
+    if (existing) {
+      throw new UserFacingError(
+        `English WordPress author #${input.wpAuthorIdEn} is already mapped to ${existing.name || existing.email}.`
+      );
+    }
+  }
+
+  if (input.wpAuthorIdNe) {
+    const existing = await prisma.user.findFirst({
+      where: { wpAuthorIdNe: input.wpAuthorIdNe, id: { not: targetUser.id } },
+      select: { id: true, name: true, email: true },
+    });
+    if (existing) {
+      throw new UserFacingError(
+        `Nepali WordPress author #${input.wpAuthorIdNe} is already mapped to ${existing.name || existing.email}.`
+      );
+    }
+  }
+
+  if (input.wpAuthorIdEn !== undefined) updateData.wpAuthorIdEn = input.wpAuthorIdEn;
+  if (input.wpAuthorIdNe !== undefined) updateData.wpAuthorIdNe = input.wpAuthorIdNe;
+
   const changedKeys = Object.keys(updateData);
 
   try {
@@ -166,7 +202,16 @@ export const updateUserAction = createSafeAction(async (args: z.infer<typeof upd
       select: { id: true },
     });
   } catch (error) {
-    if (isUniqueConstraintError(error)) throw new Error('User with this email already exists');
+    if (isUniqueConstraintError(error)) {
+      const target = error instanceof Prisma.PrismaClientKnownRequestError ? error.meta?.target : undefined;
+      if (Array.isArray(target) && target.includes('wpAuthorIdEn')) {
+        throw new UserFacingError('That English WordPress author is already mapped to another user.');
+      }
+      if (Array.isArray(target) && target.includes('wpAuthorIdNe')) {
+        throw new UserFacingError('That Nepali WordPress author is already mapped to another user.');
+      }
+      throw new Error('User with this email already exists');
+    }
     if (isRecordNotFoundError(error)) throw new Error('User not found');
 
     // If migration 20261027150000_add_user_profile_fields has not been deployed yet,
@@ -177,6 +222,8 @@ export const updateUserAction = createSafeAction(async (args: z.infer<typeof upd
     delete baseData.nickname;
     delete baseData.bio;
     delete baseData.website;
+    delete baseData.wpAuthorIdEn;
+    delete baseData.wpAuthorIdNe;
 
     try {
       await prisma.user.update({
@@ -205,6 +252,8 @@ export const updateUserAction = createSafeAction(async (args: z.infer<typeof upd
           role: input.role ?? targetUser.role,
           passwordChanged: Boolean(input.password),
           fields: changedKeys,
+          ...(input.wpAuthorIdEn !== undefined ? { wpAuthorIdEn: input.wpAuthorIdEn } : {}),
+          ...(input.wpAuthorIdNe !== undefined ? { wpAuthorIdNe: input.wpAuthorIdNe } : {}),
         },
       },
     });

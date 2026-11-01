@@ -95,6 +95,26 @@ describe('editorHtmlToArticleHtml', () => {
     expect(editorHtmlToArticleHtml('<p></p>')).toBe('');
     expect(editorHtmlToArticleHtml('')).toBe('');
   });
+
+  it('keeps a floated image in its own block so the text below wraps beside it', () => {
+    const html =
+      '<p class="el-wrap-left"><img src="https://www.entertainlawyers.com/a.jpg" width="300"></p>' +
+      '<p>First paragraph beside the image.</p>' +
+      '<p>Second paragraph, still beside it.</p>';
+    expect(editorHtmlToArticleHtml(html)).toBe(
+      '<p class="el-wrap-left el-ed el-tight"><img src="https://www.entertainlawyers.com/a.jpg" width="300"></p>' +
+        '<p class="el-ed">First paragraph beside the image.<br>Second paragraph, still beside it.</p>'
+    );
+  });
+
+  it('does not join an embed with the block above or below it', () => {
+    const video = '<iframe class="ql-video" src="https://www.youtube.com/embed/x"></iframe>';
+    expect(editorHtmlToArticleHtml(`<p>Intro</p>${video}<p>Outro</p>`)).toBe(
+      '<p class="el-ed el-tight">Intro</p>' +
+        '<iframe class="ql-video el-ed el-tight" src="https://www.youtube.com/embed/x"></iframe>' +
+        '<p class="el-ed">Outro</p>'
+    );
+  });
 });
 
 describe('articleHtmlToEditorHtml', () => {
@@ -116,6 +136,23 @@ describe('articleHtmlToEditorHtml', () => {
   it('keeps non-marker classes such as alignment', () => {
     expect(articleHtmlToEditorHtml('<p class="ql-align-center el-ed el-tight">C</p><p class="el-ed">D</p>')).toBe(
       '<p class="ql-align-center">C</p><p>D</p>'
+    );
+  });
+
+  it('adopts WordPress image alignment classes so wrapping survives re-editing', () => {
+    expect(
+      articleHtmlToEditorHtml(
+        '<p><img class="alignright size-medium wp-image-12" src="https://www.entertainlawyers.com/a.jpg" width="300"></p>'
+      )
+    ).toBe(
+      '<p class="el-wrap-right"><img class="size-medium wp-image-12" src="https://www.entertainlawyers.com/a.jpg" width="300"></p>'
+    );
+    expect(articleHtmlToEditorHtml('<p><img class="aligncenter" src="a.jpg"></p>')).toBe(
+      '<p class="el-wrap-center"><img src="a.jpg"></p>'
+    );
+    // alignnone is the WordPress "no wrap" default; it needs no editor class.
+    expect(articleHtmlToEditorHtml('<p><img class="alignnone" src="a.jpg"></p>')).toBe(
+      '<p><img src="a.jpg"></p>'
     );
   });
 });
@@ -147,6 +184,19 @@ describe('restoreVideoEmbeds', () => {
 });
 
 describe('round trip', () => {
+  it('keeps image wrapping and width across save -> load -> save', () => {
+    const quill =
+      '<p class="el-wrap-right"><img src="https://www.entertainlawyers.com/a.jpg" width="300"></p>' +
+      '<p><br></p>' +
+      '<p>Text beside it</p>';
+    const saved = editorHtmlToArticleHtml(quill);
+    expect(saved).toContain('<p class="el-wrap-right el-ed">');
+    expect(saved).toContain('width="300"');
+    const reloaded = asQuillLines(articleHtmlToEditorHtml(saved));
+    expect(reloaded).toBe(quill);
+    expect(editorHtmlToArticleHtml(reloaded)).toBe(saved);
+  });
+
   it('editor -> save -> load -> save is lossless for editor content', () => {
     for (const quill of [quillCaseHeader, quillLegalIssues, '<h2>H</h2><p><br></p><p><br></p><p>A</p><p>B</p><ul><li>x</li></ul><p><br></p><p class="ql-align-right">R</p>']) {
       const saved = editorHtmlToArticleHtml(quill);
@@ -154,6 +204,21 @@ describe('round trip', () => {
       expect(reloaded).toBe(quill);
       expect(editorHtmlToArticleHtml(reloaded)).toBe(saved);
     }
+  });
+
+  it('keeps line-height styles across save -> load -> save', () => {
+    const quill =
+      '<p style="line-height: 1.5;">Line spacing paragraph</p>' +
+      '<p><br></p>' +
+      '<h2 style="line-height: 1.15;">Heading</h2>' +
+      '<ol><li style="line-height: 2.0;">Item 1</li><li>Item 2</li></ol>';
+    const saved = editorHtmlToArticleHtml(quill);
+    expect(saved).toContain('style="line-height: 1.5;"');
+    expect(saved).toContain('style="line-height: 1.15;"');
+    expect(saved).toContain('style="line-height: 2.0;"');
+    const reloaded = asQuillLines(articleHtmlToEditorHtml(saved));
+    expect(reloaded).toBe(quill);
+    expect(editorHtmlToArticleHtml(reloaded)).toBe(saved);
   });
 
   it('WordPress content: load -> save -> load -> save is stable after the first save', () => {

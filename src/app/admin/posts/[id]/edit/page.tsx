@@ -4,6 +4,7 @@ import EditPostClient from './EditPostClient';
 import { Role } from '@prisma/client';
 import Link from 'next/link';
 import {
+  getWordPressAuthor,
   getWordPressMediaById,
   getWordPressPostById,
   getWordPressWriteBlock,
@@ -11,6 +12,7 @@ import {
   mapCategoryToType,
   parseWordPressPostId,
 } from '@/lib/wordpress';
+import { listLocalAuthors } from '@/lib/content-authors';
 import { toFeaturedImageSelection, toWordPressMediaItem, type FeaturedImageSelection } from '@/lib/wordpress-media';
 
 export default async function EditPostPage({
@@ -40,7 +42,7 @@ export default async function EditPostPage({
   // WordPress answers 401 and the post is treated as missing.
   let wpPost;
   try {
-    wpPost = await getWordPressPostById(wpId, lang, { authenticated: hasWordPressCredentials() });
+    wpPost = await getWordPressPostById(wpId, lang, { authenticated: hasWordPressCredentials(lang) });
   } catch (error) {
     console.error(`[admin/posts/${wpId}/edit] WordPress request failed`, error);
     return (
@@ -71,7 +73,7 @@ export default async function EditPostPage({
   let featuredImage: FeaturedImageSelection | null = null;
   if (featuredMediaId > 0) {
     try {
-      const media = await getWordPressMediaById(featuredMediaId, lang, { authenticated: hasWordPressCredentials() });
+      const media = await getWordPressMediaById(featuredMediaId, lang, { authenticated: hasWordPressCredentials(lang) });
       featuredImage = media
         ? toFeaturedImageSelection(toWordPressMediaItem(media), lang)
         : { id: featuredMediaId, lang, url: null, thumbnailUrl: null, title: `Image #${featuredMediaId}` };
@@ -95,13 +97,26 @@ export default async function EditPostPage({
     featuredImage,
   };
 
+  // Preselect the local user linked to WordPress's current author. When no
+  // local user is linked, show the WordPress name and leave the selection
+  // empty so saving cannot silently change the author.
+  const authors = await listLocalAuthors();
+  const currentAuthorUserId =
+    authors.find(
+      (author) => (lang === 'ne' ? author.wpAuthorIdNe : author.wpAuthorIdEn) === wpPost.author
+    )?.id ?? '';
+  const currentWpAuthorName = currentAuthorUserId
+    ? null
+    : (await getWordPressAuthor(wpPost.author, lang))?.name ?? null;
+
   return (
     <div className="min-h-screen bg-transparent">
       <EditPostClient
         key={mappedPost.id}
-        post={mappedPost}
-        canSave={hasWordPressCredentials()}
-        uploadBlockedReason={getWordPressWriteBlock()}
+        post={{ ...mappedPost, currentAuthorUserId, currentWpAuthorName }}
+        authors={authors}
+        canSave={hasWordPressCredentials(lang)}
+        uploadBlockedReason={getWordPressWriteBlock(lang)}
       />
     </div>
   );

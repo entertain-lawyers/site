@@ -645,3 +645,47 @@
   aspect-ratio: 16 / 9;
   border-radius: 0.75rem;
 }
+
+/* WordPress-style image wrapping. New images mark their block with
+   class="el-wrap-left|right|center" (src/components/editor/quill-image-wrap.ts);
+   older WordPress posts align the image itself with alignleft/alignright/
+   aligncenter, so both forms are styled. Kept last so these margins also win
+   over the .prose .el-ed img rule above and the Typography plugin. */
+:is(.article-body, .prose) .el-wrap-left img,
+:is(.article-body, .prose) img.alignleft {
+  float: left;
+  max-width: 60%;
+  margin: 0.25rem 1.25rem 1rem 0;
+}
+:is(.article-body, .prose) .el-wrap-right img,
+:is(.article-body, .prose) img.alignright {
+  float: right;
+  max-width: 60%;
+  margin: 0.25rem 0 1rem 1.25rem;
+}
+:is(.article-body, .prose) .el-wrap-center img,
+:is(.article-body, .prose) img.aligncenter {
+  display: block;
+  float: none;
+  clear: both;
+  max-width: 100%;
+  margin: 0.25rem auto 1.25rem;
+}
+/* Keep a floated image from spilling over whatever follows the article. */
+:is(.article-body, .prose):has(
+    .el-wrap-left img,
+    .el-wrap-right img,
+    img.alignleft,
+    img.alignright
+  ) {
+  display: flow-root;
+}
+/* On phones a float would leave a column too narrow to read. */
+@media (max-width: 639px) {
+  :is(.article-body, .prose) :is(.el-wrap-left, .el-wrap-right) img,
+  :is(.article-body, .prose) img:is(.alignleft, .alignright) {
+    float: none;
+    max-width: 100%;
+    margin: 0.25rem 0 1.25rem;
+  }
+}

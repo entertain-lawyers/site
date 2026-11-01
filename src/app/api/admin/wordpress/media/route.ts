@@ -43,9 +43,6 @@ export async function POST(request: Request) {
     return fail(403, 'Cross-origin uploads are not allowed.');
   }
 
-  const blocked = getWordPressWriteBlock();
-  if (blocked) return fail(403, blocked);
-
   const declaredLength = Number(request.headers.get('content-length') || 0);
   if (declaredLength > WP_MEDIA_MAX_BYTES + MULTIPART_OVERHEAD_BYTES) {
     return fail(413, `The image is larger than the ${formatMegabytes(WP_MEDIA_MAX_BYTES)} limit.`);
@@ -63,6 +60,10 @@ export async function POST(request: Request) {
   const title = typeof form.get('title') === 'string' ? String(form.get('title')).slice(0, 200) : '';
   if (!(file instanceof File)) return fail(400, 'No image was attached.');
   if (lang !== 'en' && lang !== 'ne') return fail(400, 'Unknown WordPress language.');
+
+  // The credentials differ per WordPress install, so this check needs `lang`.
+  const blocked = getWordPressWriteBlock(lang);
+  if (blocked) return fail(403, blocked);
 
   const invalid = validateImageFile(file);
   if (invalid) return fail(file.size > WP_MEDIA_MAX_BYTES ? 413 : 415, invalid);
@@ -98,11 +99,20 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('[wordpress/media] upload failed', error instanceof Error ? error.message : error);
     if (error instanceof WordPressAuthError) {
-      return fail(503, 'This server has no WordPress credentials, so images cannot be uploaded.');
+      return fail(503, `This server has no ${lang === 'ne' ? 'Nepali ' : ''}WordPress credentials, so images cannot be uploaded.`);
     }
     if (error instanceof WordPressApiError) {
-      if (error.status === 401 || error.status === 403) {
-        return fail(403, `WordPress refused the upload (HTTP ${error.status}). The API user needs the upload_files capability and a valid application password.`);
+      if (error.status === 401) {
+        const envHint = lang === 'ne'
+          ? 'WP_NEPALI_AUTH_USERNAME + WP_NEPALI_AUTH_APP_PASSWORD (or WP_NEPALI_AUTH_HEADER)'
+          : 'WP_AUTH_USERNAME + WP_AUTH_APP_PASSWORD (or WP_AUTH_HEADER)';
+        return fail(401, `WordPress refused the upload (HTTP 401). Authentication failed. Check ${envHint}.`);
+      }
+      if (error.status === 403) {
+        const envHint = lang === 'ne'
+          ? 'WP_NEPALI_AUTH_USERNAME + WP_NEPALI_AUTH_APP_PASSWORD (or WP_NEPALI_AUTH_HEADER)'
+          : 'WP_AUTH_USERNAME + WP_AUTH_APP_PASSWORD (or WP_AUTH_HEADER)';
+        return fail(403, `WordPress refused the upload (HTTP 403). The API user lacks the upload_files capability. Check ${envHint}.`);
       }
       if (error.status === 413) return fail(413, 'WordPress rejected the image as too large.');
       if (error.status === 408) return fail(504, 'WordPress took too long to accept the image. Try again.');

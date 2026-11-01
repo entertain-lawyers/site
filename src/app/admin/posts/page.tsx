@@ -16,10 +16,16 @@ import { MotionButton } from '@/components/motion/primitives';
 
 const PER_PAGE = 20;
 
-function describeWordPressError(error: unknown): string {
+function credentialHint(lang: 'en' | 'ne'): string {
+  return lang === 'ne'
+    ? 'Nepali credentials (WP_NEPALI_AUTH_HEADER, or WP_NEPALI_AUTH_USERNAME + WP_NEPALI_AUTH_APP_PASSWORD)'
+    : 'WordPress credentials (WP_AUTH_HEADER, or WP_AUTH_USERNAME + WP_AUTH_APP_PASSWORD)';
+}
+
+function describeWordPressError(error: unknown, lang: 'en' | 'ne'): string {
   if (error instanceof WordPressApiError) {
     if (error.status === 401 || error.status === 403) {
-      return 'WordPress rejected the request. Drafts and trash need WP_AUTH_HEADER (or WP_AUTH_USERNAME + WP_AUTH_APP_PASSWORD) configured on the server.';
+      return `WordPress rejected the request. Drafts and trash need the ${credentialHint(lang)} configured on the server.`;
     }
     if (error.status === 404) {
       return 'The WordPress REST endpoint was not found. Check WP_ENGLISH_URL and WP_NEPALI_URL.';
@@ -89,7 +95,7 @@ export default async function AdminPostsPage({
   const page = Math.max(1, Number(sp.page) || 1);
 
   const query = { lang, perPage: PER_PAGE, page, search, categories: category ? [category] : undefined, order: 'desc' as const, orderBy: 'date' as const };
-  const hasWpAuth = hasWordPressCredentials();
+  const hasWpAuth = hasWordPressCredentials(lang);
   const privateStatus = status === 'draft' || status === 'trash';
   const lockedPrivateStatus = privateStatus && !hasWpAuth;
 
@@ -238,7 +244,7 @@ export default async function AdminPostsPage({
           tab.locked ? (
             <span
               key={tab.key}
-              title="Requires WordPress credentials (WP_AUTH_HEADER or WP_AUTH_USERNAME + WP_AUTH_APP_PASSWORD)"
+              title={`Requires ${credentialHint(lang)}`}
               className="px-3 py-1.5 rounded-lg text-text-muted/60 font-bold cursor-not-allowed select-none"
               aria-disabled="true"
             >
@@ -262,7 +268,7 @@ export default async function AdminPostsPage({
 
       {tabs.some(t => t.locked) ? (
         <p className="mb-4 text-xs text-text-muted font-medium">
-          🔒 Drafts &amp; Trash need WordPress sign-in credentials — full post control works once <code className="px-1 py-0.5 rounded bg-slate-100 dark:bg-zinc-800">WP_AUTH_HEADER</code> is configured in the environment.
+          🔒 Drafts &amp; Trash need {credentialHint(lang)} — full post control works once they are configured in the environment.
         </p>
       ) : null}
 
@@ -359,7 +365,7 @@ export default async function AdminPostsPage({
         <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 px-6 py-10 text-center dark:border-amber-900/50 dark:bg-amber-950/30">
           <h2 className="text-lg font-extrabold text-amber-900 dark:text-amber-200">This view needs WordPress credentials</h2>
           <p className="mx-auto mt-2 max-w-xl text-sm text-amber-800 dark:text-amber-200">
-            Drafts and trash are private WordPress records. Configure <code>WP_AUTH_HEADER</code> (or <code>WP_AUTH_USERNAME</code> and <code>WP_AUTH_APP_PASSWORD</code>) on the server, then reload.
+            Drafts and trash are private WordPress records. Configure {credentialHint(lang)} on the server, then reload.
           </p>
           <Link href="/admin/posts" className="mt-5 inline-flex rounded-xl bg-navy px-5 py-2.5 text-sm font-bold text-white hover:bg-navy/90">
             Back to all posts
@@ -368,7 +374,7 @@ export default async function AdminPostsPage({
       ) : listError ? (
         <div role="alert" className="rounded-2xl border border-red-200 bg-red-50 px-6 py-10 text-center dark:border-red-900/50 dark:bg-red-950/30">
           <h2 className="text-lg font-extrabold text-red-900 dark:text-red-200">Posts could not be loaded</h2>
-          <p className="mx-auto mt-2 max-w-xl text-sm text-red-800 dark:text-red-200">{describeWordPressError(listError)}</p>
+          <p className="mx-auto mt-2 max-w-xl text-sm text-red-800 dark:text-red-200">{describeWordPressError(listError, lang)}</p>
           {errorId ? <p className="mt-3 text-xs font-mono text-red-700/80 dark:text-red-300/80">Reference: {errorId}</p> : null}
           <Link href={tabHref(status)} className="mt-5 inline-flex rounded-xl bg-navy px-5 py-2.5 text-sm font-bold text-white hover:bg-navy/90">
             Try again

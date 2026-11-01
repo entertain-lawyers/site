@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { CheckCircle2, ImageIcon, Images, Loader2, Trash2, Upload } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ImageIcon, Images, Loader2, Trash2, Upload } from 'lucide-react';
 import WordPressMediaLibraryDialog from '@/components/admin/WordPressMediaLibraryDialog';
 import type { WordPressLanguage } from '@/lib/wordpress';
 import {
@@ -226,12 +226,20 @@ export default function FeaturedImagePanel({
       )}
 
       {error && (
-        <p role="alert" className="rounded-lg border border-red-100 bg-red-50 p-3 text-xs font-medium text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
-          {error}
-        </p>
+        <div role="alert" className="rounded-xl border border-red-200 bg-red-50/90 p-3.5 text-xs text-red-900 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+          <p className="font-bold flex items-center gap-1.5 mb-1">
+            <AlertCircle className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" />
+            Upload Failed
+          </p>
+          <p className="leading-relaxed opacity-90">{error}</p>
+        </div>
       )}
 
-      {notice && !error && <p className="text-xs text-amber-700 dark:text-amber-400">{notice}</p>}
+      {notice && !error && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3.5 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300">
+          <p className="leading-relaxed">{notice}</p>
+        </div>
+      )}
 
       {!value && (
         <div className="flex flex-col gap-2 sm:flex-row lg:flex-col xl:flex-row">
@@ -250,7 +258,15 @@ export default function FeaturedImagePanel({
         </div>
       )}
 
-      {uploadBlockedReason && <p className="text-xs text-text-secondary">Uploading is unavailable: {uploadBlockedReason}</p>}
+      {uploadBlockedReason && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-3.5 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/40 dark:text-amber-300">
+          <p className="font-bold flex items-center gap-1.5 mb-1">
+            <AlertCircle className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            Uploads Unavailable for {lang === 'ne' ? 'Nepali' : 'English'}
+          </p>
+          <p className="leading-relaxed opacity-90">{uploadBlockedReason}</p>
+        </div>
+      )}
 
       <WordPressMediaLibraryDialog
         open={libraryOpen}

@@ -56,6 +56,10 @@ const cssRules: Record<string, RegExp[]> = {
     /^(?:-?0|0%|-?(?:[1-9]\d?|100)%)$/i,
   ],
   'list-style-type': [/^(?:none|disc|decimal|circle|square)$/i],
+  // Bounded line spacing: unitless 0.8-3, percentage 80-300%, 0.8-3rem/em, 12-72px, or normal.
+  'line-height': [
+    /^(?:normal|(?:0\.[8-9]\d*|[1-2](?:\.\d+)?|3(?:\.0+)?)|(?:[89]\d|1[0-9]{2}|200|300)%|(?:0\.[8-9]\d*|[1-2](?:\.\d+)?|3(?:\.0+)?)(?:rem|em)|(?:1[2-9]|[2-6]\d|7[0-2])px)$/i,
+  ],
 };
 
 // `allowedStyles` is keyed by tag name; `*` applies to every element. A

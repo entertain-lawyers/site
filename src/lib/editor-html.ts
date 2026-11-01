@@ -23,6 +23,10 @@ const BLANK_LINE = /^(?:\s|&nbsp;|&#160;|<br\s*\/?>)*$/i;
 const VOID_TAGS = new Set(['area', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link', 'meta', 'source', 'wbr']);
 const MAX_GAP = 4;
 const MARKER_CLASS = /^el-(?:ed|tight|gap-\d+)$/;
+// A floated image must stay in its own block: joining it with the text line
+// below would put that text under the image (img is display:block in articles)
+// instead of letting it wrap alongside.
+const EMBED = /<(?:img|iframe|video|audio)\b/i;
 
 type Block = {
   tag: string; // lower-case tag name, or '#text' for loose text/comments
@@ -120,7 +124,15 @@ export function editorHtmlToArticleHtml(html: string): string {
       continue;
     }
     const prev = units[units.length - 1];
-    if (prev && blanks === 0 && block.tag === 'p' && prev.block.tag === 'p' && prev.block.attrs === block.attrs) {
+    if (
+      prev &&
+      blanks === 0 &&
+      block.tag === 'p' &&
+      prev.block.tag === 'p' &&
+      prev.block.attrs === block.attrs &&
+      !EMBED.test(block.inner) &&
+      !EMBED.test(prev.block.inner)
+    ) {
       prev.lines.push(block.inner);
     } else {
       if (prev) prev.gapAfter = blanks;
@@ -158,6 +170,43 @@ export function restoreVideoEmbeds(html: string): string {
 }
 
 /**
+ * Older WordPress posts align images with classes (`alignleft`, `alignright`,
+ * `aligncenter`). The editor stores wrapping on the image's line instead, so
+ * lift the old image classes onto that line on load. The article CSS styles
+ * both forms, so published content keeps working before it is re-saved.
+ */
+const WP_IMAGE_WRAP: Record<string, string> = {
+  alignleft: 'el-wrap-left',
+  alignright: 'el-wrap-right',
+  aligncenter: 'el-wrap-center',
+};
+
+function imageClasses(tag: string): string[] {
+  const classAttr = /\sclass\s*=\s*(?:"([^"]*)"|'([^']*)')/i.exec(tag);
+  return (classAttr?.[1] ?? classAttr?.[2] ?? '').split(/\s+/).filter(Boolean);
+}
+
+function wordpressImageWrap(html: string): string | null {
+  for (const tag of html.match(/<img\b[^>]*>/gi) ?? []) {
+    const wrap = imageClasses(tag).map((c) => WP_IMAGE_WRAP[c]).find(Boolean);
+    if (wrap) return wrap;
+  }
+  return null;
+}
+
+/** Drop alignment classes from the image itself once they live on the block. */
+function stripWordPressImageAlignment(html: string): string {
+  return html.replace(/<img\b[^>]*>/gi, (tag) => {
+    if (!/\sclass\s*=/i.test(tag)) return tag;
+    const kept = imageClasses(tag).filter((c) => !WP_IMAGE_WRAP[c] && c !== 'alignnone');
+    const withoutClass = tag.replace(/\sclass\s*=\s*(?:"[^"]*"|'[^']*')/i, '');
+    return kept.length
+      ? withoutClass.replace(/^<img\b/i, `<img class="${kept.join(' ')}"`)
+      : withoutClass;
+  });
+}
+
+/**
  * Article HTML -> Quill HTML, when a saved post is loaded into the editor.
  * Editor-authored blocks get back exactly the blank lines they were saved
  * with; other content gets one blank line between blocks, with existing
@@ -169,7 +218,11 @@ export function articleHtmlToEditorHtml(html: string): string {
     .map((block, index) => {
       const classes = classesOf(block.attrs);
       const own = classes.filter((c) => !MARKER_CLASS.test(c));
-      const out = rebuild(block, own);
+      // Classic-Editor image alignment becomes the line's wrapping format,
+      // which is what the editor's image tools read and write.
+      const wpWrap = block.tag === 'p' ? wordpressImageWrap(block.inner) : null;
+      if (wpWrap && !own.some((c) => c.startsWith('el-wrap-'))) own.push(wpWrap);
+      const out = rebuild({ ...block, inner: stripWordPressImageAlignment(block.inner) }, own);
       if (index === blocks.length - 1) return out;
       let gap = 1;
       if (classes.includes('el-ed')) {

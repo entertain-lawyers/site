@@ -52,6 +52,7 @@ const WP_LABELS: Record<string, string> = {
   NEWS: 'News',
   FACT: 'Historical Fact',
   PERSONALITY: 'Personality',
+  CASE_LAW: 'Case Law',
   NEPALI_ADALAT_SAMACHAR: 'Nepali Court News',
   NEPALI_NAJIRHARU: 'Nepali Precedents',
   NEPALI_AIN_KANUN: 'Nepali Laws',
@@ -310,8 +311,9 @@ async function searchWordPress(
     link: string | undefined,
     snippet?: string
   ): { hit: SearchHit; score: number; date: string } | null => {
-    const external = type === 'UNKNOWN' ? absoluteWpUrl(link) : null;
-    if (type === 'UNKNOWN' && !external) return null;
+    // Case Law has no in-app detail route, so it links to its WordPress permalink.
+    const external = type === 'UNKNOWN' || type === 'CASE_LAW' ? absoluteWpUrl(link) : null;
+    if ((type === 'UNKNOWN' || type === 'CASE_LAW') && !external) return null;
     return {
       hit: {
         id,

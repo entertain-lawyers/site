@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AlignCenter, AlignLeft, AlignRight, RotateCcw } from 'lucide-react';
+import { AlignCenter, AlignLeft, AlignRight, RotateCcw, TextWrap } from 'lucide-react';
 
 /* Minimal surface of the Quill 2 instance this component uses. */
 type QuillBlot = object;
@@ -16,16 +16,21 @@ type QuillLike = {
   constructor: { find: (node: Node, bubble?: boolean) => QuillBlot | null };
 };
 
-type Box = { top: number; left: number; width: number; height: number };
+type Box = { top: number; left: number; width: number; height: number; editorTop: number; editorHeight: number };
+type Wrap = 'left' | 'right' | 'center' | null;
 
 const MIN_WIDTH = 48;
 const PRESETS = [25, 50, 75, 100] as const;
+// A floated image may use at most this much of the column, so the text beside
+// it keeps a usable measure; the saved width is untouched when it is unfloated.
+const FLOAT_MAX_RATIO = 0.6;
 
 /**
  * Click an image in the editor to resize it (drag the corner handle or pick a
- * preset) and align it. Changes go through Quill's formatText/formatLine, so
- * they become part of the saved HTML (`<img width="…">` inside a
- * `ql-align-*` paragraph) rather than a visual-only tweak.
+ * preset) and position it: float left/right so text wraps beside it, centre it
+ * on its own line, or leave it in normal flow. Changes go through Quill's
+ * formatText/formatLine, so they become part of the saved HTML
+ * (`<img class="el-wrap-…" width="…">`) rather than a visual-only tweak.
  */
 export default function EditorImageTools({
   getQuill,
@@ -37,6 +42,7 @@ export default function EditorImageTools({
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [box, setBox] = useState<Box | null>(null);
   const [align, setAlign] = useState<string | null>(null);
+  const [wrap, setWrap] = useState<Wrap>(null);
   // The dragged <img> lives in the ref: handlers mutate its inline width for live feedback.
   const dragRef = useRef<{ img: HTMLImageElement; startX: number; startWidth: number; maxWidth: number } | null>(null);
 
@@ -50,9 +56,19 @@ export default function EditorImageTools({
       }
       const c = container.getBoundingClientRect();
       const r = img.getBoundingClientRect();
-      setBox({ top: r.top - c.top, left: r.left - c.left, width: r.width, height: r.height });
+      // The editor is its own scroll box below the toolbar, so the tools are
+      // placed relative to that visible area and clipped to it.
+      const rootRect = getQuill()?.root.getBoundingClientRect();
+      setBox({
+        top: r.top - c.top,
+        left: r.left - c.left,
+        width: r.width,
+        height: r.height,
+        editorTop: rootRect ? rootRect.top - c.top : 0,
+        editorHeight: rootRect?.height ?? 0,
+      });
     },
-    [containerRef]
+    [containerRef, getQuill]
   );
 
   const locate = useCallback(
@@ -72,7 +88,13 @@ export default function EditorImageTools({
       measure(img);
       if (img) {
         const found = locate(img);
-        setAlign((found && (found.quill.getFormat(found.index, 1).align as string)) || null);
+        const formats = found ? found.quill.getFormat(found.index, 1) : {};
+        const nextWrap = (formats.wrap as Wrap) ?? null;
+        setWrap(nextWrap);
+        setAlign(nextWrap ? null : ((formats.align as string) ?? null));
+      } else {
+        setWrap(null);
+        setAlign(null);
       }
     },
     [locate, measure]
@@ -125,6 +147,12 @@ export default function EditorImageTools({
     return root.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
   };
 
+  const isFloated = wrap === 'left' || wrap === 'right';
+  const maxWidth = () => {
+    const full = editorWidth();
+    return isFloated ? Math.max(MIN_WIDTH, full * FLOAT_MAX_RATIO) : full;
+  };
+
   const setWidth = (width: number | null) => {
     if (!image) return;
     const found = locate(image);
@@ -134,12 +162,17 @@ export default function EditorImageTools({
     measure(image);
   };
 
-  const setAlignment = (value: 'center' | 'right' | null) => {
+  /** Float/centre the image's line, or clear both to leave it in normal flow. */
+  const setPlacement = (value: Wrap) => {
     if (!image) return;
     const found = locate(image);
     if (!found) return;
-    found.quill.formatLine(found.index, 1, 'align', value ?? false, 'user');
-    setAlign(value);
+    found.quill.formatLine(found.index, 1, 'wrap', value ?? false, 'user');
+    // Older images were placed with a paragraph alignment; clear it so the two
+    // models cannot fight over the image.
+    found.quill.formatLine(found.index, 1, 'align', false, 'user');
+    setWrap(value);
+    setAlign(null);
     requestAnimationFrame(() => measure(image));
   };
 
@@ -147,14 +180,14 @@ export default function EditorImageTools({
     if (!image || !box) return;
     e.preventDefault();
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    dragRef.current = { img: image, startX: e.clientX, startWidth: box.width, maxWidth: editorWidth() || box.width };
+    dragRef.current = { img: image, startX: e.clientX, startWidth: box.width, maxWidth: maxWidth() || box.width };
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
     const drag = dragRef.current;
     if (!drag) return;
-    // Right-aligned images grow to the left, so invert the drag direction.
-    const dx = (e.clientX - drag.startX) * (align === 'right' ? -1 : 1);
+    // Right-floated images grow to the left, so invert the drag direction.
+    const dx = (e.clientX - drag.startX) * (isFloated && wrap === 'right' ? -1 : 1);
     const width = Math.min(drag.maxWidth, Math.max(MIN_WIDTH, drag.startWidth + dx));
     drag.img.style.width = `${width}px`; // live feedback only; committed on release
     measure(drag.img);
@@ -173,20 +206,33 @@ export default function EditorImageTools({
   if (!image || !box) return null;
 
   const currentWidth = Math.round(box.width);
-  const toolbarAbove = box.top > 52;
+  // The tools live inside the editor's visible scroll area (the toolbar above
+  // it must stay uncovered), so vertical positions are relative to that box.
+  const y = box.top - box.editorTop;
+  const toolbarHeight = 44;
+  const toolbarAbove = y >= toolbarHeight + 8;
+  const toolbarTop = toolbarAbove
+    ? y - toolbarHeight
+    : Math.min(y + box.height + 8, Math.max(0, box.editorHeight - toolbarHeight));
+  const isRight = wrap === 'right' || (!wrap && align === 'right');
+  const centreActive = wrap === 'center' || (!wrap && align === 'center');
   const button =
     'inline-flex h-8 min-w-8 items-center justify-center rounded-md px-2 text-xs font-semibold text-navy transition hover:bg-slate-100 dark:text-white dark:hover:bg-zinc-800';
   const active = 'bg-accent/10 text-accent dark:bg-accent/20';
 
   return (
-    <div data-image-tools className="pointer-events-none absolute inset-0 z-10">
+    <div
+      data-image-tools
+      className="pointer-events-none absolute inset-x-0 bottom-0 z-10 overflow-hidden"
+      style={{ top: box.editorTop }}
+    >
       {/* Selection frame */}
       <div
         className="absolute rounded-sm outline outline-2 outline-accent"
-        style={{ top: box.top, left: box.left, width: box.width, height: box.height }}
+        style={{ top: y, left: box.left, width: box.width, height: box.height }}
       />
 
-      {/* Resize handle (bottom-right; bottom-left for right-aligned images) */}
+      {/* Resize handle (bottom-right; bottom-left for right-floated images) */}
       <div
         role="slider"
         aria-label="Resize image"
@@ -200,14 +246,14 @@ export default function EditorImageTools({
           if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
             e.preventDefault();
             const step = e.shiftKey ? 50 : 10;
-            setWidth(Math.min(editorWidth() || Infinity, Math.max(MIN_WIDTH, box.width + (e.key === 'ArrowRight' ? step : -step))));
+            setWidth(Math.min(maxWidth() || Infinity, Math.max(MIN_WIDTH, box.width + (e.key === 'ArrowRight' ? step : -step))));
           }
         }}
         className="pointer-events-auto absolute h-4 w-4 touch-none rounded-sm border-2 border-white bg-accent shadow focus:outline-none focus:ring-2 focus:ring-accent/40"
         style={{
-          top: box.top + box.height - 8,
-          left: align === 'right' ? box.left - 8 : box.left + box.width - 8,
-          cursor: align === 'right' ? 'nesw-resize' : 'nwse-resize',
+          top: y + box.height - 8,
+          left: isRight ? box.left - 8 : box.left + box.width - 8,
+          cursor: isRight ? 'nesw-resize' : 'nwse-resize',
         }}
       />
 
@@ -215,13 +261,19 @@ export default function EditorImageTools({
       <div
         className="pointer-events-auto absolute flex max-w-full flex-wrap items-center gap-0.5 rounded-lg border border-black/10 bg-white p-1 shadow-lg dark:border-white/10 dark:bg-zinc-900"
         style={{
-          top: toolbarAbove ? box.top - 44 : box.top + box.height + 8,
+          top: toolbarTop,
           left: Math.max(0, box.left),
         }}
         onMouseDown={(e) => e.preventDefault() /* keep the editor selection */}
       >
         {PRESETS.map((pct) => (
-          <button key={pct} type="button" className={button} onClick={() => setWidth((editorWidth() * pct) / 100)} title={`${pct}% of the column width`}>
+          <button
+            key={pct}
+            type="button"
+            className={button}
+            onClick={() => setWidth(Math.min(maxWidth(), (editorWidth() * pct) / 100))}
+            title={`${pct}% of the column width`}
+          >
             {pct}%
           </button>
         ))}
@@ -230,14 +282,45 @@ export default function EditorImageTools({
           <span className="sr-only">Original size</span>
         </button>
         <span className="mx-1 h-5 w-px bg-black/10 dark:bg-white/10" aria-hidden="true" />
-        <button type="button" className={`${button} ${!align ? active : ''}`} onClick={() => setAlignment(null)} title="Align left" aria-pressed={!align}>
+        <button
+          type="button"
+          className={`${button} ${wrap === 'left' ? active : ''}`}
+          onClick={() => setPlacement('left')}
+          title="Align left (text wraps on the right)"
+          aria-pressed={wrap === 'left'}
+        >
           <AlignLeft className="h-4 w-4" aria-hidden="true" />
+          <span className="sr-only">Align left</span>
         </button>
-        <button type="button" className={`${button} ${align === 'center' ? active : ''}`} onClick={() => setAlignment('center')} title="Center" aria-pressed={align === 'center'}>
+        <button
+          type="button"
+          className={`${button} ${centreActive ? active : ''}`}
+          onClick={() => setPlacement('center')}
+          title="Center (its own line, no wrapping)"
+          aria-pressed={centreActive}
+        >
           <AlignCenter className="h-4 w-4" aria-hidden="true" />
+          <span className="sr-only">Center</span>
         </button>
-        <button type="button" className={`${button} ${align === 'right' ? active : ''}`} onClick={() => setAlignment('right')} title="Align right" aria-pressed={align === 'right'}>
+        <button
+          type="button"
+          className={`${button} ${isRight ? active : ''}`}
+          onClick={() => setPlacement('right')}
+          title="Align right (text wraps on the left)"
+          aria-pressed={isRight}
+        >
           <AlignRight className="h-4 w-4" aria-hidden="true" />
+          <span className="sr-only">Align right</span>
+        </button>
+        <button
+          type="button"
+          className={`${button} ${!wrap && !align ? active : ''}`}
+          onClick={() => setPlacement(null)}
+          title="No wrap (normal document flow)"
+          aria-pressed={!wrap && !align}
+        >
+          <TextWrap className="h-4 w-4" aria-hidden="true" />
+          <span className="sr-only">No wrap</span>
         </button>
         <span className="ml-1 px-1 text-[11px] tabular-nums text-text-secondary">{currentWidth}px</span>
       </div>

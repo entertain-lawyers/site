@@ -8,6 +8,8 @@ import { Eye } from 'lucide-react';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import WordPressCredentialsNotice from '@/components/admin/WordPressCredentialsNotice';
 import FeaturedImagePanel from '@/components/admin/FeaturedImagePanel';
+import AuthorSelect from '@/components/admin/AuthorSelect';
+import type { AuthorOption } from '@/lib/content-authors';
 import type { FeaturedImageSelection } from '@/lib/wordpress-media';
 import { writePostPreviewDraft, type PostType } from '@/lib/post-preview';
 import { articleHtmlToEditorHtml, editorHtmlToArticleHtml } from '@/lib/editor-html';
@@ -20,6 +22,7 @@ const POST_TYPE_LABELS: Record<string, string> = {
   OPINION: 'OPINION',
   FACT: 'FACT',
   PERSONALITY: 'PERSONALITY',
+  CASE_LAW: 'CASE LAW',
   NEPALI_SAMANYA_SAMACHAR: 'सामान्य समाचार',
   NEPALI_ADALAT_SAMACHAR: 'अदालत समाचार',
   NEPALI_MUKHYA_SAMACHAR: 'मुख्य समाचार',
@@ -41,6 +44,10 @@ interface EditablePost {
   featuredMediaId: number;
   /** The current featured image, loaded on the server so it survives reloads. */
   featuredImage: FeaturedImageSelection | null;
+  /** Local user linked to WordPress's current author, or '' when unmapped. */
+  currentAuthorUserId: string;
+  /** WordPress's author name when no local user is linked. */
+  currentWpAuthorName: string | null;
 }
 
 const TYPE_OPTIONS: Record<'en' | 'ne', Array<[PostType, string]>> = {
@@ -50,6 +57,7 @@ const TYPE_OPTIONS: Record<'en' | 'ne', Array<[PostType, string]>> = {
     ['OPINION', 'Opinion'],
     ['FACT', 'Historical Fact'],
     ['PERSONALITY', 'Legal Personality'],
+    ['CASE_LAW', 'Case Law'],
   ],
   ne: [
     ['NEPALI_SAMANYA_SAMACHAR', 'Nepali: सामान्य समाचार'],
@@ -63,10 +71,12 @@ const TYPE_OPTIONS: Record<'en' | 'ne', Array<[PostType, string]>> = {
 
 export default function EditPostClient({
   post,
+  authors = [],
   canSave = true,
   uploadBlockedReason = null,
 }: {
   post: EditablePost;
+  authors?: AuthorOption[];
   canSave?: boolean;
   uploadBlockedReason?: string | null;
 }) {
@@ -77,8 +87,16 @@ export default function EditPostClient({
   const [type, setType] = useState<PostType>(post.type as PostType);
   const [isPublished, setIsPublished] = useState(post.status === 'PUBLISHED');
   const [featuredImage, setFeaturedImage] = useState<FeaturedImageSelection | null>(post.featuredImage);
+  const [authorUserId, setAuthorUserId] = useState(post.currentAuthorUserId);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const authorOptions = authors.filter((author) =>
+    post.lang === 'ne' ? author.wpAuthorIdNe !== null : author.wpAuthorIdEn !== null
+  );
+  const selectedAuthorId = authorOptions.some((author) => author.id === authorUserId)
+    ? authorUserId
+    : '';
 
   const handlePreview = () => {
     writePostPreviewDraft({
@@ -114,6 +132,9 @@ export default function EditPostClient({
         type: type === post.type ? undefined : type,
         isPublished,
         lang: post.lang,
+        // Send the author only when one is linked and selected; otherwise keep
+        // WordPress's current author untouched.
+        ...(selectedAuthorId ? { authorUserId: selectedAuthorId } : {}),
         // Only rewrite categories when the admin actually changed the type;
         // otherwise keep WordPress's own categories (including any the type
         // list does not map, such as "विचार").
@@ -198,6 +219,24 @@ export default function EditPostClient({
               <label htmlFor="isPublished" className="block text-sm font-bold text-navy dark:text-white cursor-pointer select-none">
                 Publish immediately
               </label>
+            </div>
+
+            <div>
+              <label htmlFor="author" className="block text-sm font-bold text-navy dark:text-white mb-2">
+                Author
+              </label>
+              <AuthorSelect
+                authors={authorOptions}
+                value={selectedAuthorId}
+                onChange={setAuthorUserId}
+                placeholder={post.currentWpAuthorName ? `Unmapped: ${post.currentWpAuthorName} (WordPress)` : undefined}
+                emptyMessage="No user is linked to a WordPress author on this site yet."
+                hint={
+                  post.currentWpAuthorName
+                    ? `Currently credited to WordPress user “${post.currentWpAuthorName}”, which is not linked to a local account. Saving without choosing an author keeps it.`
+                    : 'The post is published under this person. You remain the editor in the audit log.'
+                }
+              />
             </div>
 
             <MotionButton

@@ -2,11 +2,13 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { ResourceType } from '@prisma/client';
-import { createResourceAction, deleteResourceAction } from '@/modules/admin/admin-resource.actions';
+import { ResourceType, ContentStatus } from '@prisma/client';
+import { createResourceAction, deleteResourceAction, updateResourceAction } from '@/modules/admin/admin-resource.actions';
 import { editorHtmlToArticleHtml } from '@/lib/editor-html';
 import { confirmDocumentUpload, initiateDocumentUpload } from '@/modules/admin/admin-document.actions';
 import RichTextEditor from '@/components/editor/RichTextEditor';
+import AuthorSelect from '@/components/admin/AuthorSelect';
+import type { AuthorOption } from '@/lib/content-authors';
 import { writePostPreviewDraft } from '@/lib/post-preview';
 import { htmlToText } from '@/lib/html';
 import { AnimatePresence, Appear, MotionButton } from '@/components/motion/primitives';
@@ -22,18 +24,41 @@ type SemesterOption = { id: string; name: string };
 type SubjectOption = { id: string; name: string; semesterId: string };
 type UnitOption = { id: string; name: string; subjectId: string };
 
+export type EditableResource = {
+  id: string;
+  title: string;
+  content: string | null;
+  description: string | null;
+  semesterId: string | null;
+  subjectId: string | null;
+  unitId: string | null;
+  type: ResourceType;
+  isPremium: boolean;
+  priceAmount: number | null;
+  status: ContentStatus;
+  authorId: string | null;
+  hasDocument: boolean;
+};
+
 export function AdminResourceForm({
   semesters,
   subjects,
   units,
   canManageLawTypes = false,
+  authors = [],
+  defaultAuthorId = '',
+  resource,
 }: {
   semesters: SemesterOption[];
   subjects: SubjectOption[];
   units: UnitOption[];
   canManageLawTypes?: boolean;
+  authors?: AuthorOption[];
+  defaultAuthorId?: string;
+  resource?: EditableResource;
 }) {
   const router = useRouter();
+  const isEdit = Boolean(resource);
   const [loading, setLoading] = useState(false);
   // Which submit button is saving, so only that one shows progress.
   const [savingAs, setSavingAs] = useState<'DRAFT' | 'PUBLISHED' | null>(null);
@@ -43,21 +68,29 @@ export function AdminResourceForm({
     ? RESOURCE_TYPES
     : RESOURCE_TYPES.filter((type) => type.value !== ResourceType.LAW_NOTE && type.value !== ResourceType.CASE_LAW);
 
-  const [title, setTitle] = useState('');
-  const [description] = useState(''); // Maybe optional now
-  const [semesterId, setSemesterId] = useState('');
-  const [subjectId, setSubjectId] = useState('');
+  // Editing an existing resource loads its values; creating starts blank.
+  const initialType = resource?.type ?? availableTypes[0].value;
+  const [title, setTitle] = useState(resource?.title ?? '');
+  const [description] = useState(resource?.description ?? '');
+  const [semesterId, setSemesterId] = useState(resource?.semesterId ?? '');
+  const [subjectId, setSubjectId] = useState(resource?.subjectId ?? '');
   // Editors cannot create law notes/case laws, so start on a type they can use.
-  const [resourceType, setResourceType] = useState<ResourceType>(availableTypes[0].value);
-  const [unitId, setUnitId] = useState('');
-  const [isPremium, setIsPremium] = useState(false);
-  const [priceAmount, setPriceAmount] = useState('');
+  const [resourceType, setResourceType] = useState<ResourceType>(initialType);
+  const [unitId, setUnitId] = useState(resource?.unitId ?? '');
+  const [isPremium, setIsPremium] = useState(resource?.isPremium ?? false);
+  const [priceAmount, setPriceAmount] = useState(
+    resource?.priceAmount ? String(resource.priceAmount / 100) : ''
+  );
+  const [authorUserId, setAuthorUserId] = useState(resource?.authorId ?? defaultAuthorId);
 
-  // Mode selection: 'PDF' or 'NOTE'
-  const [uploadMode, setUploadMode] = useState<'PDF' | 'NOTE'>('PDF');
+  // Mode selection: 'PDF' or 'NOTE'. An existing PDF keeps its document, and a
+  // resource without a PDF is edited as a written note.
+  const [uploadMode, setUploadMode] = useState<'PDF' | 'NOTE'>(
+    resource ? (resource.hasDocument ? 'PDF' : 'NOTE') : 'PDF'
+  );
 
   const [file, setFile] = useState<File | null>(null);
-  const [content, setContent] = useState('');
+  const [content, setContent] = useState(resource?.content ?? '');
 
   // Filter subjects by selected semester
   const filteredSubjects = useMemo(
@@ -90,13 +123,15 @@ export function AdminResourceForm({
     const status = submitter?.value === 'DRAFT' ? 'DRAFT' : 'PUBLISHED';
 
     if (uploadMode === 'PDF') {
-      if (!file) {
-        setError('Please select a PDF file');
-        return;
-      }
-      if (file.type !== 'application/pdf') {
-        setError('Only PDF files are allowed');
-        return;
+      if (!isEdit) {
+        if (!file) {
+          setError('Please select a PDF file');
+          return;
+        }
+        if (file.type !== 'application/pdf') {
+          setError('Only PDF files are allowed');
+          return;
+        }
       }
     } else {
       // Quill's semantic HTML renders an empty editor as <p></p>, so
@@ -116,6 +151,31 @@ export function AdminResourceForm({
     let createdResourceId: string | null = null;
 
     try {
+      if (resource) {
+        const updateRes = await updateResourceAction({
+          id: resource.id,
+          title,
+          description,
+          subjectId: resourceType === ResourceType.OLD_QUESTION ? undefined : subjectId,
+          semesterId: resourceType === ResourceType.OLD_QUESTION ? semesterId : undefined,
+          isPremium,
+          priceAmount: isPremium ? parseFloat(priceAmount) * 100 : undefined,
+          type: resourceType,
+          unitId: (resourceType === ResourceType.OLD_QUESTION ? undefined : unitId) || undefined,
+          content: uploadMode === 'NOTE' ? editorHtmlToArticleHtml(content) : undefined,
+          status: status as ContentStatus,
+          authorUserId: authorUserId || undefined,
+        });
+
+        if (!updateRes.success) {
+          throw new Error(updateRes.error || 'Failed to update resource');
+        }
+
+        router.push('/admin/study/resources');
+        router.refresh();
+        return;
+      }
+
       // 1. Create Resource
       const createRes = await createResourceAction({
         title,
@@ -129,6 +189,7 @@ export function AdminResourceForm({
         // Quill writes one <p> per line; store real paragraphs, as /read renders them.
         content: uploadMode === 'NOTE' ? editorHtmlToArticleHtml(content) : undefined,
         status,
+        authorUserId: authorUserId || undefined,
       });
 
       if (!createRes.success) {
@@ -219,7 +280,8 @@ export function AdminResourceForm({
       )}
       </AnimatePresence>
 
-      {/* Upload Mode Toggle */}
+      {/* Upload Mode Toggle (not used while editing an existing file) */}
+      {!isEdit && (
       <div className="flex bg-slate-100 dark:bg-zinc-800 p-1 rounded-xl w-fit">
         <button
           type="button"
@@ -244,6 +306,7 @@ export function AdminResourceForm({
           Write Note
         </button>
       </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
@@ -254,6 +317,17 @@ export function AdminResourceForm({
             value={title}
             onChange={e => setTitle(e.target.value)}
             className="w-full rounded-xl border border-black/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="author" className="block text-sm font-bold text-navy dark:text-white mb-2">Author</label>
+          <AuthorSelect
+            authors={authors}
+            value={authorUserId}
+            onChange={setAuthorUserId}
+            emptyMessage="No eligible author accounts found."
+            hint="Shown as the resource author. The creator is recorded separately."
           />
         </div>
 
@@ -361,6 +435,12 @@ export function AdminResourceForm({
 
       {uploadMode === 'PDF' ? (
         <div className="pt-6 border-t border-black/10 dark:border-white/10">
+          {isEdit ? (
+            <p className="text-sm text-text-secondary">
+              This resource&apos;s PDF document stays attached. To replace the file, create a new resource and archive this one.
+            </p>
+          ) : (
+            <>
           <label className="block text-sm font-bold text-navy dark:text-white mb-4">Upload PDF Document</label>
           <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-black/10 border-dashed rounded-2xl bg-slate-50 dark:bg-zinc-950 hover:bg-slate-100 transition-colors">
             <div className="space-y-1 text-center">
@@ -378,6 +458,8 @@ export function AdminResourceForm({
             </div>
           </div>
           {file && <p className="mt-2 text-sm text-gray-600">Selected file: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</p>}
+            </>
+          )}
         </div>
       ) : (
         <div className="pt-6 border-t border-black/10 dark:border-white/10">
@@ -412,7 +494,11 @@ export function AdminResourceForm({
           disabled={loading}
           className="flex-1 py-4 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-accent hover:bg-accent/90 transition-[background-color,border-color,color,box-shadow,opacity] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent disabled:opacity-50"
         >
-          {savingAs === 'PUBLISHED' ? 'Creating Resource...' : 'Create & Publish'}
+          {savingAs === 'PUBLISHED'
+            ? 'Saving...'
+            : isEdit
+              ? 'Save & Publish'
+              : 'Create & Publish'}
         </MotionButton>
       </div>
     </form>
