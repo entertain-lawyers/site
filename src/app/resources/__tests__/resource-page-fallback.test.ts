@@ -129,4 +129,56 @@ describe('ResourcePage and ReadResourcePage migration 20261101000000 fallback re
     expect(secondCall.select.authorId).toBeUndefined();
     expect(secondCall.select.createdById).toBeUndefined();
   });
+
+  it('ResourcePage re-throws unrelated database errors', async () => {
+    (prisma.resource.findUnique as any).mockRejectedValue(new Error('Connection terminated unexpectedly'));
+
+    await expect(
+      ResourcePage({
+        params: Promise.resolve({ id: 'res-pub-1' }),
+      })
+    ).rejects.toThrow('Connection terminated unexpectedly');
+  });
+
+  it('ResourcePage re-throws P2022 when an unrelated column is missing', async () => {
+    (prisma.resource.findUnique as any).mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('column Resource.unrelatedField does not exist', {
+        code: 'P2022',
+        clientVersion: 'test',
+        meta: { column: 'Resource.unrelatedField' },
+      })
+    );
+
+    await expect(
+      ResourcePage({
+        params: Promise.resolve({ id: 'res-pub-1' }),
+      })
+    ).rejects.toThrow(/unrelatedField/);
+  });
+
+  it('ReadResourcePage re-throws unrelated database errors', async () => {
+    (prisma.resource.findUnique as any).mockRejectedValue(new Error('Connection terminated unexpectedly'));
+
+    await expect(
+      ReadResourcePage({
+        params: Promise.resolve({ resourceId: 'res-read-1' }),
+      })
+    ).rejects.toThrow('Connection terminated unexpectedly');
+  });
+
+  it('ReadResourcePage re-throws P2022 when an unrelated column is missing', async () => {
+    (prisma.resource.findUnique as any).mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('column Resource.unrelatedField does not exist', {
+        code: 'P2022',
+        clientVersion: 'test',
+        meta: { column: 'Resource.unrelatedField' },
+      })
+    );
+
+    await expect(
+      ReadResourcePage({
+        params: Promise.resolve({ resourceId: 'res-read-1' }),
+      })
+    ).rejects.toThrow(/unrelatedField/);
+  });
 });
