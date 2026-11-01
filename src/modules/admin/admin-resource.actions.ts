@@ -9,6 +9,18 @@ import { deleteObject } from '@/lib/b2';
 import { revalidatePath } from 'next/cache';
 import { resolveLocalAuthor } from '@/lib/content-authors';
 
+/**
+ * Explicit minimal select fields required after creating or updating a resource.
+ * Restricting returned fields prevents Prisma from querying unavailable columns
+ * (e.g. authorId, createdById) when migrations are pending.
+ */
+const RESOURCE_MUTATION_SELECT = {
+  id: true,
+  title: true,
+  type: true,
+  status: true,
+} as const;
+
 const createResourceSchema = z.object({
   title: z.string().min(3),
   description: z.string().max(5000).optional(),
@@ -85,7 +97,8 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
           status: input.status,
           authorId,
           createdById: session.userId ?? null,
-        }
+        },
+        select: RESOURCE_MUTATION_SELECT,
       });
     } catch (createError) {
       if (!isSpecificMissingColumnError(createError, ['authorId', 'createdById'])) {
@@ -114,7 +127,8 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
           type: resourceType,
           unitId: input.unitId || null,
           status: input.status,
-        }
+        },
+        select: RESOURCE_MUTATION_SELECT,
       });
     }
 
@@ -431,7 +445,8 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
           unitId: input.unitId || null,
           status: input.status,
           ...(input.authorUserId ? { authorId: input.authorUserId } : {}),
-        }
+        },
+        select: RESOURCE_MUTATION_SELECT,
       });
     } catch (updateError) {
       if (!isSpecificMissingColumnError(updateError, ['authorId', 'createdById'])) {
@@ -461,7 +476,8 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
           type: input.type,
           unitId: input.unitId || null,
           status: input.status,
-        }
+        },
+        select: RESOURCE_MUTATION_SELECT,
       });
     }
 

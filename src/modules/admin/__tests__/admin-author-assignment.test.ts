@@ -166,6 +166,7 @@ import { createPostAction, updatePostAction } from '@/modules/admin/admin-post.a
 import { createResourceAction, updateResourceAction } from '@/modules/admin/admin-resource.actions';
 import { updateUserAction } from '@/modules/admin/admin-user.actions';
 import { createWordPressPost, updateWordPressPost } from '@/lib/wordpress';
+import { getInitialResourceAuthorId, getSubmittedResourceAuthorId } from '@/components/admin/resource-form-author';
 
 describe('Author Assignment & Attribution Suite', () => {
   beforeEach(() => {
@@ -801,6 +802,180 @@ describe('Author Assignment & Attribution Suite', () => {
       }
 
       (prisma.resource.create as any).mockImplementation(originalCreate);
+    });
+
+    it('updateResourceAction falls back to base fields and succeeds when authorUserId is omitted and migration is pending', async () => {
+      const originalUpdate = (prisma.resource.update as any).getMockImplementation();
+      const updateCalls: any[] = [];
+
+      (prisma.resource.update as any).mockImplementation(async (args: any) => {
+        updateCalls.push(args);
+        // Simulate missing authorId column on first attempt
+        if (updateCalls.length === 1) {
+          throw new Prisma.PrismaClientKnownRequestError('column Resource.authorId does not exist', {
+            code: 'P2022',
+            clientVersion: 'test',
+            meta: { column: 'Resource.authorId' },
+          });
+        }
+        mockUpdatedResource = { id: args.where.id, ...args.data };
+        return mockUpdatedResource;
+      });
+
+      const result = await updateResourceAction({
+        id: 'res-update-fallback-1',
+        title: 'Updated Title',
+        subjectId: 'a0000000-0000-0000-0000-000000000001',
+        type: ResourceType.OTHER,
+        isPremium: false,
+        status: ContentStatus.PUBLISHED,
+        // authorUserId is omitted (like form submits when authorMappingAvailable is false)
+      });
+
+      expect(result.success).toBe(true);
+      expect(updateCalls.length).toBe(2);
+      // Both attempts must use explicit minimal select fields
+      expect(updateCalls[0].select).toEqual({
+        id: true,
+        title: true,
+        type: true,
+        status: true,
+      });
+      expect(updateCalls[1].select).toEqual({
+        id: true,
+        title: true,
+        type: true,
+        status: true,
+      });
+      // Fallback data must not contain authorId
+      expect(updateCalls[1].data.authorId).toBeUndefined();
+
+      (prisma.resource.update as any).mockImplementation(originalUpdate);
+    });
+
+    it('createResourceAction explicitly supplies RESOURCE_MUTATION_SELECT on both primary and fallback create queries', async () => {
+      const originalCreate = (prisma.resource.create as any).getMockImplementation();
+      const createCalls: any[] = [];
+
+      (prisma.resource.create as any).mockImplementation(async (args: any) => {
+        createCalls.push(args);
+        if (createCalls.length === 1) {
+          throw new Prisma.PrismaClientKnownRequestError('column Resource.authorId does not exist', {
+            code: 'P2022',
+            clientVersion: 'test',
+            meta: { column: 'Resource.authorId' },
+          });
+        }
+        mockCreatedResource = { id: 'res-new-select-test', ...args.data };
+        return mockCreatedResource;
+      });
+
+      const result = await createResourceAction({
+        title: 'Resource With Minimal Select',
+        subjectId: 'a0000000-0000-0000-0000-000000000001',
+        type: ResourceType.OTHER,
+        isPremium: false,
+        status: ContentStatus.PUBLISHED,
+      });
+
+      expect(result.success).toBe(true);
+      expect(createCalls.length).toBe(2);
+      // Both attempts must use explicit minimal select fields
+      expect(createCalls[0].select).toEqual({
+        id: true,
+        title: true,
+        type: true,
+        status: true,
+      });
+      expect(createCalls[1].select).toEqual({
+        id: true,
+        title: true,
+        type: true,
+        status: true,
+      });
+
+      (prisma.resource.create as any).mockImplementation(originalCreate);
+    });
+
+    describe('AdminResourceForm author assignment regression tests', () => {
+      it('create mode: never submits authorUserId when migration is pending', () => {
+        const initial = getInitialResourceAuthorId({
+          authorMappingAvailable: false,
+          isEdit: false,
+          defaultAuthorId: 'user-current-admin',
+        });
+        expect(initial).toBe('');
+
+        // Even if state had a default author id, submitted payload must be undefined
+        const submitted = getSubmittedResourceAuthorId({
+          authorMappingAvailable: false,
+          authorUserId: 'user-current-admin',
+        });
+        expect(submitted).toBeUndefined();
+      });
+
+      it('edit mode: never submits authorUserId when migration is pending', () => {
+        const initial = getInitialResourceAuthorId({
+          authorMappingAvailable: false,
+          resourceAuthorId: 'user-author-existing',
+          isEdit: true,
+          defaultAuthorId: 'user-current-admin',
+        });
+        expect(initial).toBe('');
+
+        const submitted = getSubmittedResourceAuthorId({
+          authorMappingAvailable: false,
+          authorUserId: 'user-author-existing',
+        });
+        expect(submitted).toBeUndefined();
+      });
+
+      it('create mode: keeps normal default-author selection when mapping is available', () => {
+        const initial = getInitialResourceAuthorId({
+          authorMappingAvailable: true,
+          isEdit: false,
+          defaultAuthorId: 'user-current-admin',
+        });
+        expect(initial).toBe('user-current-admin');
+
+        const submitted = getSubmittedResourceAuthorId({
+          authorMappingAvailable: true,
+          authorUserId: initial,
+        });
+        expect(submitted).toBe('user-current-admin');
+      });
+
+      it('edit mode: preserves existing author attribution during normal edits', () => {
+        const initial = getInitialResourceAuthorId({
+          authorMappingAvailable: true,
+          resourceAuthorId: 'user-author-original',
+          isEdit: true,
+          defaultAuthorId: 'user-current-admin',
+        });
+        expect(initial).toBe('user-author-original');
+
+        const submitted = getSubmittedResourceAuthorId({
+          authorMappingAvailable: true,
+          authorUserId: initial,
+        });
+        expect(submitted).toBe('user-author-original');
+      });
+
+      it('edit mode: preserves unassigned author attribution during normal edits', () => {
+        const initial = getInitialResourceAuthorId({
+          authorMappingAvailable: true,
+          resourceAuthorId: null,
+          isEdit: true,
+          defaultAuthorId: 'user-current-admin',
+        });
+        expect(initial).toBe('');
+
+        const submitted = getSubmittedResourceAuthorId({
+          authorMappingAvailable: true,
+          authorUserId: initial,
+        });
+        expect(submitted).toBeUndefined();
+      });
     });
   });
 });
