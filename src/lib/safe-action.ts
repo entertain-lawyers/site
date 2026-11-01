@@ -50,20 +50,23 @@ function toPublicErrorMessage(error: unknown): string {
     return GENERIC_ERROR;
   }
 
+  const lower = message.toLowerCase();
   const isSafeMessage =
-    message.includes("Unauthorized") ||
-    message.includes("Forbidden") ||
-    message.includes("not found") ||
-    message.includes("already") ||
-    message.includes("Cannot") ||
-    message.includes("Invalid") ||
-    message.includes("must") ||
-    message.includes("required") ||
-    message.includes("expired") ||
-    message.includes("Too many") ||
-    message.includes("WordPress") ||
-    message.includes("do not have access") ||
-    message.includes("do not have permission");
+    lower.includes("unauthorized") ||
+    lower.includes("forbidden") ||
+    lower.includes("not found") ||
+    lower.includes("already") ||
+    lower.includes("cannot") ||
+    lower.includes("invalid") ||
+    lower.includes("must") ||
+    lower.includes("required") ||
+    lower.includes("expired") ||
+    lower.includes("too many") ||
+    lower.includes("too small") ||
+    lower.includes("too big") ||
+    lower.includes("wordpress") ||
+    lower.includes("do not have access") ||
+    lower.includes("do not have permission");
 
   return isSafeMessage ? message : GENERIC_ERROR;
 }
@@ -77,7 +80,7 @@ function toPublicErrorMessage(error: unknown): string {
 export function parseOrThrow<T extends z.ZodTypeAny>(schema: T, args: unknown): z.infer<T> {
   const parsed = schema.safeParse(args);
   if (!parsed.success) {
-    throw new Error(`Invalid input: ${parsed.error.issues[0]?.message || "please check the form"}`);
+    throw new UserFacingError(`Invalid input: ${parsed.error.issues[0]?.message || "please check the form"}`);
   }
   return parsed.data;
 }

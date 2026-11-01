@@ -11,15 +11,15 @@ import { isRecordInUseError, isRecordNotFoundError, isUniqueConstraintError } fr
 import { isContentAuthorRole } from '@/lib/content-authors';
 
 const createUserSchema = z.object({
-  email: z.string().trim().email(),
-  password: z.string().min(8),
+  email: z.string().trim().email('Invalid email address'),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(128, 'Password must not exceed 128 characters'),
   role: z.nativeEnum(Role),
 });
 
 const updateUserSchema = z.object({
   id: z.string().min(1),
-  email: z.string().trim().email().optional(),
-  password: z.string().min(6).optional().or(z.literal('')),
+  email: z.string().trim().email('Invalid email address').optional(),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(128, 'Password must not exceed 128 characters').optional().or(z.literal('')),
   role: z.nativeEnum(Role).optional(),
   // WP-parity profile fields (user-edit screen)
   firstName: z.string().max(100).optional(),
@@ -52,18 +52,18 @@ async function assertNotLastAdmin(targetId: string) {
     where: { role: Role.ADMIN, id: { not: targetId } },
   });
   if (otherAdmins === 0) {
-    throw new Error('Cannot remove the last admin account.');
+    throw new UserFacingError('Cannot remove the last admin account.');
   }
 }
 
 export const createUserAction = createSafeAction(async (args: z.infer<typeof createUserSchema>, session) => {
   if (session.role !== Role.ADMIN) {
-    throw new Error('Unauthorized');
+    throw new UserFacingError('Unauthorized');
   }
 
   const parsed = createUserSchema.safeParse(args);
   if (!parsed.success) {
-    throw new Error(parsed.error.issues[0]?.message || 'Invalid user details');
+    throw new UserFacingError(parsed.error.issues[0]?.message || 'Invalid user details');
   }
 
   const email = normalizeEmail(parsed.data.email);
@@ -73,45 +73,65 @@ export const createUserAction = createSafeAction(async (args: z.infer<typeof cre
     select: { id: true },
   });
   if (existing) {
-    throw new Error('User with this email already exists');
+    throw new UserFacingError('User with this email already exists');
   }
 
   const hashedPassword = await bcrypt.hash(parsed.data.password, 12);
 
-  const created = await prisma.user.create({
-    data: {
-      email,
-      passwordHash: hashedPassword,
-      role: parsed.data.role,
-      isEmailVerified: true,
-    },
-    select: { id: true, email: true, role: true },
-  });
+  let created;
+  try {
+    created = await prisma.user.create({
+      data: {
+        email,
+        passwordHash: hashedPassword,
+        role: parsed.data.role,
+        isEmailVerified: true,
+        emailVerified: new Date(),
+      },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        image: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      throw new UserFacingError('User with this email already exists');
+    }
+    throw error;
+  }
 
   // Role changes and account creation are the highest-risk admin operations;
   // keep an audit trail of who did what.
-  await prisma.auditLog.create({
-    data: {
-      userId: session.userId,
-      action: 'CREATE',
-      entityType: 'USER',
-      entityId: created.id,
-      details: { email: created.email, role: created.role },
-    },
-  });
+  try {
+    await prisma.auditLog.create({
+      data: {
+        userId: session.userId,
+        action: 'CREATE',
+        entityType: 'USER',
+        entityId: created.id,
+        details: { email: created.email, role: created.role },
+      },
+    });
+  } catch (auditError) {
+    console.error('[AdminUsers] User created but audit log write failed:', auditError);
+  }
 
   revalidatePath('/admin/users');
-  return { success: true };
+  return { success: true, user: created };
 });
 
 export const updateUserAction = createSafeAction(async (args: z.infer<typeof updateUserSchema>, session) => {
   if (session.role !== Role.ADMIN) {
-    throw new Error('Unauthorized');
+    throw new UserFacingError('Unauthorized');
   }
 
   const parsed = updateUserSchema.safeParse(args);
   if (!parsed.success) {
-    throw new Error(parsed.error.issues[0]?.message || 'Invalid user details');
+    throw new UserFacingError(parsed.error.issues[0]?.message || 'Invalid user details');
   }
 
   const input = parsed.data;
@@ -119,7 +139,7 @@ export const updateUserAction = createSafeAction(async (args: z.infer<typeof upd
     where: { id: input.id },
     select: { id: true, email: true, role: true },
   });
-  if (!targetUser) throw new Error('User not found');
+  if (!targetUser) throw new UserFacingError('User not found');
 
   const updateData: Prisma.UserUpdateInput = {};
 
@@ -210,9 +230,9 @@ export const updateUserAction = createSafeAction(async (args: z.infer<typeof upd
       if (Array.isArray(target) && target.includes('wpAuthorIdNe')) {
         throw new UserFacingError('That Nepali WordPress author is already mapped to another user.');
       }
-      throw new Error('User with this email already exists');
+      throw new UserFacingError('User with this email already exists');
     }
-    if (isRecordNotFoundError(error)) throw new Error('User not found');
+    if (isRecordNotFoundError(error)) throw new UserFacingError('User not found');
 
     // If migration 20261027150000_add_user_profile_fields has not been deployed yet,
     // gracefully retry with only base fields (email, role, password, name, image).
@@ -232,8 +252,8 @@ export const updateUserAction = createSafeAction(async (args: z.infer<typeof upd
         select: { id: true },
       });
     } catch (retryError) {
-      if (isUniqueConstraintError(retryError)) throw new Error('User with this email already exists');
-      if (isRecordNotFoundError(retryError)) throw new Error('User not found');
+      if (isUniqueConstraintError(retryError)) throw new UserFacingError('User with this email already exists');
+      if (isRecordNotFoundError(retryError)) throw new UserFacingError('User not found');
       throw retryError;
     }
   }
@@ -268,12 +288,12 @@ export const updateUserAction = createSafeAction(async (args: z.infer<typeof upd
 
 export const deleteUserAction = createSafeAction(async (args: z.infer<typeof deleteUserSchema>, session) => {
   if (session.role !== Role.ADMIN) {
-    throw new Error('Unauthorized');
+    throw new UserFacingError('Unauthorized');
   }
 
   const parsed = deleteUserSchema.safeParse(args);
   if (!parsed.success) {
-    throw new Error('Invalid user id');
+    throw new UserFacingError('Invalid user id');
   }
 
   const { id } = parsed.data;
@@ -286,7 +306,7 @@ export const deleteUserAction = createSafeAction(async (args: z.infer<typeof del
     where: { id },
     select: { id: true, email: true, role: true },
   });
-  if (!targetUser) throw new Error('User not found');
+  if (!targetUser) throw new UserFacingError('User not found');
 
   if (targetUser.email === 'admin@entertainlawyers.com') {
     throw new UserFacingError('The main admin account cannot be deleted.');
@@ -304,19 +324,23 @@ export const deleteUserAction = createSafeAction(async (args: z.infer<typeof del
     if (isRecordInUseError(error)) {
       throw new UserFacingError('This user has related sessions, content, payments, entitlements, or logs and cannot be deleted safely. Disable or change their role instead.');
     }
-    if (isRecordNotFoundError(error)) throw new Error('User not found');
+    if (isRecordNotFoundError(error)) throw new UserFacingError('User not found');
     throw error;
   }
 
-  await prisma.auditLog.create({
-    data: {
-      userId: session.userId,
-      action: 'DELETE',
-      entityType: 'USER',
-      entityId: targetUser.id,
-      details: { email: targetUser.email, role: targetUser.role },
-    },
-  });
+  try {
+    await prisma.auditLog.create({
+      data: {
+        userId: session.userId,
+        action: 'DELETE',
+        entityType: 'USER',
+        entityId: targetUser.id,
+        details: { email: targetUser.email, role: targetUser.role },
+      },
+    });
+  } catch (auditError) {
+    console.error('[AdminUsers] User deleted but audit log write failed:', auditError);
+  }
 
   revalidatePath('/admin/users');
   return { success: true };

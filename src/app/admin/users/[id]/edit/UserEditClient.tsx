@@ -129,6 +129,10 @@ export default function UserEditClient({
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (password && password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
     setSaving(true);
     setError('');
     setSuccess('');
@@ -258,11 +262,13 @@ export default function UserEditClient({
                 id="password"
                 type="password"
                 value={password}
-                minLength={showPasswordFields ? 6 : undefined}
+                minLength={showPasswordFields ? 8 : undefined}
+                placeholder="At least 8 characters (or leave blank)"
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="new-password"
                 className={inputClass}
               />
+              <p className="mt-1 text-xs text-text-secondary">Leave blank to keep current password, or enter at least 8 characters.</p>
             </div>
           </div>
         </section>
