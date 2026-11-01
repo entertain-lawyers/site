@@ -12,14 +12,14 @@ import { isContentAuthorRole } from '@/lib/content-authors';
 
 const createUserSchema = z.object({
   email: z.string().trim().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(128, 'Password must not exceed 128 characters'),
   role: z.nativeEnum(Role),
 });
 
 const updateUserSchema = z.object({
   id: z.string().min(1),
   email: z.string().trim().email('Invalid email address').optional(),
-  password: z.string().min(8, 'Password must be at least 8 characters').optional().or(z.literal('')),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(128, 'Password must not exceed 128 characters').optional().or(z.literal('')),
   role: z.nativeEnum(Role).optional(),
   // WP-parity profile fields (user-edit screen)
   firstName: z.string().max(100).optional(),
@@ -86,6 +86,7 @@ export const createUserAction = createSafeAction(async (args: z.infer<typeof cre
         passwordHash: hashedPassword,
         role: parsed.data.role,
         isEmailVerified: true,
+        emailVerified: new Date(),
       },
       select: {
         id: true,

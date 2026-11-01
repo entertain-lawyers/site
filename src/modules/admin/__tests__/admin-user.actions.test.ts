@@ -35,6 +35,8 @@ type MockUser = {
   image?: string | null;
   createdAt: Date;
   sessionVersion?: number;
+  emailVerified?: Date | null;
+  isEmailVerified?: boolean;
 };
 
 let mockUsers: MockUser[] = [];
@@ -84,6 +86,8 @@ vi.mock('@/lib/prisma', () => ({
           image: data.image ?? null,
           createdAt: new Date(),
           sessionVersion: 0,
+          emailVerified: data.emailVerified ?? null,
+          isEmailVerified: data.isEmailVerified ?? false,
         };
         mockUsers.push(newUser);
         return newUser;
@@ -255,6 +259,74 @@ describe('admin-user.actions', () => {
       }
     });
 
+    it('creates a user with an exact 8-character password boundary', async () => {
+      const result = await createUserAction({
+        email: 'boundary@example.com',
+        password: '12345678',
+        role: Role.USER,
+      });
+
+      expect(result.success).toBe(true);
+      const created = mockUsers.find((u) => u.email === 'boundary@example.com');
+      expect(created).toBeDefined();
+      expect(created?.role).toBe(Role.USER);
+      expect(created?.isEmailVerified).toBe(true);
+      expect(created?.emailVerified).toBeInstanceOf(Date);
+    });
+
+    it('creates an admin user when requested by another admin', async () => {
+      const result = await createUserAction({
+        email: 'newadmin@example.com',
+        password: 'adminpassword123',
+        role: Role.ADMIN,
+      });
+
+      expect(result.success).toBe(true);
+      const created = mockUsers.find((u) => u.email === 'newadmin@example.com');
+      expect(created).toBeDefined();
+      expect(created?.role).toBe(Role.ADMIN);
+    });
+
+    it('rejects passwords exceeding 128 characters', async () => {
+      const result = await createUserAction({
+        email: 'longpw@example.com',
+        password: 'a'.repeat(129),
+        role: Role.USER,
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toBe('Password must not exceed 128 characters');
+      }
+    });
+
+    it('rejects invalid role selection', async () => {
+      const result = await createUserAction({
+        email: 'invalidrole@example.com',
+        password: 'password123',
+        role: 'SUPERADMIN' as any,
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toContain('Invalid option');
+      }
+    });
+
+    it('rejects unauthenticated requests (null session)', async () => {
+      currentSession = null;
+      const result = await createUserAction({
+        email: 'anon@example.com',
+        password: 'password123',
+        role: Role.USER,
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toBe('Unauthorized');
+      }
+    });
+
     it('succeeds even if audit log creation fails (resilience)', async () => {
       failAuditLog = true;
       const result = await createUserAction({
@@ -293,6 +365,34 @@ describe('admin-user.actions', () => {
       expect(updated?.passwordHash).toBe('hashed_newstrongpassword');
       expect(updated?.sessionVersion).toBe(1);
     });
+
+    it('allows empty password string without changing existing password or session version', async () => {
+      const original = mockUsers.find((u) => u.id === '33333333-3333-4333-8333-333333333333');
+      const originalHash = original?.passwordHash;
+      const originalVersion = original?.sessionVersion;
+
+      const result = await updateUserAction({
+        id: '33333333-3333-4333-8333-333333333333',
+        password: '',
+      });
+
+      expect(result.success).toBe(true);
+      const updated = mockUsers.find((u) => u.id === '33333333-3333-4333-8333-333333333333');
+      expect(updated?.passwordHash).toBe(originalHash);
+      expect(updated?.sessionVersion).toBe(originalVersion);
+    });
+
+    it('rejects update passwords exceeding 128 characters', async () => {
+      const result = await updateUserAction({
+        id: '33333333-3333-4333-8333-333333333333',
+        password: 'p'.repeat(129),
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toBe('Password must not exceed 128 characters');
+      }
+    });
   });
 
   describe('deleteUserAction', () => {
@@ -318,6 +418,22 @@ describe('admin-user.actions', () => {
       if (!result.success) {
         expect(result.error).toBe('The main admin account cannot be deleted.');
       }
+    });
+
+    it('succeeds even if audit log creation fails (resilience on delete)', async () => {
+      failAuditLog = true;
+      currentSession = {
+        user: {
+          id: '11111111-1111-4111-8111-111111111111',
+          email: 'admin@entertainlawyers.com',
+          role: Role.ADMIN,
+        },
+      };
+
+      const result = await deleteUserAction({ id: '33333333-3333-4333-8333-333333333333' });
+      expect(result.success).toBe(true);
+      const deleted = mockUsers.find((u) => u.id === '33333333-3333-4333-8333-333333333333');
+      expect(deleted).toBeUndefined();
     });
   });
 });

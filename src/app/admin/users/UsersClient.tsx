@@ -110,7 +110,7 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
     try {
       const res = await deleteUserAction({ id });
       if (!res.success) throw new Error(res.error);
-      setUsers(users.filter(u => u.id !== id));
+      setUsers((prev) => prev.filter((u) => u.id !== id));
       router.refresh();
     } catch (err) {
       alert((err as Error).message || 'Failed to delete user');
@@ -265,7 +265,7 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
                     placeholder="Confirm your password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full rounded-xl bg-slate-50 dark:bg-zinc-950 border border-black/10 px-4 py-3 text-navy dark:text-white focus:border-accent focus:ring-1 focus:ring-accent pr-12"
+                    className="w-full rounded-xl bg-slate-50 dark:bg-zinc-950 border border-black/10 px-4 py-3 text-navy dark:text-white focus:border-accent focus:ring-1 focus:ring-accent"
                   />
                 </div>
               </div>
