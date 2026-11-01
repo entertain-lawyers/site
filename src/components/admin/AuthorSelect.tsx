@@ -96,6 +96,11 @@ export default function AuthorSelect({
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                // Enter would submit the surrounding post/resource form.
+                if (event.key === 'Enter') event.preventDefault();
+                if (event.key === 'Escape') setOpen(false);
+              }}
               placeholder="Search authors"
               aria-label="Search authors"
               className="w-full bg-transparent py-1 text-sm text-navy outline-none placeholder:text-text-muted dark:text-white"
