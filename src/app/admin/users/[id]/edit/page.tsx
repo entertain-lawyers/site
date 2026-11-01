@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation';
 import { Role } from '@prisma/client';
 import { Metadata } from 'next';
 import UserEditClient from './UserEditClient';
+import { listWordPressAuthorsSafe } from '@/lib/content-authors';
 
 export const metadata: Metadata = {
   title: 'Edit User - Admin',
@@ -39,6 +40,8 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
     website?: string | null;
     image: string | null;
     role: Role;
+    wpAuthorIdEn?: number | null;
+    wpAuthorIdNe?: number | null;
   } | null = null;
 
   try {
@@ -55,6 +58,8 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
         website: true,
         image: true,
         role: true,
+        wpAuthorIdEn: true,
+        wpAuthorIdNe: true,
       },
     });
   } catch {
@@ -72,6 +77,13 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
   }
 
   if (!user) return notFound();
+
+  // Explicit WordPress mappings. The API user can list names but not roles or
+  // emails, so an admin chooses the match here instead of us guessing.
+  const [wpAuthorsEn, wpAuthorsNe] = await Promise.all([
+    listWordPressAuthorsSafe('en'),
+    listWordPressAuthorsSafe('ne'),
+  ]);
 
   // "Display name publicly as" candidates, mirroring the WP dropdown:
   // nickname, first name, first + last, last name, email handle, current name.
@@ -98,8 +110,16 @@ export default async function EditUserPage({ params }: { params: Promise<{ id: s
         website: user.website ?? null,
         image: user.image ?? null,
         role: user.role,
+        wpAuthorIdEn: user.wpAuthorIdEn ?? null,
+        wpAuthorIdNe: user.wpAuthorIdNe ?? null,
       }}
       displayOptions={displayOptions}
+      wpAuthors={{
+        en: wpAuthorsEn.authors,
+        enError: wpAuthorsEn.error,
+        ne: wpAuthorsNe.authors,
+        neError: wpAuthorsNe.error,
+      }}
     />
   );
 }

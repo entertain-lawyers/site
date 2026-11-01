@@ -133,6 +133,8 @@ export interface WordPressCreatePostInput {
   categories?: number[];
   tags?: number[];
   featured_media?: number;
+  /** WordPress user id to publish as (not a local user id). */
+  author?: number;
   slug?: string;
 }
 
@@ -143,7 +145,15 @@ export interface WordPressUpdatePostInput {
   categories?: number[];
   tags?: number[];
   featured_media?: number;
+  /** WordPress user id to publish as (not a local user id). */
+  author?: number;
   slug?: string;
+}
+
+export interface WordPressAuthor {
+  id: number;
+  name: string;
+  slug: string;
 }
 
 /**
@@ -156,36 +166,63 @@ export function getWordPressBaseUrl(lang: WordPressLanguage = 'en'): string {
   return (process.env.WP_ENGLISH_URL || 'https://entertainlawyers.com/wp-json/wp/v2').replace(/\/+$/, '');
 }
 
-export function hasWordPressCredentials(): boolean {
-  return Boolean(
-    process.env.WP_AUTH_HEADER ||
-      (process.env.WP_AUTH_USERNAME && process.env.WP_AUTH_APP_PASSWORD)
-  );
+const SHARED_AUTH_ENV = {
+  header: 'WP_AUTH_HEADER',
+  username: 'WP_AUTH_USERNAME',
+  password: 'WP_AUTH_APP_PASSWORD',
+} as const;
+
+const NEPALI_AUTH_ENV = {
+  header: 'WP_NEPALI_AUTH_HEADER',
+  username: 'WP_NEPALI_AUTH_USERNAME',
+  password: 'WP_NEPALI_AUTH_APP_PASSWORD',
+} as const;
+
+type AuthEnv = {
+  header: string;
+  username: string;
+  password: string;
+};
+
+/**
+ * The English and Nepali WordPress installs have distinct identity and
+ * authentication systems. Nepali strictly uses its own credentials
+ * (WP_NEPALI_AUTH_*) and never falls back to English credentials.
+ */
+function authEnvFor(lang: WordPressLanguage): AuthEnv {
+  return lang === 'ne' ? NEPALI_AUTH_ENV : SHARED_AUTH_ENV;
+}
+
+function buildWordPressAuthHeader(env: AuthEnv): string | null {
+  const header = process.env[env.header]?.trim();
+  if (header) return header;
+
+  const username = process.env[env.username];
+  const password = process.env[env.password];
+  if (!username || !password) return null;
+
+  return `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
+}
+
+export function hasWordPressCredentials(lang: WordPressLanguage = 'en'): boolean {
+  return Boolean(buildWordPressAuthHeader(authEnvFor(lang)));
 }
 
 /**
  * Retrieves authentication header for WordPress write operations.
  * Fails safely if credentials are not configured on the server.
  */
-export function getWordPressAuthHeader(): string {
+export function getWordPressAuthHeader(lang: WordPressLanguage = 'en'): string {
   if (typeof window !== 'undefined') {
     throw new WordPressAuthError('WordPress authentication operations must strictly run on the server.');
   }
 
-  if (process.env.WP_AUTH_HEADER) {
-    return process.env.WP_AUTH_HEADER.trim();
-  }
-
-  const username = process.env.WP_AUTH_USERNAME;
-  const password = process.env.WP_AUTH_APP_PASSWORD;
-
-  if (username && password) {
-    const credentials = Buffer.from(`${username}:${password}`).toString('base64');
-    return `Basic ${credentials}`;
-  }
+  const env = authEnvFor(lang);
+  const header = buildWordPressAuthHeader(env);
+  if (header) return header;
 
   throw new WordPressAuthError(
-    'WordPress authentication credentials are missing. Set WP_AUTH_HEADER or WP_AUTH_USERNAME and WP_AUTH_APP_PASSWORD.'
+    `${lang === 'ne' ? 'Nepali WordPress' : 'WordPress'} authentication credentials are missing. Set ${env.header} (or ${env.username} and ${env.password}).`
   );
 }
 
@@ -229,7 +266,7 @@ async function fetchWordPress<T>(
       method: 'GET',
       headers: {
         'Accept': 'application/json',
-        ...(options.authenticated ? { Authorization: getWordPressAuthHeader() } : {}),
+        ...(options.authenticated ? { Authorization: getWordPressAuthHeader(lang) } : {}),
       },
       signal: controller.signal,
     };
@@ -404,6 +441,45 @@ export async function getWordPressPostById(
 }
 
 /**
+ * Users WordPress exposes as post authors (`who=authors`). The `roles` and
+ * `email` fields are not available to a non-admin API user, so this list is
+ * only used to attach a name to an explicitly mapped author id.
+ */
+export async function listWordPressAuthors(lang: WordPressLanguage = 'en'): Promise<WordPressAuthor[]> {
+  const result = await fetchWordPress<WordPressAuthor>('/users', {
+    lang,
+    perPage: 100,
+    fields: 'id,name,slug',
+    params: { who: 'authors' },
+    throwOnError: true,
+    authenticated: hasWordPressCredentials(lang),
+    revalidate: 0,
+    timeoutMs: 10000,
+  });
+  return result.data;
+}
+
+/** One WordPress author, or null when WordPress hides or cannot find it. */
+export async function getWordPressAuthor(
+  id: number,
+  lang: WordPressLanguage = 'en'
+): Promise<WordPressAuthor | null> {
+  try {
+    const result = await fetchWordPress<WordPressAuthor>(`/users/${id}`, {
+      lang,
+      fields: 'id,name,slug',
+      throwOnError: true,
+      authenticated: hasWordPressCredentials(lang),
+      revalidate: 0,
+      timeoutMs: 10000,
+    });
+    return result.data[0] ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Parses a WordPress post id from a route segment. Only canonical decimal ids
  * are accepted: `Number()` also took "0x1F", "1e3" and " 31 ", which served
  * the same article under many URLs.
@@ -456,12 +532,14 @@ export async function getWordPressMediaById(
  * Why WordPress writes are not allowed on this deployment, or null when they
  * are. Preview deployments and WP_READ_ONLY protect production WordPress.
  */
-export function getWordPressWriteBlock(): string | null {
+export function getWordPressWriteBlock(lang: WordPressLanguage = 'en'): string | null {
   if (process.env.VERCEL_ENV === 'preview' || process.env.WP_READ_ONLY === 'true') {
     return 'WordPress writes are disabled on this Preview deployment to protect production WordPress.';
   }
-  if (!hasWordPressCredentials()) {
-    return 'This server has no WordPress credentials. Set WP_AUTH_USERNAME and WP_AUTH_APP_PASSWORD and redeploy.';
+  if (!hasWordPressCredentials(lang)) {
+    return lang === 'ne'
+      ? 'This server has no Nepali WordPress credentials. Set WP_NEPALI_AUTH_USERNAME and WP_NEPALI_AUTH_APP_PASSWORD (or WP_NEPALI_AUTH_HEADER) and redeploy. The English WP_AUTH_* credentials are not used for Nepali.'
+      : 'This server has no WordPress credentials. Set WP_AUTH_USERNAME and WP_AUTH_APP_PASSWORD and redeploy.';
   }
   return null;
 }
@@ -492,7 +570,7 @@ export async function listWordPressMedia({
     params: { media_type: 'image' },
     fields: 'id,date,slug,link,title,author,source_url,mime_type,media_details',
     throwOnError: true,
-    authenticated: hasWordPressCredentials(),
+    authenticated: hasWordPressCredentials(lang),
     revalidate: 0,
     timeoutMs: 10000,
   });
@@ -507,7 +585,7 @@ export async function uploadWordPressMedia(
   lang: WordPressLanguage = 'en',
   timeoutMs = 30000
 ): Promise<WordPressMedia> {
-  const authHeader = getWordPressAuthHeader();
+  const authHeader = getWordPressAuthHeader(lang);
   const baseUrl = getWordPressBaseUrl(lang);
 
   const controller = new AbortController();
@@ -581,7 +659,7 @@ export async function createWordPressPost(
   input: WordPressCreatePostInput,
   lang: WordPressLanguage = 'en'
 ): Promise<WordPressPost> {
-  const authHeader = getWordPressAuthHeader();
+  const authHeader = getWordPressAuthHeader(lang);
   const baseUrl = getWordPressBaseUrl(lang);
 
   const controller = new AbortController();
@@ -637,7 +715,7 @@ export async function updateWordPressPost(
   input: WordPressUpdatePostInput,
   lang: WordPressLanguage = 'en'
 ): Promise<WordPressPost> {
-  const authHeader = getWordPressAuthHeader();
+  const authHeader = getWordPressAuthHeader(lang);
   const baseUrl = getWordPressBaseUrl(lang);
 
   const controller = new AbortController();
@@ -693,7 +771,7 @@ export async function deleteWordPressPost(
   force: boolean = false,
   lang: WordPressLanguage = 'en'
 ): Promise<{ deleted: boolean; previous?: Partial<WordPressPost> }> {
-  const authHeader = getWordPressAuthHeader();
+  const authHeader = getWordPressAuthHeader(lang);
   const baseUrl = getWordPressBaseUrl(lang);
 
   const controller = new AbortController();
@@ -751,6 +829,7 @@ const EN_WP_CATEGORIES = {
   OPINION: 60,
   FACT: 78,
   PERSONALITY: 81,
+  CASE_LAW: 113,
 };
 
 const NE_WP_CATEGORIES = {
@@ -794,6 +873,7 @@ export function mapCategoryToType(categories: number[] | undefined, lang: 'en' |
   if (categories.includes(61)) return 'BLOG';
   if (categories.includes(78)) return 'FACT';
   if (categories.includes(81)) return 'PERSONALITY';
+  if (categories.includes(113)) return 'CASE_LAW';
   if (categories.includes(58)) return 'NEWS';
   return 'UNKNOWN';
 }

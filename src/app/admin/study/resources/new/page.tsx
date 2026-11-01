@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { AdminResourceForm } from '@/components/admin/AdminResourceForm';
+import { listLocalAuthors } from '@/lib/content-authors';
 
 export default async function NewResourcePage() {
   const session = await auth();
@@ -23,6 +24,8 @@ export default async function NewResourcePage() {
     orderBy: { order: 'asc' },
   });
 
+  const authors = await listLocalAuthors();
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="mb-8">
@@ -36,6 +39,8 @@ export default async function NewResourcePage() {
           subjects={subjects}
           units={units}
           canManageLawTypes={session.user.role === 'ADMIN'}
+          authors={authors}
+          defaultAuthorId={session.user.id}
         />
       </div>
     </div>

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   getWordPressBaseUrl,
   getWordPressAuthHeader,
+  hasWordPressCredentials,
   getWordPressPosts,
   getWordPressPostBySlug,
   getWordPressPostById,
@@ -75,6 +76,35 @@ describe('WordPress REST API Client (src/lib/wordpress.ts)', () => {
       process.env.WP_AUTH_APP_PASSWORD = 'password';
 
       expect(getWordPressAuthHeader()).toBe('Bearer custom_token_123');
+    });
+
+    it('uses Nepali-specific credentials for the Nepali site and never falls back to the English pair', () => {
+      process.env.WP_AUTH_HEADER = 'Basic shared';
+      process.env.WP_NEPALI_AUTH_HEADER = 'Basic nepali';
+
+      expect(getWordPressAuthHeader('en')).toBe('Basic shared');
+      expect(getWordPressAuthHeader('ne')).toBe('Basic nepali');
+
+      delete process.env.WP_NEPALI_AUTH_HEADER;
+      expect(() => getWordPressAuthHeader('ne')).toThrow(WordPressAuthError);
+      expect(hasWordPressCredentials('ne')).toBe(false);
+
+      process.env.WP_NEPALI_AUTH_USERNAME = 'nepali-api';
+      process.env.WP_NEPALI_AUTH_APP_PASSWORD = 'ne pass';
+      expect(getWordPressAuthHeader('ne')).toBe(`Basic ${Buffer.from('nepali-api:ne pass').toString('base64')}`);
+      expect(getWordPressAuthHeader('en')).toBe('Basic shared');
+    });
+
+    it('refuses a half-configured Nepali pair instead of signing in as the English user', () => {
+      process.env.WP_AUTH_HEADER = 'Basic shared';
+      process.env.WP_NEPALI_AUTH_USERNAME = 'nepali-api';
+      delete process.env.WP_NEPALI_AUTH_APP_PASSWORD;
+      delete process.env.WP_NEPALI_AUTH_HEADER;
+
+      expect(() => getWordPressAuthHeader('ne')).toThrow(/WP_NEPALI_AUTH_APP_PASSWORD/);
+      expect(getWordPressAuthHeader('en')).toBe('Basic shared');
+      expect(hasWordPressCredentials('ne')).toBe(false);
+      expect(hasWordPressCredentials('en')).toBe(true);
     });
 
     it('should fail write operations safely when auth credentials are missing', async () => {
@@ -241,6 +271,7 @@ describe('WordPress REST API Client (src/lib/wordpress.ts)', () => {
       expect(mapTypeToCategory('BLOG', 'en')).toEqual([61]);
       expect(mapTypeToCategory('OPINION', 'en')).toEqual([60]);
       expect(mapTypeToCategory('FACT', 'en')).toEqual([78]);
+      expect(mapTypeToCategory('CASE_LAW', 'en')).toEqual([113]);
     });
 
     it('should map Nepali types to correct categories', () => {
@@ -276,6 +307,7 @@ describe('WordPress REST API Client (src/lib/wordpress.ts)', () => {
       expect(mapCategoryToType([58], 'en')).toBe('NEWS');
       expect(mapCategoryToType([61], 'en')).toBe('BLOG');
       expect(mapCategoryToType([60], 'en')).toBe('OPINION');
+      expect(mapCategoryToType([113], 'en')).toBe('CASE_LAW');
       expect(mapCategoryToType([58], 'ne')).toBe('NEPALI_SAMANYA_SAMACHAR');
       expect(mapCategoryToType([68], 'ne')).toBe('NEPALI_ADALAT_SAMACHAR');
       expect(mapCategoryToType([60], 'ne')).toBe('NEPALI_BLOG_BICHAR');

@@ -60,7 +60,9 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
           semester: true
         }
       },
-      unit: true
+      unit: true,
+      author: { select: { name: true, email: true } },
+      createdBy: { select: { name: true, email: true } },
     }
   });
 
@@ -245,6 +247,17 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
                 <span className="text-navy dark:text-white font-bold">{resource.unit.name}</span>
               </div>
             )}
+            {(() => {
+              const displayAuthor = resource.author ?? resource.createdBy;
+              return displayAuthor ? (
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-text-muted uppercase tracking-wider">{dict.author}:</span>
+                  <span className="text-navy dark:text-white font-bold">
+                    {displayAuthor.name || displayAuthor.email}
+                  </span>
+                </div>
+              ) : null;
+            })()}
           </div>
         </div>
 

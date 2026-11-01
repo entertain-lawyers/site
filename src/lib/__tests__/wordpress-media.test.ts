@@ -116,6 +116,8 @@ describe('WordPress media client', () => {
   const expectedAuth = `Basic ${Buffer.from('entertainlawyers-api:abcd efgh').toString('base64')}`;
 
   it('lists images from the Nepali library, authenticated, uncached, with search and paging', async () => {
+    process.env.WP_NEPALI_AUTH_USERNAME = 'entertainlawyers-api';
+    process.env.WP_NEPALI_AUTH_APP_PASSWORD = 'abcd efgh';
     fetchMock.mockResolvedValue(json([media], { headers: { 'X-WP-Total': '30', 'X-WP-TotalPages': '2' } }));
 
     const result = await listWordPressMedia({ lang: 'ne', page: 2, search: ' notice ' });
@@ -158,17 +160,48 @@ describe('WordPress media client', () => {
   it('uploads the bytes to the right library with the server credentials and sets the title', async () => {
     fetchMock.mockResolvedValueOnce(json(media, { status: 201 })).mockResolvedValueOnce(json({ ...media, title: { rendered: 'Court notice' } }));
 
-    const uploaded = await uploadWordPressMedia({ bytes: PNG, filename: 'court-notice.png', mimeType: 'image/png', title: 'Court notice' }, 'ne');
+    const uploaded = await uploadWordPressMedia({ bytes: PNG, filename: 'court-notice.png', mimeType: 'image/png', title: 'Court notice' }, 'en');
 
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe('https://entertainlawyers.com/nepali/wp-json/wp/v2/media');
+    expect(url).toBe('https://entertainlawyers.com/wp-json/wp/v2/media');
     expect(init.method).toBe('POST');
     expect(init.headers['Content-Type']).toBe('image/png');
     expect(init.headers['Content-Disposition']).toBe('attachment; filename="court-notice.png"');
     expect(init.headers.Authorization).toBe(expectedAuth);
     expect(init.body).toBe(PNG);
-    expect(fetchMock.mock.calls[1][0]).toBe('https://entertainlawyers.com/nepali/wp-json/wp/v2/media/321');
+    expect(fetchMock.mock.calls[1][0]).toBe('https://entertainlawyers.com/wp-json/wp/v2/media/321');
     expect(uploaded.title.rendered).toBe('Court notice');
+  });
+
+  it('uploads Nepali images with the Nepali application password', async () => {
+    process.env.WP_NEPALI_AUTH_USERNAME = 'nepali-api';
+    process.env.WP_NEPALI_AUTH_APP_PASSWORD = 'ne pass';
+    fetchMock.mockResolvedValueOnce(json(media, { status: 201 }));
+
+    await uploadWordPressMedia({ bytes: PNG, filename: 'x.png', mimeType: 'image/png' }, 'ne');
+
+    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe(
+      `Basic ${Buffer.from('nepali-api:ne pass').toString('base64')}`
+    );
+  });
+
+  it('blocks a language only when that language has no usable credentials', () => {
+    delete process.env.WP_NEPALI_AUTH_USERNAME;
+    delete process.env.WP_NEPALI_AUTH_APP_PASSWORD;
+    delete process.env.WP_NEPALI_AUTH_HEADER;
+
+    // English credentials do not unblock Nepali.
+    expect(getWordPressWriteBlock('en')).toBeNull();
+    expect(getWordPressWriteBlock('ne')).toMatch(/no Nepali WordPress credentials/);
+
+    // Setting Nepali credentials unblocks Nepali.
+    process.env.WP_NEPALI_AUTH_USERNAME = 'nepali-api';
+    process.env.WP_NEPALI_AUTH_APP_PASSWORD = 'pass';
+    expect(getWordPressWriteBlock('ne')).toBeNull();
+
+    delete process.env.WP_AUTH_USERNAME;
+    delete process.env.WP_AUTH_APP_PASSWORD;
+    expect(getWordPressWriteBlock('en')).toMatch(/no WordPress credentials/);
   });
 
   it('strips quotes and line breaks from the filename header', async () => {

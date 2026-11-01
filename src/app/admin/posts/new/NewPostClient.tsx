@@ -7,6 +7,8 @@ import { Eye } from 'lucide-react';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import WordPressCredentialsNotice from '@/components/admin/WordPressCredentialsNotice';
 import FeaturedImagePanel from '@/components/admin/FeaturedImagePanel';
+import AuthorSelect from '@/components/admin/AuthorSelect';
+import type { AuthorOption } from '@/lib/content-authors';
 import type { FeaturedImageSelection } from '@/lib/wordpress-media';
 import { createPostAction } from '@/modules/admin/admin-post.actions';
 import { writePostPreviewDraft, type PostType } from '@/lib/post-preview';
@@ -20,6 +22,7 @@ const POST_TYPE_LABELS: Record<string, string> = {
   OPINION: 'OPINION',
   FACT: 'FACT',
   PERSONALITY: 'PERSONALITY',
+  CASE_LAW: 'CASE LAW',
   NEPALI_SAMANYA_SAMACHAR: 'सामान्य समाचार',
   NEPALI_ADALAT_SAMACHAR: 'अदालत समाचार',
   NEPALI_MUKHYA_SAMACHAR: 'मुख्य समाचार',
@@ -34,6 +37,7 @@ const ENGLISH_POST_TYPES: Array<[PostType, string]> = [
   ['OPINION', 'Opinion'],
   ['FACT', 'Historical Fact'],
   ['PERSONALITY', 'Legal Personality'],
+  ['CASE_LAW', 'Case Law'],
 ];
 
 const NEPALI_POST_TYPES: Array<[PostType, string]> = [
@@ -48,11 +52,15 @@ const NEPALI_POST_TYPES: Array<[PostType, string]> = [
 export default function NewPostClient({
   defaultLang = 'en',
   canSave = true,
-  uploadBlockedReason = null,
+  uploadBlockedReasons = { en: null, ne: null },
+  authors = [],
+  defaultAuthorId = '',
 }: {
   defaultLang?: 'en' | 'ne';
   canSave?: boolean;
-  uploadBlockedReason?: string | null;
+  uploadBlockedReasons?: Record<'en' | 'ne', string | null>;
+  authors?: AuthorOption[];
+  defaultAuthorId?: string;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -66,10 +74,20 @@ export default function NewPostClient({
   const [isPublished, setIsPublished] = useState(false);
   const [featuredImage, setFeaturedImage] = useState<FeaturedImageSelection | null>(null);
   const [featuredNotice, setFeaturedNotice] = useState<string | null>(null);
+  const [authorUserId, setAuthorUserId] = useState(defaultAuthorId);
 
   // The post is created in the WordPress install its type belongs to, and a
   // media id only exists in that install's library.
   const lang = type.startsWith('NEPALI_') ? 'ne' : 'en';
+  // Only authors explicitly linked to this install are offered; a local id is
+  // never treated as a WordPress id.
+  const authorOptions = authors.filter((author) =>
+    lang === 'ne' ? author.wpAuthorIdNe !== null : author.wpAuthorIdEn !== null
+  );
+  const selectedAuthorId = authorOptions.some((author) => author.id === authorUserId)
+    ? authorUserId
+    : '';
+  const currentUserIsLinked = authorOptions.some((author) => author.id === defaultAuthorId);
 
   const changeType = (next: PostType) => {
     const nextLang = next.startsWith('NEPALI_') ? 'ne' : 'en';
@@ -118,6 +136,7 @@ export default function NewPostClient({
         type,
         content: editorHtmlToArticleHtml(content),
         isPublished,
+        ...(selectedAuthorId ? { authorUserId: selectedAuthorId } : {}),
         ...(featuredImage && featuredImage.lang === lang ? { featuredMediaId: featuredImage.id } : {}),
       });
 
@@ -198,6 +217,23 @@ export default function NewPostClient({
               </label>
             </div>
 
+            <div>
+              <label htmlFor="author" className="block text-sm font-bold text-navy dark:text-white mb-2">
+                Author
+              </label>
+              <AuthorSelect
+                authors={authorOptions}
+                value={selectedAuthorId}
+                onChange={setAuthorUserId}
+                emptyMessage="No user is linked to a WordPress author on this site yet."
+                hint={
+                  currentUserIsLinked
+                    ? 'Posts are published under this person. You remain the creator in the audit log.'
+                    : 'Your account is not linked to a WordPress author, so the post saves under the WordPress account unless you pick a linked author.'
+                }
+              />
+            </div>
+
             <MotionButton
               type="submit"
               disabled={loading || !canSave}
@@ -265,7 +301,7 @@ export default function NewPostClient({
             lang={lang}
             value={featuredImage}
             onChange={changeFeaturedImage}
-            uploadBlockedReason={uploadBlockedReason}
+            uploadBlockedReason={uploadBlockedReasons[lang]}
             notice={featuredNotice}
           />
 

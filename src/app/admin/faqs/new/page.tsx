@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createFAQAction } from '@/modules/admin/admin-faq.actions';
 import RichTextEditor from '@/components/editor/RichTextEditor';
+import { editorHtmlToArticleHtml } from '@/lib/editor-html';
 import { MotionButton } from '@/components/motion/primitives';
 
 export default function NewFaqPage() {
@@ -18,7 +19,7 @@ export default function NewFaqPage() {
     setLoading(true);
     setError('');
 
-    const res = await createFAQAction({ question, answer, status, order: 0 });
+    const res = await createFAQAction({ question, answer: editorHtmlToArticleHtml(answer), status, order: 0 });
 
     if (res?.success) {
       router.push('/admin/faqs');

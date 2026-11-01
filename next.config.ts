@@ -13,7 +13,7 @@ const cspHeader = `
     font-src 'self';
     connect-src 'self';
     worker-src 'self' blob:;
-    frame-src https://www.google.com https://maps.google.com;
+    frame-src https://www.google.com https://maps.google.com https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com;
     object-src 'none';
     base-uri 'self';
     form-action 'self';

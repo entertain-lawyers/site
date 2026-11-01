@@ -115,7 +115,22 @@ describe('POST /api/admin/wordpress/media', () => {
     expect(uploadWordPressMedia).not.toHaveBeenCalled();
   });
 
+  it('rejects Nepali upload when Nepali credentials are not configured', async () => {
+    delete process.env.WP_NEPALI_AUTH_USERNAME;
+    delete process.env.WP_NEPALI_AUTH_APP_PASSWORD;
+    delete process.env.WP_NEPALI_AUTH_HEADER;
+
+    const res = await POST(uploadRequest({ lang: 'ne', name: 'Court Notice.png' }));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toContain('no Nepali WordPress credentials');
+    expect(uploadWordPressMedia).not.toHaveBeenCalled();
+  });
+
   it('uploads to the requested library and returns only browser-safe fields', async () => {
+    process.env.WP_NEPALI_AUTH_USERNAME = 'nepali-api';
+    process.env.WP_NEPALI_AUTH_APP_PASSWORD = 'nepali-password-123';
+
     const res = await POST(uploadRequest({ lang: 'ne', name: 'Court Notice.png' }));
 
     expect(res.status).toBe(201);

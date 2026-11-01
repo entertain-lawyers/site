@@ -25,6 +25,10 @@ model User {
   university      String?
   sessionVersion  Int                  @default(0)
   role            Role                 @default(USER)
+  // Explicit link to this user's account on each WordPress install. WordPress
+  // user ids are not the same as local ids, so authors are never guessed.
+  wpAuthorIdEn    Int?                 @unique
+  wpAuthorIdNe    Int?                 @unique
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
   accessLogs    AccessLog[]
@@ -40,6 +44,8 @@ model User {
   sessions      Session[]
   subscriptions Subscription[]
   uploadIntents UploadIntent[]
+  authoredResources Resource[]        @relation("ResourceAuthor")
+  createdResources  Resource[]        @relation("ResourceCreator")
 }
 
 model Account {
@@ -195,12 +201,18 @@ model Resource {
   type          ResourceType   @default(LAW_NOTE)
   unitId        String?
   semesterId    String?
+  // Public attribution (may differ from the person who created the row).
+  authorId      String?
+  // The real creator; never changes when an admin later reassigns the author.
+  createdById   String?
   metaDesc      String?
   metaTitle     String?
   status        ContentStatus  @default(PUBLISHED)
   accessLogs    AccessLog[]
   entitlements  Entitlement[]
   purchases     Purchase[]
+  author        User?          @relation("ResourceAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  createdBy     User?          @relation("ResourceCreator", fields: [createdById], references: [id], onDelete: SetNull)
   document      Document?      @relation(fields: [documentId], references: [id], onDelete: Restrict)
   subject       Subject?       @relation(fields: [subjectId], references: [id])
   unit          Unit?          @relation(fields: [unitId], references: [id], onDelete: Restrict)

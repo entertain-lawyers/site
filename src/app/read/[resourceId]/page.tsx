@@ -51,6 +51,8 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
     include: {
       document: true,
       unit: true,
+      author: { select: { name: true, email: true } },
+      createdBy: { select: { name: true, email: true } },
       subject: {
         include: {
           semester: true,
@@ -142,6 +144,14 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
                   : ''}
               </p>
             )}
+            {(() => {
+              const displayAuthor = resource.author ?? resource.createdBy;
+              return displayAuthor ? (
+                <p className="mt-1 text-sm text-text-muted">
+                  {dict.author}: <span className="font-semibold text-navy dark:text-white">{displayAuthor.name || displayAuthor.email}</span>
+                </p>
+              ) : null;
+            })()}
 
             {/* Same sanitized renderer and reading typography as articles, so
                 headings, lists and inserted (resized) images survive. */}

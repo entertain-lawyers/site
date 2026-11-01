@@ -12,23 +12,27 @@ import {
   WordPressAuthError,
   WordPressApiError,
   mapTypeToCategory,
-  mapCategoryToType
 } from '@/lib/wordpress';
+import { resolveWordPressAuthor } from '@/lib/content-authors';
 
 /**
  * Turn a failed WordPress write into a message that says what to fix. A
  * missing credential and a credential WordPress rejects need different fixes,
  * but both used to read "Server credentials missing or invalid."
  */
-function toWordPressWriteError(error: unknown): Error {
+function toWordPressWriteError(error: unknown, lang: 'en' | 'ne'): Error {
   if (error instanceof WordPressAuthError) {
+    const missing = lang === 'ne'
+      ? 'WP_NEPALI_AUTH_USERNAME and WP_NEPALI_AUTH_APP_PASSWORD'
+      : 'WP_AUTH_USERNAME and WP_AUTH_APP_PASSWORD';
     return new UserFacingError(
-      'WordPress API Error: this server has no WordPress credentials, so posts cannot be saved. Set WP_AUTH_USERNAME and WP_AUTH_APP_PASSWORD (a WordPress application password) in the hosting environment and redeploy.'
+      `WordPress API Error: this server has no ${lang === 'ne' ? 'Nepali ' : ''}WordPress credentials, so posts cannot be saved. Set ${missing} (a WordPress application password) in the hosting environment and redeploy.`
     );
   }
   if (error instanceof WordPressApiError && (error.status === 401 || error.status === 403)) {
+    const passwordVar = lang === 'ne' ? 'WP_NEPALI_AUTH_APP_PASSWORD' : 'WP_AUTH_APP_PASSWORD';
     return new UserFacingError(
-      `WordPress API Error: WordPress rejected the server credentials (HTTP ${error.status}). The application password in WP_AUTH_APP_PASSWORD may be wrong or revoked, or the user lacks permission to publish.`
+      `WordPress API Error: WordPress rejected the server credentials (HTTP ${error.status}). The application password in ${passwordVar} may be wrong or revoked, or the user lacks permission to publish.`
     );
   }
   if (error instanceof WordPressApiError && error.status === 400) {
@@ -47,17 +51,20 @@ const featuredMediaIdSchema = z.coerce.number().int().min(0).optional();
 const createPostSchema = z.object({
   title: z.string().min(1),
   content: z.string().min(1),
-  type: z.enum(['NEWS', 'BLOG', 'OPINION', 'FACT', 'PERSONALITY', 'NEPALI_SAMANYA_SAMACHAR', 'NEPALI_ADALAT_SAMACHAR', 'NEPALI_MUKHYA_SAMACHAR', 'NEPALI_NAJIRHARU', 'NEPALI_AIN_KANUN', 'NEPALI_BLOG_BICHAR']),
+  type: z.enum(['NEWS', 'BLOG', 'OPINION', 'FACT', 'PERSONALITY', 'CASE_LAW', 'NEPALI_SAMANYA_SAMACHAR', 'NEPALI_ADALAT_SAMACHAR', 'NEPALI_MUKHYA_SAMACHAR', 'NEPALI_NAJIRHARU', 'NEPALI_AIN_KANUN', 'NEPALI_BLOG_BICHAR']),
   isPublished: z.boolean().optional(),
   status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).optional(),
   featuredMediaId: featuredMediaIdSchema,
+  // Local user credited as the author. Resolved to that install's WordPress
+  // user id server-side; omitted means "keep the WordPress default".
+  authorUserId: z.string().min(1).optional(),
 });
 
 const updatePostSchema = z.object({
   id: z.coerce.number(),
   title: z.string().min(1).optional(),
   content: z.string().min(1).optional(),
-  type: z.enum(['NEWS', 'BLOG', 'OPINION', 'FACT', 'PERSONALITY', 'NEPALI_SAMANYA_SAMACHAR', 'NEPALI_ADALAT_SAMACHAR', 'NEPALI_MUKHYA_SAMACHAR', 'NEPALI_NAJIRHARU', 'NEPALI_AIN_KANUN', 'NEPALI_BLOG_BICHAR']).optional(),
+  type: z.enum(['NEWS', 'BLOG', 'OPINION', 'FACT', 'PERSONALITY', 'CASE_LAW', 'NEPALI_SAMANYA_SAMACHAR', 'NEPALI_ADALAT_SAMACHAR', 'NEPALI_MUKHYA_SAMACHAR', 'NEPALI_NAJIRHARU', 'NEPALI_AIN_KANUN', 'NEPALI_BLOG_BICHAR']).optional(),
   isPublished: z.boolean().optional(),
   status: z.enum(['DRAFT', 'PUBLISHED', 'ARCHIVED']).optional(),
   // Pinned by the edit page: the post only exists in one of the two WP installs.
@@ -67,6 +74,8 @@ const updatePostSchema = z.object({
   categories: z.array(z.coerce.number()).optional(),
   // Omitted when the featured image was not touched, so it is left as it is.
   featuredMediaId: featuredMediaIdSchema,
+  // Local user credited as the author. Omitted leaves WordPress's author as is.
+  authorUserId: z.string().min(1).optional(),
 });
 
 const deletePostSchema = z.object({
@@ -157,12 +166,19 @@ export const createPostAction = createSafeAction(async (rawArgs: z.infer<typeof 
   const lang = args.type.startsWith('NEPALI_') ? 'ne' : 'en';
   const status = args.status ? (args.status === 'PUBLISHED' ? 'publish' : 'draft') : (args.isPublished ? 'publish' : 'draft');
 
+  // Resolved before the WordPress try/catch so a bad/mislinked author surfaces
+  // as its own message instead of a generic WordPress error.
+  const assignedAuthor = args.authorUserId
+    ? await resolveWordPressAuthor(args.authorUserId, lang)
+    : null;
+
   try {
     const wpPost = await createWordPressPost({
       title: args.title,
       content: args.content,
       status: status,
       categories: mapTypeToCategory(args.type, lang),
+      ...(assignedAuthor ? { author: assignedAuthor.wpAuthorId } : {}),
       ...(args.featuredMediaId ? { featured_media: args.featuredMediaId } : {}),
     }, lang);
 
@@ -173,7 +189,15 @@ export const createPostAction = createSafeAction(async (rawArgs: z.infer<typeof 
           action: 'CREATE',
           entityType: 'POST_WP',
           entityId: String(wpPost.id),
-          details: { title: wpPost.title.rendered, type: args.type, wpLang: lang, featuredMediaId: args.featuredMediaId ?? null }
+          details: {
+            title: wpPost.title.rendered,
+            type: args.type,
+            wpLang: lang,
+            featuredMediaId: args.featuredMediaId ?? null,
+            authorUserId: assignedAuthor?.author.id ?? null,
+            authorName: assignedAuthor?.author.name ?? null,
+            wpAuthorId: assignedAuthor?.wpAuthorId ?? null,
+          }
         }
       });
     } catch (auditError) {
@@ -183,7 +207,7 @@ export const createPostAction = createSafeAction(async (rawArgs: z.infer<typeof 
     revalidatePath('/admin/posts');
     return { id: String(wpPost.id) };
   } catch (error: unknown) {
-    throw toWordPressWriteError(error);
+    throw toWordPressWriteError(error, lang);
   }
 });
 
@@ -211,12 +235,19 @@ export const updatePostAction = createSafeAction(async (rawArgs: z.infer<typeof 
     status = args.isPublished ? 'publish' : 'draft';
   }
 
+  // Resolved before the WordPress try/catch so a bad/mislinked author surfaces
+  // as its own message instead of a generic WordPress error.
+  const assignedAuthor = args.authorUserId
+    ? await resolveWordPressAuthor(args.authorUserId, lang)
+    : null;
+
   try {
     const wpPost = await updateWordPressPost(args.id, {
       title: args.title,
       content: args.content,
       status: status,
       categories: args.categories ?? (args.type ? mapTypeToCategory(args.type, lang) : undefined),
+      ...(assignedAuthor ? { author: assignedAuthor.wpAuthorId } : {}),
       ...(args.featuredMediaId !== undefined ? { featured_media: args.featuredMediaId } : {}),
     }, lang);
 
@@ -227,7 +258,19 @@ export const updatePostAction = createSafeAction(async (rawArgs: z.infer<typeof 
           action: 'UPDATE',
           entityType: 'POST_WP',
           entityId: String(wpPost.id),
-          details: { title: wpPost.title.rendered, type: args.type, wpLang: lang, ...(args.featuredMediaId !== undefined ? { featuredMediaId: args.featuredMediaId } : {}) }
+          details: {
+            title: wpPost.title.rendered,
+            type: args.type,
+            wpLang: lang,
+            ...(args.featuredMediaId !== undefined ? { featuredMediaId: args.featuredMediaId } : {}),
+            ...(assignedAuthor
+              ? {
+                  authorUserId: assignedAuthor.author.id,
+                  authorName: assignedAuthor.author.name,
+                  wpAuthorId: assignedAuthor.wpAuthorId,
+                }
+              : {}),
+          }
         }
       });
     } catch (auditError) {
@@ -237,7 +280,7 @@ export const updatePostAction = createSafeAction(async (rawArgs: z.infer<typeof 
     revalidatePath('/admin/posts');
     return { success: true };
   } catch (error: unknown) {
-    throw toWordPressWriteError(error);
+    throw toWordPressWriteError(error, lang);
   }
 });
 
@@ -278,6 +321,6 @@ export const deletePostAction = createSafeAction(async (rawArgs: z.infer<typeof 
     revalidatePath('/admin/posts');
     return { success: true };
   } catch (error: unknown) {
-    throw toWordPressWriteError(error);
+    throw toWordPressWriteError(error, lang);
   }
 });

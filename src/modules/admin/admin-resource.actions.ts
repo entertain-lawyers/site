@@ -7,17 +7,20 @@ import { ContentStatus, Role, ResourceType } from '@prisma/client';
 import { isRecordInUseError, isRecordNotFoundError } from '@/lib/prisma-errors';
 import { deleteObject } from '@/lib/b2';
 import { revalidatePath } from 'next/cache';
+import { resolveLocalAuthor } from '@/lib/content-authors';
 
 const createResourceSchema = z.object({
   title: z.string().min(3),
   description: z.string().max(5000).optional(),
   content: z.string().max(200_000).optional(),
-  subjectId: z.string().uuid().optional(),
-  semesterId: z.string().uuid().optional(),
+  subjectId: z.string().min(1).optional(),
+  semesterId: z.string().min(1).optional(),
   isPremium: z.boolean(),
   priceAmount: z.number().int().nonnegative().optional(),
   type: z.nativeEnum(ResourceType).optional(),
-  unitId: z.string().uuid().optional(),
+  unitId: z.string().min(1).optional(),
+  // Local user credited as the author; defaults to the signed-in creator.
+  authorUserId: z.string().min(1).optional(),
   // Drafts are hidden from students until published from the resources list.
   status: z.enum([ContentStatus.DRAFT, ContentStatus.PUBLISHED]).default(ContentStatus.PUBLISHED),
 }).refine(data => {
@@ -55,6 +58,14 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
   const priceAmount = isPremium ? (input.priceAmount ?? 0) : null;
   const currency = isPremium ? 'NPR' : undefined;
 
+  // Attribution is validated server-side; a forged request cannot credit a
+  // non-author. The creator is stored separately and is always the actor.
+  const authorId = input.authorUserId ?? session.userId;
+  if (!authorId) {
+    throw new UserFacingError('An author is required to create a resource.');
+  }
+  await resolveLocalAuthor(authorId);
+
   const resourceId = await prisma.$transaction(async (tx) => {
     const resource = await tx.resource.create({
       data: {
@@ -69,6 +80,8 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
         type: resourceType,
         unitId: input.unitId || null,
         status: input.status,
+        authorId,
+        createdById: session.userId ?? null,
       }
     });
 
@@ -79,7 +92,7 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
           action: 'CREATE',
           entityType: 'RESOURCE',
           entityId: resource.id,
-          details: { title: resource.title, type: resource.type, status: resource.status }
+          details: { title: resource.title, type: resource.type, status: resource.status, authorUserId: authorId }
         }
       });
     }
@@ -321,17 +334,19 @@ export const setResourcePublishedAction = createSafeAction(async (args: z.infer<
 });
 
 const updateResourceSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().min(1),
   title: z.string().min(3),
   description: z.string().max(5000).optional(),
   content: z.string().max(200_000).optional(),
-  subjectId: z.string().uuid().optional(),
-  semesterId: z.string().uuid().optional(),
+  subjectId: z.string().min(1).optional(),
+  semesterId: z.string().min(1).optional(),
   isPremium: z.boolean(),
   priceAmount: z.number().int().nonnegative().optional(),
   type: z.nativeEnum(ResourceType),
-  unitId: z.string().uuid().optional(),
+  unitId: z.string().min(1).optional(),
   status: z.nativeEnum(ContentStatus),
+  // Omitted leaves the current author unchanged (older callers, bulk edits).
+  authorUserId: z.string().min(1).optional(),
 }).refine(data => {
   if (data.type === ResourceType.OLD_QUESTION) {
     return !!data.semesterId;
@@ -360,6 +375,11 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
   const priceAmount = isPremium ? (input.priceAmount ?? 0) : null;
   const currency = isPremium ? 'NPR' : undefined;
 
+  // Validated before the transaction so a forged/ineligible author changes nothing.
+  if (input.authorUserId) {
+    await resolveLocalAuthor(input.authorUserId);
+  }
+
   await prisma.$transaction(async (tx) => {
     const resource = await tx.resource.update({
       where: { id: input.id },
@@ -375,6 +395,7 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
         type: input.type,
         unitId: input.unitId || null,
         status: input.status,
+        ...(input.authorUserId ? { authorId: input.authorUserId } : {}),
       }
     });
 
@@ -385,7 +406,12 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
           action: 'UPDATE',
           entityType: 'RESOURCE',
           entityId: resource.id,
-          details: { title: resource.title, type: resource.type, status: resource.status }
+          details: {
+            title: resource.title,
+            type: resource.type,
+            status: resource.status,
+            ...(input.authorUserId ? { authorUserId: input.authorUserId } : {}),
+          }
         }
       });
     }

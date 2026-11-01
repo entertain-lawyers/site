@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateEventAction } from '@/modules/admin/admin-event.actions';
 import RichTextEditor from '@/components/editor/RichTextEditor';
+import { articleHtmlToEditorHtml, editorHtmlToArticleHtml } from '@/lib/editor-html';
 import ImageUpload from '@/components/admin/ImageUpload';
 import { MotionButton } from '@/components/motion/primitives';
 
@@ -11,7 +12,8 @@ export default function EditEventClient({ evt }: { evt: any }) {
   const [title, setTitle] = useState(evt.title);
   const [slug, setSlug] = useState(evt.slug);
   const [description, setDescription] = useState(evt.description || '');
-  const [content, setContent] = useState(evt.content || '');
+  // Quill needs blank lines between blocks; saving converts back (see editor-html).
+  const [content, setContent] = useState(() => articleHtmlToEditorHtml(evt.content || ''));
 
   // Format datetime-local string
   const d = new Date(evt.eventDate);
@@ -31,7 +33,7 @@ export default function EditEventClient({ evt }: { evt: any }) {
     setError('');
 
     const res = await updateEventAction({
-      id: evt.id, title, slug, description, content, eventDate, location, featuredImage, status
+      id: evt.id, title, slug, description, content: editorHtmlToArticleHtml(content), eventDate, location, featuredImage, status
     });
 
     if (res?.success) {

@@ -24,6 +24,17 @@ interface EditableUser {
   website: string | null;
   image: string | null;
   role: Role;
+  wpAuthorIdEn: number | null;
+  wpAuthorIdNe: number | null;
+}
+
+type WordPressAuthorOption = { id: number; name: string };
+
+interface WordPressAuthors {
+  en: WordPressAuthorOption[];
+  enError: string | null;
+  ne: WordPressAuthorOption[];
+  neError: string | null;
 }
 
 const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
@@ -31,9 +42,11 @@ const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp
 export default function UserEditClient({
   user,
   displayOptions,
+  wpAuthors,
 }: {
   user: EditableUser;
   displayOptions: string[];
+  wpAuthors: WordPressAuthors;
 }) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -48,6 +61,8 @@ export default function UserEditClient({
   const [role, setRole] = useState<Role>(user.role);
   const [password, setPassword] = useState('');
   const [image, setImage] = useState(user.image || '');
+  const [wpAuthorIdEn, setWpAuthorIdEn] = useState(user.wpAuthorIdEn ? String(user.wpAuthorIdEn) : '');
+  const [wpAuthorIdNe, setWpAuthorIdNe] = useState(user.wpAuthorIdNe ? String(user.wpAuthorIdNe) : '');
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -131,6 +146,8 @@ export default function UserEditClient({
         displayName: displayName,
         image: image,
         password: password || undefined,
+        wpAuthorIdEn: wpAuthorIdEn ? Number(wpAuthorIdEn) : null,
+        wpAuthorIdNe: wpAuthorIdNe ? Number(wpAuthorIdNe) : null,
       });
       if (!res.success) throw new Error(res.error);
 
@@ -246,6 +263,60 @@ export default function UserEditClient({
                 autoComplete="new-password"
                 className={inputClass}
               />
+            </div>
+          </div>
+        </section>
+
+        {/* ============================================================================
+        WordPress Author Accounts */}
+        <section className="bg-white dark:bg-zinc-900 rounded-2xl border border-black/5 dark:border-white/5 p-6 sm:p-8 lg:col-span-2">
+          <h2 className="text-lg font-extrabold text-navy dark:text-white mb-2">Content Author Profiles</h2>
+          <p className="text-sm text-text-secondary mb-6">
+            Link this user to their WordPress account so posts can be published under their name.
+            WordPress user ids are separate from local ids and are never guessed; only linked
+            accounts appear in the post author selector.
+          </p>
+          {role === 'USER' && (
+            <div className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs font-medium text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300">
+              This user currently has the regular <strong>User</strong> role. Content authors must be an <strong>Administrator</strong> or <strong>Editor</strong>. Change their role above to enable WordPress author mapping.
+            </div>
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label htmlFor="wpAuthorIdEn" className={labelClass}>English WordPress author</label>
+              <select
+                id="wpAuthorIdEn"
+                value={wpAuthorIdEn}
+                onChange={(e) => setWpAuthorIdEn(e.target.value)}
+                disabled={role === 'USER' || Boolean(wpAuthors.enError)}
+                className={`${inputClass} disabled:opacity-50`}
+              >
+                <option value="">Not linked</option>
+                {wpAuthors.en.map((author) => (
+                  <option key={author.id} value={author.id}>{author.name} (#{author.id})</option>
+                ))}
+              </select>
+              {wpAuthors.enError && (
+                <p role="alert" className="mt-2 text-xs text-amber-700 dark:text-amber-400">{wpAuthors.enError}</p>
+              )}
+            </div>
+            <div>
+              <label htmlFor="wpAuthorIdNe" className={labelClass}>Nepali WordPress author</label>
+              <select
+                id="wpAuthorIdNe"
+                value={wpAuthorIdNe}
+                onChange={(e) => setWpAuthorIdNe(e.target.value)}
+                disabled={role === 'USER' || Boolean(wpAuthors.neError)}
+                className={`${inputClass} disabled:opacity-50`}
+              >
+                <option value="">Not linked</option>
+                {wpAuthors.ne.map((author) => (
+                  <option key={author.id} value={author.id}>{author.name} (#{author.id})</option>
+                ))}
+              </select>
+              {wpAuthors.neError && (
+                <p role="alert" className="mt-2 text-xs text-amber-700 dark:text-amber-400">{wpAuthors.neError}</p>
+              )}
             </div>
           </div>
         </section>

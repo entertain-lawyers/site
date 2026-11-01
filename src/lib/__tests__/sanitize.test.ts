@@ -114,3 +114,85 @@ describe("sanitizeHtml inline styles", () => {
     expect(clean).toContain("margin-bottom:10px");
   });
 });
+
+describe("sanitizeHtml editor output (regression)", () => {
+  it("keeps video embeds from the editor's video button for YouTube and Vimeo over https", () => {
+    const youtube =
+      '<iframe class="ql-video el-ed" frameborder="0" allowfullscreen="true" src="https://www.youtube.com/embed/dQw4w9WgXcQ?showinfo=0"></iframe>';
+    expect(sanitizeHtml(youtube)).toBe(youtube);
+    expect(sanitizeHtml('<iframe src="https://player.vimeo.com/video/1"></iframe>')).toBe(
+      '<iframe src="https://player.vimeo.com/video/1"></iframe>'
+    );
+  });
+
+  it("removes iframes from other hosts, other protocols and relative URLs entirely", () => {
+    for (const src of ["https://evil.example/x", "javascript:alert(1)", "//www.youtube.com/embed/x", "http://www.youtube.com/embed/x", "/local"]) {
+      expect(sanitizeHtml(`<p>a</p><iframe src="${src}"></iframe>`)).toBe("<p>a</p>");
+    }
+  });
+
+  it("strips srcdoc and event handlers from allowed iframes", () => {
+    expect(
+      sanitizeHtml('<iframe srcdoc="<script>alert(1)</script>" onload="alert(1)" src="https://www.youtube.com/embed/x"></iframe>')
+    ).toBe('<iframe src="https://www.youtube.com/embed/x"></iframe>');
+  });
+
+  it("keeps the editor's highlight colour but not invisible or url() backgrounds", () => {
+    expect(sanitizeHtml('<span style="background-color: rgb(255, 255, 0)">h</span>')).toBe(
+      '<span style="background-color:rgb(255, 255, 0)">h</span>'
+    );
+    expect(sanitizeHtml('<span style="background-color: transparent">h</span>')).toBe("<span>h</span>");
+    expect(sanitizeHtml('<span style="background-color: url(https://evil.example/x.png)">h</span>')).toBe("<span>h</span>");
+  });
+
+  it("keeps the editor's layout markers and resized, aligned images", () => {
+    const html = '<p class="ql-align-center el-ed el-tight"><img src="https://www.entertainlawyers.com/a.jpg" width="278" /></p>';
+    expect(sanitizeHtml(html)).toBe(html);
+  });
+
+  it("keeps image wrapping classes and width, but drops unsafe inline styles", () => {
+    const clean = sanitizeHtml(
+      '<p class="el-wrap-left"><img src="https://www.entertainlawyers.com/a.jpg" width="300" style="float:left;position:fixed"></p>' +
+        '<p><img class="alignright" src="https://www.entertainlawyers.com/b.jpg"></p>'
+    );
+
+    expect(clean).toContain('class="el-wrap-left"');
+    expect(clean).toContain('width="300"');
+    // Older WordPress classes survive, so published posts keep floating.
+    expect(clean).not.toContain("style=");
+    expect(clean).not.toContain("position");
+  });
+
+  it("keeps valid, bounded line-height styles on block elements and list items", () => {
+    const valid =
+      '<p style="line-height: 1.0;">single</p>' +
+      '<h2 style="line-height: 1.15;">h2</h2>' +
+      '<blockquote style="line-height: 1.5;">quote</blockquote>' +
+      '<ul><li style="line-height: 1.75;">item</li><li style="line-height: 2.0;">double</li></ul>' +
+      '<p style="line-height: normal;">normal</p>' +
+      '<p style="line-height: 150%;">percent</p>' +
+      '<p style="line-height: 1.5rem;">rem</p>';
+
+    const clean = sanitizeHtml(valid);
+    expect(clean).toContain('style="line-height:1.0"');
+    expect(clean).toContain('style="line-height:1.15"');
+    expect(clean).toContain('style="line-height:1.5"');
+    expect(clean).toContain('style="line-height:1.75"');
+    expect(clean).toContain('style="line-height:2.0"');
+    expect(clean).toContain('style="line-height:normal"');
+    expect(clean).toContain('style="line-height:150%"');
+    expect(clean).toContain('style="line-height:1.5rem"');
+  });
+
+  it("rejects unsafe or out-of-bounds line-height values", () => {
+    const dangerous =
+      '<p style="line-height: url(javascript:alert(1));">bad url</p>' +
+      '<p style="line-height: 100;">extreme</p>' +
+      '<p style="line-height: 0;">zero collapse</p>' +
+      '<p style="line-height: -1;">negative</p>' +
+      '<p style="line-height: 500px;">huge px</p>';
+
+    const clean = sanitizeHtml(dangerous);
+    expect(clean).not.toContain('line-height');
+  });
+});

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { updatePublicationAction } from '@/modules/admin/admin-publication.actions';
 import RichTextEditor from '@/components/editor/RichTextEditor';
+import { articleHtmlToEditorHtml, editorHtmlToArticleHtml } from '@/lib/editor-html';
 import ImageUpload from '@/components/admin/ImageUpload';
 import { MotionButton } from '@/components/motion/primitives';
 
@@ -11,7 +12,8 @@ export default function EditPubClient({ pub }: { pub: any }) {
   const [title, setTitle] = useState(pub.title);
   const [slug, setSlug] = useState(pub.slug);
   const [description, setDescription] = useState(pub.description || '');
-  const [content, setContent] = useState(pub.content || '');
+  // Quill needs blank lines between blocks; saving converts back (see editor-html).
+  const [content, setContent] = useState(() => articleHtmlToEditorHtml(pub.content || ''));
 
   const [publishDate, setPublishDate] = useState(pub.publishDate ? pub.publishDate.toISOString().split('T')[0] : '');
   const [coverImage, setCoverImage] = useState(pub.coverImage || '');
@@ -26,7 +28,7 @@ export default function EditPubClient({ pub }: { pub: any }) {
     setError('');
 
     const res = await updatePublicationAction({
-      id: pub.id, title, slug, description, content, publishDate: publishDate || undefined, coverImage, documentUrl, status
+      id: pub.id, title, slug, description, content: editorHtmlToArticleHtml(content), publishDate: publishDate || undefined, coverImage, documentUrl, status
     });
 
     if (res?.success) {
