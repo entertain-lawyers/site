@@ -40,6 +40,12 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
   const [users, setUsers] = useState(initialUsers);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const [prevInitialUsers, setPrevInitialUsers] = useState(initialUsers);
+  if (initialUsers !== prevInitialUsers) {
+    setPrevInitialUsers(initialUsers);
+    setUsers(initialUsers);
+  }
+
   // Form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -62,6 +68,10 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
     if (password !== confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -78,9 +88,11 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
       });
       if (!res.success) throw new Error(res.error);
 
+      if (res.data?.user) {
+        setUsers((prev) => [res.data.user as AdminUserRow, ...prev]);
+      }
       setIsModalOpen(false);
       router.refresh();
-      setTimeout(() => window.location.reload(), 500);
     } catch (err) {
       setError((err as Error).message || 'An error occurred');
     } finally {
@@ -214,7 +226,8 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
-                    minLength={6}
+                    minLength={8}
+                    placeholder="At least 8 characters"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full rounded-xl bg-slate-50 dark:bg-zinc-950 border border-black/10 px-4 py-3 text-navy dark:text-white focus:border-accent focus:ring-1 focus:ring-accent pr-12"
@@ -237,6 +250,7 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
                     )}
                   </button>
                 </div>
+                <p className="text-xs text-text-secondary mt-1">Must be at least 8 characters.</p>
               </div>
 
               <div>
@@ -247,7 +261,8 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
-                    minLength={6}
+                    minLength={8}
+                    placeholder="Confirm your password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     className="w-full rounded-xl bg-slate-50 dark:bg-zinc-950 border border-black/10 px-4 py-3 text-navy dark:text-white focus:border-accent focus:ring-1 focus:ring-accent pr-12"

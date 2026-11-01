@@ -23,4 +23,24 @@ describe('createSafeAction error messages', () => {
     });
     expect((await failWith(new Error('Resource not found'))(undefined))).toEqual({ success: false, error: 'Resource not found' });
   });
+
+  it('surfaces Zod 4 length messages and case-insensitive safe error messages', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(await failWith(new Error('Too small: expected string to have >=8 characters'))(undefined)).toEqual({
+      success: false,
+      error: 'Too small: expected string to have >=8 characters',
+    });
+    expect(await failWith(new Error('Too big: expected string to have <=100 characters'))(undefined)).toEqual({
+      success: false,
+      error: 'Too big: expected string to have <=100 characters',
+    });
+    expect(await failWith(new Error('unauthorized action'))(undefined)).toEqual({
+      success: false,
+      error: 'unauthorized action',
+    });
+    expect(await failWith(new Error('invalid password format'))(undefined)).toEqual({
+      success: false,
+      error: 'invalid password format',
+    });
+  });
 });
