@@ -52,19 +52,86 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
     }
   };
 
-  const resource = await prisma.resource.findUnique({
-    where: { status: 'PUBLISHED',  id },
-    include: {
-      subject: {
-        include: {
-          semester: true
-        }
-      },
-      unit: true,
-      author: { select: { name: true, email: true } },
-      createdBy: { select: { name: true, email: true } },
+  type ResourceDetail = NonNullable<
+    Awaited<
+      ReturnType<
+        typeof prisma.resource.findUnique<{
+          where: { status: 'PUBLISHED'; id: string };
+          include: {
+            subject: { include: { semester: true } };
+            unit: true;
+            author: { select: { name: true; email: true } };
+            createdBy: { select: { name: true, email: true } };
+          };
+        }>
+      >
+    >
+  >;
+
+  let resource: ResourceDetail | null = null;
+  try {
+    resource = await prisma.resource.findUnique({
+      where: { status: 'PUBLISHED',  id },
+      include: {
+        subject: {
+          include: {
+            semester: true
+          }
+        },
+        unit: true,
+        author: { select: { name: true, email: true } },
+        createdBy: { select: { name: true, email: true } },
+      }
+    });
+  } catch (error) {
+    const { isSpecificMissingColumnError } = await import('@/lib/prisma-errors');
+    if (!isSpecificMissingColumnError(error, ['authorId', 'createdById'])) {
+      console.error(`[resources/${id}] database error loading resource:`, error);
+      throw error;
     }
-  });
+
+    console.warn(
+      `[resources/${id}] resource findUnique failed (authorId/createdById migration pending), falling back to base fields:`,
+      error
+    );
+
+    const fallbackResource = await prisma.resource.findUnique({
+      where: { status: 'PUBLISHED', id },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        type: true,
+        subjectId: true,
+        unitId: true,
+        isPremium: true,
+        priceAmount: true,
+        currency: true,
+        documentId: true,
+        content: true,
+        subject: {
+          include: {
+            semester: true,
+          },
+        },
+        unit: true,
+      },
+    });
+
+    resource = fallbackResource
+      ? ({
+          ...fallbackResource,
+          authorId: null,
+          createdById: null,
+          order: 0,
+          semesterId: null,
+          metaDesc: null,
+          metaTitle: null,
+          author: null,
+          createdBy: null,
+        } as ResourceDetail)
+      : null;
+  }
 
   if (!resource) {
     notFound();

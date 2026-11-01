@@ -46,34 +46,127 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
     redirect(studyMaterialLoginUrl(`/read/${resourceId}`));
   }
 
-  const resource = await prisma.resource.findUnique({
-    where: { status: 'PUBLISHED',  id: resourceId },
-    include: {
-      document: true,
-      unit: true,
-      author: { select: { name: true, email: true } },
-      createdBy: { select: { name: true, email: true } },
-      subject: {
-        include: {
-          semester: true,
-          units: {
-            orderBy: { order: 'asc' },
-            include: {
-              resources: {
-                // Drafts and archived resources must not appear in the outline.
-                where: { status: 'PUBLISHED' },
-                orderBy: [
-                  { order: 'asc' },
-                  { title: 'asc' }
-                ],
-                select: { id: true, title: true, type: true }
+  type ReadResourceDetail = NonNullable<
+    Awaited<
+      ReturnType<
+        typeof prisma.resource.findUnique<{
+          where: { status: 'PUBLISHED'; id: string };
+          include: {
+            document: true;
+            unit: true;
+            author: { select: { name: true; email: true } };
+            createdBy: { select: { name: true, email: true } };
+            subject: {
+              include: {
+                semester: true;
+                units: {
+                  include: {
+                    resources: {
+                      select: { id: true; title: true; type: true };
+                    };
+                  };
+                };
+              };
+            };
+          };
+        }>
+      >
+    >
+  >;
+
+  let resource: ReadResourceDetail | null = null;
+  try {
+    resource = await prisma.resource.findUnique({
+      where: { status: 'PUBLISHED',  id: resourceId },
+      include: {
+        document: true,
+        unit: true,
+        author: { select: { name: true, email: true } },
+        createdBy: { select: { name: true, email: true } },
+        subject: {
+          include: {
+            semester: true,
+            units: {
+              orderBy: { order: 'asc' },
+              include: {
+                resources: {
+                  // Drafts and archived resources must not appear in the outline.
+                  where: { status: 'PUBLISHED' },
+                  orderBy: [
+                    { order: 'asc' },
+                    { title: 'asc' }
+                  ],
+                  select: { id: true, title: true, type: true }
+                }
               }
             }
           }
         }
       }
+    });
+  } catch (error) {
+    const { isSpecificMissingColumnError } = await import('@/lib/prisma-errors');
+    if (!isSpecificMissingColumnError(error, ['authorId', 'createdById'])) {
+      console.error(`[read/${resourceId}] database error loading resource:`, error);
+      throw error;
     }
-  });
+
+    console.warn(
+      `[read/${resourceId}] resource findUnique failed (authorId/createdById migration pending), falling back to base fields:`,
+      error
+    );
+
+    const fallbackResource = await prisma.resource.findUnique({
+      where: { status: 'PUBLISHED', id: resourceId },
+      select: {
+        id: true,
+        title: true,
+        status: true,
+        type: true,
+        subjectId: true,
+        unitId: true,
+        documentId: true,
+        document: true,
+        content: true,
+        unit: true,
+        subject: {
+          include: {
+            semester: true,
+            units: {
+              orderBy: { order: 'asc' },
+              include: {
+                resources: {
+                  where: { status: 'PUBLISHED' },
+                  orderBy: [
+                    { order: 'asc' },
+                    { title: 'asc' },
+                  ],
+                  select: { id: true, title: true, type: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    resource = fallbackResource
+      ? ({
+          ...fallbackResource,
+          authorId: null,
+          createdById: null,
+          order: 0,
+          semesterId: null,
+          metaDesc: null,
+          metaTitle: null,
+          isPremium: false,
+          priceAmount: null,
+          currency: 'NPR',
+          author: null,
+          createdBy: null,
+        } as ReadResourceDetail)
+      : null;
+  }
 
   if (!resource) {
     notFound();
