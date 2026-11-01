@@ -3,12 +3,14 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { updateFAQAction } from '@/modules/admin/admin-faq.actions';
 import RichTextEditor from '@/components/editor/RichTextEditor';
+import { articleHtmlToEditorHtml, editorHtmlToArticleHtml } from '@/lib/editor-html';
 import { MotionButton } from '@/components/motion/primitives';
 
 export default function EditFaqClient({ faq }: { faq: any }) {
   const router = useRouter();
   const [question, setQuestion] = useState(faq.question);
-  const [answer, setAnswer] = useState(faq.answer || '');
+  // Quill needs blank lines between blocks; saving converts back (see editor-html).
+  const [answer, setAnswer] = useState(() => articleHtmlToEditorHtml(faq.answer || ''));
   const [status, setStatus] = useState<'DRAFT'|'PUBLISHED'|'ARCHIVED'>(faq.status);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -18,7 +20,7 @@ export default function EditFaqClient({ faq }: { faq: any }) {
     setLoading(true);
     setError('');
 
-    const res = await updateFAQAction({ id: faq.id, question, answer, status, order: faq.order });
+    const res = await updateFAQAction({ id: faq.id, question, answer: editorHtmlToArticleHtml(answer), status, order: faq.order });
 
     if (res?.success) {
       router.push('/admin/faqs');

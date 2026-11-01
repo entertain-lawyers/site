@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createPublicationAction } from '@/modules/admin/admin-publication.actions';
 import RichTextEditor from '@/components/editor/RichTextEditor';
+import { editorHtmlToArticleHtml } from '@/lib/editor-html';
 import ImageUpload from '@/components/admin/ImageUpload';
 import { MotionButton } from '@/components/motion/primitives';
 
@@ -25,7 +26,7 @@ export default function NewPubPage() {
     setError('');
 
     const res = await createPublicationAction({
-      title, slug, description, content, publishDate: publishDate || undefined, coverImage, documentUrl, status
+      title, slug, description, content: editorHtmlToArticleHtml(content), publishDate: publishDate || undefined, coverImage, documentUrl, status
     });
 
     if (res?.success) {

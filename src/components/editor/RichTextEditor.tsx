@@ -23,6 +23,8 @@ interface RichTextEditorProps {
 const QUILL_FORMATS = [
   'header',
   'bold', 'italic', 'underline', 'strike',
+  // Superscript/subscript (e.g. "7th Semester" pasted from Word/Writer).
+  'script',
   'list', 'indent',
   'link', 'image', 'video',
   'color', 'background',
@@ -42,6 +44,7 @@ function isAllowedImageMimeType(t: string): t is AllowedImageMimeType {
 const QUILL_TOOLBAR_CONTAINER = [
   [{ header: [1, 2, 3, 4, 5, 6, false] }],
   ['bold', 'italic', 'underline', 'strike'],
+  [{ script: 'super' }, { script: 'sub' }],
   [{ list: 'ordered' }, { list: 'bullet' }],
   [{ indent: '-1' }, { indent: '+1' }],
   ['link', 'image', 'video'],
@@ -51,12 +54,42 @@ const QUILL_TOOLBAR_CONTAINER = [
 
 let _imageHandlerRelay: (() => void) | null = null;
 
+// Node.TEXT_NODE; a literal because this module is also evaluated on the server.
+const TEXT_NODE = 3;
+type PasteDelta = { ops: Array<{ insert?: unknown }> };
+
+/**
+ * Word and LibreOffice Writer wrap long lines in their HTML, so the text after
+ * a <br> starts with a newline that Quill turns into a leading space. Drop
+ * whitespace at the start of a line that follows a line break.
+ */
+function trimAfterLineBreak(node: Node, delta: PasteDelta): PasteDelta {
+  if (node.previousSibling?.nodeName !== 'BR') return delta;
+  const first = delta.ops[0];
+  if (first && typeof first.insert === 'string') {
+    first.insert = first.insert.replace(/^\s+/, '');
+    if (first.insert === '') delta.ops.shift();
+  }
+  return delta;
+}
+
+/**
+ * LibreOffice Writer exports an empty paragraph as <p><br/><br/></p>, which
+ * Quill would turn into two blank lines; the document showed one.
+ */
+function oneBlankLinePerEmptyParagraph(node: Node, delta: PasteDelta): PasteDelta {
+  const el = node as Element;
+  if (el.textContent?.trim() || el.querySelector?.('img, iframe, video')) return delta;
+  delta.ops = [{ insert: '\n' }];
+  return delta;
+}
+
 const QUILL_MODULES: {
   toolbar: {
     container: typeof QUILL_TOOLBAR_CONTAINER;
     handlers: { image: () => void };
   };
-  clipboard: { matchVisual: boolean };
+  clipboard: { matchVisual: boolean; matchers: Array<[number | string, (node: Node, delta: PasteDelta) => PasteDelta]> };
 } = {
   toolbar: {
     container: QUILL_TOOLBAR_CONTAINER,
@@ -64,7 +97,13 @@ const QUILL_MODULES: {
       image: () => _imageHandlerRelay?.(),
     },
   },
-  clipboard: { matchVisual: false },
+  clipboard: {
+    matchVisual: false,
+    matchers: [
+      [TEXT_NODE, trimAfterLineBreak],
+      ['p', oneBlankLinePerEmptyParagraph],
+    ],
+  },
 };
 
 export default function RichTextEditor({

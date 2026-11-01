@@ -1,4 +1,8 @@
 @import "tailwindcss";
+/* The `prose` classes used for rich text (events, publications, FAQs, Nepali
+   posts, about, team) come from this plugin; Tailwind v4 only loads plugins
+   registered here, so without it those pages had no content styling. */
+@plugin "@tailwindcss/typography";
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 @theme {
   /* Brand Colors — Entertain Lawyers */
@@ -617,4 +621,27 @@
   body:has(.admin-editor-page) .admin-main {
     margin-left: 0;
   }
+}
+
+/* Rich text written in the admin editor inside .prose (events, publications,
+   FAQs): same layout rules as the article body, see src/lib/editor-html.ts.
+   Unlayered so they apply over the typography plugin's margins. */
+.prose .el-ed { margin-top: 0; margin-bottom: 1lh; }
+.prose .el-ed.el-tight,
+.prose .el-ed:last-child { margin-bottom: 0; }
+.prose .el-ed.el-gap-2 { margin-bottom: 2lh; }
+.prose .el-ed.el-gap-3 { margin-bottom: 3lh; }
+.prose .el-ed.el-gap-4 { margin-bottom: 4lh; }
+.prose :is(ol, ul).el-ed { padding-left: 2.75em; }
+.prose .el-ed li { margin-top: 0; margin-bottom: 0; padding-left: 0.25em; }
+.prose .el-ed li > :is(ol, ul) { padding-left: 2.75em; margin: 0; }
+.prose .el-ed img { margin-top: 0; margin-bottom: 0; }
+.prose .ql-align-center img { margin-inline: auto; }
+.prose .ql-align-right img { margin-left: auto; }
+.prose iframe.ql-video {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  border-radius: 0.75rem;
 }

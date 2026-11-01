@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createEventAction } from '@/modules/admin/admin-event.actions';
 import RichTextEditor from '@/components/editor/RichTextEditor';
+import { editorHtmlToArticleHtml } from '@/lib/editor-html';
 import ImageUpload from '@/components/admin/ImageUpload';
 import { MotionButton } from '@/components/motion/primitives';
 
@@ -25,7 +26,7 @@ export default function NewEventPage() {
     setError('');
 
     const res = await createEventAction({
-      title, slug, description, content, eventDate, location, featuredImage, status
+      title, slug, description, content: editorHtmlToArticleHtml(content), eventDate, location, featuredImage, status
     });
 
     if (res?.success) {
