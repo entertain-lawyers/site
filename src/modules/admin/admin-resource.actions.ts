@@ -4,7 +4,7 @@ import { createSafeAction, UserFacingError } from '@/lib/safe-action';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { ContentStatus, Role, ResourceType } from '@prisma/client';
-import { isRecordInUseError, isRecordNotFoundError } from '@/lib/prisma-errors';
+import { isRecordInUseError, isRecordNotFoundError, isSpecificMissingColumnError } from '@/lib/prisma-errors';
 import { deleteObject } from '@/lib/b2';
 import { revalidatePath } from 'next/cache';
 import { resolveLocalAuthor } from '@/lib/content-authors';
@@ -60,6 +60,7 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
 
   // Attribution is validated server-side; a forged request cannot credit a
   // non-author. The creator is stored separately and is always the actor.
+  const isExplicitAuthorSelection = Boolean(input.authorUserId);
   const authorId = input.authorUserId ?? session.userId;
   if (!authorId) {
     throw new UserFacingError('An author is required to create a resource.');
@@ -67,23 +68,55 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
   await resolveLocalAuthor(authorId);
 
   const resourceId = await prisma.$transaction(async (tx) => {
-    const resource = await tx.resource.create({
-      data: {
-        title: input.title,
-        content: input.content?.trim() || null,
-        metaDesc: input.description?.trim() || null,
-        subjectId: input.subjectId || null,
-        semesterId: input.semesterId || null,
-        isPremium,
-        priceAmount,
-        currency,
-        type: resourceType,
-        unitId: input.unitId || null,
-        status: input.status,
-        authorId,
-        createdById: session.userId ?? null,
+    let resource;
+    try {
+      resource = await tx.resource.create({
+        data: {
+          title: input.title,
+          content: input.content?.trim() || null,
+          metaDesc: input.description?.trim() || null,
+          subjectId: input.subjectId || null,
+          semesterId: input.semesterId || null,
+          isPremium,
+          priceAmount,
+          currency,
+          type: resourceType,
+          unitId: input.unitId || null,
+          status: input.status,
+          authorId,
+          createdById: session.userId ?? null,
+        }
+      });
+    } catch (createError) {
+      if (!isSpecificMissingColumnError(createError, ['authorId', 'createdById'])) {
+        console.error('[admin-resource] create resource database error:', createError);
+        throw createError;
       }
-    });
+
+      // If the administrator explicitly selected an author, never silently discard it!
+      if (isExplicitAuthorSelection) {
+        throw new UserFacingError(
+          'Author assignment failed because database migration 20261101000000 has not been applied yet. Run database migrations before assigning an author, or leave author unassigned.'
+        );
+      }
+
+      console.warn('[admin-resource] create with authorId/createdById failed (migration pending), retrying base fields:', createError);
+      resource = await tx.resource.create({
+        data: {
+          title: input.title,
+          content: input.content?.trim() || null,
+          metaDesc: input.description?.trim() || null,
+          subjectId: input.subjectId || null,
+          semesterId: input.semesterId || null,
+          isPremium,
+          priceAmount,
+          currency,
+          type: resourceType,
+          unitId: input.unitId || null,
+          status: input.status,
+        }
+      });
+    }
 
     if (session.userId) {
       await tx.auditLog.create({
@@ -381,23 +414,56 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
   }
 
   await prisma.$transaction(async (tx) => {
-    const resource = await tx.resource.update({
-      where: { id: input.id },
-      data: {
-        title: input.title,
-        content: input.content?.trim() || null,
-        metaDesc: input.description?.trim() || null,
-        subjectId: input.subjectId || null,
-        semesterId: input.semesterId || null,
-        isPremium,
-        priceAmount,
-        currency,
-        type: input.type,
-        unitId: input.unitId || null,
-        status: input.status,
-        ...(input.authorUserId ? { authorId: input.authorUserId } : {}),
+    let resource;
+    try {
+      resource = await tx.resource.update({
+        where: { id: input.id },
+        data: {
+          title: input.title,
+          content: input.content?.trim() || null,
+          metaDesc: input.description?.trim() || null,
+          subjectId: input.subjectId || null,
+          semesterId: input.semesterId || null,
+          isPremium,
+          priceAmount,
+          currency,
+          type: input.type,
+          unitId: input.unitId || null,
+          status: input.status,
+          ...(input.authorUserId ? { authorId: input.authorUserId } : {}),
+        }
+      });
+    } catch (updateError) {
+      if (!isSpecificMissingColumnError(updateError, ['authorId', 'createdById'])) {
+        console.error('[admin-resource] update resource database error:', updateError);
+        throw updateError;
       }
-    });
+
+      // If the administrator explicitly selected an author, never silently discard it!
+      if (input.authorUserId) {
+        throw new UserFacingError(
+          'Author assignment failed because database migration 20261101000000 has not been applied yet. Run database migrations before assigning an author.'
+        );
+      }
+
+      console.warn('[admin-resource] update with authorId failed (migration pending), retrying base fields:', updateError);
+      resource = await tx.resource.update({
+        where: { id: input.id },
+        data: {
+          title: input.title,
+          content: input.content?.trim() || null,
+          metaDesc: input.description?.trim() || null,
+          subjectId: input.subjectId || null,
+          semesterId: input.semesterId || null,
+          isPremium,
+          priceAmount,
+          currency,
+          type: input.type,
+          unitId: input.unitId || null,
+          status: input.status,
+        }
+      });
+    }
 
     if (session.userId) {
       await tx.auditLog.create({

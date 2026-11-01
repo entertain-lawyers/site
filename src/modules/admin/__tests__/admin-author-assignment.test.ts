@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { Role, ResourceType, ContentStatus } from '@prisma/client';
+import { Prisma, Role, ResourceType, ContentStatus } from '@prisma/client';
 
 // Mock auth
 vi.mock('@/lib/auth', () => ({
@@ -146,33 +146,18 @@ vi.mock('@/lib/prisma', () => ({
       }),
     },
     $transaction: vi.fn().mockImplementation(async (callback) => {
-      const tx = {
-        resource: {
-          create: vi.fn().mockImplementation(async ({ data }) => {
-            mockCreatedResource = { id: 'res-new-1', ...data };
-            return mockCreatedResource;
-          }),
-          update: vi.fn().mockImplementation(async ({ where, data }) => {
-            mockUpdatedResource = { id: where.id, ...data };
-            return mockUpdatedResource;
-          }),
-        },
-        auditLog: {
-          create: vi.fn().mockImplementation(async ({ data }) => {
-            mockAuditLogs.push(data);
-            return { id: `audit-${mockAuditLogs.length}`, ...data };
-          }),
-        },
-      };
-      return callback(tx);
+      return callback(prisma);
     }),
   },
 }));
+
+import { prisma } from '@/lib/prisma';
 
 import {
   CONTENT_AUTHOR_ROLES,
   isContentAuthorRole,
   listLocalAuthors,
+  listLocalAuthorsWithStatus,
   resolveLocalAuthor,
   resolveWordPressAuthor,
   listWordPressAuthorsSafe,
@@ -553,6 +538,269 @@ describe('Author Assignment & Attribution Suite', () => {
 
       expect(publishRes.success).toBe(true);
       expect(mockUpdatedResource.status).toBe(ContentStatus.PUBLISHED);
+    });
+  });
+
+  // 14. Defensive resilience when migration 20261101000000 has not been applied yet
+  // 14. Defensive resilience when migration 20261101000000 has not been applied yet
+  describe('14. Defensive resilience when migration 20261101000000 has not been applied yet', () => {
+    it('listLocalAuthorsWithStatus returns authorMappingAvailable=true when migration is applied', async () => {
+      const result = await listLocalAuthorsWithStatus();
+      expect(result.authorMappingAvailable).toBe(true);
+      expect(result.authors.length).toBeGreaterThan(0);
+      expect(result.authors[0].wpAuthorIdEn).toBe(24);
+    });
+
+    it('listLocalAuthorsWithStatus gracefully falls back and reports authorMappingAvailable=false when columns are missing (P2022)', async () => {
+      const originalFindMany = (prisma.user.findMany as any).getMockImplementation();
+
+      let callCount = 0;
+      (prisma.user.findMany as any).mockImplementation(async (query: any) => {
+        callCount++;
+        if (query?.select?.wpAuthorIdEn !== undefined) {
+          throw new Prisma.PrismaClientKnownRequestError('column User.wpAuthorIdEn does not exist', {
+            code: 'P2022',
+            clientVersion: 'test',
+            meta: { column: 'User.wpAuthorIdEn' },
+          });
+        }
+        return [
+          { id: 'user-admin', name: 'Dev Admin', email: 'admin@entertainlawyers.com', role: Role.ADMIN },
+          { id: 'user-editor', name: 'Staff Editor', email: 'editor@entertainlawyers.com', role: Role.EDITOR },
+        ];
+      });
+
+      const result = await listLocalAuthorsWithStatus();
+      expect(callCount).toBe(2);
+      expect(result.authorMappingAvailable).toBe(false);
+      expect(result.authors).toHaveLength(2);
+      expect(result.authors[0].id).toBe('user-admin');
+      expect(result.authors[0].wpAuthorIdEn).toBeNull();
+      expect(result.authors[0].wpAuthorIdNe).toBeNull();
+      expect(result.authors[0].authorMappingAvailable).toBe(false);
+
+      (prisma.user.findMany as any).mockImplementation(originalFindMany);
+    });
+
+    it('listLocalAuthorsWithStatus re-throws unrelated database failures (does not swallow)', async () => {
+      const originalFindMany = (prisma.user.findMany as any).getMockImplementation();
+
+      (prisma.user.findMany as any).mockImplementation(async () => {
+        throw new Error('Database connection refused');
+      });
+
+      await expect(listLocalAuthorsWithStatus()).rejects.toThrow('Database connection refused');
+
+      (prisma.user.findMany as any).mockImplementation(originalFindMany);
+    });
+
+    it('listLocalAuthorsWithStatus re-throws P2022 if caused by an unrelated column', async () => {
+      const originalFindMany = (prisma.user.findMany as any).getMockImplementation();
+
+      (prisma.user.findMany as any).mockImplementation(async () => {
+        throw new Prisma.PrismaClientKnownRequestError('column User.unrelatedColumn does not exist', {
+          code: 'P2022',
+          clientVersion: 'test',
+          meta: { column: 'User.unrelatedColumn' },
+        });
+      });
+
+      await expect(listLocalAuthorsWithStatus()).rejects.toThrow(/unrelatedColumn/);
+
+      (prisma.user.findMany as any).mockImplementation(originalFindMany);
+    });
+
+    it('resolveLocalAuthor falls back to base fields and sets authorMappingAvailable=false when columns are missing (P2022)', async () => {
+      const originalFindUnique = (prisma.user.findUnique as any).getMockImplementation();
+
+      (prisma.user.findUnique as any).mockImplementation(async ({ where, select }: any) => {
+        if (select?.wpAuthorIdEn !== undefined) {
+          throw new Prisma.PrismaClientKnownRequestError('column User.wpAuthorIdEn does not exist', {
+            code: 'P2022',
+            clientVersion: 'test',
+            meta: { column: 'User.wpAuthorIdEn' },
+          });
+        }
+        return {
+          id: where.id,
+          name: 'Dev Admin',
+          email: 'admin@entertainlawyers.com',
+          role: Role.ADMIN,
+        };
+      });
+
+      const author = await resolveLocalAuthor('user-admin');
+      expect(author.id).toBe('user-admin');
+      expect(author.wpAuthorIdEn).toBeNull();
+      expect(author.wpAuthorIdNe).toBeNull();
+      expect(author.authorMappingAvailable).toBe(false);
+
+      (prisma.user.findUnique as any).mockImplementation(originalFindUnique);
+    });
+
+    it('resolveLocalAuthor re-throws unrelated database errors', async () => {
+      const originalFindUnique = (prisma.user.findUnique as any).getMockImplementation();
+
+      (prisma.user.findUnique as any).mockImplementation(async () => {
+        throw new Error('Connection timeout');
+      });
+
+      await expect(resolveLocalAuthor('user-admin')).rejects.toThrow('Connection timeout');
+
+      (prisma.user.findUnique as any).mockImplementation(originalFindUnique);
+    });
+
+    it('resolveWordPressAuthor throws actionable error when author mapping migration is unavailable', async () => {
+      const originalFindUnique = (prisma.user.findUnique as any).getMockImplementation();
+
+      (prisma.user.findUnique as any).mockImplementation(async ({ where, select }: any) => {
+        if (select?.wpAuthorIdEn !== undefined) {
+          throw new Prisma.PrismaClientKnownRequestError('column User.wpAuthorIdEn does not exist', {
+            code: 'P2022',
+            clientVersion: 'test',
+            meta: { column: 'User.wpAuthorIdEn' },
+          });
+        }
+        return {
+          id: where.id,
+          name: 'Dev Admin',
+          email: 'admin@entertainlawyers.com',
+          role: Role.ADMIN,
+        };
+      });
+
+      await expect(resolveWordPressAuthor('user-admin', 'en')).rejects.toThrow(
+        /WordPress author assignment is unavailable because database migration 20261101000000 has not been applied yet/
+      );
+
+      (prisma.user.findUnique as any).mockImplementation(originalFindUnique);
+    });
+
+    it('createResourceAction throws actionable error when author is explicitly assigned and authorId column is missing', async () => {
+      const originalCreate = (prisma.resource.create as any).getMockImplementation();
+
+      (prisma.resource.create as any).mockImplementation(async ({ data }: any) => {
+        if (data.authorId !== undefined) {
+          throw new Prisma.PrismaClientKnownRequestError('column Resource.authorId does not exist', {
+            code: 'P2022',
+            clientVersion: 'test',
+            meta: { column: 'Resource.authorId' },
+          });
+        }
+        mockCreatedResource = { id: 'res-fallback-1', ...data };
+        return mockCreatedResource;
+      });
+
+      const result = await createResourceAction({
+        title: 'Explicit Author Resource',
+        subjectId: 'a0000000-0000-0000-0000-000000000001',
+        type: ResourceType.OTHER,
+        isPremium: false,
+        status: ContentStatus.PUBLISHED,
+        authorUserId: 'user-editor', // explicitly selected
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toMatch(/Author assignment failed because database migration 20261101000000 has not been applied yet/);
+      }
+
+      (prisma.resource.create as any).mockImplementation(originalCreate);
+    });
+
+    it('createResourceAction falls back to base fields when NO author was explicitly specified and migration is pending', async () => {
+      const originalCreate = (prisma.resource.create as any).getMockImplementation();
+
+      let attemptedFullCreate = false;
+      let fellBackToBase = false;
+
+      (prisma.resource.create as any).mockImplementation(async ({ data }: any) => {
+        if (data.authorId !== undefined) {
+          attemptedFullCreate = true;
+          throw new Prisma.PrismaClientKnownRequestError('column Resource.authorId does not exist', {
+            code: 'P2022',
+            clientVersion: 'test',
+            meta: { column: 'Resource.authorId' },
+          });
+        }
+        fellBackToBase = true;
+        mockCreatedResource = { id: 'res-fallback-base', ...data };
+        return mockCreatedResource;
+      });
+
+      const result = await createResourceAction({
+        title: 'Default Author Resource',
+        subjectId: 'a0000000-0000-0000-0000-000000000001',
+        type: ResourceType.OTHER,
+        isPremium: false,
+        status: ContentStatus.PUBLISHED,
+        // authorUserId is omitted
+      });
+
+      expect(attemptedFullCreate).toBe(true);
+      expect(fellBackToBase).toBe(true);
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.resourceId).toBe('res-fallback-base');
+      }
+
+      (prisma.resource.create as any).mockImplementation(originalCreate);
+    });
+
+    it('updateResourceAction throws actionable error when authorUserId is passed and authorId column is missing', async () => {
+      const originalUpdate = (prisma.resource.update as any).getMockImplementation();
+
+      (prisma.resource.update as any).mockImplementation(async ({ data }: any) => {
+        if (data.authorId !== undefined) {
+          throw new Prisma.PrismaClientKnownRequestError('column Resource.authorId does not exist', {
+            code: 'P2022',
+            clientVersion: 'test',
+            meta: { column: 'Resource.authorId' },
+          });
+        }
+        mockUpdatedResource = { id: 'res-update-1', ...data };
+        return mockUpdatedResource;
+      });
+
+      const result = await updateResourceAction({
+        id: 'res-update-1',
+        title: 'Update Resource',
+        subjectId: 'a0000000-0000-0000-0000-000000000001',
+        type: ResourceType.OTHER,
+        isPremium: false,
+        status: ContentStatus.PUBLISHED,
+        authorUserId: 'user-admin', // explicitly requested
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toMatch(/Author assignment failed because database migration 20261101000000 has not been applied yet/);
+      }
+
+      (prisma.resource.update as any).mockImplementation(originalUpdate);
+    });
+
+    it('createResourceAction re-throws unrelated database failures (does not swallow)', async () => {
+      const originalCreate = (prisma.resource.create as any).getMockImplementation();
+
+      (prisma.resource.create as any).mockImplementation(async () => {
+        throw new Error('Deadlock detected');
+      });
+
+      const result = await createResourceAction({
+        title: 'Failing Resource',
+        subjectId: 'a0000000-0000-0000-0000-000000000001',
+        type: ResourceType.OTHER,
+        isPremium: false,
+        status: ContentStatus.PUBLISHED,
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toMatch(/An unexpected error occurred|Deadlock detected/);
+      }
+
+      (prisma.resource.create as any).mockImplementation(originalCreate);
     });
   });
 });

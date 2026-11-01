@@ -2,6 +2,7 @@ import { Role } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { UserFacingError } from '@/lib/safe-action';
 import { listWordPressAuthors, type WordPressAuthor, type WordPressLanguage } from '@/lib/wordpress';
+import { isSpecificMissingColumnError } from '@/lib/prisma-errors';
 
 /**
  * Who may be credited as a content author. The app has no separate AUTHOR
@@ -16,6 +17,13 @@ export interface AuthorOption {
   /** Explicit link to each WordPress install's user id; null when not linked. */
   wpAuthorIdEn: number | null;
   wpAuthorIdNe: number | null;
+  /** False when author-mapping schema is missing in the database (migration pending). */
+  authorMappingAvailable?: boolean;
+}
+
+export interface AuthorQueryResult {
+  authors: AuthorOption[];
+  authorMappingAvailable: boolean;
 }
 
 export function authorDisplayName(user: {
@@ -29,28 +37,76 @@ export function isContentAuthorRole(role: Role): boolean {
   return CONTENT_AUTHOR_ROLES.includes(role);
 }
 
+/**
+ * Loads eligible content authors and detects whether WordPress author mapping
+ * columns are available in the current database schema.
+ */
+export async function listLocalAuthorsWithStatus(): Promise<AuthorQueryResult> {
+  try {
+    const users = await prisma.user.findMany({
+      where: { role: { in: CONTENT_AUTHOR_ROLES } },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        wpAuthorIdEn: true,
+        wpAuthorIdNe: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    return {
+      authors: users.map((user) => ({
+        id: user.id,
+        name: authorDisplayName(user),
+        role: user.role,
+        wpAuthorIdEn: user.wpAuthorIdEn,
+        wpAuthorIdNe: user.wpAuthorIdNe,
+        authorMappingAvailable: true,
+      })),
+      authorMappingAvailable: true,
+    };
+  } catch (error) {
+    if (!isSpecificMissingColumnError(error, ['wpAuthorIdEn', 'wpAuthorIdNe'])) {
+      console.error('[content-authors] listLocalAuthors database error (unrelated to schema migration):', error);
+      throw error;
+    }
+
+    console.warn(
+      '[content-authors] listLocalAuthors could not select wpAuthorId columns (migration 20261101000000 pending), falling back to base fields:',
+      error
+    );
+
+    const users = await prisma.user.findMany({
+      where: { role: { in: CONTENT_AUTHOR_ROLES } },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      },
+      orderBy: { name: 'asc' },
+    });
+
+    return {
+      authors: users.map((user) => ({
+        id: user.id,
+        name: authorDisplayName(user),
+        role: user.role,
+        wpAuthorIdEn: null,
+        wpAuthorIdNe: null,
+        authorMappingAvailable: false,
+      })),
+      authorMappingAvailable: false,
+    };
+  }
+}
+
 /** Eligible local users for the author dropdowns. */
 export async function listLocalAuthors(): Promise<AuthorOption[]> {
-  const users = await prisma.user.findMany({
-    where: { role: { in: CONTENT_AUTHOR_ROLES } },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      wpAuthorIdEn: true,
-      wpAuthorIdNe: true,
-    },
-    orderBy: { name: 'asc' },
-  });
-
-  return users.map((user) => ({
-    id: user.id,
-    name: authorDisplayName(user),
-    role: user.role,
-    wpAuthorIdEn: user.wpAuthorIdEn,
-    wpAuthorIdNe: user.wpAuthorIdNe,
-  }));
+  const result = await listLocalAuthorsWithStatus();
+  return result.authors;
 }
 
 /**
@@ -58,17 +114,49 @@ export async function listLocalAuthors(): Promise<AuthorOption[]> {
  * request cannot credit a normal user (or a non-user) as the author.
  */
 export async function resolveLocalAuthor(authorUserId: string): Promise<AuthorOption> {
-  const user = await prisma.user.findUnique({
-    where: { id: authorUserId },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      wpAuthorIdEn: true,
-      wpAuthorIdNe: true,
-    },
-  });
+  let user: {
+    id: string;
+    name: string | null;
+    email: string | null;
+    role: Role;
+    wpAuthorIdEn?: number | null;
+    wpAuthorIdNe?: number | null;
+  } | null = null;
+  let authorMappingAvailable = true;
+
+  try {
+    user = await prisma.user.findUnique({
+      where: { id: authorUserId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        wpAuthorIdEn: true,
+        wpAuthorIdNe: true,
+      },
+    });
+  } catch (error) {
+    if (!isSpecificMissingColumnError(error, ['wpAuthorIdEn', 'wpAuthorIdNe'])) {
+      console.error(`[content-authors] resolveLocalAuthor(${authorUserId}) database error:`, error);
+      throw error;
+    }
+
+    console.warn(
+      `[content-authors] resolveLocalAuthor(${authorUserId}) failed with missing wpAuthorId columns (migration pending), falling back to base fields:`,
+      error
+    );
+    authorMappingAvailable = false;
+    user = await prisma.user.findUnique({
+      where: { id: authorUserId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      },
+    });
+  }
 
   if (!user) {
     throw new UserFacingError('The selected author account no longer exists.');
@@ -81,8 +169,9 @@ export async function resolveLocalAuthor(authorUserId: string): Promise<AuthorOp
     id: user.id,
     name: authorDisplayName(user),
     role: user.role,
-    wpAuthorIdEn: user.wpAuthorIdEn,
-    wpAuthorIdNe: user.wpAuthorIdNe,
+    wpAuthorIdEn: user.wpAuthorIdEn ?? null,
+    wpAuthorIdNe: user.wpAuthorIdNe ?? null,
+    authorMappingAvailable,
   };
 }
 
@@ -96,6 +185,13 @@ export async function resolveWordPressAuthor(
   lang: WordPressLanguage
 ): Promise<{ author: AuthorOption; wpAuthorId: number }> {
   const author = await resolveLocalAuthor(authorUserId);
+
+  if (author.authorMappingAvailable === false) {
+    throw new UserFacingError(
+      'WordPress author assignment is unavailable because database migration 20261101000000 has not been applied yet. Run database migrations to enable WordPress author mapping.'
+    );
+  }
+
   const wpAuthorId = lang === 'ne' ? author.wpAuthorIdNe : author.wpAuthorIdEn;
 
   if (!wpAuthorId) {

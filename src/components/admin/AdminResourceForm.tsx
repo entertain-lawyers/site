@@ -46,6 +46,7 @@ export function AdminResourceForm({
   units,
   canManageLawTypes = false,
   authors = [],
+  authorMappingAvailable = true,
   defaultAuthorId = '',
   resource,
 }: {
@@ -54,6 +55,7 @@ export function AdminResourceForm({
   units: UnitOption[];
   canManageLawTypes?: boolean;
   authors?: AuthorOption[];
+  authorMappingAvailable?: boolean;
   defaultAuthorId?: string;
   resource?: EditableResource;
 }) {
@@ -326,8 +328,18 @@ export function AdminResourceForm({
             authors={authors}
             value={authorUserId}
             onChange={setAuthorUserId}
-            emptyMessage="No eligible author accounts found."
-            hint="Shown as the resource author. The creator is recorded separately."
+            disabled={!authorMappingAvailable}
+            placeholder={!authorMappingAvailable ? 'Author assignment unavailable (migration pending)' : undefined}
+            emptyMessage={
+              !authorMappingAvailable
+                ? 'Author assignment is temporarily unavailable because database migrations are pending.'
+                : 'No eligible author accounts found.'
+            }
+            hint={
+              !authorMappingAvailable
+                ? 'Author assignment is disabled until database migration 20261101000000 is applied.'
+                : 'Shown as the resource author. The creator is recorded separately.'
+            }
           />
         </div>
 
