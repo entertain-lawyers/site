@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { Prisma, Role, ResourceType, ContentStatus } from '@prisma/client';
 
 // Mock auth
@@ -13,8 +13,13 @@ vi.mock('next/cache', () => ({
   revalidatePath: vi.fn(),
 }));
 
-// Mock wordpress client
-vi.mock('@/lib/wordpress', () => ({
+// Mock wordpress client, but keep the real error classes so the production
+// `instanceof` checks behave exactly as they do at runtime. Tests that need
+// the real resolution path point `getWordPressAuthenticatedUser` back at the
+// actual implementation and stub fetch.
+vi.mock('@/lib/wordpress', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/wordpress')>();
+  return {
   createWordPressPost: vi.fn().mockImplementation(async (input, lang) => ({
     id: 101,
     title: { rendered: input.title },
@@ -50,21 +55,15 @@ vi.mock('@/lib/wordpress', () => ({
   }),
   mapTypeToCategory: vi.fn().mockReturnValue([61]),
   toWordPressWriteError: vi.fn((err: any) => err),
-  WordPressAuthError: class WordPressAuthError extends Error {
-    constructor(message = 'WordPress authentication credentials are missing.') {
-      super(message);
-      this.name = 'WordPressAuthError';
-    }
-  },
-  WordPressApiError: class WordPressApiError extends Error {
-    public readonly status?: number;
-    constructor(message: string, status?: number) {
-      super(message);
-      this.name = 'WordPressApiError';
-      this.status = status;
-    }
-  },
-}));
+  WordPressAuthError: actual.WordPressAuthError,
+  WordPressApiError: actual.WordPressApiError,
+  };
+});
+
+// The real module, for the error-propagation suite. The suite above keeps the
+// WordPress write calls stubbed; this reference lets the auth resolver run its
+// genuine `fetchWordPress` -> `/users/me` path against a stubbed global fetch.
+const actualWordPress = await vi.importActual<typeof import('@/lib/wordpress')>('@/lib/wordpress');
 
 // Test database fixtures
 const mockUsers = [
@@ -1135,6 +1134,273 @@ describe('Author Assignment & Attribution Suite', () => {
         });
         expect(submitted).toBeUndefined();
       });
+    });
+  });
+
+  // 8. Real error propagation through fetchWordPress
+  //
+  // The tests above stub getWordPressAuthenticatedUser directly. These run the
+  // genuine resolver: real getWordPressAuthHeader -> real fetchWordPress ->
+  // stubbed global fetch. That is the layer where a WordPressAuthError used to
+  // be wrapped into a generic WordPressApiError.
+  describe('8. Real fetchWordPress authentication error propagation', () => {
+    const WP_ENV_KEYS = [
+      'WP_AUTH_HEADER',
+      'WP_AUTH_USERNAME',
+      'WP_AUTH_APP_PASSWORD',
+      'WP_NEPALI_AUTH_HEADER',
+      'WP_NEPALI_AUTH_USERNAME',
+      'WP_NEPALI_AUTH_APP_PASSWORD',
+    ] as const;
+    const fetchMock = vi.fn();
+    let savedEnv: Record<string, string | undefined>;
+
+    const basic = (username: string, password: string) =>
+      `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
+
+    const jsonResponse = (
+      body: unknown,
+      init: { ok?: boolean; status?: number; statusText?: string } = {}
+    ) => ({
+      ok: init.ok ?? true,
+      status: init.status ?? 200,
+      statusText: init.statusText ?? 'OK',
+      json: async () => body,
+      headers: { get: () => null },
+    });
+
+    beforeEach(() => {
+      savedEnv = {};
+      for (const key of WP_ENV_KEYS) {
+        savedEnv[key] = process.env[key];
+        delete process.env[key];
+      }
+      fetchMock.mockReset();
+      vi.stubGlobal('fetch', fetchMock);
+      // Swap the stub for the real resolver. Write calls stay mocked.
+      (getWordPressAuthenticatedUser as any).mockImplementation(
+        actualWordPress.getWordPressAuthenticatedUser
+      );
+    });
+
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      for (const key of WP_ENV_KEYS) {
+        if (savedEnv[key] === undefined) delete process.env[key];
+        else process.env[key] = savedEnv[key];
+      }
+    });
+
+    it('preserves WordPressAuthError when English credentials are missing', async () => {
+      const error = await actualWordPress.getWordPressAuthenticatedUser('en').catch((e) => e);
+
+      expect(error).toBeInstanceOf(WordPressAuthError);
+      expect(error).not.toBeInstanceOf(actualWordPress.WordPressApiError);
+      expect(error.message).toMatch(/WP_AUTH_HEADER/);
+      expect(error.message).toMatch(/WP_AUTH_USERNAME/);
+      expect(error.message).toMatch(/WP_AUTH_APP_PASSWORD/);
+      expect(error.message).not.toMatch(/WP_NEPALI_/);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('preserves WordPressAuthError when Nepali credentials are missing', async () => {
+      const error = await actualWordPress.getWordPressAuthenticatedUser('ne').catch((e) => e);
+
+      expect(error).toBeInstanceOf(WordPressAuthError);
+      expect(error).not.toBeInstanceOf(actualWordPress.WordPressApiError);
+      expect(error.message).toMatch(/WP_NEPALI_AUTH_HEADER/);
+      expect(error.message).toMatch(/WP_NEPALI_AUTH_USERNAME/);
+      expect(error.message).toMatch(/WP_NEPALI_AUTH_APP_PASSWORD/);
+      expect(error.message).not.toMatch(/WP_AUTH_HEADER|WP_AUTH_USERNAME|WP_AUTH_APP_PASSWORD/);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('never uses English credentials as a Nepali fallback', async () => {
+      process.env.WP_AUTH_HEADER = basic('english-user', 'english-pass');
+
+      const error = await actualWordPress.getWordPressAuthenticatedUser('ne').catch((e) => e);
+
+      expect(error).toBeInstanceOf(WordPressAuthError);
+      expect(error.message).toMatch(/WP_NEPALI_AUTH_HEADER/);
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('resolves each install with its own credentials and endpoint', async () => {
+      process.env.WP_AUTH_HEADER = basic('english-user', 'english-pass');
+      process.env.WP_NEPALI_AUTH_HEADER = basic('nepali-user', 'nepali-pass');
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse([{ id: 501, name: 'English Publisher' }]))
+        .mockResolvedValueOnce(jsonResponse([{ id: 602, name: 'Nepali Publisher' }]));
+
+      const english = await actualWordPress.getWordPressAuthenticatedUser('en');
+      const nepali = await actualWordPress.getWordPressAuthenticatedUser('ne');
+
+      expect(english.id).toBe(501);
+      expect(nepali.id).toBe(602);
+
+      const [enUrl, enInit] = fetchMock.mock.calls[0];
+      const [neUrl, neInit] = fetchMock.mock.calls[1];
+      expect(String(enUrl)).not.toContain('/nepali/');
+      expect(String(enUrl)).toContain('/users/me');
+      expect((enInit.headers as Record<string, string>).Authorization).toBe(
+        basic('english-user', 'english-pass')
+      );
+      expect(String(neUrl)).toContain('/nepali/');
+      expect(String(neUrl)).toContain('/users/me');
+      expect((neInit.headers as Record<string, string>).Authorization).toBe(
+        basic('nepali-user', 'nepali-pass')
+      );
+    });
+
+    it.each([
+      [401, 'Unauthorized'],
+      [403, 'Forbidden'],
+    ])('preserves HTTP %i as an authentication API error', async (status, statusText) => {
+      process.env.WP_AUTH_USERNAME = 'english-user';
+      process.env.WP_AUTH_APP_PASSWORD = 'english-pass';
+      fetchMock.mockResolvedValue(
+        jsonResponse(
+          { code: 'rest_forbidden', message: 'Sorry, you are not allowed to do that.' },
+          { ok: false, status, statusText }
+        )
+      );
+
+      const error = await actualWordPress.getWordPressAuthenticatedUser('en').catch((e) => e);
+
+      expect(error).toBeInstanceOf(actualWordPress.WordPressApiError);
+      expect(error).not.toBeInstanceOf(WordPressAuthError);
+      expect(error.status).toBe(status);
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      ['an empty array', []],
+      ['a zero id', [{ id: 0, name: 'Nope' }]],
+      ['a non-numeric id', [{ id: '501', name: 'Nope' }]],
+    ])('rejects %s from /users/me with a clear error', async (_label, body) => {
+      process.env.WP_AUTH_HEADER = basic('english-user', 'english-pass');
+      fetchMock.mockResolvedValue(jsonResponse(body));
+
+      const error = await actualWordPress.getWordPressAuthenticatedUser('en').catch((e) => e);
+
+      expect(error).toBeInstanceOf(actualWordPress.WordPressApiError);
+      expect(error).not.toBeInstanceOf(WordPressAuthError);
+      expect(error.status).toBe(502);
+      expect(error.message).toMatch(/valid id/i);
+    });
+
+    it('createPostAction returns English credential instructions and never writes', async () => {
+      const res = await createPostAction({
+        title: 'Article with unresolvable author',
+        content: '<p>Body</p>',
+        type: 'OPINION',
+        authorUserId: 'user-unmapped',
+      });
+
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toMatch(/WP_AUTH_HEADER/);
+        expect(res.error).toMatch(/WP_AUTH_USERNAME/);
+        expect(res.error).toMatch(/WP_AUTH_APP_PASSWORD/);
+        expect(res.error).toMatch(/Admin → Users/);
+        expect(res.error).not.toMatch(/WP_NEPALI_/);
+      }
+      expect(createWordPressPost).not.toHaveBeenCalled();
+    });
+
+    it('updatePostAction returns Nepali credential instructions and never writes', async () => {
+      const res = await updatePostAction({
+        id: 303,
+        title: 'नेपाली लेख',
+        authorUserId: 'user-unmapped',
+        lang: 'ne',
+      });
+
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toMatch(/WP_NEPALI_AUTH_HEADER/);
+        expect(res.error).toMatch(/WP_NEPALI_AUTH_USERNAME/);
+        expect(res.error).toMatch(/WP_NEPALI_AUTH_APP_PASSWORD/);
+        expect(res.error).not.toMatch(/WP_AUTH_HEADER|WP_AUTH_USERNAME|WP_AUTH_APP_PASSWORD/);
+      }
+      expect(updateWordPressPost).not.toHaveBeenCalled();
+    });
+
+    it('updatePostAction keeps a 401 actionable and never writes', async () => {
+      process.env.WP_AUTH_USERNAME = 'english-user';
+      process.env.WP_AUTH_APP_PASSWORD = 'wrong-password';
+      fetchMock.mockResolvedValue(
+        jsonResponse(
+          { code: 'rest_forbidden' },
+          { ok: false, status: 401, statusText: 'Unauthorized' }
+        )
+      );
+
+      const res = await updatePostAction({
+        id: 101,
+        title: 'Article with rejected credentials',
+        authorUserId: 'user-unmapped',
+        lang: 'en',
+      });
+
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toMatch(/rejected the server credentials \(HTTP 401\)/);
+        expect(res.error).toMatch(/Admin → Users/);
+      }
+      expect(updateWordPressPost).not.toHaveBeenCalled();
+    });
+
+    it('createPostAction reports an invalid identity response and never writes', async () => {
+      process.env.WP_AUTH_HEADER = basic('english-user', 'english-pass');
+      fetchMock.mockResolvedValue(jsonResponse([{ id: 0, name: 'Bad payload' }]));
+
+      const res = await createPostAction({
+        title: 'Article with invalid identity',
+        content: '<p>Body</p>',
+        type: 'NEWS',
+        authorUserId: 'user-unmapped',
+      });
+
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toMatch(/could not be identified \(HTTP 502\)/);
+        expect(res.error).toMatch(/Admin → Users/);
+      }
+      expect(createWordPressPost).not.toHaveBeenCalled();
+    });
+
+    it('keeps a mapped author working without resolving /users/me', async () => {
+      const res = await updatePostAction({
+        id: 303,
+        title: 'म्याप गरिएको लेखक',
+        authorUserId: 'user-admin',
+        lang: 'ne',
+      });
+
+      expect(res.success).toBe(true);
+      expect(updateWordPressPost).toHaveBeenCalledWith(
+        303,
+        expect.objectContaining({ author: 42 }),
+        'ne'
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('does not resolve an identity or send an author when none is selected', async () => {
+      const res = await updatePostAction({
+        id: 101,
+        title: 'No author reassignment',
+        lang: 'en',
+      });
+
+      expect(res.success).toBe(true);
+      expect(updateWordPressPost).toHaveBeenCalledWith(
+        101,
+        expect.not.objectContaining({ author: expect.anything() }),
+        'en'
+      );
+      expect(fetchMock).not.toHaveBeenCalled();
     });
   });
 });

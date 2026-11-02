@@ -56,8 +56,8 @@ function toAuthorAssignmentError(error: unknown, lang: 'en' | 'ne'): UserFacingE
 
   if (error instanceof WordPressAuthError) {
     const vars = lang === 'ne'
-      ? 'WP_NEPALI_AUTH_USERNAME and WP_NEPALI_AUTH_APP_PASSWORD'
-      : 'WP_AUTH_USERNAME and WP_AUTH_APP_PASSWORD';
+      ? 'WP_NEPALI_AUTH_HEADER (or WP_NEPALI_AUTH_USERNAME + WP_NEPALI_AUTH_APP_PASSWORD)'
+      : 'WP_AUTH_HEADER (or WP_AUTH_USERNAME + WP_AUTH_APP_PASSWORD)';
     return new UserFacingError(
       `This author has no ${install} author mapping, and the server has no ${install} credentials to identify the site's publishing account. Set ${vars} ${mapHint}.`
     );

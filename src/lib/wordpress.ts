@@ -321,9 +321,13 @@ async function fetchWordPress<T>(
           : String(error);
     console.error(`[wordpress] ${endpoint} failed: ${reason}`);
     if (options.throwOnError) {
-      throw error instanceof WordPressApiError
-        ? error
-        : new WordPressApiError(reason, undefined, endpoint);
+      // Keep our own error types intact: wrapping WordPressAuthError would hide
+      // a missing credential behind a generic API failure, so admin screens
+      // could not tell the operator which env vars to set.
+      if (error instanceof WordPressApiError || error instanceof WordPressAuthError) {
+        throw error;
+      }
+      throw new WordPressApiError(reason, undefined, endpoint);
     }
     return {
       data: [],
