@@ -175,7 +175,7 @@ export default function NewPostClient({
       <AnimatePresence initial={false}>
       {error && (
         <Appear key="error">
-        <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl border border-red-100 font-medium">
+        <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl border border-red-100 dark:bg-red-950/40 dark:border-red-900/60 dark:text-red-300 font-medium">
           {error}
         </div>
         </Appear>

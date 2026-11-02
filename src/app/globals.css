@@ -320,7 +320,7 @@
   .article-body h2 { font-size: 1.5rem; }
   .article-body h3 { font-size: 1.25rem; }
   .article-body :is(h4, h5, h6) { font-size: 1.125rem; }
-  :root[data-theme='dark'] .article-body :is(h1, h2, h3, h4, h5, h6) {
+  :is(:root[data-theme='dark'], :root.dark) .article-body :is(h1, h2, h3, h4, h5, h6) {
     color: var(--text-primary);
   }
   .article-body a {

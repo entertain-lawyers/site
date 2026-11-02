@@ -106,7 +106,7 @@ export default function NavbarSearch({ variant = 'desktop' }: { variant?: 'deskt
             role="presentation"
           >
           <DialogPanel
-            className="w-full max-w-xl bg-surface rounded-2xl shadow-2xl border border-border overflow-hidden"
+            className="w-full max-w-xl bg-surface dark:bg-zinc-950 rounded-2xl shadow-2xl border border-border dark:border-white/10 overflow-hidden"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"

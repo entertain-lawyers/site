@@ -13,7 +13,7 @@ import {
   WordPressApiError,
   mapTypeToCategory,
 } from '@/lib/wordpress';
-import { resolveLocalAuthor, resolveWordPressAuthor, type AuthorOption } from '@/lib/content-authors';
+import { resolveLocalAuthor, type AuthorOption } from '@/lib/content-authors';
 
 /**
  * Turn a failed WordPress write into a message that says what to fix. A
@@ -172,12 +172,9 @@ export const createPostAction = createSafeAction(async (rawArgs: z.infer<typeof 
   // attributed to them in our audit logs.
   let assignedAuthor: { author: AuthorOption; wpAuthorId?: number | null } | null = null;
   if (args.authorUserId) {
-    try {
-      assignedAuthor = await resolveWordPressAuthor(args.authorUserId, lang);
-    } catch {
-      const author = await resolveLocalAuthor(args.authorUserId);
-      assignedAuthor = { author, wpAuthorId: null };
-    }
+    const author = await resolveLocalAuthor(args.authorUserId);
+    const wpAuthorId = (lang === 'ne' ? author.wpAuthorIdNe : author.wpAuthorIdEn) ?? null;
+    assignedAuthor = { author, wpAuthorId };
   }
 
   try {
@@ -248,12 +245,9 @@ export const updatePostAction = createSafeAction(async (rawArgs: z.infer<typeof 
   // author record so the post can still be updated and attributed in our audit logs.
   let assignedAuthor: { author: AuthorOption; wpAuthorId?: number | null } | null = null;
   if (args.authorUserId) {
-    try {
-      assignedAuthor = await resolveWordPressAuthor(args.authorUserId, lang);
-    } catch {
-      const author = await resolveLocalAuthor(args.authorUserId);
-      assignedAuthor = { author, wpAuthorId: null };
-    }
+    const author = await resolveLocalAuthor(args.authorUserId);
+    const wpAuthorId = (lang === 'ne' ? author.wpAuthorIdNe : author.wpAuthorIdEn) ?? null;
+    assignedAuthor = { author, wpAuthorId };
   }
 
   try {

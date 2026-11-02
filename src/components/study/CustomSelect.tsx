@@ -63,7 +63,7 @@ export default function CustomSelect({
 
       <AnimatePresence>
       {isOpen && !disabled && (
-        <PopoverPanel key="options" className="absolute z-50 w-full mt-2 bg-surface border border-border dark:border-white/10 rounded-xl shadow-lg overflow-hidden">
+        <PopoverPanel key="options" className="absolute z-50 w-full mt-2 bg-surface dark:bg-zinc-900 border border-border dark:border-white/10 rounded-xl shadow-lg overflow-hidden">
           <div className="max-h-60 overflow-y-auto py-2 custom-scrollbar">
             {options.length === 0 ? (
               <div className="px-4 py-3 text-sm text-center text-text-muted">

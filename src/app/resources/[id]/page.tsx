@@ -431,7 +431,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
                   </div>
                   <Link
                     href="/pricing"
-                    className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 text-sm font-bold rounded-xl text-navy bg-surface border border-border hover:border-accent hover:text-accent hover:bg-accent/5 transition-all shadow-sm hover:shadow-soft"
+                    className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-4 text-sm font-bold rounded-xl text-navy dark:text-white bg-surface border border-border dark:border-white/10 hover:border-accent dark:hover:border-accent hover:text-accent dark:hover:text-accent hover:bg-accent/5 dark:hover:bg-white/5 transition-all shadow-sm hover:shadow-soft"
                   >
                     {dict.viewSubscriptionPlans}
                   </Link>
@@ -456,7 +456,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
             {prevResource ? (
               <Link
                 href={`/resources/${prevResource.id}`}
-                className="group flex items-center gap-3 text-sm font-bold text-navy hover:text-accent transition-colors w-full sm:w-auto sm:max-w-[45%] p-4 rounded-xl hover:bg-surface border border-transparent hover:border-border"
+                className="group flex items-center gap-3 text-sm font-bold text-navy dark:text-white hover:text-accent dark:hover:text-accent transition-colors w-full sm:w-auto sm:max-w-[45%] p-4 rounded-xl hover:bg-surface border border-transparent hover:border-border dark:hover:border-white/10"
               >
                 <ChevronLeft className="w-5 h-5 flex-shrink-0 text-text-muted group-hover:text-accent transition-colors" />
                 <span className="truncate">{prevResource.title}</span>
@@ -466,7 +466,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
             {nextResource ? (
               <Link
                 href={`/resources/${nextResource.id}`}
-                className="group flex items-center justify-end gap-3 text-sm font-bold text-navy hover:text-accent transition-colors w-full sm:w-auto sm:max-w-[45%] text-right p-4 rounded-xl hover:bg-surface border border-transparent hover:border-border"
+                className="group flex items-center justify-end gap-3 text-sm font-bold text-navy dark:text-white hover:text-accent dark:hover:text-accent transition-colors w-full sm:w-auto sm:max-w-[45%] text-right p-4 rounded-xl hover:bg-surface border border-transparent hover:border-border dark:hover:border-white/10"
               >
                 <span className="truncate">{nextResource.title}</span>
                 <ChevronRight className="w-5 h-5 flex-shrink-0 text-text-muted group-hover:text-accent transition-colors" />

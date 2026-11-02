@@ -332,7 +332,7 @@ export function AdminResourceForm({
             required
             value={title}
             onChange={e => setTitle(e.target.value)}
-            className="w-full rounded-xl border border-black/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
+            className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
           />
         </div>
 
@@ -362,7 +362,7 @@ export function AdminResourceForm({
           <select
             value={resourceType}
             onChange={e => setResourceType(e.target.value as ResourceType)}
-            className="w-full rounded-xl border border-black/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
+            className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
           >
             {availableTypes.map(type => (
               <option key={type.value} value={type.value}>{type.label}</option>
@@ -380,7 +380,7 @@ export function AdminResourceForm({
               setSubjectId('');
               setUnitId('');
             }}
-            className="w-full rounded-xl border border-black/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
+            className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
           >
             <option value="">Select Semester</option>
             {semesters.map(s => (
@@ -401,7 +401,7 @@ export function AdminResourceForm({
                   setUnitId('');
                 }}
                 disabled={!semesterId}
-                className="w-full rounded-xl border border-black/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm disabled:opacity-50"
+                className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm disabled:opacity-50"
               >
                 <option value="">Select Subject</option>
                 {filteredSubjects.map((s) => (
@@ -416,7 +416,7 @@ export function AdminResourceForm({
                 value={unitId}
                 onChange={e => setUnitId(e.target.value)}
                 disabled={!subjectId}
-                className="w-full rounded-xl border border-black/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm disabled:opacity-50"
+                className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm disabled:opacity-50"
               >
                 <option value="">Select Unit</option>
                 {filteredUnits.map((u) => (
@@ -453,7 +453,7 @@ export function AdminResourceForm({
               required={isPremium}
               value={priceAmount}
               onChange={e => setPriceAmount(e.target.value)}
-              className="w-full md:w-1/2 rounded-xl border border-black/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
+              className="w-full md:w-1/2 rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
             />
           </div>
         )}
@@ -468,22 +468,22 @@ export function AdminResourceForm({
           ) : (
             <>
           <label className="block text-sm font-bold text-navy dark:text-white mb-4">Upload PDF Document</label>
-          <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-black/10 border-dashed rounded-2xl bg-slate-50 dark:bg-zinc-950 hover:bg-slate-100 transition-colors">
+          <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-black/10 dark:border-white/10 border-dashed rounded-2xl bg-slate-50 dark:bg-zinc-950 hover:bg-slate-100 dark:hover:bg-zinc-900 transition-colors">
             <div className="space-y-1 text-center">
               <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
                 <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              <div className="flex text-sm text-gray-600 justify-center">
-                <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-accent hover:text-accent-dark focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-accent">
+              <div className="flex text-sm text-gray-600 dark:text-zinc-400 justify-center">
+                <label htmlFor="file-upload" className="relative cursor-pointer bg-white dark:bg-zinc-900 rounded-md font-medium text-accent hover:text-accent-dark focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-accent">
                   <span>Upload a file</span>
                   <input id="file-upload" name="file-upload" type="file" className="sr-only" accept="application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
                 </label>
                 <p className="pl-1">or drag and drop</p>
               </div>
-              <p className="text-xs text-gray-500">PDF up to 50MB</p>
+              <p className="text-xs text-gray-500 dark:text-zinc-400">PDF up to 50MB</p>
             </div>
           </div>
-          {file && <p className="mt-2 text-sm text-gray-600">Selected file: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</p>}
+          {file && <p className="mt-2 text-sm text-gray-600 dark:text-zinc-300">Selected file: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</p>}
             </>
           )}
         </div>
