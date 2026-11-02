@@ -47,7 +47,7 @@ export default function Footer({ dict, settings }: FooterProps) {
     },
   ].filter(Boolean) as Array<{ name: string; url: string; className: string; icon: React.ReactNode }>;
   return (
-    <footer className="bg-surface dark:bg-transparent dark:bg-gradient-to-b dark:from-[#0c1b30] dark:to-[#060d1a] mt-auto relative border-t border-border dark:border-border/10 overflow-hidden transition-colors duration-300">
+    <footer className="bg-surface dark:bg-transparent dark:bg-gradient-to-b dark:from-zinc-950 dark:to-black mt-auto relative border-t border-border dark:border-white/10 overflow-hidden transition-colors duration-300">
       {/* Decorative Glow */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-px bg-gradient-to-r from-transparent via-accent/20 dark:via-white/20 to-transparent" />
       <div className="absolute -top-24 left-1/4 w-96 h-96 bg-accent/10 dark:bg-accent/5 rounded-full blur-[100px] pointer-events-none" />

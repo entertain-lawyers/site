@@ -317,7 +317,7 @@ export const CardGrid: ComponentConfig<CardGridProps> = {
               </>
             );
             const shellCls =
-              'block rounded-2xl border border-border/40 bg-white dark:bg-[#152033] shadow-[0_2px_12px_rgb(0,0,0,0.02)] dark:shadow-none overflow-hidden transition-all duration-400 ease-out hover:shadow-[0_12px_36px_-10px_rgba(26,41,66,0.12)] hover:border-navy/20 motion-safe:hover:-translate-y-1';
+              'block rounded-2xl border border-border/40 dark:border-white/10 bg-white dark:bg-zinc-900 shadow-[0_2px_12px_rgb(0,0,0,0.02)] dark:shadow-none overflow-hidden transition-all duration-400 ease-out hover:shadow-[0_12px_36px_-10px_rgba(26,41,66,0.12)] hover:border-navy/20 motion-safe:hover:-translate-y-1';
             return item.href ? (
               <Link key={i} href={item.href} className={`group ${shellCls}`}>
                 {inner}

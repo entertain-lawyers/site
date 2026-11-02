@@ -109,7 +109,7 @@ export default function HomeSearchBar() {
         <PopoverPanel
           key="hero-search-results"
           id="hero-search-results"
-          className="absolute top-full left-0 right-0 mt-2 z-30 bg-surface dark:bg-[#0a1526] rounded-2xl shadow-2xl border border-border overflow-hidden"
+          className="absolute top-full left-0 right-0 mt-2 z-30 bg-surface dark:bg-zinc-950 rounded-2xl shadow-2xl border border-border dark:border-white/10 overflow-hidden"
         >
           <div className="max-h-[380px] overflow-y-auto" role="listbox">
             {loading && (

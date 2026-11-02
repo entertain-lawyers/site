@@ -31,10 +31,10 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
 }
 
 const RESOURCE_TYPE_COLORS: Record<ResourceType, string> = {
-  LAW_NOTE: 'bg-blue-100 text-blue-800 border-blue-200',
-  CASE_LAW: 'bg-purple-100 text-purple-800 border-purple-200',
-  OLD_QUESTION: 'bg-amber-100 text-amber-800 border-amber-200',
-  OTHER: 'bg-gray-100 text-gray-800 border-gray-200',
+  LAW_NOTE: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800/40',
+  CASE_LAW: 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800/40',
+  OLD_QUESTION: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800/40',
+  OTHER: 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-white/10',
 };
 
 const iconMap: Record<string, any> = {

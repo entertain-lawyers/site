@@ -137,7 +137,7 @@ export default function Comments({ postId, postType = 'NEWS' }: { postId: string
 
   return (
     <section aria-labelledby="comments-heading" className="mt-8 scroll-mt-24 border border-border bg-surface">
-      <div className="flex items-center justify-between gap-3 bg-navy px-4 py-2.5 dark:bg-navy-light">
+      <div className="flex items-center justify-between gap-3 bg-navy px-4 py-2.5 dark:bg-zinc-900 dark:border-b dark:border-white/10">
         <h2
           id="comments-heading"
           className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.14em] text-white"

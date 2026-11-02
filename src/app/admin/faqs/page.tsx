@@ -46,7 +46,7 @@ export default async function AdminFaqsPage() {
                 <tr key={faq.id} className="hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors group">
                   <td className="px-8 py-5 text-sm font-bold text-navy dark:text-white max-w-md truncate">{faq.question}</td>
                   <td className="px-8 py-5 whitespace-nowrap text-sm">
-                    <span className={`px-3 py-1 inline-flex text-xs font-bold rounded-full border ${faq.status === 'PUBLISHED' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                    <span className={`px-3 py-1 inline-flex text-xs font-bold rounded-full border ${faq.status === 'PUBLISHED' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40' : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/40'}`}>
                       {faq.status === 'PUBLISHED' ? 'Published' : 'Draft'}
                     </span>
                   </td>

@@ -48,7 +48,7 @@ export default function CustomSelect({
         className={`w-full flex items-center justify-between border-b min-h-[44px] pb-3 px-4 transition-colors duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 rounded-t-md ${
           disabled
             ? 'border-border-strong opacity-50 cursor-not-allowed'
-            : 'border-border-strong hover:border-navy focus:border-navy cursor-pointer'
+            : 'border-border-strong hover:border-navy focus:border-navy dark:hover:border-accent dark:focus:border-accent cursor-pointer'
         }`}
       >
         <div className="flex-1 text-center truncate text-sm font-medium text-text-primary">
@@ -63,7 +63,7 @@ export default function CustomSelect({
 
       <AnimatePresence>
       {isOpen && !disabled && (
-        <PopoverPanel key="options" className="absolute z-50 w-full mt-2 bg-surface border border-border rounded-xl shadow-lg overflow-hidden">
+        <PopoverPanel key="options" className="absolute z-50 w-full mt-2 bg-surface border border-border dark:border-white/10 rounded-xl shadow-lg overflow-hidden">
           <div className="max-h-60 overflow-y-auto py-2 custom-scrollbar">
             {options.length === 0 ? (
               <div className="px-4 py-3 text-sm text-center text-text-muted">

@@ -48,12 +48,12 @@ export default async function AdminPublicationsPage() {
                   <td className="px-8 py-5 text-sm font-bold text-navy dark:text-white min-w-[300px]">{pub.title}</td>
                   <td className="px-8 py-5 whitespace-nowrap text-sm font-medium text-text-secondary">{pub.publishDate?.toLocaleDateString()}</td>
                   <td className="px-8 py-5 whitespace-nowrap text-sm">
-                    <span className={`px-3 py-1 inline-flex text-xs font-bold rounded-full border ${pub.status === 'PUBLISHED' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                    <span className={`px-3 py-1 inline-flex text-xs font-bold rounded-full border ${pub.status === 'PUBLISHED' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40' : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/40'}`}>
                       {pub.status === 'PUBLISHED' ? 'Published' : 'Draft'}
                     </span>
                   </td>
                   <td className="px-8 py-5 whitespace-nowrap text-sm font-medium text-text-secondary">
-                    {pub.documentId ? <span className="text-blue-600 font-bold">Secure PDF</span> : pub.documentUrl ? <span className="text-green-600 font-bold">Public URL</span> : 'None'}
+                    {pub.documentId ? <span className="text-blue-600 dark:text-blue-400 font-bold">Secure PDF</span> : pub.documentUrl ? <span className="text-green-600 dark:text-emerald-400 font-bold">Public URL</span> : 'None'}
                   </td>
                   <td className="px-8 py-5 whitespace-nowrap text-right text-sm font-medium flex justify-end gap-2">
                     <Link href={`/admin/publications/${pub.id}/edit`} className="inline-flex items-center justify-center px-4 py-2 border border-black/5 dark:border-white/5 rounded-lg text-navy dark:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors shadow-sm">Edit</Link>

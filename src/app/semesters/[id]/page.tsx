@@ -13,10 +13,10 @@ interface PageProps {
 }
 
 const TYPE_COLORS: Record<string, string> = {
-  LAW_NOTE: 'bg-blue-100 text-blue-800 border-blue-200',
-  CASE_LAW: 'bg-purple-100 text-purple-800 border-purple-200',
-  OLD_QUESTION: 'bg-amber-100 text-amber-800 border-amber-200',
-  OTHER: 'bg-gray-100 text-gray-800 border-gray-200',
+  LAW_NOTE: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950/50 dark:text-blue-300 dark:border-blue-800/40',
+  CASE_LAW: 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950/50 dark:text-purple-300 dark:border-purple-800/40',
+  OLD_QUESTION: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800/40',
+  OTHER: 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-white/10',
 };
 
 export async function generateMetadata({ params }: PageProps) {
@@ -183,7 +183,7 @@ export default async function SemesterPage({ params }: PageProps) {
               return (
                 <Reveal key={subject.id} index={i} perRow={1}>
                 <section className="bg-surface border border-border rounded-2xl overflow-hidden shadow-soft transition-[box-shadow,border-color,background-color] hover:shadow-soft-lg">
-                  <div className="bg-navy dark:bg-navy-dark px-6 py-5 flex items-center justify-between">
+                  <div className="bg-navy dark:bg-zinc-900 dark:border-b dark:border-white/10 px-6 py-5 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <BookOpen className="w-6 h-6 text-blue-200" />
                       <h2 className="text-xl font-bold text-white">{subject.name}</h2>

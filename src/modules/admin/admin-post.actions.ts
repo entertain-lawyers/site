@@ -13,7 +13,7 @@ import {
   WordPressApiError,
   mapTypeToCategory,
 } from '@/lib/wordpress';
-import { resolveWordPressAuthor } from '@/lib/content-authors';
+import { resolveLocalAuthor, resolveWordPressAuthor, type AuthorOption } from '@/lib/content-authors';
 
 /**
  * Turn a failed WordPress write into a message that says what to fix. A
@@ -166,11 +166,19 @@ export const createPostAction = createSafeAction(async (rawArgs: z.infer<typeof 
   const lang = args.type.startsWith('NEPALI_') ? 'ne' : 'en';
   const status = args.status ? (args.status === 'PUBLISHED' ? 'publish' : 'draft') : (args.isPublished ? 'publish' : 'draft');
 
-  // Resolved before the WordPress try/catch so a bad/mislinked author surfaces
-  // as its own message instead of a generic WordPress error.
-  const assignedAuthor = args.authorUserId
-    ? await resolveWordPressAuthor(args.authorUserId, lang)
-    : null;
+  // Attempt to resolve WordPress author mapping. If the local user is an editor/admin
+  // but has not been explicitly linked to a WordPress author, resolve their local
+  // author record so the post can still be created (under the default WP account) and
+  // attributed to them in our audit logs.
+  let assignedAuthor: { author: AuthorOption; wpAuthorId?: number | null } | null = null;
+  if (args.authorUserId) {
+    try {
+      assignedAuthor = await resolveWordPressAuthor(args.authorUserId, lang);
+    } catch {
+      const author = await resolveLocalAuthor(args.authorUserId);
+      assignedAuthor = { author, wpAuthorId: null };
+    }
+  }
 
   try {
     const wpPost = await createWordPressPost({
@@ -178,7 +186,7 @@ export const createPostAction = createSafeAction(async (rawArgs: z.infer<typeof 
       content: args.content,
       status: status,
       categories: mapTypeToCategory(args.type, lang),
-      ...(assignedAuthor ? { author: assignedAuthor.wpAuthorId } : {}),
+      ...(assignedAuthor?.wpAuthorId ? { author: assignedAuthor.wpAuthorId } : {}),
       ...(args.featuredMediaId ? { featured_media: args.featuredMediaId } : {}),
     }, lang);
 
@@ -235,11 +243,18 @@ export const updatePostAction = createSafeAction(async (rawArgs: z.infer<typeof 
     status = args.isPublished ? 'publish' : 'draft';
   }
 
-  // Resolved before the WordPress try/catch so a bad/mislinked author surfaces
-  // as its own message instead of a generic WordPress error.
-  const assignedAuthor = args.authorUserId
-    ? await resolveWordPressAuthor(args.authorUserId, lang)
-    : null;
+  // Attempt to resolve WordPress author mapping. If the local user is an editor/admin
+  // but has not been explicitly linked to a WordPress author, resolve their local
+  // author record so the post can still be updated and attributed in our audit logs.
+  let assignedAuthor: { author: AuthorOption; wpAuthorId?: number | null } | null = null;
+  if (args.authorUserId) {
+    try {
+      assignedAuthor = await resolveWordPressAuthor(args.authorUserId, lang);
+    } catch {
+      const author = await resolveLocalAuthor(args.authorUserId);
+      assignedAuthor = { author, wpAuthorId: null };
+    }
+  }
 
   try {
     const wpPost = await updateWordPressPost(args.id, {
@@ -247,7 +262,7 @@ export const updatePostAction = createSafeAction(async (rawArgs: z.infer<typeof 
       content: args.content,
       status: status,
       categories: args.categories ?? (args.type ? mapTypeToCategory(args.type, lang) : undefined),
-      ...(assignedAuthor ? { author: assignedAuthor.wpAuthorId } : {}),
+      ...(assignedAuthor?.wpAuthorId ? { author: assignedAuthor.wpAuthorId } : {}),
       ...(args.featuredMediaId !== undefined ? { featured_media: args.featuredMediaId } : {}),
     }, lang);
 
@@ -267,7 +282,7 @@ export const updatePostAction = createSafeAction(async (rawArgs: z.infer<typeof 
               ? {
                   authorUserId: assignedAuthor.author.id,
                   authorName: assignedAuthor.author.name,
-                  wpAuthorId: assignedAuthor.wpAuthorId,
+                  wpAuthorId: assignedAuthor.wpAuthorId ?? null,
                 }
               : {}),
           }

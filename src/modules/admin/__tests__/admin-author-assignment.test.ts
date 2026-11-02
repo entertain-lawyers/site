@@ -325,6 +325,39 @@ describe('Author Assignment & Attribution Suite', () => {
         'en'
       );
     });
+
+    it('creates post successfully under default WP user when author is an unmapped editor and logs audit attribution', async () => {
+      const res = await createPostAction({
+        title: 'Article Attributed to Unmapped Editor',
+        content: '<p>Content</p>',
+        type: 'OPINION',
+        authorUserId: 'user-unmapped',
+      });
+
+      expect(res.success).toBe(true);
+      expect(createWordPressPost).toHaveBeenCalledWith(
+        expect.not.objectContaining({ author: expect.anything() }),
+        'en'
+      );
+      expect(mockAuditLogs.some((l) => l.details?.authorUserId === 'user-unmapped')).toBe(true);
+    });
+
+    it('updates post successfully without breaking when author is an unmapped editor and logs audit attribution', async () => {
+      const res = await updatePostAction({
+        id: 101,
+        title: 'Article Updated to Unmapped Editor',
+        authorUserId: 'user-unmapped',
+        lang: 'en',
+      });
+
+      expect(res.success).toBe(true);
+      expect(updateWordPressPost).toHaveBeenCalledWith(
+        101,
+        expect.not.objectContaining({ author: expect.anything() }),
+        'en'
+      );
+      expect(mockAuditLogs.some((l) => l.details?.authorUserId === 'user-unmapped')).toBe(true);
+    });
   });
 
   // 8. Resource authorId persistence

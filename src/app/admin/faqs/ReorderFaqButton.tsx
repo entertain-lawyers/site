@@ -15,7 +15,7 @@ export default function ReorderFaqButton({ id, direction }: { id: string, direct
     setLoading(false);
   };
   return (
-    <button onClick={handleReorder} disabled={loading} className="p-2.5 border rounded min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-slate-50 disabled:opacity-50">
+    <button onClick={handleReorder} disabled={loading} className="p-2.5 border border-black/10 dark:border-white/10 text-gray-700 dark:text-zinc-200 rounded min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-slate-50 dark:hover:bg-zinc-800 disabled:opacity-50">
       {direction === 'UP' ? <ArrowUp size={16} /> : <ArrowDown size={16} />}
     </button>
   );

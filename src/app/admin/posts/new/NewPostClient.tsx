@@ -81,15 +81,19 @@ export default function NewPostClient({
   // The post is created in the WordPress install its type belongs to, and a
   // media id only exists in that install's library.
   const lang = type.startsWith('NEPALI_') ? 'ne' : 'en';
-  // Only authors explicitly linked to this install are offered; a local id is
-  // never treated as a WordPress id.
-  const authorOptions = authors.filter((author) =>
-    lang === 'ne' ? Boolean(author.wpAuthorIdNe) : Boolean(author.wpAuthorIdEn)
-  );
+  // Authors/editors from User Management and Roles (Admin & Editor)
+  const authorOptions = authors;
   const selectedAuthorId = authorOptions.some((author) => author.id === authorUserId)
     ? authorUserId
     : '';
-  const currentUserIsLinked = authorOptions.some((author) => author.id === defaultAuthorId);
+  const selectedAuthor = authorOptions.find((author) => author.id === selectedAuthorId);
+  const isSelectedAuthorLinked = Boolean(
+    lang === 'ne' ? selectedAuthor?.wpAuthorIdNe : selectedAuthor?.wpAuthorIdEn
+  );
+  const currentUser = authors.find((author) => author.id === defaultAuthorId);
+  const currentUserIsLinked = Boolean(
+    lang === 'ne' ? currentUser?.wpAuthorIdNe : currentUser?.wpAuthorIdEn
+  );
 
   const changeType = (next: PostType) => {
     const nextLang = next.startsWith('NEPALI_') ? 'ne' : 'en';
@@ -155,7 +159,7 @@ export default function NewPostClient({
   };
 
   return (
-    <div className="admin-editor-page py-10 px-4 sm:px-6 lg:px-8 max-w-[1360px] mx-auto">
+    <div className="admin-editor-page py-10 px-4 sm:px-6 lg:px-8 max-w-[1360px] mx-auto w-full flex-1 flex flex-col">
       <div className="mb-10">
         <Link href="/admin/posts" className="inline-flex items-center text-sm font-bold text-text-secondary hover:text-accent mb-6 transition-colors group">
           <svg className="w-4 h-4 mr-2 transform group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -178,10 +182,10 @@ export default function NewPostClient({
       )}
       </AnimatePresence>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-10 lg:grid lg:grid-cols-[minmax(0,860px)_340px] lg:justify-center lg:gap-12">
+      <form onSubmit={handleSubmit} className="flex-1 flex flex-col gap-10 lg:grid lg:grid-cols-[minmax(0,860px)_340px] lg:justify-center lg:gap-12 lg:items-stretch">
 
         {/* Left Column: Main Editor — same width as the public article column */}
-        <div className="min-w-0 space-y-8">
+        <div className="min-w-0 flex flex-col space-y-8 h-full">
           <div>
             <label htmlFor="title" className="block text-sm font-bold text-navy dark:text-white mb-2">Title</label>
             <input
@@ -195,9 +199,9 @@ export default function NewPostClient({
             />
           </div>
 
-          <div>
+          <div className="flex-1 flex flex-col min-h-0 space-y-2">
             <label className="block text-sm font-bold text-navy dark:text-white mb-2">Content</label>
-            <RichTextEditor value={content} onChange={setContent} />
+            <RichTextEditor value={content} onChange={setContent} fillHeight />
           </div>
         </div>
 
@@ -232,14 +236,18 @@ export default function NewPostClient({
                 emptyMessage={
                   !authorMappingAvailable
                     ? 'Author mapping is temporarily unavailable because database migrations are pending.'
-                    : 'No user is linked to a WordPress author on this site yet.'
+                    : 'No eligible authors found. Create editors in Admin → Users.'
                 }
                 hint={
                   !authorMappingAvailable
                     ? 'Author mapping is temporarily unavailable because database migration 20261101000000 has not been applied yet. Posts will save under the default WordPress account.'
-                    : currentUserIsLinked
-                      ? 'Posts are published under this person. You remain the creator in the audit log.'
-                      : 'Your account is not linked to a WordPress author, so the post saves under the WordPress account unless you pick a linked author.'
+                    : selectedAuthor
+                      ? isSelectedAuthorLinked
+                        ? 'Posts are published under this author in WordPress. You remain the creator in the audit log.'
+                        : 'This author is not explicitly linked to a WordPress author account. The post will save under the default WordPress account and be attributed to them in the audit log.'
+                      : currentUserIsLinked
+                        ? 'Posts are published under this person. You remain the creator in the audit log.'
+                        : 'Select an editor or administrator to credit as the author of this post.'
                 }
               />
             </div>
