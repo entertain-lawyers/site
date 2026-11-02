@@ -42,8 +42,28 @@ vi.mock('@/lib/wordpress', () => ({
     if (id === 99) return { id: 99, name: 'Unmapped WP User', slug: 'unmapped-wp' };
     return null;
   }),
+  // One distinct publishing account per install: an English/Nepali mix-up
+  // would make a post land under the wrong byline on the wrong site.
+  getWordPressAuthenticatedUser: vi.fn().mockImplementation(async (lang: 'en' | 'ne') => {
+    if (lang === 'ne') return { id: 602, name: 'Nepali Publisher', slug: 'nepali-publisher' };
+    return { id: 501, name: 'English Publisher', slug: 'english-publisher' };
+  }),
   mapTypeToCategory: vi.fn().mockReturnValue([61]),
   toWordPressWriteError: vi.fn((err: any) => err),
+  WordPressAuthError: class WordPressAuthError extends Error {
+    constructor(message = 'WordPress authentication credentials are missing.') {
+      super(message);
+      this.name = 'WordPressAuthError';
+    }
+  },
+  WordPressApiError: class WordPressApiError extends Error {
+    public readonly status?: number;
+    constructor(message: string, status?: number) {
+      super(message);
+      this.name = 'WordPressApiError';
+      this.status = status;
+    }
+  },
 }));
 
 // Test database fixtures
@@ -165,7 +185,12 @@ import {
 import { createPostAction, updatePostAction } from '@/modules/admin/admin-post.actions';
 import { createResourceAction, updateResourceAction } from '@/modules/admin/admin-resource.actions';
 import { updateUserAction } from '@/modules/admin/admin-user.actions';
-import { createWordPressPost, updateWordPressPost } from '@/lib/wordpress';
+import {
+  createWordPressPost,
+  updateWordPressPost,
+  getWordPressAuthenticatedUser,
+  WordPressAuthError,
+} from '@/lib/wordpress';
 import { getInitialResourceAuthorId, getSubmittedResourceAuthorId } from '@/components/admin/resource-form-author';
 
 describe('Author Assignment & Attribution Suite', () => {
@@ -326,7 +351,7 @@ describe('Author Assignment & Attribution Suite', () => {
       );
     });
 
-    it('creates post successfully under default WP user when author is an unmapped editor and logs audit attribution', async () => {
+    it('assigns the publishing account explicitly when an unmapped editor creates an English post', async () => {
       const res = await createPostAction({
         title: 'Article Attributed to Unmapped Editor',
         content: '<p>Content</p>',
@@ -336,13 +361,17 @@ describe('Author Assignment & Attribution Suite', () => {
 
       expect(res.success).toBe(true);
       expect(createWordPressPost).toHaveBeenCalledWith(
-        expect.not.objectContaining({ author: expect.anything() }),
+        expect.objectContaining({ author: 501 }),
         'en'
       );
-      expect(mockAuditLogs.some((l) => l.details?.authorUserId === 'user-unmapped')).toBe(true);
+      expect(mockAuditLogs.at(-1)?.details).toMatchObject({
+        authorUserId: 'user-unmapped',
+        authorName: 'Unmapped Editor',
+        wpAuthorId: 501,
+      });
     });
 
-    it('updates post successfully without breaking when author is an unmapped editor and logs audit attribution', async () => {
+    it('assigns the publishing account explicitly when an unmapped editor updates an English post', async () => {
       const res = await updatePostAction({
         id: 101,
         title: 'Article Updated to Unmapped Editor',
@@ -353,10 +382,107 @@ describe('Author Assignment & Attribution Suite', () => {
       expect(res.success).toBe(true);
       expect(updateWordPressPost).toHaveBeenCalledWith(
         101,
-        expect.not.objectContaining({ author: expect.anything() }),
+        expect.objectContaining({ author: 501 }),
         'en'
       );
-      expect(mockAuditLogs.some((l) => l.details?.authorUserId === 'user-unmapped')).toBe(true);
+      expect(mockAuditLogs.at(-1)?.details).toMatchObject({
+        authorUserId: 'user-unmapped',
+        authorName: 'Unmapped Editor',
+        wpAuthorId: 501,
+      });
+    });
+
+    it('uses the Nepali publishing account for an unmapped Nepali post, never the English one', async () => {
+      const created = await createPostAction({
+        title: 'नेपाली लेख',
+        content: '<p>सामग्री</p>',
+        type: 'NEPALI_SAMANYA_SAMACHAR',
+        authorUserId: 'user-unmapped',
+      });
+
+      expect(created.success).toBe(true);
+      expect(createWordPressPost).toHaveBeenCalledWith(
+        expect.objectContaining({ author: 602 }),
+        'ne'
+      );
+      expect(createWordPressPost).not.toHaveBeenCalledWith(
+        expect.objectContaining({ author: 501 }),
+        expect.anything()
+      );
+      expect(mockAuditLogs.at(-1)?.details).toMatchObject({ wpAuthorId: 602 });
+    });
+
+    it('uses the Nepali publishing account when updating an unmapped Nepali post', async () => {
+      const res = await updatePostAction({
+        id: 303,
+        title: 'नेपाली लेख अद्यावधिक',
+        authorUserId: 'user-unmapped',
+        lang: 'ne',
+      });
+
+      expect(res.success).toBe(true);
+      expect(updateWordPressPost).toHaveBeenCalledWith(
+        303,
+        expect.objectContaining({ author: 602 }),
+        'ne'
+      );
+      expect(mockAuditLogs.at(-1)?.details).toMatchObject({ wpAuthorId: 602 });
+    });
+
+    it('keeps an explicit Nepali mapping instead of the publishing account', async () => {
+      const res = await updatePostAction({
+        id: 303,
+        title: 'नेपाली लेख अद्यावधिक',
+        authorUserId: 'user-admin',
+        lang: 'ne',
+      });
+
+      expect(res.success).toBe(true);
+      expect(updateWordPressPost).toHaveBeenCalledWith(
+        303,
+        expect.objectContaining({ author: 42 }),
+        'ne'
+      );
+      expect(mockAuditLogs.at(-1)?.details).toMatchObject({ wpAuthorId: 42 });
+    });
+
+    it('fails with an actionable error when the publishing account cannot be identified', async () => {
+      (getWordPressAuthenticatedUser as any).mockRejectedValueOnce(
+        new Error('users/me lookup failed')
+      );
+
+      const res = await updatePostAction({
+        id: 101,
+        title: 'Article Update',
+        authorUserId: 'user-unmapped',
+        lang: 'en',
+      });
+
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toMatch(/publishing account could not be identified/i);
+        expect(res.error).toMatch(/Admin → Users/);
+      }
+      expect(updateWordPressPost).not.toHaveBeenCalled();
+    });
+
+    it('reports missing credentials as an actionable error instead of a silent reassignment', async () => {
+      (getWordPressAuthenticatedUser as any).mockRejectedValueOnce(
+        new WordPressAuthError('missing credentials')
+      );
+
+      const res = await createPostAction({
+        title: 'Article Create',
+        content: '<p>Body</p>',
+        type: 'NEWS',
+        authorUserId: 'user-unmapped',
+      });
+
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toMatch(/no WordPress credentials|WP_AUTH_USERNAME/);
+      }
+      expect(createWordPressPost).not.toHaveBeenCalled();
     });
   });
 

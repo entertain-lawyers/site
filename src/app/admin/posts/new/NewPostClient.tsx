@@ -244,7 +244,7 @@ export default function NewPostClient({
                     : selectedAuthor
                       ? isSelectedAuthorLinked
                         ? 'Posts are published under this author in WordPress. You remain the creator in the audit log.'
-                        : 'This author is not explicitly linked to a WordPress author account. The post will save under the default WordPress account and be attributed to them in the audit log.'
+                        : 'This author has no WordPress author mapping, so the post will be published under the site\'s WordPress publishing account and credited to them in the audit log. Map them in Admin → Users to publish under their own byline.'
                       : currentUserIsLinked
                         ? 'Posts are published under this person. You remain the creator in the audit log.'
                         : 'Select an editor or administrator to credit as the author of this post.'
