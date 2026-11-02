@@ -24,6 +24,7 @@ export default function TopUtilityBar({ locale, dict }: TopUtilityBarProps) {
     const currentTheme = document.documentElement.getAttribute('data-theme') as 'light' | 'dark';
     if (currentTheme) {
       setTheme(currentTheme);
+      document.documentElement.classList.toggle('dark', currentTheme === 'dark');
     }
 
     // Set date and time
@@ -64,15 +65,16 @@ export default function TopUtilityBar({ locale, dict }: TopUtilityBarProps) {
     const newTheme = theme === 'light' ? 'dark' : 'light';
     setTheme(newTheme);
     document.documentElement.setAttribute('data-theme', newTheme);
+    document.documentElement.classList.toggle('dark', newTheme === 'dark');
     localStorage.setItem('theme', newTheme);
   };
 
   return (
-    <div className="bg-gradient-to-r from-navy-dark via-[#1a2942] to-navy-dark dark:from-[#0B1120] dark:via-[#111827] dark:to-[#0B1120] text-white border-b border-white/10 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.3)] relative z-50 transition-colors duration-300">
+    <div className="bg-gradient-to-r from-navy-dark via-[#1a2942] to-navy-dark dark:from-black dark:via-zinc-950 dark:to-black text-white border-b border-white/10 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.3)] relative z-50 transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 min-h-[44px] flex items-center justify-between text-[11px] sm:text-xs font-medium tracking-wide">
 
         {/* Left: Date + Time */}
-        <div className="flex items-center gap-2.5 bg-white text-black dark:bg-gray-800 dark:text-white dark:border dark:border-gray-700 px-3.5 py-1.5 rounded-full shadow-sm transition-all duration-300 hover:bg-gray-100 dark:hover:bg-gray-700 text-[12px] sm:text-[13px]">
+        <div className="flex items-center gap-2.5 bg-white text-black dark:bg-zinc-900 dark:text-zinc-200 dark:border dark:border-white/10 px-3.5 py-1.5 rounded-full shadow-sm transition-all duration-300 hover:bg-gray-100 dark:hover:bg-zinc-800 text-[12px] sm:text-[13px]">
           <Clock className="w-4 h-4 text-accent" />
           <div className="flex items-center gap-2">
             <time className="hidden sm:block font-bold tracking-wide" suppressHydrationWarning>
@@ -97,7 +99,7 @@ export default function TopUtilityBar({ locale, dict }: TopUtilityBarProps) {
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
-            className="flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] rounded-full bg-white text-navy-dark dark:bg-gray-800 dark:text-white dark:border dark:border-gray-700 hover:bg-blue-600 hover:text-white dark:hover:bg-blue-600 dark:hover:border-blue-600 transition-all duration-300 focus:outline-none shadow-sm"
+            className="flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] rounded-full bg-white text-navy-dark dark:bg-zinc-900 dark:text-zinc-200 dark:border dark:border-white/10 hover:bg-blue-600 hover:text-white dark:hover:bg-accent dark:hover:border-accent dark:hover:text-white transition-all duration-300 focus:outline-none shadow-sm"
             style={{ opacity: mounted ? 1 : 0 }}
             aria-label={theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}
             title={theme === 'light' ? 'Night Study Mode' : 'Light Mode'}
@@ -114,7 +116,7 @@ export default function TopUtilityBar({ locale, dict }: TopUtilityBarProps) {
           <a
             href={isNepaliMode ? '/' : '/nepali'}
             onClick={handleLanguageToggle}
-            className={`flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] rounded-full bg-white text-navy-dark dark:bg-gray-800 dark:text-white dark:border dark:border-gray-700 hover:bg-red-700 hover:text-white dark:hover:bg-red-700 dark:hover:border-red-700 transition-all duration-300 focus:outline-none shadow-sm ${isPending ? 'opacity-80' : ''}`}
+            className={`flex items-center gap-1.5 px-3 py-2.5 min-h-[44px] rounded-full bg-white text-navy-dark dark:bg-zinc-900 dark:text-zinc-200 dark:border dark:border-white/10 hover:bg-red-700 hover:text-white dark:hover:bg-red-700 dark:hover:border-red-700 dark:hover:text-white transition-all duration-300 focus:outline-none shadow-sm ${isPending ? 'opacity-80' : ''}`}
             aria-label={`Switch to ${isNepaliMode ? 'English' : 'Nepali'} language`}
           >
             {isPending ? (

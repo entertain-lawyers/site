@@ -321,9 +321,13 @@ async function fetchWordPress<T>(
           : String(error);
     console.error(`[wordpress] ${endpoint} failed: ${reason}`);
     if (options.throwOnError) {
-      throw error instanceof WordPressApiError
-        ? error
-        : new WordPressApiError(reason, undefined, endpoint);
+      // Keep our own error types intact: wrapping WordPressAuthError would hide
+      // a missing credential behind a generic API failure, so admin screens
+      // could not tell the operator which env vars to set.
+      if (error instanceof WordPressApiError || error instanceof WordPressAuthError) {
+        throw error;
+      }
+      throw new WordPressApiError(reason, undefined, endpoint);
     }
     return {
       data: [],
@@ -477,6 +481,44 @@ export async function getWordPressAuthor(
   } catch {
     return null;
   }
+}
+
+export interface WordPressAuthenticatedUser {
+  id: number;
+  name: string;
+  slug?: string;
+}
+
+/**
+ * The WordPress account this server authenticates as on one install (the owner
+ * of the application password). It is the account WordPress credits implicitly
+ * when a post is created, so it is also the correct explicit author for a local
+ * author with no mapping.
+ *
+ * Resolved from `/users/me`, never derived from a local id or a name. Each
+ * install keeps its own credentials: Nepali never uses the English account.
+ */
+export async function getWordPressAuthenticatedUser(
+  lang: WordPressLanguage = 'en'
+): Promise<WordPressAuthenticatedUser> {
+  const result = await fetchWordPress<WordPressAuthenticatedUser>('/users/me', {
+    lang,
+    fields: 'id,name,slug',
+    throwOnError: true,
+    authenticated: true,
+    revalidate: 0,
+    timeoutMs: 10000,
+  });
+
+  const user = result.data[0];
+  if (!user || !Number.isInteger(user.id) || user.id <= 0) {
+    throw new WordPressApiError(
+      'WordPress did not return a valid id for the authenticated account.',
+      502,
+      '/users/me'
+    );
+  }
+  return user;
 }
 
 /**

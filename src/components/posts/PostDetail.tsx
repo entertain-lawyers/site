@@ -34,7 +34,7 @@ const AUTHOR_BIO =
 /** Navy section bar used by About Author / Related Post / Latest Post. */
 function SectionBar({ id, children }: { id?: string; children: React.ReactNode }) {
   return (
-    <div className="bg-navy dark:bg-navy-light px-4 py-2.5">
+    <div className="bg-navy dark:bg-zinc-900 dark:border dark:border-white/10 px-4 py-2.5">
       <h2 id={id} className="text-[13px] font-bold uppercase tracking-[0.14em] text-white">
         {children}
       </h2>

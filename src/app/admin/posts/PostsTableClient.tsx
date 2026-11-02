@@ -205,7 +205,7 @@ export default function PostsTableClient({
                             type="button"
                             onClick={() => restoreSingle(post.id)}
                             disabled={busy}
-                            className="px-4 py-2 rounded-lg bg-green-50 border border-green-200 text-green-700 hover:bg-green-100 transition-colors disabled:opacity-50"
+                            className="px-4 py-2 rounded-lg bg-green-50 border border-green-200 text-green-700 hover:bg-green-100 dark:bg-green-950/40 dark:border-green-800/60 dark:text-green-300 dark:hover:bg-green-900/40 transition-colors disabled:opacity-50"
                           >
                             Restore
                           </button>
@@ -219,7 +219,7 @@ export default function PostsTableClient({
                               if (res?.success) { router.refresh(); } else { setMessage((res as { error?: string })?.error || 'Delete failed'); }
                             }}
                             disabled={busy}
-                            className="px-4 py-2 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50"
+                            className="px-4 py-2 rounded-lg border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors disabled:opacity-50"
                           >
                             Delete forever
                           </button>

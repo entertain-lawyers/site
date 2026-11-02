@@ -159,9 +159,9 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
                   </td>
                   <td className="px-8 py-5">
                     <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
-                      user.role === 'ADMIN' ? 'bg-red-50 text-red-700 border-red-200' :
-                      user.role === 'EDITOR' ? 'bg-purple-50 text-purple-700 border-purple-200' :
-                      'bg-slate-100 text-slate-700 border-slate-200'
+                      user.role === 'ADMIN' ? 'bg-red-50 text-red-700 border-red-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/40' :
+                      user.role === 'EDITOR' ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/40' :
+                      'bg-slate-100 text-slate-700 border-slate-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-white/10'
                     }`}>
                       {user.role}
                     </span>
@@ -216,7 +216,7 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-xl bg-slate-50 dark:bg-zinc-950 border border-black/10 px-4 py-3 text-navy dark:text-white focus:border-accent focus:ring-1 focus:ring-accent"
+                  className="w-full rounded-xl bg-slate-50 dark:bg-zinc-950 border border-black/10 dark:border-white/10 px-4 py-3 text-navy dark:text-white focus:border-accent focus:ring-1 focus:ring-accent"
                 />
               </div>
 
@@ -230,7 +230,7 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
                     placeholder="At least 8 characters"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full rounded-xl bg-slate-50 dark:bg-zinc-950 border border-black/10 px-4 py-3 text-navy dark:text-white focus:border-accent focus:ring-1 focus:ring-accent pr-12"
+                    className="w-full rounded-xl bg-slate-50 dark:bg-zinc-950 border border-black/10 dark:border-white/10 px-4 py-3 text-navy dark:text-white focus:border-accent focus:ring-1 focus:ring-accent pr-12"
                   />
                   <button
                     type="button"
@@ -265,7 +265,7 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
                     placeholder="Confirm your password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full rounded-xl bg-slate-50 dark:bg-zinc-950 border border-black/10 px-4 py-3 text-navy dark:text-white focus:border-accent focus:ring-1 focus:ring-accent"
+                    className="w-full rounded-xl bg-slate-50 dark:bg-zinc-950 border border-black/10 dark:border-white/10 px-4 py-3 text-navy dark:text-white focus:border-accent focus:ring-1 focus:ring-accent"
                   />
                 </div>
               </div>
@@ -275,7 +275,7 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value as Role)}
-                  className="w-full rounded-xl bg-slate-50 dark:bg-zinc-950 border border-black/10 px-4 py-3 text-navy dark:text-white focus:border-accent focus:ring-1 focus:ring-accent"
+                  className="w-full rounded-xl bg-slate-50 dark:bg-zinc-950 border border-black/10 dark:border-white/10 px-4 py-3 text-navy dark:text-white focus:border-accent focus:ring-1 focus:ring-accent"
                 >
                   <option value={Role.USER}>User</option>
                   <option value={Role.EDITOR}>Editor</option>
@@ -287,7 +287,7 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="flex-1 py-3 px-4 rounded-xl font-bold text-navy dark:text-white bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200"
+                  className="flex-1 py-3 px-4 rounded-xl font-bold text-navy dark:text-white bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700"
                 >
                   Cancel
                 </button>

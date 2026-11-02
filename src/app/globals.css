@@ -3,7 +3,7 @@
    posts, about, team) come from this plugin; Tailwind v4 only loads plugins
    registered here, so without it those pages had no content styling. */
 @plugin "@tailwindcss/typography";
-@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *, .dark, .dark *));
 @theme {
   /* Brand Colors — Entertain Lawyers */
   --color-navy: #16325a;
@@ -48,23 +48,25 @@
     --text-muted: #64748b;
   }
 
-  /* Dark Theme — Restrained adaptation */
-  :root[data-theme='dark'] {
-    --bg-primary: #0f172a;
-    --bg-surface: #1e293b;
-    --bg-surface-alt: #0c1b30; /* Brand navy dark */
+  /* Dark Theme — Sleek zinc black palette */
+  :root[data-theme='dark'],
+  :root.dark {
+    --bg-primary: #09090b;
+    --bg-surface: #121215;
+    --bg-surface-alt: #18181b;
 
     --border-color: rgba(255, 255, 255, 0.08);
-    --border-strong: rgba(255, 255, 255, 0.15);
+    --border-strong: rgba(255, 255, 255, 0.14);
 
-    --text-primary: #f8fafc;
-    --text-secondary: #cbd5e1;
-    --text-muted: #94a3b8;
+    --text-primary: #f4f4f5;
+    --text-secondary: #a1a1aa;
+    --text-muted: #71717a;
   }
 
   /* Native widgets (selects, inputs, scrollbars) follow the active theme. */
   :root { color-scheme: light; }
-  :root[data-theme='dark'] { color-scheme: dark; }
+  :root[data-theme='dark'],
+  :root.dark { color-scheme: dark; }
 
   html {
     scroll-behavior: smooth;
@@ -214,7 +216,7 @@
   border-top-left-radius: 0.75rem !important;
   border-top-right-radius: 0.75rem !important;
 }
-.dark .ql-toolbar.ql-snow {
+:is(.dark, [data-theme='dark']) .ql-toolbar.ql-snow {
   background-color: #18181b !important; /* zinc-900 */
   border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
@@ -228,20 +230,21 @@
   padding: 20px !important;
   min-height: 24rem !important;
 }
-.dark .ql-editor.ql-blank::before {
+:is(.dark, [data-theme='dark']) .ql-editor.ql-blank::before {
   color: rgba(255, 255, 255, 0.5) !important;
 }
 /* Toolbar Icon Colors for Dark Mode */
-.dark .ql-snow .ql-stroke {
+:is(.dark, [data-theme='dark']) .ql-snow .ql-stroke {
   stroke: #e4e4e7 !important;
 }
-.dark .ql-snow .ql-fill, .dark .ql-snow .ql-stroke.ql-fill {
+:is(.dark, [data-theme='dark']) .ql-snow .ql-fill,
+:is(.dark, [data-theme='dark']) .ql-snow .ql-stroke.ql-fill {
   fill: #e4e4e7 !important;
 }
-.dark .ql-snow .ql-picker {
+:is(.dark, [data-theme='dark']) .ql-snow .ql-picker {
   color: #e4e4e7 !important;
 }
-.dark .ql-snow .ql-picker-options {
+:is(.dark, [data-theme='dark']) .ql-snow .ql-picker-options {
   background-color: #27272a !important;
   border-color: #3f3f46 !important;
 }
@@ -317,7 +320,7 @@
   .article-body h2 { font-size: 1.5rem; }
   .article-body h3 { font-size: 1.25rem; }
   .article-body :is(h4, h5, h6) { font-size: 1.125rem; }
-  :root[data-theme='dark'] .article-body :is(h1, h2, h3, h4, h5, h6) {
+  :is(:root[data-theme='dark'], :root.dark) .article-body :is(h1, h2, h3, h4, h5, h6) {
     color: var(--text-primary);
   }
   .article-body a {

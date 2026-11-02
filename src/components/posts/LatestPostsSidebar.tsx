@@ -38,7 +38,7 @@ export default function LatestPostsSidebar({
   return (
     <nav aria-labelledby="latest-posts-heading">
       {/* Widget heading — navy bar, white semibold title */}
-      <div className="mx-[3px] bg-navy dark:bg-navy-light px-[15px] pt-[15px] pb-[10px]">
+      <div className="mx-[3px] bg-navy dark:bg-zinc-900 dark:border dark:border-white/10 px-[15px] pt-[15px] pb-[10px]">
         <h2
           id="latest-posts-heading"
           className="text-[20px] lg:text-[25px] font-semibold leading-tight text-white"

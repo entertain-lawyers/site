@@ -86,7 +86,7 @@ export default async function SemestersPage() {
                   <div className="p-6 flex-grow flex flex-col relative z-10">
                     <div className="flex items-start justify-between mb-5">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-xl bg-surface-alt flex items-center justify-center text-navy font-extrabold border border-border group-hover:bg-accent/10 group-hover:text-accent group-hover:border-accent/30 transition-colors text-lg">
+                        <div className="w-12 h-12 rounded-xl bg-surface-alt flex items-center justify-center text-navy dark:text-white font-extrabold border border-border dark:border-white/10 group-hover:bg-accent/10 group-hover:text-accent group-hover:border-accent/30 transition-colors text-lg">
                           {semester.order}
                         </div>
                         <h2 className="text-xl font-bold text-navy dark:text-white group-hover:text-accent transition-colors leading-tight">
@@ -129,7 +129,7 @@ export default async function SemestersPage() {
                   </div>
                   
                   <div className="px-6 py-4 bg-surface-alt/50 border-t border-border flex justify-between items-center group-hover:bg-accent/5 transition-colors">
-                    <span className="text-sm font-bold text-navy group-hover:text-accent transition-colors">
+                    <span className="text-sm font-bold text-navy dark:text-white group-hover:text-accent transition-colors">
                       {dict.readMore || 'View Semester'}
                     </span>
                     <ChevronRight className="w-5 h-5 text-text-muted group-hover:text-accent group-hover:translate-x-1 transition-all" />

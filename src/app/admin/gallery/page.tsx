@@ -47,7 +47,7 @@ export default async function AdminGalleryPage() {
                   <td className="px-8 py-5 text-sm font-bold text-navy dark:text-white min-w-[300px]">{gal.title}</td>
                   <td className="px-8 py-5 whitespace-nowrap text-sm font-medium text-text-secondary"></td>
                   <td className="px-8 py-5 whitespace-nowrap text-sm">
-                    <span className={`px-3 py-1 inline-flex text-xs font-bold rounded-full border ${gal.status === 'PUBLISHED' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                    <span className={`px-3 py-1 inline-flex text-xs font-bold rounded-full border ${gal.status === 'PUBLISHED' ? 'bg-green-50 text-green-700 border-green-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40' : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/40'}`}>
                       {gal.status === 'PUBLISHED' ? 'Published' : 'Draft'}
                     </span>
                   </td>

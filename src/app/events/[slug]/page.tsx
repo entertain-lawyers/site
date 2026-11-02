@@ -34,7 +34,7 @@ export default async function EventDetailPage({ params }: { params: Promise<{ sl
   const heroImage = event.featuredImage || extractFirstImage(event.content);
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#0a0a0a] pb-24">
+    <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 pb-24">
       {heroImage ? (
         <div className="w-full h-[40vh] md:h-[60vh] relative">
           {/* eslint-disable-next-line @next/next/no-img-element */}

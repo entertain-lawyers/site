@@ -93,12 +93,15 @@ export default function EditPostClient({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const authorOptions = authors.filter((author) =>
-    post.lang === 'ne' ? Boolean(author.wpAuthorIdNe) : Boolean(author.wpAuthorIdEn)
-  );
+  // Authors/editors from User Management and Roles (Admin & Editor)
+  const authorOptions = authors;
   const selectedAuthorId = authorOptions.some((author) => author.id === authorUserId)
     ? authorUserId
     : '';
+  const selectedAuthor = authorOptions.find((author) => author.id === selectedAuthorId);
+  const isSelectedAuthorLinked = Boolean(
+    post.lang === 'ne' ? selectedAuthor?.wpAuthorIdNe : selectedAuthor?.wpAuthorIdEn
+  );
 
   const handlePreview = () => {
     writePostPreviewDraft({
@@ -134,8 +137,9 @@ export default function EditPostClient({
         type: type === post.type ? undefined : type,
         isPublished,
         lang: post.lang,
-        // Send the author only when one is linked and selected; otherwise keep
-        // WordPress's current author untouched.
+        // Send the author when one is selected: a mapped one keeps its own
+        // WordPress account, an unmapped one uses the site's publishing
+        // account. Omitted leaves the current WordPress author untouched.
         ...(selectedAuthorId ? { authorUserId: selectedAuthorId } : {}),
         // Only rewrite categories when the admin actually changed the type;
         // otherwise keep WordPress's own categories (including any the type
@@ -159,7 +163,7 @@ export default function EditPostClient({
   };
 
   return (
-    <div className="admin-editor-page py-10 px-4 sm:px-6 lg:px-8 max-w-[1360px] mx-auto">
+    <div className="admin-editor-page py-10 px-4 sm:px-6 lg:px-8 max-w-[1360px] mx-auto w-full flex-1 flex flex-col">
       <div className="mb-10">
         <Link href="/admin/posts" className="inline-flex items-center text-sm font-bold text-text-secondary hover:text-accent mb-6 transition-colors group">
           <svg className="w-4 h-4 mr-2 transform group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -175,17 +179,17 @@ export default function EditPostClient({
       <AnimatePresence initial={false}>
       {error && (
         <Appear key="error">
-        <div className="mb-6 bg-red-50 text-red-700 p-4 rounded-xl text-sm border border-red-100 font-medium">
+        <div className="mb-6 bg-red-50 text-red-700 p-4 rounded-xl text-sm border border-red-100 dark:bg-red-950/40 dark:border-red-900/60 dark:text-red-300 font-medium">
           {error}
         </div>
         </Appear>
       )}
       </AnimatePresence>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-10 lg:grid lg:grid-cols-[minmax(0,860px)_340px] lg:justify-center lg:gap-12">
+      <form onSubmit={handleSubmit} className="flex-1 flex flex-col gap-10 lg:grid lg:grid-cols-[minmax(0,860px)_340px] lg:justify-center lg:gap-12 lg:items-stretch">
 
         {/* Left Column: Main Editor — same width as the public article column */}
-        <div className="min-w-0 space-y-8">
+        <div className="min-w-0 flex flex-col space-y-8 h-full">
           <div>
             <label htmlFor="title" className="block text-sm font-bold text-navy dark:text-white mb-2">Title</label>
             <input
@@ -199,9 +203,9 @@ export default function EditPostClient({
             />
           </div>
 
-          <div>
+          <div className="flex-1 flex flex-col min-h-0 space-y-2">
             <label className="block text-sm font-bold text-navy dark:text-white mb-2">Content</label>
-            <RichTextEditor value={content} onChange={setContent} />
+            <RichTextEditor value={content} onChange={setContent} fillHeight />
           </div>
         </div>
 
@@ -242,14 +246,18 @@ export default function EditPostClient({
                 emptyMessage={
                   !authorMappingAvailable
                     ? 'Author mapping is temporarily unavailable because database migrations are pending.'
-                    : 'No user is linked to a WordPress author on this site yet.'
+                    : 'No eligible authors found. Create editors in Admin → Users.'
                 }
                 hint={
                   !authorMappingAvailable
                     ? 'Author mapping is temporarily unavailable because database migration 20261101000000 has not been applied yet. Saving leaves the current WordPress author unchanged.'
-                    : post.currentWpAuthorName
-                      ? `Currently credited to WordPress user “${post.currentWpAuthorName}”, which is not linked to a local account. Saving without choosing an author keeps it.`
-                      : 'The post is published under this person. You remain the editor in the audit log.'
+                    : selectedAuthor
+                      ? isSelectedAuthorLinked
+                        ? 'The post is published under this author in WordPress. You remain the editor in the audit log.'
+                        : 'This author has no WordPress author mapping, so the post will be published under the site\'s WordPress publishing account and credited to them in the audit log. Map them in Admin → Users to publish under their own byline.'
+                      : post.currentWpAuthorName
+                        ? `Currently credited to WordPress user “${post.currentWpAuthorName}”, which is not linked to a local account. Saving without choosing an author keeps it.`
+                        : 'Select an editor or administrator to credit as the author of this post.'
                 }
               />
             </div>

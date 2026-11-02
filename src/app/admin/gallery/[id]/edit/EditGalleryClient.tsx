@@ -74,30 +74,30 @@ export default function EditGalleryClient({ gal }: { gal: any }) {
       {error && <div className="p-4 bg-red-50 text-red-600 mb-6 rounded-lg">{error}</div>}
 
       <form onSubmit={handleSubmit} className="space-y-6 bg-white dark:bg-zinc-900 p-6 rounded-xl border border-black/5 dark:border-white/5 shadow-sm mb-10">
-        <h2 className="text-xl font-bold mb-4">Gallery Details</h2>
-        <div><label htmlFor="gallery-title" className="block text-sm font-bold mb-2">Title</label><input id="gallery-title" required value={title} onChange={e => setTitle(e.target.value)} className="w-full border p-3 rounded-xl" /></div>
-        <div><label htmlFor="gallery-description" className="block text-sm font-bold mb-2">Description</label><textarea id="gallery-description" value={description} onChange={e => setDescription(e.target.value)} className="w-full border p-3 rounded-xl h-24" /></div>
-        <div><label htmlFor="gallery-status" className="block text-sm font-bold mb-2">Status</label><select id="gallery-status" value={status} onChange={e => setStatus(e.target.value as any)} className="w-full border p-3 rounded-xl"><option value="DRAFT">Draft</option><option value="PUBLISHED">Published</option><option value="ARCHIVED">Archived</option></select></div>
+        <h2 className="text-xl font-bold text-navy dark:text-white mb-4">Gallery Details</h2>
+        <div><label htmlFor="gallery-title" className="block text-sm font-bold text-navy dark:text-white mb-2">Title</label><input id="gallery-title" required value={title} onChange={e => setTitle(e.target.value)} className="w-full border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 text-navy dark:text-white p-3 rounded-xl focus:border-accent focus:ring-1 focus:ring-accent" /></div>
+        <div><label htmlFor="gallery-description" className="block text-sm font-bold text-navy dark:text-white mb-2">Description</label><textarea id="gallery-description" value={description} onChange={e => setDescription(e.target.value)} className="w-full border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 text-navy dark:text-white p-3 rounded-xl h-24 focus:border-accent focus:ring-1 focus:ring-accent" /></div>
+        <div><label htmlFor="gallery-status" className="block text-sm font-bold text-navy dark:text-white mb-2">Status</label><select id="gallery-status" value={status} onChange={e => setStatus(e.target.value as any)} className="w-full border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 text-navy dark:text-white p-3 rounded-xl focus:border-accent focus:ring-1 focus:ring-accent"><option value="DRAFT">Draft</option><option value="PUBLISHED">Published</option><option value="ARCHIVED">Archived</option></select></div>
         <MotionButton type="submit" disabled={loading} className="bg-accent text-white px-6 py-3 rounded-xl font-bold">{loading ? 'Saving...' : 'Save Gallery Details'}</MotionButton>
       </form>
 
       <div className="space-y-6 bg-white dark:bg-zinc-900 p-6 rounded-xl border border-black/5 dark:border-white/5 shadow-sm mb-10">
-        <h2 className="text-xl font-bold mb-4">Gallery Images</h2>
+        <h2 className="text-xl font-bold text-navy dark:text-white mb-4">Gallery Images</h2>
 
         {gal.images.length === 0 ? (
           <p className="text-text-secondary">No images added yet.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {gal.images.map((img: any) => (
-              <div key={img.id} className="border p-4 rounded-xl flex flex-col gap-2 relative group">
+              <div key={img.id} className="border border-black/10 dark:border-white/10 p-4 rounded-xl flex flex-col gap-2 relative group">
                 <img src={img.url} className="w-full h-40 object-cover rounded-lg" alt={img.altText || ''} loading="lazy" decoding="async" />
-                <p className="text-sm font-bold mt-2 truncate">{img.caption || 'No caption'}</p>
+                <p className="text-sm font-bold text-navy dark:text-white mt-2 truncate">{img.caption || 'No caption'}</p>
                 <div className="flex justify-between mt-2">
                   <div className="flex gap-2">
-                    <button onClick={() => handleReorder(img.id, 'UP')} disabled={loading} className="p-2.5 border rounded min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-slate-50"><ArrowUp size={16} /></button>
-                    <button onClick={() => handleReorder(img.id, 'DOWN')} disabled={loading} className="p-2.5 border rounded min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-slate-50"><ArrowDown size={16} /></button>
+                    <button onClick={() => handleReorder(img.id, 'UP')} disabled={loading} className="p-2.5 border border-black/10 dark:border-white/10 text-gray-700 dark:text-zinc-200 rounded min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-slate-50 dark:hover:bg-zinc-800"><ArrowUp size={16} /></button>
+                    <button onClick={() => handleReorder(img.id, 'DOWN')} disabled={loading} className="p-2.5 border border-black/10 dark:border-white/10 text-gray-700 dark:text-zinc-200 rounded min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-slate-50 dark:hover:bg-zinc-800"><ArrowDown size={16} /></button>
                   </div>
-                  <button onClick={() => handleRemoveImage(img.id)} disabled={loading} className="p-2 border border-red-200 text-red-600 rounded hover:bg-red-50"><Trash2 size={16} /></button>
+                  <button onClick={() => handleRemoveImage(img.id)} disabled={loading} className="p-2 border border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400 rounded hover:bg-red-50 dark:hover:bg-red-950/30"><Trash2 size={16} /></button>
                 </div>
               </div>
             ))}
@@ -106,12 +106,12 @@ export default function EditGalleryClient({ gal }: { gal: any }) {
       </div>
 
       <div className="space-y-6 bg-white dark:bg-zinc-900 p-6 rounded-xl border border-black/5 dark:border-white/5 shadow-sm">
-        <h2 className="text-xl font-bold mb-4">Add New Image</h2>
+        <h2 className="text-xl font-bold text-navy dark:text-white mb-4">Add New Image</h2>
         <ImageUpload value={newImageUrl} onChange={setNewImageUrl} type="GALLERY" label="Upload Image" />
         {newImageUrl && (
           <>
-            <div><label htmlFor="gallery-alt-text" className="block text-sm font-bold mb-2">Alt Text</label><input id="gallery-alt-text" value={newImageAlt} onChange={e => setNewImageAlt(e.target.value)} className="w-full border p-3 rounded-xl" /></div>
-            <div><label htmlFor="gallery-caption" className="block text-sm font-bold mb-2">Caption</label><input id="gallery-caption" value={newImageCaption} onChange={e => setNewImageCaption(e.target.value)} className="w-full border p-3 rounded-xl" /></div>
+            <div><label htmlFor="gallery-alt-text" className="block text-sm font-bold text-navy dark:text-white mb-2">Alt Text</label><input id="gallery-alt-text" value={newImageAlt} onChange={e => setNewImageAlt(e.target.value)} className="w-full border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 text-navy dark:text-white p-3 rounded-xl focus:border-accent focus:ring-1 focus:ring-accent" /></div>
+            <div><label htmlFor="gallery-caption" className="block text-sm font-bold text-navy dark:text-white mb-2">Caption</label><input id="gallery-caption" value={newImageCaption} onChange={e => setNewImageCaption(e.target.value)} className="w-full border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 text-navy dark:text-white p-3 rounded-xl focus:border-accent focus:ring-1 focus:ring-accent" /></div>
             <button onClick={handleAddImage} disabled={loading} className="bg-green-600 text-white px-6 py-3 rounded-xl font-bold">{loading ? 'Adding...' : 'Add Image to Gallery'}</button>
           </>
         )}

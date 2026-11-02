@@ -11,9 +11,10 @@ import {
   deleteWordPressPost,
   WordPressAuthError,
   WordPressApiError,
+  getWordPressAuthenticatedUser,
   mapTypeToCategory,
 } from '@/lib/wordpress';
-import { resolveWordPressAuthor } from '@/lib/content-authors';
+import { resolveLocalAuthor, type AuthorOption } from '@/lib/content-authors';
 
 /**
  * Turn a failed WordPress write into a message that says what to fix. A
@@ -43,6 +44,61 @@ function toWordPressWriteError(error: unknown, lang: 'en' | 'ne'): Error {
     }
   }
   return new Error(`WordPress API Error: ${error instanceof Error ? error.message : String(error)}`);
+}
+
+/**
+ * Turns a failed `/users/me` lookup into a message that says what to fix. The
+ * post must not be saved with the author silently left as someone else.
+ */
+function toAuthorAssignmentError(error: unknown, lang: 'en' | 'ne'): UserFacingError {
+  const install = lang === 'ne' ? 'Nepali WordPress' : 'WordPress';
+  const mapHint = 'or map this author in Admin → Users';
+
+  if (error instanceof WordPressAuthError) {
+    const vars = lang === 'ne'
+      ? 'WP_NEPALI_AUTH_HEADER (or WP_NEPALI_AUTH_USERNAME + WP_NEPALI_AUTH_APP_PASSWORD)'
+      : 'WP_AUTH_HEADER (or WP_AUTH_USERNAME + WP_AUTH_APP_PASSWORD)';
+    return new UserFacingError(
+      `This author has no ${install} author mapping, and the server has no ${install} credentials to identify the site's publishing account. Set ${vars} ${mapHint}.`
+    );
+  }
+
+  if (error instanceof WordPressApiError && (error.status === 401 || error.status === 403)) {
+    return new UserFacingError(
+      `${install} rejected the server credentials (HTTP ${error.status}), so the site's publishing account could not be identified for this unmapped author. Fix the application password ${mapHint}.`
+    );
+  }
+
+  const status = error instanceof WordPressApiError && error.status ? ` (HTTP ${error.status})` : '';
+  return new UserFacingError(
+    `The site's ${install} publishing account could not be identified${status}, so the post was not saved with this unmapped author. Try again ${mapHint}.`
+  );
+}
+
+/**
+ * WordPress author id for an explicitly selected local author. An explicit
+ * per-install mapping wins; without one the post is credited to the account
+ * this server authenticates as on that install (resolved from `/users/me`),
+ * never to a local id, a name, or the other install's account.
+ *
+ * Returns null when no author was selected, so WordPress keeps its author.
+ */
+async function resolvePostAuthor(
+  authorUserId: string | undefined,
+  lang: 'en' | 'ne'
+): Promise<{ author: AuthorOption; wpAuthorId: number } | null> {
+  if (!authorUserId) return null;
+
+  const author = await resolveLocalAuthor(authorUserId);
+  const mapped = (lang === 'ne' ? author.wpAuthorIdNe : author.wpAuthorIdEn) ?? null;
+  if (mapped) return { author, wpAuthorId: mapped };
+
+  try {
+    const integrationUser = await getWordPressAuthenticatedUser(lang);
+    return { author, wpAuthorId: integrationUser.id };
+  } catch (error) {
+    throw toAuthorAssignmentError(error, lang);
+  }
 }
 
 // WordPress media id for the featured image; 0 removes it (updates only).
@@ -166,11 +222,9 @@ export const createPostAction = createSafeAction(async (rawArgs: z.infer<typeof 
   const lang = args.type.startsWith('NEPALI_') ? 'ne' : 'en';
   const status = args.status ? (args.status === 'PUBLISHED' ? 'publish' : 'draft') : (args.isPublished ? 'publish' : 'draft');
 
-  // Resolved before the WordPress try/catch so a bad/mislinked author surfaces
-  // as its own message instead of a generic WordPress error.
-  const assignedAuthor = args.authorUserId
-    ? await resolveWordPressAuthor(args.authorUserId, lang)
-    : null;
+  // Resolved before the WordPress write so a missing mapping/identity reports
+  // its own actionable message instead of a generic save failure.
+  const assignedAuthor = await resolvePostAuthor(args.authorUserId, lang);
 
   try {
     const wpPost = await createWordPressPost({
@@ -235,11 +289,9 @@ export const updatePostAction = createSafeAction(async (rawArgs: z.infer<typeof 
     status = args.isPublished ? 'publish' : 'draft';
   }
 
-  // Resolved before the WordPress try/catch so a bad/mislinked author surfaces
-  // as its own message instead of a generic WordPress error.
-  const assignedAuthor = args.authorUserId
-    ? await resolveWordPressAuthor(args.authorUserId, lang)
-    : null;
+  // Resolved before the WordPress write so a missing mapping/identity reports
+  // its own actionable message instead of a generic save failure.
+  const assignedAuthor = await resolvePostAuthor(args.authorUserId, lang);
 
   try {
     const wpPost = await updateWordPressPost(args.id, {

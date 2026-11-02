@@ -189,11 +189,11 @@ export default function LoginPage() {
           <AnimatePresence initial={false}>
           {error && (
             <Appear key="error">
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl">
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 dark:bg-red-950/40 dark:border-red-900/60 dark:text-red-300 text-sm rounded-xl">
               {error}
               {(codeParam === 'UnverifiedEmail' || errorParam === 'UnverifiedEmail') && (
                 <div className="mt-2">
-                  <Link href={`/verify-email?email=${encodeURIComponent(email)}`} className="font-bold underline hover:text-red-900">
+                  <Link href={`/verify-email?email=${encodeURIComponent(email)}`} className="font-bold underline hover:text-red-900 dark:hover:text-red-200">
                     Verify email now
                   </Link>
                 </div>
@@ -205,7 +205,7 @@ export default function LoginPage() {
           <AnimatePresence initial={false}>
           {success && (
             <Appear key="success">
-            <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 text-sm rounded-xl">
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 text-green-700 dark:bg-green-950/40 dark:border-green-900/60 dark:text-green-300 text-sm rounded-xl">
               {success}
             </div>
             </Appear>

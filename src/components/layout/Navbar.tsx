@@ -122,7 +122,7 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
   return (
     <header className="sticky top-2 sm:top-4 z-40 transition-colors duration-300 w-full pointer-events-none">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-        <div className="relative flex items-center justify-between h-12 sm:h-14 px-3 sm:px-5 bg-white/95 dark:bg-surface/95 backdrop-blur-xl border border-border/50 shadow-[0_8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] rounded-full pointer-events-auto">
+        <div className="relative flex items-center justify-between h-12 sm:h-14 px-3 sm:px-5 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl border border-border/50 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] rounded-full pointer-events-auto">
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-1 flex-1 min-w-0" aria-label="Main navigation">
@@ -161,7 +161,7 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
                 <AnimatePresence>
                 {isStudyOpen && (
                   <PopoverPanel key="study" className="absolute top-full left-0 pt-2 z-50">
-                    <div className="w-64 bg-surface rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-border py-1.5 flex flex-col">
+                    <div className="w-64 bg-surface dark:bg-zinc-950 rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:shadow-2xl border border-border dark:border-white/10 py-1.5 flex flex-col">
 
                       {/* LAW NOTES */}
                       <div 
@@ -173,7 +173,7 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
                           onClick={() => setOpenSubmenu(openSubmenu === 'law_notes' ? null : 'law_notes')}
                           onKeyDown={(e) => handleSubmenuKeyDown(e, 'law_notes')}
                           aria-expanded={openSubmenu === 'law_notes'}
-                          className="w-full flex items-center justify-between px-5 py-3 min-h-[44px] text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors focus:outline-none focus-visible:bg-accent/5"
+                          className="w-full flex items-center justify-between px-5 py-3 min-h-[44px] text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 dark:hover:bg-white/5 transition-colors focus:outline-none focus-visible:bg-accent/5 dark:focus-visible:bg-white/5"
                         >
                           {dict.catLawNotes || 'Law Notes'}
                           <ChevronRight className="w-4 h-4 opacity-50" />
@@ -182,12 +182,12 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
                         <AnimatePresence>
                         {openSubmenu === 'law_notes' && (
                           <FlyoutPanel key="law_notes" className="absolute top-0 left-full ml-1 z-50">
-                            <div className="w-48 bg-surface rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-border overflow-hidden py-1.5 max-h-[60vh] overflow-y-auto flex flex-col">
+                            <div className="w-48 bg-surface dark:bg-zinc-950 rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:shadow-2xl border border-border dark:border-white/10 overflow-hidden py-1.5 max-h-[60vh] overflow-y-auto flex flex-col">
                               {semesters.map((s) => (
                                 <Link 
                                   key={s.id} 
                                   href={`/study?type=LAW_NOTE&semester=${s.id}`} 
-                                  className="flex items-center px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors focus:outline-none focus-visible:bg-accent/5"
+                                  className="flex items-center px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:text-accent hover:bg-accent/5 dark:hover:bg-white/5 transition-colors focus:outline-none focus-visible:bg-accent/5 dark:focus-visible:bg-white/5"
                                 >
                                   {s.name}
                                 </Link>
@@ -208,7 +208,7 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
                           onClick={() => setOpenSubmenu(openSubmenu === 'old_questions' ? null : 'old_questions')}
                           onKeyDown={(e) => handleSubmenuKeyDown(e, 'old_questions')}
                           aria-expanded={openSubmenu === 'old_questions'}
-                          className="w-full flex items-center justify-between px-5 py-3 min-h-[44px] text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors focus:outline-none focus-visible:bg-accent/5"
+                          className="w-full flex items-center justify-between px-5 py-3 min-h-[44px] text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 dark:hover:bg-white/5 transition-colors focus:outline-none focus-visible:bg-accent/5 dark:focus-visible:bg-white/5"
                         >
                           {dict.catOldQuestions || 'Old Questions'}
                           <ChevronRight className="w-4 h-4 opacity-50" />
@@ -217,12 +217,12 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
                         <AnimatePresence>
                         {openSubmenu === 'old_questions' && (
                           <FlyoutPanel key="old_questions" className="absolute top-0 left-full ml-1 z-50">
-                            <div className="w-48 bg-surface rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-border overflow-hidden py-1.5 max-h-[60vh] overflow-y-auto flex flex-col">
+                            <div className="w-48 bg-surface dark:bg-zinc-950 rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:shadow-2xl border border-border dark:border-white/10 overflow-hidden py-1.5 max-h-[60vh] overflow-y-auto flex flex-col">
                               {semesters.map((s) => (
                                 <Link 
                                   key={s.id} 
                                   href={`/study?type=OLD_QUESTION&semester=${s.id}`} 
-                                  className="flex items-center px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors focus:outline-none focus-visible:bg-accent/5"
+                                  className="flex items-center px-4 py-2.5 text-[13px] font-medium text-text-secondary hover:text-accent hover:bg-accent/5 dark:hover:bg-white/5 transition-colors focus:outline-none focus-visible:bg-accent/5 dark:focus-visible:bg-white/5"
                                 >
                                   {s.name}
                                 </Link>
@@ -235,7 +235,7 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
 
                       <Link 
                         href="/semesters" 
-                        className="flex items-center px-5 py-3 min-h-[44px] text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors border-t border-border mt-1 focus:outline-none focus-visible:bg-accent/5"
+                        className="flex items-center px-5 py-3 min-h-[44px] text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 dark:hover:bg-white/5 transition-colors border-t border-border dark:border-white/10 mt-1 focus:outline-none focus-visible:bg-accent/5 dark:focus-visible:bg-white/5"
                       >
                         {dict.browseSemesters || 'Browse by Semester'}
                       </Link>
@@ -264,16 +264,16 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
                 <AnimatePresence>
                 {isExploreOpen && (
                   <PopoverPanel key="explore" className="absolute top-full left-32 pt-2 z-50">
-                    <div className="w-56 bg-surface rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-border py-1.5 flex flex-col">
-                      <Link href="/calculator" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors">Court Fee Calculator</Link>
-                      <Link href="/consultation" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors">Consult a Lawyer</Link>
-                      <div className="h-px bg-border my-1" />
-                      <Link href="/events" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors">Events</Link>
-                      <Link href="/faqs" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors">FAQs</Link>
-                      <div className="h-px bg-border my-1" />
-                      <Link href="/blogs" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors">Blogs</Link>
-                      <Link href="/news" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors">News</Link>
-                      <Link href="/historical-facts" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 transition-colors">Historical Facts</Link>
+                    <div className="w-56 bg-surface dark:bg-zinc-950 rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:shadow-2xl border border-border dark:border-white/10 py-1.5 flex flex-col">
+                      <Link href="/calculator" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 dark:hover:bg-white/5 transition-colors">Court Fee Calculator</Link>
+                      <Link href="/consultation" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 dark:hover:bg-white/5 transition-colors">Consult a Lawyer</Link>
+                      <div className="h-px bg-border dark:bg-white/10 my-1" />
+                      <Link href="/events" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 dark:hover:bg-white/5 transition-colors">Events</Link>
+                      <Link href="/faqs" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 dark:hover:bg-white/5 transition-colors">FAQs</Link>
+                      <div className="h-px bg-border dark:bg-white/10 my-1" />
+                      <Link href="/blogs" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 dark:hover:bg-white/5 transition-colors">Blogs</Link>
+                      <Link href="/news" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 dark:hover:bg-white/5 transition-colors">News</Link>
+                      <Link href="/historical-facts" className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 dark:hover:bg-white/5 transition-colors">Historical Facts</Link>
                     </div>
                   </PopoverPanel>
                 )}

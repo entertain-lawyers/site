@@ -25,6 +25,8 @@ interface RichTextEditorProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  fillHeight?: boolean;
+  className?: string;
 }
 
 // Format whitelist — every name here must exist in the Quill 2 registry.
@@ -127,6 +129,8 @@ export default function RichTextEditor({
   value,
   onChange,
   placeholder = 'Write your content here...',
+  fillHeight = false,
+  className = '',
 }: RichTextEditorProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const reactQuillRef = useRef<any>(null);
@@ -388,7 +392,11 @@ export default function RichTextEditor({
       : 'var(--font-article), Roboto, "Noto Sans Devanagari", sans-serif';
 
   return (
-    <div className={`editor-wrapper ${articleFont.variable} space-y-3`}>
+    <div
+      className={`editor-wrapper ${articleFont.variable} space-y-3 ${
+        fillHeight ? 'fill-height flex-1 flex flex-col min-h-0 h-full' : ''
+      } ${className}`.trim()}
+    >
       <style dangerouslySetInnerHTML={{
         __html: `
           /* Toolbar: Sticky at top of editor container with glassmorphic backdrop */
@@ -547,6 +555,42 @@ export default function RichTextEditor({
             overscroll-behavior: contain !important;
             scroll-behavior: smooth !important;
           }
+
+          /* Fill-height mode: editor stretches all the way down alongside sidebar */
+          .editor-wrapper.fill-height {
+            display: flex !important;
+            flex-direction: column !important;
+            flex: 1 1 0% !important;
+            min-height: 0 !important;
+            height: 100% !important;
+          }
+          .editor-wrapper.fill-height .quill-box-container {
+            display: flex !important;
+            flex-direction: column !important;
+            flex: 1 1 0% !important;
+            min-height: 0 !important;
+          }
+          .editor-wrapper.fill-height .quill {
+            display: flex !important;
+            flex-direction: column !important;
+            flex: 1 1 0% !important;
+            min-height: 0 !important;
+            height: 100% !important;
+          }
+          .editor-wrapper.fill-height .ql-container.ql-snow {
+            display: flex !important;
+            flex-direction: column !important;
+            flex: 1 1 0% !important;
+            min-height: 0 !important;
+            height: 100% !important;
+          }
+          .editor-wrapper.fill-height .ql-editor {
+            flex: 1 1 0% !important;
+            min-height: clamp(28rem, 60vh, 56rem) !important;
+            max-height: none !important;
+            height: 100% !important;
+            overflow-y: auto !important;
+          }
           @media (min-width: 640px) {
             .editor-wrapper .ql-editor {
               padding: 2.25rem 2.75rem !important;
@@ -632,7 +676,7 @@ export default function RichTextEditor({
         `
       }} />
 
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 px-1">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 px-1 shrink-0">
         <div className="flex items-center gap-2">
           <label className="text-xs uppercase tracking-wider font-bold text-text-secondary">Font Mode:</label>
           <div className="flex bg-slate-100 dark:bg-zinc-900 rounded-lg p-0.5 border border-black/5 dark:border-white/5">
@@ -666,7 +710,12 @@ export default function RichTextEditor({
         </span>
       </div>
 
-      <div ref={quillBoxRef} className="relative bg-white dark:bg-zinc-950 rounded-2xl border border-black/10 dark:border-white/10 shadow-sm hover:shadow transition-shadow">
+      <div
+        ref={quillBoxRef}
+        className={`quill-box-container relative bg-white dark:bg-zinc-950 rounded-2xl border border-black/10 dark:border-white/10 shadow-sm hover:shadow transition-shadow ${
+          fillHeight ? 'flex-1 flex flex-col min-h-0' : ''
+        }`}
+      >
         <ReactQuill
           {...{ ref: reactQuillRef }}
           theme="snow"
