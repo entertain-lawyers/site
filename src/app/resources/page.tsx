@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import type { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
 import { getDictionary } from '@/lib/i18n';
 import { BookOpen, ChevronRight, Lock, Library, Clock } from 'lucide-react';
@@ -6,23 +7,21 @@ import { BookOpen, ChevronRight, Lock, Library, Clock } from 'lucide-react';
 import { unstable_cache } from 'next/cache';
 import { RESOURCES_CACHE_TAG } from '@/lib/cache-tags';
 
-export async function generateMetadata() {
-  const dict = await getDictionary();
-  return {
-    title: `${dict.resources}`,
-    description: 'Browse all available study resources, law notes, old questions, and case laws.',
-    alternates: { canonical: '/resources' },
-  };
-}
-
 export const revalidate = 60;
 
+// Pagination fetches one slice at a time. The page number is an argument, and
+// unstable_cache folds arguments into the cache key, so each page caches
+// separately under the same RESOURCES_CACHE_TAG that resource mutations
+// revalidate. One extra row cheaply detects a next page without a COUNT query.
+const RESOURCES_PAGE_SIZE = 50;
+
 const getCachedResources = unstable_cache(
-  async () => {
+  async (page: number) => {
     return prisma.resource.findMany({
       where: { status: 'PUBLISHED' },
       orderBy: { id: 'desc' },
-      take: 50, // Limit to 50 recent resources for performance
+      skip: (page - 1) * RESOURCES_PAGE_SIZE,
+      take: RESOURCES_PAGE_SIZE + 1,
       select: {
         id: true,
         title: true,
@@ -42,9 +41,33 @@ const getCachedResources = unstable_cache(
   { revalidate: 60, tags: [RESOURCES_CACHE_TAG] }
 );
 
-export default async function ResourcesPage() {
+type SearchParams = Promise<{ page?: string }>;
+
+export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
   const dict = await getDictionary();
-  const resources = await getCachedResources();
+  const { page } = await searchParams;
+  // Only the first page is canonical; deeper pages stay out of indexes so the
+  // paginated URLs do not compete with /resources.
+  if (page && page !== '1') {
+    return {
+      title: `${dict.resources} (page ${page})`,
+      robots: { index: false },
+    };
+  }
+  return {
+    title: `${dict.resources}`,
+    description: 'Browse all available study resources, law notes, old questions, and case laws.',
+    alternates: { canonical: '/resources' },
+  };
+}
+
+export default async function ResourcesPage({ searchParams }: { searchParams: SearchParams }) {
+  const dict = await getDictionary();
+  const { page } = await searchParams;
+  const pageNumber = Math.min(Math.max(1, parseInt(page ?? '1', 10) || 1), 100);
+  const rows = await getCachedResources(pageNumber);
+  const hasNextPage = rows.length > RESOURCES_PAGE_SIZE;
+  const resources = rows.slice(0, RESOURCES_PAGE_SIZE);
 
   return (
     <div className="bg-background min-h-screen pb-20">
@@ -121,6 +144,28 @@ export default async function ResourcesPage() {
             <h3 className="text-xl font-bold text-navy dark:text-white mb-2">{dict.noResourcesFound}</h3>
             <p className="text-text-secondary text-base">{dict.resourcesComingSoon}</p>
           </div>
+        )}
+
+        {(pageNumber > 1 || hasNextPage) && (
+          <nav aria-label="Resource pages" className="mt-10 flex items-center justify-center gap-3 text-sm font-semibold">
+            {pageNumber > 1 && (
+              <Link
+                href={`/resources?page=${pageNumber - 1}`}
+                className="px-4 py-2 rounded-lg border border-border bg-surface text-text-secondary hover:text-accent hover:border-accent transition-colors"
+              >
+                Previous
+              </Link>
+            )}
+            <span className="text-text-secondary">Page {pageNumber}</span>
+            {hasNextPage && (
+              <Link
+                href={`/resources?page=${pageNumber + 1}`}
+                className="px-4 py-2 rounded-lg border border-border bg-surface text-text-secondary hover:text-accent hover:border-accent transition-colors"
+              >
+                Next
+              </Link>
+            )}
+          </nav>
         )}
       </div>
     </div>

@@ -16,6 +16,7 @@ type RedirectRule = { source: string; destination: string; statusCode: number };
  * TTL (or immediately on a fresh server instance).
  */
 const REDIRECT_CACHE_TTL_MS = 300_000;
+const REDIRECT_CACHE_FAILURE_TTL_MS = 30_000;
 let redirectCache: { rules: RedirectRule[]; expiresAt: number } | null = null;
 
 async function getActiveRedirects(): Promise<RedirectRule[]> {
@@ -32,6 +33,10 @@ async function getActiveRedirects(): Promise<RedirectRule[]> {
     return rules;
   } catch (error) {
     console.error("Could not load redirects in middleware.", error);
+    // Hold the empty result briefly so a database outage does not turn every
+    // page view into a failed middleware query. Only negative results are
+    // cached this way, so valid rules are never served stale.
+    redirectCache = { rules: [], expiresAt: Date.now() + REDIRECT_CACHE_FAILURE_TTL_MS };
     return [];
   }
 }

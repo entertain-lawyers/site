@@ -8,6 +8,7 @@ import CaseLawLanding from '@/components/study/CaseLawLanding';
 import Link from 'next/link';
 import { ResourceType } from '@prisma/client';
 import { getDictionary } from '@/lib/i18n';
+import { RESOURCES_CACHE_TAG } from '@/lib/cache-tags';
 import { BookOpen, Scale, FileQuestion, Library, ArrowRight, Lock } from 'lucide-react';
 import { SYLLABUS_CONFIG, normalizeSubjectName } from '@/lib/syllabus-config';
 import { searchMatches } from '@/lib/translit-search';
@@ -84,7 +85,57 @@ const getCachedUnits = unstable_cache(
     select: { id: true, name: true, title: true },
   }),
   ['study-units'],
-  { revalidate: 3600 }
+  { revalidate: 3600, tags: [RESOURCES_CACHE_TAG] }
+);
+
+/**
+ * Cached per filter combination. unstable_cache includes the function's
+ * arguments in the cache key, so every passed filter (semester, subject, unit
+ * and type) is part of the key and public visitors only ever hit the
+ * PUBLISHED slice. Resource mutations revalidate RESOURCES_CACHE_TAG, so admin
+ * updates take effect on the next request.
+ */
+const getCachedResourceList = unstable_cache(
+  async (filters: {
+    semesterId?: string;
+    subjectId?: string;
+    unitId?: string;
+    type?: string;
+  }) => {
+    const { semesterId, subjectId, unitId, type: rawType } = filters;
+    // Arbitrary query strings must not become a Prisma enum filter: only real
+    // resource types are honoured, exactly like the pre-cache behaviour.
+    const resourceType = Object.values(ResourceType).find((t) => t === rawType);
+    return prisma.resource.findMany({
+      where: { status: 'PUBLISHED',
+        ...(semesterId && (resourceType === 'OLD_QUESTION' ? { semesterId } : { subject: { semesterId } })),
+        ...(subjectId && { subjectId }),
+        ...(unitId && { unitId }),
+        ...(resourceType && { type: resourceType }),
+        // NOTE: text search is applied post-fetch via searchMatches() below so
+        // roman-lipi queries can match Devanagari titles (and vice versa).
+      },
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        isPremium: true,
+        priceAmount: true,
+        order: true,
+        featuredImage: true,
+        semester: { select: { name: true } },
+        subject: { select: { name: true, semester: { select: { name: true } } } },
+        unit: { select: { name: true } },
+      },
+      orderBy: [
+        { subject: { order: 'asc' } },
+        { order: 'asc' },
+        { title: 'asc' },
+      ],
+    });
+  },
+  ['study-resources-listing'],
+  { revalidate: 3600, tags: [RESOURCES_CACHE_TAG] }
 );
 
 export default async function StudyPage(props: { searchParams: SearchParams }) {
@@ -115,33 +166,12 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
     getCachedSemesters(),
     selectedSemesterId ? getCachedSubjects(selectedSemesterId) : Promise.resolve([]),
     selectedSubjectId ? getCachedUnits(selectedSubjectId) : Promise.resolve([]),
-    prisma.resource.findMany({
-      where: { status: 'PUBLISHED',
-        ...(selectedSemesterId && (selectedType === 'OLD_QUESTION' ? { semesterId: selectedSemesterId } : { subject: { semesterId: selectedSemesterId } })),
-        ...(selectedSubjectId && { subjectId: selectedSubjectId }),
-        ...(selectedUnitId && { unitId: selectedUnitId }),
-        ...(selectedType && Object.values(ResourceType).includes(selectedType) && { type: selectedType }),
-        // NOTE: text search is applied post-fetch via searchMatches() below so
-        // roman-lipi queries can match Devanagari titles (and vice versa).
-      },
-      select: {
-        id: true,
-        title: true,
-        type: true,
-        isPremium: true,
-        priceAmount: true,
-        order: true,
-        featuredImage: true,
-        semester: { select: { name: true } },
-        subject: { select: { name: true, semester: { select: { name: true } } } },
-        unit: { select: { name: true } },
-      },
-      orderBy: [
-        { subject: { order: 'asc' } },
-        { order: 'asc' },
-        { title: 'asc' },
-      ],
-    })
+    getCachedResourceList({
+      semesterId: selectedSemesterId,
+      subjectId: selectedSubjectId,
+      unitId: selectedUnitId,
+      type: selectedType,
+    }),
   ]);
 
   // 2b. Transliteration-aware search: roman-lipi input matches Devanagari

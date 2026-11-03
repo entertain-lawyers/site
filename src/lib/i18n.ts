@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { cookies } from 'next/headers';
 
 export type Locale = 'en' | 'ne';
@@ -287,15 +288,17 @@ const dictionary = {
   },
 };
 
-export async function getLocale(): Promise<Locale> {
+export const getLocale = cache(async function getLocale(): Promise<Locale> {
   const cookieStore = await cookies();
   const localeCookie = cookieStore.get('NEXT_LOCALE');
   return (localeCookie?.value as Locale) === 'ne' ? 'ne' : 'en';
-}
+});
 
-export async function getDictionary() {
+// Memoized per render: every page calls getDictionary(), so without `cache`
+// each component re-reads cookies and rebuilds the same object per request.
+export const getDictionary = cache(async function getDictionary() {
   const locale = await getLocale();
   return dictionary[locale];
-}
+});
 
 export type Dictionary = typeof dictionary['en'];

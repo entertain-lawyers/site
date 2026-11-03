@@ -4,8 +4,18 @@ import { createSafeAction, parseOrThrow } from '@/lib/safe-action';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { isRecordInUseError } from '@/lib/prisma-errors';
+import { RESOURCES_CACHE_TAG } from '@/lib/cache-tags';
+
+// The /study listings cache units (and the resource list joins unit names), so
+// unit changes must refresh those cached entries too.
+function revalidateUnitCache() {
+  revalidatePath('/admin/study/units');
+  revalidatePath('/admin/study/subjects');
+  revalidatePath('/study');
+  revalidateTag(RESOURCES_CACHE_TAG, { expire: 0 });
+}
 
 const createUnitSchema = z.object({
   name: z.string().trim().min(1, 'Unit name is required'),
@@ -56,9 +66,7 @@ export const createUnitAction = createSafeAction(async (args: z.infer<typeof cre
     });
   }
 
-  revalidatePath('/admin/study/units');
-  revalidatePath('/admin/study/subjects');
-  revalidatePath('/study');
+  revalidateUnitCache();
   return { id: unit.id };
 });
 
@@ -101,9 +109,7 @@ export const updateUnitAction = createSafeAction(async (args: z.infer<typeof upd
     });
   }
 
-  revalidatePath('/admin/study/units');
-  revalidatePath('/admin/study/subjects');
-  revalidatePath('/study');
+  revalidateUnitCache();
   return { success: true };
 });
 
@@ -145,8 +151,6 @@ export const deleteUnitAction = createSafeAction(async (args: z.infer<typeof del
     });
   }
 
-  revalidatePath('/admin/study/units');
-  revalidatePath('/admin/study/subjects');
-  revalidatePath('/study');
+  revalidateUnitCache();
   return { success: true };
 });

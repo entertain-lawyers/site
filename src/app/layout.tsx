@@ -110,6 +110,11 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   // Independent lookups: run them together instead of one after another.
+  // auth() reads the session cookie, so every route under this layout renders
+  // per request (the navbar needs the session for its account/admin
+  // affordances). Swapping to a client-side session provider is a layout
+  // restructure deliberately not attempted here; the heavy data (settings,
+  // semesters) is served from cache with on-demand revalidation instead.
   const [locale, dict, session, settings, semesters] = await Promise.all([
     getLocale(),
     getDictionary(),

@@ -4,8 +4,18 @@ import { createSafeAction, parseOrThrow, UserFacingError } from '@/lib/safe-acti
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { isRecordInUseError, isUniqueConstraintError } from '@/lib/prisma-errors';
+import { RESOURCES_CACHE_TAG } from '@/lib/cache-tags';
+
+// The /study listings cache subjects (and the resource list orders by subject
+// order), so subject changes must refresh those cached entries too.
+function revalidateSubjectCache() {
+  revalidatePath('/admin/study/subjects');
+  revalidatePath('/admin/study/semesters');
+  revalidatePath('/study');
+  revalidateTag(RESOURCES_CACHE_TAG, { expire: 0 });
+}
 
 const createSubjectSchema = z.object({
   name: z.string().trim().min(1, 'Subject name is required'),
@@ -65,9 +75,7 @@ export const createSubjectAction = createSafeAction(async (args: z.infer<typeof 
       });
     }
 
-    revalidatePath('/admin/study/subjects');
-    revalidatePath('/admin/study/semesters');
-    revalidatePath('/study');
+    revalidateSubjectCache();
     return { id: subject.id };
   } catch (error) {
     if (isUniqueConstraintError(error)) {
@@ -117,9 +125,7 @@ export const updateSubjectAction = createSafeAction(async (args: z.infer<typeof 
       });
     }
 
-    revalidatePath('/admin/study/subjects');
-    revalidatePath('/admin/study/semesters');
-    revalidatePath('/study');
+    revalidateSubjectCache();
     return { success: true };
   } catch (error) {
     if (isUniqueConstraintError(error)) {
@@ -180,8 +186,6 @@ export const deleteSubjectAction = createSafeAction(async (args: z.infer<typeof 
     });
   }
 
-  revalidatePath('/admin/study/subjects');
-  revalidatePath('/admin/study/semesters');
-  revalidatePath('/study');
+  revalidateSubjectCache();
   return { success: true };
 });
