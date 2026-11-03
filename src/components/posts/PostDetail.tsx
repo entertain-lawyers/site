@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Clock, User } from 'lucide-react';
 import SocialShareToolbar from './SocialShareToolbar';
 import LatestPostsSidebar from './LatestPostsSidebar';
@@ -152,15 +153,14 @@ export default function PostDetail({
 
             {/* Hero image */}
             {featuredImage && (
-              <figure className="border border-border bg-surface-alt">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+              <figure className="relative aspect-[16/9] w-full overflow-hidden border border-border bg-surface-alt">
+                <Image
                   src={featuredImage}
                   alt={post.title}
-                  className="aspect-[16/9] w-full object-cover"
-                  loading="eager"
-                  fetchPriority="high"
-                  decoding="async"
+                  fill
+                  priority
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 70vw, 800px"
+                  className="object-cover"
                 />
               </figure>
             )}
@@ -242,13 +242,14 @@ export default function PostDetail({
                         href={rp.url}
                         className="group flex items-start gap-4 p-3 transition-colors hover:bg-surface-alt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-gold"
                       >
-                        <div className="h-[72px] w-[120px] shrink-0 overflow-hidden border border-border bg-surface-alt sm:h-[88px] sm:w-[150px]">
+                        <div className="relative h-[72px] w-[120px] shrink-0 overflow-hidden border border-border bg-surface-alt sm:h-[88px] sm:w-[150px]">
                           {rp.featuredImage ? (
-                            /* eslint-disable-next-line @next/next/no-img-element */
-                            <img
+                            <Image
                               src={rp.featuredImage}
                               alt=""
-                              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                              fill
+                              sizes="150px"
+                              className="object-cover transition-transform duration-500 group-hover:scale-105"
                               loading="lazy"
                             />
                           ) : (

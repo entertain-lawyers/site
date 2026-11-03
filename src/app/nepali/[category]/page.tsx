@@ -1,9 +1,12 @@
 import { getWordPressPosts } from '@/lib/wordpress';
 import Link from 'next/link';
+import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { formatBSDate } from '@/lib/nepali-date';
 import { PostType } from '@prisma/client';
 import { batchResolvePostAuthorsForDisplay } from '@/lib/post-author';
+
+export const revalidate = 60;
 
 const CATEGORY_MAP: Record<string, { type: PostType, title: string, icon: string, description: string }> = {
   'samanya-samachar': { type: 'NEPALI_SAMANYA_SAMACHAR', title: 'सामान्य समाचार', icon: '📰', description: 'दैनिक र सामान्य समाचारहरू' },
@@ -45,7 +48,14 @@ export default async function NepaliCategoryPage({ params }: { params: Promise<{
   };
   const wpCats = categoryMapToWp[categoryInfo.type];
 
-  const wpRes = await getWordPressPosts({ categories: wpCats, status: 'publish', lang: 'ne', perPage: 20, embed: true });
+  const wpRes = await getWordPressPosts({
+    categories: wpCats,
+    status: 'publish',
+    lang: 'ne',
+    perPage: 20,
+    embed: true,
+    fields: 'id,date,title,categories,_links,_embedded',
+  });
   const resolvedAuthors = await batchResolvePostAuthorsForDisplay({ posts: wpRes.data, lang: 'ne' });
 
   const posts = wpRes.data.map((p) => {
@@ -95,8 +105,14 @@ export default async function NepaliCategoryPage({ params }: { params: Promise<{
               <article key={post.id} className="group relative bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-black/5 dark:border-white/5 flex flex-col h-full">
                 <div className="relative h-56 w-full overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 dark:from-zinc-800 dark:to-zinc-900 flex items-center justify-center">
                   {post.featuredImage ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={post.featuredImage} alt={post.title} className="w-full h-full object-cover" loading="lazy" decoding="async" />
+                    <Image
+                      src={post.featuredImage}
+                      alt={post.title}
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      className="object-cover"
+                      loading="lazy"
+                    />
                   ) : (
                     <span className="text-6xl text-black/5 dark:text-white/5 font-serif italic">EL</span>
                   )}

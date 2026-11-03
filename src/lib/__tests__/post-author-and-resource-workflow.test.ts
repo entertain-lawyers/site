@@ -5,7 +5,14 @@ import { getPublicPostUrl } from '@/lib/post-url';
 import { writePostPreviewDraft } from '@/lib/post-preview';
 import { prisma } from '@/lib/prisma';
 import { createResourceAction, updateResourceAction } from '@/modules/admin/admin-resource.actions';
-import { ResourceType, ContentStatus, Role } from '@prisma/client';
+import { ResourceType, ContentStatus, Role, Prisma } from '@prisma/client';
+
+const makeMissingColumnError = (column: string) =>
+  new Prisma.PrismaClientKnownRequestError(`column "${column}" does not exist in table`, {
+    code: 'P2022',
+    clientVersion: 'test',
+    meta: { column },
+  });
 
 // Mock auth
 vi.mock('@/lib/auth', () => ({
@@ -108,12 +115,14 @@ describe('Author attribution and resolution', () => {
 
   it('resolves author via audit log fallback when local mapping is unmapped', async () => {
     (prisma.user.findFirst as any).mockResolvedValue(null);
-    (prisma.auditLog.findFirst as any).mockResolvedValue({
-      details: {
-        authorUserId: 'local-author-99',
-        authorName: 'Guest Writer',
+    (prisma.auditLog.findMany as any).mockResolvedValue([
+      {
+        details: {
+          authorUserId: 'local-author-99',
+          authorName: 'Guest Writer',
+        },
       },
-    });
+    ]);
     (prisma.user.findUnique as any).mockResolvedValue({
       id: 'local-author-99',
       name: 'Pooja Thapa',
@@ -140,7 +149,7 @@ describe('Author attribution and resolution', () => {
 
   it('resolves author via WordPress embedded author when not found in database', async () => {
     (prisma.user.findFirst as any).mockResolvedValue(null);
-    (prisma.auditLog.findFirst as any).mockResolvedValue(null);
+    (prisma.auditLog.findMany as any).mockResolvedValue([]);
 
     const result = await resolvePostAuthorForDisplay({
       wpPost: {
@@ -170,7 +179,7 @@ describe('Author attribution and resolution', () => {
 
   it('falls back gracefully to localized default author when no data exists', async () => {
     (prisma.user.findFirst as any).mockResolvedValue(null);
-    (prisma.auditLog.findFirst as any).mockResolvedValue(null);
+    (prisma.auditLog.findMany as any).mockResolvedValue([]);
 
     const enResult = await resolvePostAuthorForDisplay({
       wpPost: { id: 1000 },
@@ -231,6 +240,174 @@ describe('Author attribution and resolution', () => {
     expect(batch.get('post-1')?.image).toBe('https://example.com/u1.jpg');
     expect(batch.get('post-2')?.name).toBe('Audit Author');
     expect(batch.get('post-3')?.name).toBe('Embedded Author');
+  });
+
+  it('preserves unmapped author on detail page when a newer update audit log has no author metadata', async () => {
+    (prisma.user.findFirst as any).mockResolvedValue(null);
+    // Newer audit log without author details, older log WITH author details
+    (prisma.auditLog.findMany as any).mockResolvedValue([
+      {
+        action: 'UPDATE',
+        entityId: '555',
+        details: { title: 'Updated Title Only', type: 'BLOG' },
+      },
+      {
+        action: 'CREATE',
+        entityId: '555',
+        details: {
+          title: 'Original Title',
+          authorUserId: 'unmapped-kiran',
+          authorName: 'Kiran Adhikari',
+        },
+      },
+    ]);
+    (prisma.user.findUnique as any).mockResolvedValue({
+      id: 'unmapped-kiran',
+      name: 'Kiran Adhikari',
+      email: 'kiran@example.com',
+      image: 'https://example.com/kiran.jpg',
+      bio: 'Commercial Law Specialist in Kathmandu.',
+      website: 'https://kiranlaw.np',
+      role: 'ADMIN',
+    });
+
+    const result = await resolvePostAuthorForDisplay({
+      wpPost: { id: 555, author: 1 },
+      lang: 'en',
+    });
+
+    expect(result.name).toBe('Kiran Adhikari');
+    expect(result.image).toBe('https://example.com/kiran.jpg');
+    expect(result.bio).toBe('Commercial Law Specialist in Kathmandu.');
+    expect(result.website).toBe('https://kiranlaw.np');
+    expect(result.initials).toBe('KA');
+  });
+
+  it('preserves unmapped author profile (photo, bio, website) in batch listing when a newer update audit log has no author metadata', async () => {
+    (prisma.user.findMany as any)
+      .mockResolvedValueOnce([]) // Initial load of mapped users (none mapped)
+      .mockResolvedValueOnce([   // Missing user load by ID
+        {
+          id: 'unmapped-kiran',
+          name: 'Kiran Adhikari',
+          email: 'kiran@example.com',
+          image: 'https://example.com/kiran.jpg',
+          bio: 'Commercial Law Specialist in Kathmandu.',
+          website: 'https://kiranlaw.np',
+          role: 'ADMIN',
+          wpAuthorIdEn: null,
+          wpAuthorIdNe: null,
+        },
+      ]);
+
+    (prisma.auditLog.findMany as any).mockResolvedValue([
+      {
+        entityId: '555',
+        action: 'UPDATE',
+        details: { title: 'Updated Title Only' },
+      },
+      {
+        entityId: '555',
+        action: 'CREATE',
+        details: {
+          authorUserId: 'unmapped-kiran',
+          authorName: 'Kiran Adhikari',
+        },
+      },
+    ]);
+
+    const batch = await batchResolvePostAuthorsForDisplay({
+      posts: [{ id: 555, author: 1 }],
+      lang: 'en',
+    });
+
+    const resolved = batch.get('555');
+    expect(resolved).toBeDefined();
+    expect(resolved?.name).toBe('Kiran Adhikari');
+    expect(resolved?.image).toBe('https://example.com/kiran.jpg');
+    expect(resolved?.bio).toBe('Commercial Law Specialist in Kathmandu.');
+    expect(resolved?.website).toBe('https://kiranlaw.np');
+  });
+
+  it('reflects explicit author reassignment in resolution', async () => {
+    (prisma.user.findFirst as any).mockResolvedValue(null);
+    // Explicit reassignment to a new author in the newer audit log
+    (prisma.auditLog.findMany as any).mockResolvedValue([
+      {
+        action: 'UPDATE',
+        entityId: '666',
+        details: {
+          title: 'Reassigned Title',
+          authorUserId: 'new-author-id',
+          authorName: 'New Reassigned Author',
+        },
+      },
+      {
+        action: 'CREATE',
+        entityId: '666',
+        details: {
+          title: 'Original Title',
+          authorUserId: 'old-author-id',
+          authorName: 'Old Author',
+        },
+      },
+    ]);
+    (prisma.user.findUnique as any).mockResolvedValue({
+      id: 'new-author-id',
+      name: 'New Reassigned Author',
+      email: 'new@example.com',
+      image: 'https://example.com/new.jpg',
+      bio: 'New Bio',
+      website: 'https://newauthor.com',
+      role: 'EDITOR',
+    });
+
+    const result = await resolvePostAuthorForDisplay({
+      wpPost: { id: 666, author: 1 },
+      lang: 'en',
+    });
+
+    expect(result.name).toBe('New Reassigned Author');
+    expect(result.image).toBe('https://example.com/new.jpg');
+    expect(result.bio).toBe('New Bio');
+  });
+
+  it('preserves author attribution consistently for Nepali posts with unmapped authors and newer updates', async () => {
+    (prisma.user.findFirst as any).mockResolvedValue(null);
+    (prisma.auditLog.findMany as any).mockResolvedValue([
+      {
+        action: 'UPDATE',
+        entityId: '777',
+        details: { title: 'नयाँ शीर्षक मात्र' },
+      },
+      {
+        action: 'CREATE',
+        entityId: '777',
+        details: {
+          authorUserId: 'ne-unmapped-user',
+          authorName: 'प्रकाश सापकोटा',
+        },
+      },
+    ]);
+    (prisma.user.findUnique as any).mockResolvedValue({
+      id: 'ne-unmapped-user',
+      name: 'प्रकाश सापकोटा',
+      email: 'prakash@example.com',
+      image: 'https://example.com/prakash.png',
+      bio: 'नेपाल कानुन अन्वेषक',
+      website: 'https://prakash.law.np',
+      role: 'EDITOR',
+    });
+
+    const result = await resolvePostAuthorForDisplay({
+      wpPost: { id: 777, author: 1 },
+      lang: 'ne',
+    });
+
+    expect(result.name).toBe('प्रकाश सापकोटा');
+    expect(result.image).toBe('https://example.com/prakash.png');
+    expect(result.bio).toBe('नेपाल कानुन अन्वेषक');
+    expect(result.website).toBe('https://prakash.law.np');
   });
 });
 
@@ -380,5 +557,193 @@ describe('Resource Actions featured image and Case Law support', () => {
         }),
       })
     );
+  });
+
+  it('throws clear migration error when featuredImage is submitted but column is missing on create', async () => {
+    (prisma.user.findUnique as any).mockResolvedValue({
+      id: 'admin-user-id',
+      name: 'Admin User',
+      role: Role.ADMIN,
+    });
+
+    (prisma.resource.create as any).mockRejectedValue(makeMissingColumnError('featuredImage'));
+
+    const res = await createResourceAction({
+      title: 'Resource with Image',
+      type: ResourceType.CASE_LAW,
+      subjectId: 'sub-1',
+      isPremium: false,
+      status: ContentStatus.PUBLISHED,
+      featuredImage: 'https://example.com/test-image.jpg',
+    });
+
+    expect(res.success).toBe(false);
+    if (res.success) throw new Error('Expected failure');
+    expect(res.error).toContain('20261103000000');
+    expect(res.error).toContain('Featured image saving failed');
+  });
+
+  it('throws clear migration error when featuredImageId is submitted but column is missing on create', async () => {
+    (prisma.user.findUnique as any).mockResolvedValue({
+      id: 'admin-user-id',
+      name: 'Admin User',
+      role: Role.ADMIN,
+    });
+
+    (prisma.resource.create as any).mockRejectedValue(makeMissingColumnError('featuredImageId'));
+
+    const res = await createResourceAction({
+      title: 'Resource with Media ID',
+      type: ResourceType.CASE_LAW,
+      subjectId: 'sub-1',
+      isPremium: false,
+      status: ContentStatus.PUBLISHED,
+      featuredImage: 'https://example.com/img.jpg',
+      featuredImageId: 101,
+    });
+
+    expect(res.success).toBe(false);
+    if (res.success) throw new Error('Expected failure');
+    expect(res.error).toContain('20261103000000');
+  });
+
+  it('throws clear migration error when featured image is submitted with no explicit author selected on create', async () => {
+    // authorUserId is omitted: defaults to session user (not explicit)
+    (prisma.user.findUnique as any).mockResolvedValue({
+      id: 'admin-user-id',
+      name: 'Admin User',
+      role: Role.ADMIN,
+    });
+
+    (prisma.resource.create as any).mockRejectedValue(makeMissingColumnError('featuredImage'));
+
+    const res = await createResourceAction({
+      title: 'Resource with Default Author and Image',
+      type: ResourceType.CASE_LAW,
+      subjectId: 'sub-1',
+      isPremium: false,
+      status: ContentStatus.PUBLISHED,
+      featuredImage: 'https://example.com/submitted-image.png',
+    });
+
+    expect(res.success).toBe(false);
+    if (res.success) throw new Error('Expected failure');
+    expect(res.error).toContain('20261103000000');
+  });
+
+  it('throws clear migration error when featuredImage is submitted but column is missing on update', async () => {
+    (prisma.user.findUnique as any).mockResolvedValue({
+      id: 'admin-user-id',
+      name: 'Admin User',
+      role: Role.ADMIN,
+    });
+
+    (prisma.resource.update as any).mockRejectedValue(makeMissingColumnError('featuredImage'));
+
+    const res = await updateResourceAction({
+      id: 'resource-uuid-1',
+      title: 'Update with Missing Image Column',
+      type: ResourceType.CASE_LAW,
+      subjectId: 'sub-1',
+      isPremium: false,
+      status: ContentStatus.PUBLISHED,
+      featuredImage: 'https://example.com/update-img.jpg',
+    });
+
+    expect(res.success).toBe(false);
+    if (res.success) throw new Error('Expected failure');
+    expect(res.error).toContain('20261103000000');
+  });
+
+  it('throws clear migration error when featuredImageId is submitted but column is missing on update', async () => {
+    (prisma.user.findUnique as any).mockResolvedValue({
+      id: 'admin-user-id',
+      name: 'Admin User',
+      role: Role.ADMIN,
+    });
+
+    (prisma.resource.update as any).mockRejectedValue(makeMissingColumnError('featuredImageId'));
+
+    const res = await updateResourceAction({
+      id: 'resource-uuid-1',
+      title: 'Update with Missing Image ID Column',
+      type: ResourceType.CASE_LAW,
+      subjectId: 'sub-1',
+      isPremium: false,
+      status: ContentStatus.PUBLISHED,
+      featuredImage: 'https://example.com/update-img.jpg',
+      featuredImageId: 777,
+    });
+
+    expect(res.success).toBe(false);
+    if (res.success) throw new Error('Expected failure');
+    expect(res.error).toContain('20261103000000');
+  });
+
+  it('synchronizes featuredImage URL and media ID: clearing image resets both to null on update', async () => {
+    (prisma.user.findUnique as any).mockResolvedValue({
+      id: 'admin-user-id',
+      name: 'Admin User',
+      role: Role.ADMIN,
+    });
+
+    (prisma.resource.update as any).mockResolvedValue({
+      id: 'resource-uuid-1',
+      title: 'Cleared Image Resource',
+      type: ResourceType.CASE_LAW,
+      status: ContentStatus.PUBLISHED,
+    });
+
+    const res = await updateResourceAction({
+      id: 'resource-uuid-1',
+      title: 'Cleared Image Resource',
+      type: ResourceType.CASE_LAW,
+      subjectId: 'sub-1',
+      isPremium: false,
+      status: ContentStatus.PUBLISHED,
+      featuredImage: null,
+      featuredImageId: null,
+    });
+
+    expect(res.success).toBe(true);
+    expect(prisma.resource.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'resource-uuid-1' },
+        data: expect.objectContaining({
+          featuredImage: null,
+          featuredImageId: null,
+        }),
+      })
+    );
+  });
+
+  it('safely retries without author columns when author is defaulted and no featured image was submitted', async () => {
+    (prisma.user.findUnique as any).mockResolvedValue({
+      id: 'admin-user-id',
+      name: 'Admin User',
+      role: Role.ADMIN,
+    });
+
+    // First attempt fails on authorId
+    (prisma.resource.create as any)
+      .mockRejectedValueOnce(makeMissingColumnError('authorId'))
+      .mockResolvedValueOnce({
+        id: 'resource-retry-uuid',
+        title: 'Safe Fallback Resource',
+        type: ResourceType.CASE_LAW,
+        status: ContentStatus.PUBLISHED,
+      });
+
+    const res = await createResourceAction({
+      title: 'Safe Fallback Resource',
+      type: ResourceType.CASE_LAW,
+      subjectId: 'sub-1',
+      isPremium: false,
+      status: ContentStatus.PUBLISHED,
+    });
+
+    expect(res.success).toBe(true);
+    if (!res.success) throw new Error('Expected success on fallback');
+    expect(res.data.resourceId).toBe('resource-retry-uuid');
   });
 });

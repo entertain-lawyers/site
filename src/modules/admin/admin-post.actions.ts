@@ -311,6 +311,41 @@ export const updatePostAction = createSafeAction(async (rawArgs: z.infer<typeof 
     }, lang);
 
     try {
+      let auditAuthorData: { authorUserId?: string; authorName?: string; wpAuthorId?: number } | undefined = undefined;
+      if (assignedAuthor) {
+        auditAuthorData = {
+          authorUserId: assignedAuthor.author.id,
+          authorName: assignedAuthor.author.name,
+          wpAuthorId: assignedAuthor.wpAuthorId,
+        };
+      } else {
+        try {
+          const priorLogs = await prisma.auditLog.findMany({
+            where: {
+              entityType: 'POST_WP',
+              entityId: String(wpPost.id),
+              action: { in: ['CREATE', 'UPDATE'] },
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 10,
+            select: { details: true },
+          });
+          for (const log of priorLogs) {
+            const d = log.details as { authorUserId?: string; authorName?: string; wpAuthorId?: number } | null;
+            if (d && (d.authorUserId || d.authorName)) {
+              auditAuthorData = {
+                ...(d.authorUserId ? { authorUserId: d.authorUserId } : {}),
+                ...(d.authorName ? { authorName: d.authorName } : {}),
+                ...(d.wpAuthorId ? { wpAuthorId: d.wpAuthorId } : {}),
+              };
+              break;
+            }
+          }
+        } catch (priorErr) {
+          console.warn('[updatePostAction] error preserving prior author in audit log:', priorErr);
+        }
+      }
+
       await prisma.auditLog.create({
         data: {
           userId: session.userId!,
@@ -322,13 +357,7 @@ export const updatePostAction = createSafeAction(async (rawArgs: z.infer<typeof 
             type: args.type,
             wpLang: lang,
             ...(args.featuredMediaId !== undefined ? { featuredMediaId: args.featuredMediaId } : {}),
-            ...(assignedAuthor
-              ? {
-                  authorUserId: assignedAuthor.author.id,
-                  authorName: assignedAuthor.author.name,
-                  wpAuthorId: assignedAuthor.wpAuthorId,
-                }
-              : {}),
+            ...(auditAuthorData ?? {}),
           }
         }
       });

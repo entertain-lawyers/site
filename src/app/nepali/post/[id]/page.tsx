@@ -82,7 +82,8 @@ export default async function NepaliPostDetailPage({ params }: { params: Promise
     status: 'publish',
     lang: 'ne',
     perPage: 5,
-    embed: true
+    embed: true,
+    fields: 'id,date,title,categories,_links,_embedded',
   });
 
   const relatedPosts = wpRelatedResponse.data

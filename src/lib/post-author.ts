@@ -104,17 +104,25 @@ export async function resolvePostAuthorForDisplay({
 
   // 2. Check AuditLog if post was authored by a local user (e.g. unmapped /users/me fallback)
   try {
-    const audit = await prisma.auditLog.findFirst({
+    const auditLogs = await prisma.auditLog.findMany({
       where: {
         entityType: 'POST_WP',
         entityId: wpIdStr,
         action: { in: ['CREATE', 'UPDATE'] },
       },
       orderBy: { createdAt: 'desc' },
+      take: 20,
       select: { details: true },
     });
 
-    const details = audit?.details as { authorUserId?: string; authorName?: string } | null;
+    let details: { authorUserId?: string; authorName?: string } | null = null;
+    for (const log of auditLogs) {
+      const d = log.details as { authorUserId?: string; authorName?: string } | null;
+      if (d && (d.authorUserId || d.authorName)) {
+        details = d;
+        break;
+      }
+    }
     if (details?.authorUserId) {
       const auditUser = await prisma.user.findUnique({
         where: { id: details.authorUserId },
@@ -284,8 +292,43 @@ export async function batchResolvePostAuthorsForDisplay({
 
       const auditByPostId = new Map<string, { authorUserId?: string; authorName?: string }>();
       for (const log of auditLogs) {
-        if (!auditByPostId.has(log.entityId)) {
-          auditByPostId.set(log.entityId, (log.details as { authorUserId?: string; authorName?: string } | null) ?? {});
+        const d = log.details as { authorUserId?: string; authorName?: string } | null;
+        if (d && (d.authorUserId || d.authorName)) {
+          if (!auditByPostId.has(log.entityId)) {
+            auditByPostId.set(log.entityId, d);
+          }
+        }
+      }
+
+      // Collect any authorUserIds that are not yet loaded in userById
+      const missingUserIds = new Set<string>();
+      for (const [, audit] of auditByPostId) {
+        if (audit.authorUserId && !userById.has(audit.authorUserId)) {
+          missingUserIds.add(audit.authorUserId);
+        }
+      }
+
+      if (missingUserIds.size > 0) {
+        try {
+          const additionalUsers = await prisma.user.findMany({
+            where: { id: { in: Array.from(missingUserIds) } },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              image: true,
+              bio: true,
+              website: true,
+              role: true,
+              wpAuthorIdEn: true,
+              wpAuthorIdNe: true,
+            },
+          });
+          for (const u of additionalUsers) {
+            userById.set(u.id, u);
+          }
+        } catch (fetchErr) {
+          console.warn('[post-author] error fetching unmapped author users for batch:', fetchErr);
         }
       }
 

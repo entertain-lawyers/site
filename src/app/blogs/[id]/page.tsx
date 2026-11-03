@@ -64,7 +64,8 @@ export default async function BlogDetailPage({ params }: { params: Promise<{ id:
       status: 'publish',
       lang: 'en',
       perPage: 5,
-      embed: true
+      embed: true,
+      fields: 'id,date,title,categories,_links,_embedded',
     }),
     getLatestPosts(wpId),
   ]);

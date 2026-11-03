@@ -29,13 +29,16 @@ const NEPALI_CARDS = [
 import { getWordPressPosts } from '@/lib/wordpress';
 import { batchResolvePostAuthorsForDisplay } from '@/lib/post-author';
 
+export const revalidate = 60;
+
 export default async function NepaliLandingPage() {
   const wpRes = await getWordPressPosts({ 
     categories: [58, 56, 61], 
     status: 'publish', 
     lang: 'ne', 
     perPage: 10,
-    embed: true
+    embed: true,
+    fields: 'id,date,title,categories,_links,_embedded',
   });
 
   const resolvedAuthors = await batchResolvePostAuthorsForDisplay({ posts: wpRes.data, lang: 'ne' });

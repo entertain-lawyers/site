@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { assertTestDatabase, describeDb } from '@/test/db';
 
 vi.mock('@/lib/b2', () => ({ deleteObject: vi.fn(async () => undefined) }));
-vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
+vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn(), unstable_cache: vi.fn((fn) => fn) }));
 vi.mock('next/headers', () => ({ headers: vi.fn(async () => new Headers()) }));
 
 let mockSession: { user: { id: string; role: string } } | null = null;

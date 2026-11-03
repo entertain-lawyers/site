@@ -4,21 +4,24 @@ import {
 } from '@/lib/wordpress';
 import type { LatestPost } from '@/components/posts/LatestPostsSidebar';
 
+import { cache } from 'react';
+
 /**
  * Latest published WordPress posts across the English content types
  * (NEWS, BLOG, FACT, PERSONALITY), newest first, for sidebar rails.
  *
  * Reuses the existing getWordPressPosts fetch integration (cached by
- * Next.js) — one extra request per detail page render, no duplicates.
+ * Next.js) — requesting only the lightweight fields needed for sidebar display.
  */
-export async function getLatestPosts(excludeId?: number, limit = 6, lang: 'en' = 'en'): Promise<LatestPost[]> {
+export const getLatestPosts = cache(async (excludeId?: number, limit = 6, lang: 'en' = 'en'): Promise<LatestPost[]> => {
   const response = await getWordPressPosts({
     status: 'publish',
     lang,
     perPage: 24,
     orderBy: 'date',
     order: 'desc',
-    embed: true
+    embed: true,
+    fields: 'id,date,slug,title,categories,_links,_embedded',
   });
 
   const items: LatestPost[] = response.data
@@ -49,4 +52,4 @@ export async function getLatestPosts(excludeId?: number, limit = 6, lang: 'en' =
     });
 
   return items.slice(0, limit);
-}
+});

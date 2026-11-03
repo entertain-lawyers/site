@@ -17,13 +17,14 @@ import AnalyticsTracker from '@/components/AnalyticsTracker';
 import { serializeJsonLd, getSiteUrl } from '@/lib/seo';
 import { SEMESTERS_CACHE_TAG } from '@/lib/cache-tags';
 import MotionProvider from '@/components/motion/MotionProvider';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 /**
  * Site-wide typography. Restored Mukta as the requested legacy face
  * (Latin + Devanagari). Plus Jakarta Sans remains loaded and scoped to the
  * calculator and news reading page via `.el-type-modern` in globals.css.
  */
-const mukta = Mukta({ weight: ['400', '500', '600', '700', '800'], subsets: ['devanagari', 'latin'], variable: '--font-mukta' });
+const mukta = Mukta({ weight: ['400', '500', '600', '700', '800'], subsets: ['devanagari', 'latin'], variable: '--font-mukta', display: 'swap' });
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -211,6 +212,7 @@ export default async function RootLayout({
             <AskAI />
           </PublicOnly>
         </MotionProvider>
+        <SpeedInsights />
       </body>
     </html>
   );

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Prisma, Role } from '@prisma/client';
 
 vi.mock('@/lib/auth', () => ({ auth: vi.fn(async () => ({ user: { id: 'admin-1', role: 'ADMIN' } })) }));
-vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
+vi.mock('next/cache', () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn(), unstable_cache: vi.fn((fn) => fn) }));
 vi.mock('next/headers', () => ({ headers: vi.fn(async () => new Headers()) }));
 
 const { model } = vi.hoisted(() => ({
