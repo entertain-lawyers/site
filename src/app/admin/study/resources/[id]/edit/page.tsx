@@ -4,6 +4,7 @@ import { notFound, redirect } from 'next/navigation';
 import { ResourceType } from '@prisma/client';
 import { AdminResourceForm } from '@/components/admin/AdminResourceForm';
 import { listLocalAuthorsWithStatus } from '@/lib/content-authors';
+import { getWordPressWriteBlock } from '@/lib/wordpress';
 
 export default async function EditResourcePage({ params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -27,6 +28,8 @@ export default async function EditResourcePage({ params }: { params: Promise<{ i
     priceAmount: number | null;
     status: import('@prisma/client').ContentStatus;
     authorId?: string | null;
+    featuredImage?: string | null;
+    featuredImageId?: number | null;
     document?: { id: string } | null;
     subject?: { semesterId: string | null } | null;
   } | null = null;
@@ -90,9 +93,13 @@ export default async function EditResourcePage({ params }: { params: Promise<{ i
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="mb-8">
-        <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">Edit Resource</h1>
+        <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">
+          {resource.type === ResourceType.CASE_LAW ? 'Edit Case Law' : 'Edit Resource'}
+        </h1>
         <p className="mt-2 text-gray-500 dark:text-gray-400">
-          Update the resource details and who it is credited to.
+          {resource.type === ResourceType.CASE_LAW
+            ? 'Update the precedent case law details, citations, and featured image.'
+            : 'Update the resource details and who it is credited to.'}
         </p>
       </div>
 
@@ -109,6 +116,7 @@ export default async function EditResourcePage({ params }: { params: Promise<{ i
           authors={authors}
           authorMappingAvailable={authorMappingAvailable}
           defaultAuthorId={session.user.id}
+          uploadBlockedReason={getWordPressWriteBlock('en')}
           resource={{
             id: resource.id,
             title: resource.title,
@@ -123,6 +131,8 @@ export default async function EditResourcePage({ params }: { params: Promise<{ i
             status: resource.status,
             authorId: resource.authorId ?? null,
             hasDocument: Boolean(resource.document),
+            featuredImage: resource.featuredImage ?? null,
+            featuredImageId: resource.featuredImageId ?? null,
           }}
         />
       </div>

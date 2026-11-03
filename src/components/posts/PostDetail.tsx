@@ -9,6 +9,15 @@ import type { LatestPost } from './LatestPostsSidebar';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
 import { sanitizeHtml } from '@/lib/sanitize';
 
+export interface PostAuthor {
+  email: string;
+  name?: string;
+  image?: string | null;
+  bio?: string | null;
+  website?: string | null;
+  role?: string | null;
+}
+
 interface Post {
   id: string;
   title: string;
@@ -16,7 +25,7 @@ interface Post {
   type: string;
   createdAt: Date;
   featuredImage?: string | null;
-  author: { email: string; name?: string };
+  author: PostAuthor;
 }
 
 export interface RelatedPost {
@@ -102,13 +111,33 @@ export default function PostDetail({
 
               <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 pb-5 text-sm text-text-muted">
                 <span className="inline-flex items-center gap-2">
-                  <span
-                    className="flex h-7 w-7 items-center justify-center rounded-full bg-navy text-[11px] font-bold text-white"
-                    aria-hidden="true"
-                  >
-                    {authorInitial}
-                  </span>
-                  <span className="font-semibold text-navy dark:text-white">{authorName}</span>
+                  {post.author.image ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={post.author.image}
+                      alt={authorName}
+                      className="h-7 w-7 rounded-full object-cover border border-gold/40"
+                    />
+                  ) : (
+                    <span
+                      className="flex h-7 w-7 items-center justify-center rounded-full bg-navy text-[11px] font-bold text-white"
+                      aria-hidden="true"
+                    >
+                      {authorInitial}
+                    </span>
+                  )}
+                  {post.author.website ? (
+                    <a
+                      href={post.author.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-bold text-navy dark:text-white hover:text-gold transition-colors"
+                    >
+                      {authorName}
+                    </a>
+                  ) : (
+                    <span className="font-bold text-navy dark:text-white">{authorName}</span>
+                  )}
                 </span>
                 <span className="inline-flex items-center gap-1.5">
                   <Clock className="h-4 w-4" aria-hidden="true" />
@@ -155,15 +184,49 @@ export default function PostDetail({
             <section aria-labelledby="about-author-heading" className="mt-8 border border-border bg-surface">
               <SectionBar id="about-author-heading">About Author</SectionBar>
               <div className="flex items-start gap-4 p-5">
-                <div
-                  className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-2 border-gold/40 bg-navy text-xl font-bold text-white"
-                  aria-hidden="true"
-                >
-                  {authorInitial}
-                </div>
-                <div>
-                  <p className="font-bold text-navy dark:text-white">{authorName}</p>
-                  <p className="mt-1 text-sm leading-relaxed text-text-secondary">{AUTHOR_BIO}</p>
+                {post.author.image ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img
+                    src={post.author.image}
+                    alt={authorName}
+                    className="h-16 w-16 shrink-0 rounded-full border-2 border-gold/40 object-cover"
+                  />
+                ) : (
+                  <div
+                    className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-2 border-gold/40 bg-navy text-xl font-bold text-white"
+                    aria-hidden="true"
+                  >
+                    {authorInitial}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="font-bold text-navy dark:text-white text-base">
+                    {post.author.website ? (
+                      <a
+                        href={post.author.website}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="hover:text-gold transition-colors"
+                      >
+                        {authorName}
+                      </a>
+                    ) : (
+                      authorName
+                    )}
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed text-text-secondary">
+                    {post.author.bio || AUTHOR_BIO}
+                  </p>
+                  {post.author.website && (
+                    <a
+                      href={post.author.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 inline-flex items-center text-xs font-semibold text-gold hover:underline"
+                    >
+                      {post.author.website.replace(/^https?:\/\//, '')} &rarr;
+                    </a>
+                  )}
                 </div>
               </div>
             </section>

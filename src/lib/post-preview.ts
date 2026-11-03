@@ -14,6 +14,16 @@ export type PostType =
   | 'NEPALI_SAMANYA_SAMACHAR' | 'NEPALI_ADALAT_SAMACHAR' | 'NEPALI_MUKHYA_SAMACHAR'
   | 'NEPALI_NAJIRHARU' | 'NEPALI_AIN_KANUN' | 'NEPALI_BLOG_BICHAR';
 
+export interface PostPreviewAuthor {
+  id?: string;
+  name: string;
+  email?: string | null;
+  image?: string | null;
+  bio?: string | null;
+  website?: string | null;
+  role?: string | null;
+}
+
 export interface PostPreviewDraft {
   title: string;
   content: string;
@@ -23,6 +33,7 @@ export interface PostPreviewDraft {
   featuredImage?: string | null;
   /** Admin edit URL, so "Back to Editor" returns to the post being edited. */
   editorUrl?: string;
+  author?: PostPreviewAuthor | null;
   /** Sidebar is fetched server-side on /preview — not needed in the draft. */
 }
 
@@ -34,6 +45,7 @@ export function writePostPreviewDraft(draft: {
   featuredImage?: string | null;
   createdAt?: string;
   editorUrl?: string;
+  author?: PostPreviewAuthor | null;
 }): void {
   if (typeof window === 'undefined') return;
   const payload: PostPreviewDraft = {

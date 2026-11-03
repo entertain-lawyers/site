@@ -33,6 +33,8 @@ const createResourceSchema = z.object({
   unitId: z.string().min(1).optional(),
   // Local user credited as the author; defaults to the signed-in creator.
   authorUserId: z.string().min(1).optional(),
+  featuredImage: z.string().nullable().optional(),
+  featuredImageId: z.coerce.number().int().nullable().optional(),
   // Drafts are hidden from students until published from the resources list.
   status: z.enum([ContentStatus.DRAFT, ContentStatus.PUBLISHED]).default(ContentStatus.PUBLISHED),
 }).refine(data => {
@@ -97,11 +99,13 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
           status: input.status,
           authorId,
           createdById: session.userId ?? null,
+          featuredImage: input.featuredImage ?? null,
+          featuredImageId: input.featuredImageId ?? null,
         },
         select: RESOURCE_MUTATION_SELECT,
       });
     } catch (createError) {
-      if (!isSpecificMissingColumnError(createError, ['authorId', 'createdById'])) {
+      if (!isSpecificMissingColumnError(createError, ['authorId', 'createdById', 'featuredImage', 'featuredImageId'])) {
         console.error('[admin-resource] create resource database error:', createError);
         throw createError;
       }
@@ -139,7 +143,13 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
           action: 'CREATE',
           entityType: 'RESOURCE',
           entityId: resource.id,
-          details: { title: resource.title, type: resource.type, status: resource.status, authorUserId: authorId }
+          details: {
+            title: resource.title,
+            type: resource.type,
+            status: resource.status,
+            authorUserId: authorId,
+            ...(input.featuredImage ? { featuredImage: input.featuredImage } : {}),
+          }
         }
       });
     }
@@ -148,7 +158,7 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
   });
 
   revalidatePath('/admin/study/resources');
-  return { resourceId };
+  return { resourceId, url: `/resources/${resourceId}` };
 });
 
 const deleteResourceSchema = z.object({
@@ -394,6 +404,8 @@ const updateResourceSchema = z.object({
   status: z.nativeEnum(ContentStatus),
   // Omitted leaves the current author unchanged (older callers, bulk edits).
   authorUserId: z.string().min(1).optional(),
+  featuredImage: z.string().nullable().optional(),
+  featuredImageId: z.coerce.number().int().nullable().optional(),
 }).refine(data => {
   if (data.type === ResourceType.OLD_QUESTION) {
     return !!data.semesterId;
@@ -445,11 +457,13 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
           unitId: input.unitId || null,
           status: input.status,
           ...(input.authorUserId ? { authorId: input.authorUserId } : {}),
+          ...(input.featuredImage !== undefined ? { featuredImage: input.featuredImage } : {}),
+          ...(input.featuredImageId !== undefined ? { featuredImageId: input.featuredImageId } : {}),
         },
         select: RESOURCE_MUTATION_SELECT,
       });
     } catch (updateError) {
-      if (!isSpecificMissingColumnError(updateError, ['authorId', 'createdById'])) {
+      if (!isSpecificMissingColumnError(updateError, ['authorId', 'createdById', 'featuredImage', 'featuredImageId'])) {
         console.error('[admin-resource] update resource database error:', updateError);
         throw updateError;
       }
@@ -493,11 +507,12 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
             type: resource.type,
             status: resource.status,
             ...(input.authorUserId ? { authorUserId: input.authorUserId } : {}),
+            ...(input.featuredImage !== undefined ? { featuredImage: input.featuredImage } : {}),
           }
         }
       });
     }
   });
 
-  return { success: true };
+  return { success: true, url: `/resources/${input.id}` };
 });

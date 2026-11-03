@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import PostDetail from '@/components/posts/PostDetail';
 import type { Metadata } from 'next';
 import { postMetadata } from '@/lib/seo';
+import { resolvePostAuthorForDisplay } from '@/lib/post-author';
 
 export const revalidate = 60;
 
@@ -39,6 +40,7 @@ export default async function FactDetailPage({ params }: { params: Promise<{ id:
     notFound();
   }
 
+  const resolvedAuthor = await resolvePostAuthorForDisplay({ wpPost, lang: 'en' });
   const postType = mapCategoryToType(wpPost.categories, 'en');
   const post = {
     id: String(wpPost.id),
@@ -46,7 +48,14 @@ export default async function FactDetailPage({ params }: { params: Promise<{ id:
     content: wpPost.content.rendered,
     type: postType,
     createdAt: new Date(wpPost.date),
-    author: { email: `WP Author (${wpPost.author})`, name: (wpPost._embedded?.['author'] as Array<{ name?: string }> | undefined)?.[0]?.name },
+    author: {
+      email: resolvedAuthor.email || `WP Author (${wpPost.author})`,
+      name: resolvedAuthor.name,
+      image: resolvedAuthor.image,
+      bio: resolvedAuthor.bio,
+      website: resolvedAuthor.website,
+      role: resolvedAuthor.role,
+    },
     featuredImage: wpPost._embedded?.['wp:featuredmedia']?.[0]?.source_url || null
   };
 

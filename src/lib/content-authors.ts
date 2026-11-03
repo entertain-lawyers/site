@@ -13,7 +13,11 @@ export const CONTENT_AUTHOR_ROLES: Role[] = [Role.ADMIN, Role.EDITOR];
 export interface AuthorOption {
   id: string;
   name: string;
+  email?: string;
   role: Role;
+  image?: string | null;
+  bio?: string | null;
+  website?: string | null;
   /** Explicit link to each WordPress install's user id; null when not linked. */
   wpAuthorIdEn: number | null;
   wpAuthorIdNe: number | null;
@@ -50,6 +54,9 @@ export async function listLocalAuthorsWithStatus(): Promise<AuthorQueryResult> {
         name: true,
         email: true,
         role: true,
+        image: true,
+        bio: true,
+        website: true,
         wpAuthorIdEn: true,
         wpAuthorIdNe: true,
       },
@@ -60,7 +67,11 @@ export async function listLocalAuthorsWithStatus(): Promise<AuthorQueryResult> {
       authors: users.map((user) => ({
         id: user.id,
         name: authorDisplayName(user),
+        email: user.email,
         role: user.role,
+        image: user.image,
+        bio: user.bio,
+        website: user.website,
         wpAuthorIdEn: user.wpAuthorIdEn,
         wpAuthorIdNe: user.wpAuthorIdNe,
         authorMappingAvailable: true,
@@ -85,6 +96,9 @@ export async function listLocalAuthorsWithStatus(): Promise<AuthorQueryResult> {
         name: true,
         email: true,
         role: true,
+        image: true,
+        bio: true,
+        website: true,
       },
       orderBy: { name: 'asc' },
     });
@@ -93,7 +107,11 @@ export async function listLocalAuthorsWithStatus(): Promise<AuthorQueryResult> {
       authors: users.map((user) => ({
         id: user.id,
         name: authorDisplayName(user),
+        email: user.email,
         role: user.role,
+        image: user.image,
+        bio: user.bio,
+        website: user.website,
         wpAuthorIdEn: null,
         wpAuthorIdNe: null,
         authorMappingAvailable: false,
@@ -119,6 +137,9 @@ export async function resolveLocalAuthor(authorUserId: string): Promise<AuthorOp
     name: string | null;
     email: string | null;
     role: Role;
+    image?: string | null;
+    bio?: string | null;
+    website?: string | null;
     wpAuthorIdEn?: number | null;
     wpAuthorIdNe?: number | null;
   } | null = null;
@@ -132,6 +153,9 @@ export async function resolveLocalAuthor(authorUserId: string): Promise<AuthorOp
         name: true,
         email: true,
         role: true,
+        image: true,
+        bio: true,
+        website: true,
         wpAuthorIdEn: true,
         wpAuthorIdNe: true,
       },
@@ -154,6 +178,9 @@ export async function resolveLocalAuthor(authorUserId: string): Promise<AuthorOp
         name: true,
         email: true,
         role: true,
+        image: true,
+        bio: true,
+        website: true,
       },
     });
   }
@@ -168,7 +195,11 @@ export async function resolveLocalAuthor(authorUserId: string): Promise<AuthorOp
   return {
     id: user.id,
     name: authorDisplayName(user),
+    email: user.email || undefined,
     role: user.role,
+    image: user.image,
+    bio: user.bio,
+    website: user.website,
     wpAuthorIdEn: user.wpAuthorIdEn ?? null,
     wpAuthorIdNe: user.wpAuthorIdNe ?? null,
     authorMappingAvailable,

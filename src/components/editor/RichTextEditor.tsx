@@ -549,14 +549,14 @@ export default function RichTextEditor({
             font-size: 1.05rem !important;
             line-height: 2;
             padding: 1.75rem 2rem !important;
-            min-height: clamp(20rem, 62vh, 46rem) !important;
-            max-height: clamp(24rem, 72vh, 52rem) !important;
+            min-height: clamp(18rem, 50vh, 38rem) !important;
+            max-height: clamp(24rem, 68vh, 50rem) !important;
             overflow-y: auto !important;
-            overscroll-behavior: contain !important;
+            overscroll-behavior-y: auto !important;
             scroll-behavior: smooth !important;
           }
 
-          /* Fill-height mode: editor stretches all the way down alongside sidebar */
+          /* Fill-height mode: editor stretches nicely alongside sidebar with smooth internal scrolling */
           .editor-wrapper.fill-height {
             display: flex !important;
             flex-direction: column !important;
@@ -568,7 +568,9 @@ export default function RichTextEditor({
             display: flex !important;
             flex-direction: column !important;
             flex: 1 1 0% !important;
-            min-height: 0 !important;
+            min-height: clamp(24rem, 60vh, 46rem) !important;
+            max-height: clamp(30rem, calc(100vh - 14rem), 62rem) !important;
+            overflow: hidden !important;
           }
           .editor-wrapper.fill-height .quill {
             display: flex !important;
@@ -576,6 +578,7 @@ export default function RichTextEditor({
             flex: 1 1 0% !important;
             min-height: 0 !important;
             height: 100% !important;
+            overflow: hidden !important;
           }
           .editor-wrapper.fill-height .ql-container.ql-snow {
             display: flex !important;
@@ -583,13 +586,16 @@ export default function RichTextEditor({
             flex: 1 1 0% !important;
             min-height: 0 !important;
             height: 100% !important;
+            overflow: hidden !important;
           }
           .editor-wrapper.fill-height .ql-editor {
             flex: 1 1 0% !important;
-            min-height: clamp(28rem, 60vh, 56rem) !important;
-            max-height: none !important;
+            min-height: 0 !important;
             height: 100% !important;
+            max-height: 100% !important;
             overflow-y: auto !important;
+            overscroll-behavior-y: auto !important;
+            scroll-behavior: smooth !important;
           }
           @media (min-width: 640px) {
             .editor-wrapper .ql-editor {

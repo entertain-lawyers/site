@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { prisma } from '@/lib/prisma';
 import { Metadata } from 'next';
 import { formatBSDate } from '@/lib/nepali-date';
 import { Newspaper, Gavel, Zap, Scale, BookText, MessageSquare } from 'lucide-react';
@@ -28,6 +27,7 @@ const NEPALI_CARDS = [
 ];
 
 import { getWordPressPosts } from '@/lib/wordpress';
+import { batchResolvePostAuthorsForDisplay } from '@/lib/post-author';
 
 export default async function NepaliLandingPage() {
   const wpRes = await getWordPressPosts({ 
@@ -37,18 +37,25 @@ export default async function NepaliLandingPage() {
     perPage: 10,
     embed: true
   });
+
+  const resolvedAuthors = await batchResolvePostAuthorsForDisplay({ posts: wpRes.data, lang: 'ne' });
   
-  const recentPosts = wpRes.data.map((p: any) => {
+  const recentPosts = wpRes.data.map((p) => {
     let mappedType = 'NEPALI_SAMANYA_SAMACHAR';
     if (p.categories.includes(56)) mappedType = 'NEPALI_ADALAT_SAMACHAR';
     else if (p.categories.includes(61) || p.categories.includes(60)) mappedType = 'NEPALI_BLOG_BICHAR';
     
+    const authorInfo = resolvedAuthors.get(String(p.id));
     return {
       id: String(p.id),
       title: p.title.rendered,
       type: mappedType,
       createdAt: new Date(p.date),
-      author: { email: `WP Author (${p.author})` },
+      author: {
+        name: authorInfo?.name || 'सम्पादक',
+        image: authorInfo?.image || null,
+        initials: authorInfo?.initials || 'सम्पा',
+      },
       featuredImage: p._embedded?.['wp:featuredmedia']?.[0]?.source_url || null
     };
   });
@@ -131,7 +138,7 @@ export default async function NepaliLandingPage() {
 
         {recentPosts.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {recentPosts.map((post: any, i) => (
+            {recentPosts.map((post, i) => (
               <Reveal key={post.id} index={i} perRow={3} lift className="h-full">
               <article className="group relative bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-[box-shadow,border-color,background-color] duration-300 border border-black/5 dark:border-white/5 flex flex-col h-full">
                 <div className="relative h-56 w-full overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 dark:from-zinc-800 dark:to-zinc-900 flex items-center justify-center">
@@ -155,13 +162,24 @@ export default async function NepaliLandingPage() {
                     </Link>
                   </h3>
                   <div className="mt-auto pt-4 border-t border-black/5 dark:border-white/5 flex items-center justify-between text-sm text-text-muted">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-700 flex items-center justify-center text-xs font-bold text-navy dark:text-white">
-                        {(post.author?.email)?.charAt(0) || 'U'}
-                      </div>
-                      <span className="font-medium truncate max-w-[120px]">{(post.author?.email) || 'सम्पादक'}</span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      {post.author.image ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          src={post.author.image}
+                          alt={post.author.name}
+                          className="w-6 h-6 rounded-full object-cover shrink-0"
+                        />
+                      ) : (
+                        <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-700 flex items-center justify-center text-[10px] font-bold text-navy dark:text-white shrink-0">
+                          {post.author.initials?.charAt(0) || post.author.name.charAt(0) || 'EL'}
+                        </div>
+                      )}
+                      <span className="font-bold text-navy dark:text-white truncate max-w-[130px] font-nepali">
+                        {post.author.name}
+                      </span>
                     </div>
-                    <time className="font-medium font-nepali">{formatBSDate(post.createdAt)}</time>
+                    <time className="font-medium font-nepali shrink-0">{formatBSDate(post.createdAt)}</time>
                   </div>
                 </div>
               </article>

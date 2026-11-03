@@ -208,6 +208,10 @@ model Resource {
   metaDesc      String?
   metaTitle     String?
   status        ContentStatus  @default(PUBLISHED)
+  featuredImage String?
+  featuredImageId Int?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt @default(now())
   accessLogs    AccessLog[]
   entitlements  Entitlement[]
   purchases     Purchase[]

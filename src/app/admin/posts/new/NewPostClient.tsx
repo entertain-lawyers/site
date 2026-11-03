@@ -1,9 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Eye } from 'lucide-react';
+import { Eye, CheckCircle2, ExternalLink } from 'lucide-react';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import WordPressCredentialsNotice from '@/components/admin/WordPressCredentialsNotice';
 import FeaturedImagePanel from '@/components/admin/FeaturedImagePanel';
@@ -22,7 +21,6 @@ const POST_TYPE_LABELS: Record<string, string> = {
   OPINION: 'OPINION',
   FACT: 'FACT',
   PERSONALITY: 'PERSONALITY',
-  CASE_LAW: 'CASE LAW',
   NEPALI_SAMANYA_SAMACHAR: 'सामान्य समाचार',
   NEPALI_ADALAT_SAMACHAR: 'अदालत समाचार',
   NEPALI_MUKHYA_SAMACHAR: 'मुख्य समाचार',
@@ -37,7 +35,6 @@ const ENGLISH_POST_TYPES: Array<[PostType, string]> = [
   ['OPINION', 'Opinion'],
   ['FACT', 'Historical Fact'],
   ['PERSONALITY', 'Legal Personality'],
-  ['CASE_LAW', 'Case Law'],
 ];
 
 const NEPALI_POST_TYPES: Array<[PostType, string]> = [
@@ -64,9 +61,9 @@ export default function NewPostClient({
   authorMappingAvailable?: boolean;
   defaultAuthorId?: string;
 }) {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [publishedPost, setPublishedPost] = useState<{ id: string; url?: string; isPublished: boolean } | null>(null);
 
   const [title, setTitle] = useState('');
   const [type, setType] = useState<PostType>(
@@ -114,12 +111,22 @@ export default function NewPostClient({
   const handlePreview = () => {
     // Eyebrow label mirrors the real detail pages (Nepali types show
     // their Nepali labels; English types show NEWS/BLOG/…).
+    const selectedAuthorObj = authors.find((a) => a.id === selectedAuthorId) || null;
     writePostPreviewDraft({
       title: title || 'Untitled Draft',
       content: editorHtmlToArticleHtml(content),
       type: POST_TYPE_LABELS[type] || type,
       featuredImage: featuredImage?.url ?? null,
       editorUrl: `/admin/posts/new${defaultLang === 'ne' ? '?lang=ne' : ''}`,
+      author: selectedAuthorObj ? {
+        id: selectedAuthorObj.id,
+        name: selectedAuthorObj.name,
+        email: selectedAuthorObj.email,
+        image: selectedAuthorObj.image,
+        bio: selectedAuthorObj.bio,
+        website: selectedAuthorObj.website,
+        role: selectedAuthorObj.role,
+      } : null,
     });
     window.open('/preview', 'el-post-preview')?.focus();
   };
@@ -150,8 +157,17 @@ export default function NewPostClient({
         throw new Error(res.error || 'Failed to create post');
       }
 
-      router.push('/admin/posts');
-      router.refresh();
+      setPublishedPost({
+        id: res.data.id,
+        url: res.data.url,
+        isPublished: isPublished || res.data.status === 'publish',
+      });
+      setLoading(false);
+
+      // Update URL to edit mode so continuing to edit doesn't duplicate the post
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', `/admin/posts/${res.data.id}/edit?lang=${lang}`);
+      }
     } catch (err) {
       setError((err as Error).message || 'An unexpected error occurred');
       setLoading(false);
@@ -173,6 +189,44 @@ export default function NewPostClient({
       {!canSave && <WordPressCredentialsNotice />}
 
       <AnimatePresence initial={false}>
+      {publishedPost && (
+        <Appear key="published-success">
+          <div className="mb-6 p-5 bg-green-50 text-green-900 rounded-2xl border border-green-200 dark:bg-green-950/40 dark:border-green-900/60 dark:text-green-200 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400 shrink-0" />
+              <div>
+                <p className="font-bold text-navy dark:text-white text-base">
+                  {publishedPost.isPublished ? 'Post published successfully!' : 'Post saved as draft!'}
+                </p>
+                <p className="text-sm text-text-secondary dark:text-zinc-300">
+                  {publishedPost.isPublished
+                    ? 'Your post is now live on the website.'
+                    : 'Your draft has been saved. You can continue editing or view it from the drafts list.'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              {publishedPost.url && publishedPost.isPublished && (
+                <a
+                  href={publishedPost.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold bg-accent text-white hover:bg-accent/90 transition-colors shadow-sm"
+                >
+                  <span>View Post</span>
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              )}
+              <Link
+                href="/admin/posts"
+                className="inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 text-navy dark:text-white hover:border-accent transition-colors"
+              >
+                Back to Posts
+              </Link>
+            </div>
+          </div>
+        </Appear>
+      )}
       {error && (
         <Appear key="error">
         <div className="mb-6 p-4 bg-red-50 text-red-600 rounded-xl border border-red-100 dark:bg-red-950/40 dark:border-red-900/60 dark:text-red-300 font-medium">

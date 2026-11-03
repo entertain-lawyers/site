@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { sanitizeHtml } from '@/lib/sanitize';
 import PostsTableClient, { type AdminPostRow } from './PostsTableClient';
 import { MotionButton } from '@/components/motion/primitives';
+import { batchResolvePostAuthorsForDisplay } from '@/lib/post-author';
 
 const PER_PAGE = 20;
 
@@ -94,7 +95,15 @@ export default async function AdminPostsPage({
   const category = sp.category ? Number(sp.category) || undefined : undefined;
   const page = Math.max(1, Number(sp.page) || 1);
 
-  const query = { lang, perPage: PER_PAGE, page, search, categories: category ? [category] : undefined, order: 'desc' as const, orderBy: 'date' as const };
+  const query = {
+    lang,
+    perPage: PER_PAGE,
+    page,
+    search,
+    categories: category ? [category] : undefined,
+    order: 'desc' as const,
+    orderBy: status === 'draft' ? ('modified' as const) : ('date' as const),
+  };
   const hasWpAuth = hasWordPressCredentials(lang);
   const privateStatus = status === 'draft' || status === 'trash';
   const lockedPrivateStatus = privateStatus && !hasWpAuth;
@@ -133,6 +142,11 @@ export default async function AdminPostsPage({
   const errorId = listError ? randomUUID().slice(0, 8) : null;
   if (listError) console.error(`[admin/posts] ${errorId}`, listError);
 
+  const resolvedAuthors = await batchResolvePostAuthorsForDisplay({
+    posts: listResult?.data ?? [],
+    lang,
+  });
+
   const posts: AdminPostRow[] = (listResult?.data ?? []).map((p) => {
     const type = mapCategoryToType(p.categories, lang);
     const isModified = p.modified && p.modified !== p.date;
@@ -142,7 +156,10 @@ export default async function AdminPostsPage({
       'wp:term'?: Array<Array<{ name?: string }>>;
     } | undefined;
     const authorRaw = Array.isArray(embedded?.author) ? embedded.author[0] : undefined;
-    const authorName = (authorRaw && typeof authorRaw === 'object' ? authorRaw?.name : undefined) || `WP Author (${p.author})`;
+    const authorName =
+      resolvedAuthors.get(String(p.id))?.name ||
+      (authorRaw && typeof authorRaw === 'object' ? authorRaw?.name : undefined) ||
+      `WP Author (${p.author})`;
     const catNames =
       embedded?.['wp:term']?.[0]
         ?.map((c) => c?.name)

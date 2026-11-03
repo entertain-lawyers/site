@@ -5,6 +5,7 @@ import { formatBSDate } from '@/lib/nepali-date';
 import { sanitizeHtml } from '@/lib/sanitize';
 import { Metadata } from 'next';
 import { postMetadata } from '@/lib/seo';
+import { resolvePostAuthorForDisplay } from '@/lib/post-author';
 
 export const revalidate = 60;
 
@@ -29,7 +30,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   });
 }
 
-export default async function NepaliPostPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function NepaliPostDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const wpId = parseWordPressPostId(id);
   if (!wpId) notFound();
@@ -44,13 +45,23 @@ export default async function NepaliPostPage({ params }: { params: Promise<{ id:
     notFound();
   }
 
+  const resolvedAuthor = await resolvePostAuthorForDisplay({ wpPost, lang: 'ne' });
+
   const post = {
     id: String(wpPost.id),
     title: wpPost.title.rendered,
     content: wpPost.content.rendered,
     type: mappedType,
     createdAt: new Date(wpPost.date),
-    author: { email: `WP Author (${wpPost.author})`, role: 'EDITOR' },
+    author: {
+      name: resolvedAuthor.name,
+      email: resolvedAuthor.email || '',
+      image: resolvedAuthor.image,
+      bio: resolvedAuthor.bio,
+      website: resolvedAuthor.website,
+      role: resolvedAuthor.role || 'EDITOR',
+      initials: resolvedAuthor.initials,
+    },
     featuredImage: wpPost._embedded?.['wp:featuredmedia']?.[0]?.source_url || null
   };
 
@@ -115,13 +126,35 @@ export default async function NepaliPostPage({ params }: { params: Promise<{ id:
           </h1>
 
           <div className="flex items-center gap-4 py-6 border-y border-black/5 dark:border-white/5">
-            <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-zinc-800 flex items-center justify-center text-lg font-bold text-navy dark:text-white">
-              {(post.author?.email)?.charAt(0) || 'U'}
-            </div>
+            {post.author.image ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={post.author.image}
+                alt={post.author.name}
+                className="w-12 h-12 rounded-full object-cover border border-accent/30 shrink-0"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-zinc-800 flex items-center justify-center text-sm font-bold text-navy dark:text-white shrink-0">
+                {post.author.initials || post.author.name.charAt(0) || 'EL'}
+              </div>
+            )}
             <div>
-              <p className="font-bold text-navy dark:text-white text-lg">{(post.author?.email) || 'सम्पादक'}</p>
+              <p className="font-bold text-navy dark:text-white text-lg">
+                {post.author.website ? (
+                  <a
+                    href={post.author.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-accent transition-colors"
+                  >
+                    {post.author.name}
+                  </a>
+                ) : (
+                  post.author.name
+                )}
+              </p>
               <p className="text-sm text-text-secondary font-nepali">
-                {post.author?.role === 'ADMIN' ? 'प्रशासक' : 'सम्पादक'}
+                {post.author.role === 'ADMIN' ? 'प्रशासक' : 'सम्पादक'}
               </p>
             </div>
           </div>
@@ -139,6 +172,56 @@ export default async function NepaliPostPage({ params }: { params: Promise<{ id:
           className="prose prose-lg sm:prose-xl prose-slate dark:prose-invert max-w-none prose-headings:font-bold prose-headings:text-navy dark:prose-headings:text-white prose-a:text-accent dark:prose-a:text-accent font-nepali prose-p:leading-relaxed"
           dangerouslySetInnerHTML={{ __html: sanitizeHtml(post.content) }}
         />
+
+        {/* About Author */}
+        <section aria-labelledby="nepali-author-heading" className="mt-12 p-6 rounded-2xl bg-white dark:bg-zinc-900 border border-black/5 dark:border-white/5">
+          <h2 id="nepali-author-heading" className="text-xs font-bold uppercase tracking-wider text-text-muted mb-4 font-nepali">
+            लेखकको बारेमा
+          </h2>
+          <div className="flex items-start gap-4">
+            {post.author.image ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={post.author.image}
+                alt={post.author.name}
+                className="w-16 h-16 rounded-full object-cover border-2 border-accent/30 shrink-0"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-slate-200 dark:bg-zinc-800 flex items-center justify-center text-xl font-bold text-navy dark:text-white shrink-0">
+                {post.author.initials || post.author.name.charAt(0) || 'EL'}
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="font-bold text-navy dark:text-white text-lg font-nepali">
+                {post.author.website ? (
+                  <a
+                    href={post.author.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-accent transition-colors"
+                  >
+                    {post.author.name}
+                  </a>
+                ) : (
+                  post.author.name
+                )}
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-text-secondary font-nepali">
+                {post.author.bio}
+              </p>
+              {post.author.website && (
+                <a
+                  href={post.author.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex items-center text-xs font-semibold text-accent hover:underline font-nepali"
+                >
+                  {post.author.website.replace(/^https?:\/\//, '')} &rarr;
+                </a>
+              )}
+            </div>
+          </div>
+        </section>
         </article>
 
         <aside className="lg:col-span-1 space-y-8 font-nepali mt-10 lg:mt-0">

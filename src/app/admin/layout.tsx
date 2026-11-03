@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
@@ -33,7 +34,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-zinc-950 relative selection:bg-accent/30">
-      <AdminSidebar userRole={dbUser.role} pendingConsultations={pendingConsultations} />
+      <Suspense fallback={<div className="hidden lg:block w-64 h-full bg-white dark:bg-zinc-900 border-r border-black/5 dark:border-white/5" />}>
+        <AdminSidebar userRole={dbUser.role} pendingConsultations={pendingConsultations} />
+      </Suspense>
 
       {/* Main Content Area */}
       <div className="admin-main flex-1 min-w-0 w-full lg:ml-64 bg-transparent min-h-screen relative flex flex-col pt-16 lg:pt-0">

@@ -37,7 +37,7 @@ const RESOURCE_TYPE_COLORS: Record<ResourceType, string> = {
   OTHER: 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-white/10',
 };
 
-const iconMap: Record<string, any> = {
+const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   LAW_NOTE: BookOpen,
   CASE_LAW: Scale,
   OLD_QUESTION: FileQuestion,
@@ -130,6 +130,7 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
         isPremium: true,
         priceAmount: true,
         order: true,
+        featuredImage: true,
         semester: { select: { name: true } },
         subject: { select: { name: true, semester: { select: { name: true } } } },
         unit: { select: { name: true } },
@@ -349,6 +350,18 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
                   >
                     {/* Top Accent Bar */}
                     <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent/40 to-accent/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                    {/* Featured Image Thumbnail */}
+                    {resource.featuredImage && (
+                      <div className="-mt-6 -mx-6 mb-5 h-44 overflow-hidden relative border-b border-border bg-slate-100 dark:bg-zinc-800">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={resource.featuredImage}
+                          alt={resource.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      </div>
+                    )}
 
                     <div className="flex items-start justify-between mb-5 gap-2 flex-wrap relative z-10">
                       {!selectedType && (

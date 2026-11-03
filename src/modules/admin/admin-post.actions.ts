@@ -15,6 +15,7 @@ import {
   mapTypeToCategory,
 } from '@/lib/wordpress';
 import { resolveLocalAuthor, type AuthorOption } from '@/lib/content-authors';
+import { getPublicPostUrl } from '@/lib/post-url';
 
 /**
  * Turn a failed WordPress write into a message that says what to fix. A
@@ -259,7 +260,13 @@ export const createPostAction = createSafeAction(async (rawArgs: z.infer<typeof 
     }
 
     revalidatePath('/admin/posts');
-    return { id: String(wpPost.id) };
+    const postUrl = getPublicPostUrl({ id: wpPost.id, type: args.type, lang });
+    return {
+      id: String(wpPost.id),
+      status: wpPost.status,
+      url: postUrl,
+      success: true,
+    };
   } catch (error: unknown) {
     throw toWordPressWriteError(error, lang);
   }
@@ -330,7 +337,13 @@ export const updatePostAction = createSafeAction(async (rawArgs: z.infer<typeof 
     }
 
     revalidatePath('/admin/posts');
-    return { success: true };
+    const postUrl = getPublicPostUrl({ id: wpPost.id, type: args.type, lang });
+    return {
+      id: String(wpPost.id),
+      status: wpPost.status,
+      url: postUrl,
+      success: true,
+    };
   } catch (error: unknown) {
     throw toWordPressWriteError(error, lang);
   }

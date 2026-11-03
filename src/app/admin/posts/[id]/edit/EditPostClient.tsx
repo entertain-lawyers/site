@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { updatePostAction } from '@/modules/admin/admin-post.actions';
 import Link from 'next/link';
-import { Eye } from 'lucide-react';
+import { Eye, CheckCircle2, ExternalLink } from 'lucide-react';
 import RichTextEditor from '@/components/editor/RichTextEditor';
 import WordPressCredentialsNotice from '@/components/admin/WordPressCredentialsNotice';
 import FeaturedImagePanel from '@/components/admin/FeaturedImagePanel';
@@ -22,7 +22,6 @@ const POST_TYPE_LABELS: Record<string, string> = {
   OPINION: 'OPINION',
   FACT: 'FACT',
   PERSONALITY: 'PERSONALITY',
-  CASE_LAW: 'CASE LAW',
   NEPALI_SAMANYA_SAMACHAR: 'सामान्य समाचार',
   NEPALI_ADALAT_SAMACHAR: 'अदालत समाचार',
   NEPALI_MUKHYA_SAMACHAR: 'मुख्य समाचार',
@@ -57,7 +56,6 @@ const TYPE_OPTIONS: Record<'en' | 'ne', Array<[PostType, string]>> = {
     ['OPINION', 'Opinion'],
     ['FACT', 'Historical Fact'],
     ['PERSONALITY', 'Legal Personality'],
-    ['CASE_LAW', 'Case Law'],
   ],
   ne: [
     ['NEPALI_SAMANYA_SAMACHAR', 'Nepali: सामान्य समाचार'],
@@ -92,6 +90,7 @@ export default function EditPostClient({
   const [authorUserId, setAuthorUserId] = useState(post.currentAuthorUserId);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [publishedPost, setPublishedPost] = useState<{ id: string; url?: string; isPublished: boolean } | null>(null);
 
   // Authors/editors from User Management and Roles (Admin & Editor)
   const authorOptions = authors;
@@ -104,12 +103,22 @@ export default function EditPostClient({
   );
 
   const handlePreview = () => {
+    const selectedAuthorObj = authors.find((a) => a.id === selectedAuthorId) || null;
     writePostPreviewDraft({
       title: title || 'Untitled Draft',
       content: editorHtmlToArticleHtml(content),
       type: POST_TYPE_LABELS[type] || type,
       featuredImage: featuredImage?.url ?? null,
       editorUrl: `/admin/posts/${post.id}/edit?lang=${post.lang}`,
+      author: selectedAuthorObj ? {
+        id: selectedAuthorObj.id,
+        name: selectedAuthorObj.name,
+        email: selectedAuthorObj.email,
+        image: selectedAuthorObj.image,
+        bio: selectedAuthorObj.bio,
+        website: selectedAuthorObj.website,
+        role: selectedAuthorObj.role,
+      } : null,
     });
     window.open('/preview', 'el-post-preview')?.focus();
   };
@@ -153,7 +162,11 @@ export default function EditPostClient({
         throw new Error(res.error || 'Failed to update post');
       }
 
-      router.push('/admin/posts');
+      setPublishedPost({
+        id: res.data.id || String(post.id),
+        url: res.data.url,
+        isPublished: isPublished || res.data.status === 'publish',
+      });
       router.refresh();
     } catch (err) {
       setError((err as Error).message || 'An error occurred while saving.');
@@ -177,6 +190,44 @@ export default function EditPostClient({
       {!canSave && <WordPressCredentialsNotice />}
 
       <AnimatePresence initial={false}>
+      {publishedPost && (
+        <Appear key="published-success">
+          <div className="mb-6 p-5 bg-green-50 text-green-900 rounded-2xl border border-green-200 dark:bg-green-950/40 dark:border-green-900/60 dark:text-green-200 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400 shrink-0" />
+              <div>
+                <p className="font-bold text-navy dark:text-white text-base">
+                  {publishedPost.isPublished ? 'Post updated and published!' : 'Draft updated successfully!'}
+                </p>
+                <p className="text-sm text-text-secondary dark:text-zinc-300">
+                  {publishedPost.isPublished
+                    ? 'Your changes are live on the website.'
+                    : 'Your draft has been saved. You can continue editing or view it from the drafts list.'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              {publishedPost.url && publishedPost.isPublished && (
+                <a
+                  href={publishedPost.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold bg-accent text-white hover:bg-accent/90 transition-colors shadow-sm"
+                >
+                  <span>View Post</span>
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              )}
+              <Link
+                href="/admin/posts"
+                className="inline-flex items-center px-4 py-2 rounded-xl text-sm font-bold border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 text-navy dark:text-white hover:border-accent transition-colors"
+              >
+                Back to Posts
+              </Link>
+            </div>
+          </div>
+        </Appear>
+      )}
       {error && (
         <Appear key="error">
         <div className="mb-6 bg-red-50 text-red-700 p-4 rounded-xl text-sm border border-red-100 dark:bg-red-950/40 dark:border-red-900/60 dark:text-red-300 font-medium">
