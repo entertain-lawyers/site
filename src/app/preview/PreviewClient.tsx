@@ -8,14 +8,7 @@ import PostDetail from '@/components/posts/PostDetail';
 import type { LatestPost } from '@/components/posts/LatestPostsSidebar';
 import { POST_PREVIEW_STORAGE_KEY } from '@/lib/post-preview';
 
-interface Draft {
-  title: string;
-  content: string;
-  type: string;
-  createdAt: string;
-  featuredImage?: string | null;
-  editorUrl?: string;
-}
+import type { PostPreviewDraft } from '@/lib/post-preview';
 
 // localStorage is shared by every admin tab, so an already-open preview
 // updates when the editor writes the next draft.
@@ -54,7 +47,9 @@ export default function PostPreviewClient({
   const draft = useMemo(() => {
     if (raw === null) return null;
     try {
-      const parsed = JSON.parse(raw) as Draft;
+      const parsed = JSON.parse(raw) as PostPreviewDraft;
+      const resolvedName = parsed.author?.name || authorName || 'Entertain Lawyers';
+      const resolvedEmail = parsed.author?.email || authorEmail || '';
       return {
         editorUrl: parsed.editorUrl || '/admin/posts/new',
         post: {
@@ -64,7 +59,14 @@ export default function PostPreviewClient({
           type: parsed.type,
           createdAt: new Date(parsed.createdAt),
           featuredImage: parsed.featuredImage ?? null,
-          author: { email: authorEmail || '', name: authorName || undefined },
+          author: {
+            email: resolvedEmail,
+            name: resolvedName,
+            image: parsed.author?.image ?? null,
+            bio: parsed.author?.bio ?? null,
+            website: parsed.author?.website ?? null,
+            role: parsed.author?.role ?? null,
+          },
         },
       };
     } catch {

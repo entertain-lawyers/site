@@ -8,6 +8,7 @@ import CaseLawLanding from '@/components/study/CaseLawLanding';
 import Link from 'next/link';
 import { ResourceType } from '@prisma/client';
 import { getDictionary } from '@/lib/i18n';
+import { RESOURCES_CACHE_TAG } from '@/lib/cache-tags';
 import { BookOpen, Scale, FileQuestion, Library, ArrowRight, Lock } from 'lucide-react';
 import { SYLLABUS_CONFIG, normalizeSubjectName } from '@/lib/syllabus-config';
 import { searchMatches } from '@/lib/translit-search';
@@ -37,7 +38,7 @@ const RESOURCE_TYPE_COLORS: Record<ResourceType, string> = {
   OTHER: 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-white/10',
 };
 
-const iconMap: Record<string, any> = {
+const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   LAW_NOTE: BookOpen,
   CASE_LAW: Scale,
   OLD_QUESTION: FileQuestion,
@@ -51,6 +52,91 @@ type SearchParams = Promise<{
   type?: string;
   q?: string;
 }>;
+
+const getCachedSemesters = unstable_cache(
+  async () => {
+    const allSemesters = await prisma.semester.findMany({
+      orderBy: { order: 'asc' },
+      select: { id: true, name: true, order: true },
+    });
+    // Filter out duplicate / legacy semester labels like "S1" and guarantee 1..10 chronological
+    return allSemesters
+      .filter((s) => s.name.toLowerCase().includes('semester'))
+      .sort((a, b) => a.order - b.order);
+  },
+  ['study-semesters-canonical'],
+  { revalidate: 3600, tags: ['semesters'] }
+);
+
+const getCachedSubjects = unstable_cache(
+  async (semesterId: string) => prisma.subject.findMany({
+    where: { semesterId },
+    orderBy: { order: 'asc' },
+    select: { id: true, name: true, order: true },
+  }),
+  ['study-subjects-ordered'],
+  { revalidate: 3600 }
+);
+
+const getCachedUnits = unstable_cache(
+  async (subjectId: string) => prisma.unit.findMany({
+    where: { subjectId },
+    orderBy: { order: 'asc' },
+    select: { id: true, name: true, title: true },
+  }),
+  ['study-units'],
+  { revalidate: 3600, tags: [RESOURCES_CACHE_TAG] }
+);
+
+/**
+ * Cached per filter combination. unstable_cache includes the function's
+ * arguments in the cache key, so every passed filter (semester, subject, unit
+ * and type) is part of the key and public visitors only ever hit the
+ * PUBLISHED slice. Resource mutations revalidate RESOURCES_CACHE_TAG, so admin
+ * updates take effect on the next request.
+ */
+const getCachedResourceList = unstable_cache(
+  async (filters: {
+    semesterId?: string;
+    subjectId?: string;
+    unitId?: string;
+    type?: string;
+  }) => {
+    const { semesterId, subjectId, unitId, type: rawType } = filters;
+    // Arbitrary query strings must not become a Prisma enum filter: only real
+    // resource types are honoured, exactly like the pre-cache behaviour.
+    const resourceType = Object.values(ResourceType).find((t) => t === rawType);
+    return prisma.resource.findMany({
+      where: { status: 'PUBLISHED',
+        ...(semesterId && (resourceType === 'OLD_QUESTION' ? { semesterId } : { subject: { semesterId } })),
+        ...(subjectId && { subjectId }),
+        ...(unitId && { unitId }),
+        ...(resourceType && { type: resourceType }),
+        // NOTE: text search is applied post-fetch via searchMatches() below so
+        // roman-lipi queries can match Devanagari titles (and vice versa).
+      },
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        isPremium: true,
+        priceAmount: true,
+        order: true,
+        featuredImage: true,
+        semester: { select: { name: true } },
+        subject: { select: { name: true, semester: { select: { name: true } } } },
+        unit: { select: { name: true } },
+      },
+      orderBy: [
+        { subject: { order: 'asc' } },
+        { order: 'asc' },
+        { title: 'asc' },
+      ],
+    });
+  },
+  ['study-resources-listing'],
+  { revalidate: 3600, tags: [RESOURCES_CACHE_TAG] }
+);
 
 export default async function StudyPage(props: { searchParams: SearchParams }) {
   const dict = await getDictionary();
@@ -73,73 +159,19 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
   // prices. Opening a Law Note, Case Law or Old Question is sign-in gated on
   // /resources/[id] and /read/[id], which is where the content lives.
 
-  // 1. Fetch reference data for selectors
-  const getCachedSemesters = unstable_cache(
-    async () => {
-      const allSemesters = await prisma.semester.findMany({
-        orderBy: { order: 'asc' },
-        select: { id: true, name: true, order: true },
-      });
-      // Filter out duplicate / legacy semester labels like "S1" and guarantee 1..10 chronological
-      return allSemesters
-        .filter((s) => s.name.toLowerCase().includes('semester'))
-        .sort((a, b) => a.order - b.order);
-    },
-    ['study-semesters-canonical'],
-    { revalidate: 3600 }
-  );
-
-  const getCachedSubjects = unstable_cache(
-    async (semesterId: string) => prisma.subject.findMany({
-      where: { semesterId },
-      orderBy: { order: 'asc' },
-      select: { id: true, name: true, order: true },
-    }),
-    ['study-subjects-ordered'],
-    { revalidate: 3600 }
-  );
-
-  const getCachedUnits = unstable_cache(
-    async (subjectId: string) => prisma.unit.findMany({
-      where: { subjectId },
-      orderBy: { order: 'asc' },
-      select: { id: true, name: true, title: true },
-    }),
-    ['study-units'],
-    { revalidate: 3600 }
-  );
+  // 1. Fetch reference data for selectors and resources in parallel
 
   // 2. Fetch in parallel
   const [semesters, rawSubjects, rawUnits, rawAllResources] = await Promise.all([
     getCachedSemesters(),
     selectedSemesterId ? getCachedSubjects(selectedSemesterId) : Promise.resolve([]),
     selectedSubjectId ? getCachedUnits(selectedSubjectId) : Promise.resolve([]),
-    prisma.resource.findMany({
-      where: { status: 'PUBLISHED',
-        ...(selectedSemesterId && (selectedType === 'OLD_QUESTION' ? { semesterId: selectedSemesterId } : { subject: { semesterId: selectedSemesterId } })),
-        ...(selectedSubjectId && { subjectId: selectedSubjectId }),
-        ...(selectedUnitId && { unitId: selectedUnitId }),
-        ...(selectedType && Object.values(ResourceType).includes(selectedType) && { type: selectedType }),
-        // NOTE: text search is applied post-fetch via searchMatches() below so
-        // roman-lipi queries can match Devanagari titles (and vice versa).
-      },
-      select: {
-        id: true,
-        title: true,
-        type: true,
-        isPremium: true,
-        priceAmount: true,
-        order: true,
-        semester: { select: { name: true } },
-        subject: { select: { name: true, semester: { select: { name: true } } } },
-        unit: { select: { name: true } },
-      },
-      orderBy: [
-        { subject: { order: 'asc' } },
-        { order: 'asc' },
-        { title: 'asc' },
-      ],
-    })
+    getCachedResourceList({
+      semesterId: selectedSemesterId,
+      subjectId: selectedSubjectId,
+      unitId: selectedUnitId,
+      type: selectedType,
+    }),
   ]);
 
   // 2b. Transliteration-aware search: roman-lipi input matches Devanagari
@@ -349,6 +381,18 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
                   >
                     {/* Top Accent Bar */}
                     <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent/40 to-accent/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                    {/* Featured Image Thumbnail */}
+                    {resource.featuredImage && (
+                      <div className="-mt-6 -mx-6 mb-5 h-44 overflow-hidden relative border-b border-border bg-slate-100 dark:bg-zinc-800">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={resource.featuredImage}
+                          alt={resource.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      </div>
+                    )}
 
                     <div className="flex items-start justify-between mb-5 gap-2 flex-wrap relative z-10">
                       {!selectedType && (

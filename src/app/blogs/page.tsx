@@ -1,5 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { getWordPressPosts } from '@/lib/wordpress';
 import Link from 'next/link';
+import Image from 'next/image';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
 import BrandSearchHeader from '@/components/posts/BrandSearchHeader';
 import type { Metadata } from 'next';
@@ -14,7 +16,7 @@ export const metadata: Metadata = {
 export const revalidate = 60; // Revalidate every minute
 
 export default async function BlogsPage() {
-  const wpRes = await getWordPressPosts({ categories: [61, 60], status: 'publish', lang: 'en', perPage: 20, embed: true });
+  const wpRes = await getWordPressPosts({ categories: [61, 60], status: 'publish', lang: 'en', perPage: 20, embed: true, fields: 'id,date,title,content,_links,_embedded' });
   const posts = wpRes.data.map(p => ({
     id: String(p.id),
     title: p.title.rendered,
@@ -45,10 +47,17 @@ export default async function BlogsPage() {
             const thumbnail = post.featuredImage || extractFirstImage(post.content);
             return (
             <Reveal index={i} perRow={3} lift key={post.id} className="group relative bg-surface border border-border rounded-2xl shadow-soft overflow-hidden transition-[box-shadow,border-color,background-color] duration-300 hover:shadow-lg flex flex-col">
-              <div className="w-full h-48 bg-slate-100 dark:bg-zinc-800 flex items-center justify-center border-b border-border overflow-hidden">
+              <div className="relative w-full h-48 bg-slate-100 dark:bg-zinc-800 flex items-center justify-center border-b border-border overflow-hidden">
                 {thumbnail ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={thumbnail} alt={post.title} className="w-full h-full object-cover" loading="lazy" decoding="async" />
+                  <Image
+                    src={thumbnail}
+                    alt={post.title}
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    className="object-cover"
+                    priority={i < 3}
+                    loading={i < 3 ? 'eager' : 'lazy'}
+                  />
                 ) : (
                   <svg className="w-12 h-12 text-black/10 dark:text-white/10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />

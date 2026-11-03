@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { LayoutDashboard, FileText, Database, Users, Settings, LogOut, Globe, History, Menu, X, MessageSquare, Brain, LayoutTemplate, Images, BookOpen, ShieldCheck, Home, ArrowRightLeft, Scale } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { AnimatePresence, Backdrop, m } from '@/components/motion/primitives';
@@ -25,6 +25,8 @@ export default function AdminSidebar({
   pendingConsultations?: number;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentType = searchParams.get('type');
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const isDesktop = useMediaQuery('(min-width: 64rem)', true);
 
@@ -66,10 +68,11 @@ export default function AdminSidebar({
     { name: 'Gallery', href: '/admin/gallery', icon: Images, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Publications', href: '/admin/publications', icon: BookOpen, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Team', href: '/admin/team', icon: Users, roles: ['ADMIN', 'EDITOR'] },
+    { name: 'Resources', href: '/admin/study/resources', icon: FileText, roles: ['ADMIN', 'EDITOR'] },
+    { name: 'Case Laws', href: '/admin/study/resources?type=CASE_LAW', icon: Scale, roles: ['ADMIN'] },
     { name: 'Semesters', href: '/admin/study/semesters', icon: Database, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Subjects', href: '/admin/study/subjects', icon: Database, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Units', href: '/admin/study/units', icon: Database, roles: ['ADMIN', 'EDITOR'] },
-    { name: 'Resources', href: '/admin/study/resources', icon: FileText, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Site Settings', href: '/admin/settings', icon: Settings, roles: ['ADMIN'] },
     { name: 'Homepage', href: '/admin/homepage', icon: Home, roles: ['ADMIN'] },
     { name: 'Redirects', href: '/admin/redirects', icon: ArrowRightLeft, roles: ['ADMIN'] },
@@ -84,16 +87,27 @@ export default function AdminSidebar({
   const groups: { label: string; names: string[] }[] = [
     { label: 'Overview', names: ['Dashboard'] },
     { label: 'Requests', names: ['Consultations', 'Consult Lawyers'] },
-    { label: 'Content', names: ['Semesters', 'Subjects', 'Units', 'Resources'] },
+    { label: 'Resources', names: ['Resources', 'Case Laws', 'Semesters', 'Subjects', 'Units'] },
     { label: 'Publishing', names: ['Posts', 'Visual Pages', 'Events', 'FAQs', 'Gallery', 'Publications', 'Team'] },
     { label: 'Site Control', names: ['Site Settings', 'Homepage', 'Redirects'] },
     { label: 'System', names: ['Users & Roles', 'Protection Center', 'Audit Logs', 'AI Index'] },
   ];
 
   const renderNavItem = (item: NavItem) => {
-    const isActive = item.href === '/admin'
-      ? pathname === item.href
-      : pathname === item.href || pathname.startsWith(`${item.href}/`);
+    const [targetPath, targetQuery] = item.href.split('?');
+    const targetParams = new URLSearchParams(targetQuery || '');
+    const targetType = targetParams.get('type');
+
+    let isActive = false;
+    if (item.href === '/admin') {
+      isActive = pathname === '/admin';
+    } else if (targetType) {
+      isActive = pathname === targetPath && currentType === targetType;
+    } else if (pathname === targetPath && currentType) {
+      isActive = false;
+    } else {
+      isActive = pathname === targetPath || pathname.startsWith(`${targetPath}/`);
+    }
     return (
       <Link
         key={item.name}

@@ -128,6 +128,7 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
         documentId: true,
         document: true,
         content: true,
+        featuredImage: true,
         unit: true,
         subject: {
           include: {
@@ -153,6 +154,7 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
     resource = fallbackResource
       ? ({
           ...fallbackResource,
+          featuredImage: fallbackResource.featuredImage ?? null,
           authorId: null,
           createdById: null,
           order: 0,
@@ -171,8 +173,6 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
   if (!resource) {
     notFound();
   }
-
-  const typedResource = resource as any;
 
   const hasAccess = await canAccessResource(session.user.id, resourceId);
 
@@ -229,11 +229,11 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
             <h1 className="mt-6 text-3xl font-bold tracking-tight text-navy dark:text-white">
               {resource.title}
             </h1>
-            {typedResource.subject?.name && (
+            {resource.subject?.name && (
               <p className="mt-2 text-sm text-text-muted">
-                {typedResource.subject.name}
-                {typedResource.subject?.semester?.name
-                  ? ` · ${typedResource.subject.semester.name}`
+                {resource.subject.name}
+                {resource.subject?.semester?.name
+                  ? ` · ${resource.subject.semester.name}`
                   : ''}
               </p>
             )}
@@ -245,6 +245,18 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
                 </p>
               ) : null;
             })()}
+
+            {/* Featured Image */}
+            {resource.featuredImage && (
+              <div className="mt-6 mb-8 rounded-2xl overflow-hidden border border-border shadow-sm max-h-[460px] aspect-video w-full bg-slate-100 dark:bg-zinc-800">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={resource.featuredImage}
+                  alt={resource.title}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            )}
 
             {/* Same sanitized renderer and reading typography as articles, so
                 headings, lists and inserted (resized) images survive. */}
@@ -345,9 +357,9 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
     }
   };
 
-  const filteredUnits = typedResource.subject?.units?.map((unit: any) => ({
+  const filteredUnits = resource.subject?.units?.map((unit) => ({
     ...unit,
-    resources: unit.resources.filter((r: any) => r.type === resource.type)
+    resources: unit.resources.filter((r) => r.type === resource.type)
   })) || [];
 
   return (
@@ -370,11 +382,11 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
             <svg className="w-3.5 h-3.5 text-border-strong mx-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
               <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 9 4-4-4-4"/>
             </svg>
-            <span>{typedResource.subject?.semester?.name}</span>
+            <span>{resource.subject?.semester?.name}</span>
             <svg className="w-3.5 h-3.5 text-border-strong mx-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
               <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 9 4-4-4-4"/>
             </svg>
-            <span>{typedResource.subject?.name}</span>
+            <span>{resource.subject?.name}</span>
             {resource.unit && (
               <>
                 <svg className="w-3.5 h-3.5 text-border-strong mx-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">

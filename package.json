@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "rm -rf .next/cache .netlify/.next/cache && prisma generate && AUTH_GOOGLE_SECRET=dummy-secret-not-real AUTH_GOOGLE_ID=dummy-id-not-real AUTH_SECRET=dummy-auth-secret-32-chars-long-12345 next build",
+    "build": "rm -rf .next/cache .netlify/.next/cache && prisma generate && AUTH_GOOGLE_SECRET=dummy-secret-not-real AUTH_GOOGLE_ID=dummy-id-not-real AUTH_SECRET=dummy-auth-secret-32-chars-long-12345 next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "db:migrate:status": "prisma migrate status",
@@ -31,6 +31,7 @@
     "@tailwindcss/typography": "^0.5.20",
     "@upstash/ratelimit": "^2.1.0",
     "@upstash/redis": "^1.38.4",
+    "@vercel/speed-insights": "^2.0.0",
     "bcryptjs": "^3.0.3",
     "cheerio": "^1.2.0",
     "lucide-react": "^1.47.0",

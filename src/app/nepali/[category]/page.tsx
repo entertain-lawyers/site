@@ -4,6 +4,9 @@ import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { formatBSDate } from '@/lib/nepali-date';
 import { PostType } from '@prisma/client';
+import { batchResolvePostAuthorsForDisplay } from '@/lib/post-author';
+
+export const revalidate = 60;
 
 const CATEGORY_MAP: Record<string, { type: PostType, title: string, icon: string, description: string }> = {
   'samanya-samachar': { type: 'NEPALI_SAMANYA_SAMACHAR', title: 'सामान्य समाचार', icon: '📰', description: 'दैनिक र सामान्य समाचारहरू' },
@@ -45,13 +48,30 @@ export default async function NepaliCategoryPage({ params }: { params: Promise<{
   };
   const wpCats = categoryMapToWp[categoryInfo.type];
 
-  const wpRes = await getWordPressPosts({ categories: wpCats, status: 'publish', lang: 'ne', perPage: 20 });
-  const posts = wpRes.data.map(p => ({
-    id: String(p.id),
-    title: p.title.rendered,
-    createdAt: new Date(p.date),
-    author: { email: `WP Author (${p.author})` }
-  }));
+  const wpRes = await getWordPressPosts({
+    categories: wpCats,
+    status: 'publish',
+    lang: 'ne',
+    perPage: 20,
+    embed: true,
+    fields: 'id,date,title,categories,_links,_embedded',
+  });
+  const resolvedAuthors = await batchResolvePostAuthorsForDisplay({ posts: wpRes.data, lang: 'ne' });
+
+  const posts = wpRes.data.map((p) => {
+    const authorInfo = resolvedAuthors.get(String(p.id));
+    return {
+      id: String(p.id),
+      title: p.title.rendered,
+      createdAt: new Date(p.date),
+      author: {
+        name: authorInfo?.name || 'सम्पादक',
+        image: authorInfo?.image || null,
+        initials: authorInfo?.initials || 'सम्पा',
+      },
+      featuredImage: p._embedded?.['wp:featuredmedia']?.[0]?.source_url || null,
+    };
+  });
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 pb-20">
@@ -84,7 +104,18 @@ export default async function NepaliCategoryPage({ params }: { params: Promise<{
             {posts.map((post) => (
               <article key={post.id} className="group relative bg-white dark:bg-zinc-900 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 border border-black/5 dark:border-white/5 flex flex-col h-full">
                 <div className="relative h-56 w-full overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 dark:from-zinc-800 dark:to-zinc-900 flex items-center justify-center">
-                  <span className="text-6xl text-black/5 dark:text-white/5 font-serif italic">EL</span>
+                  {post.featuredImage ? (
+                    <Image
+                      src={post.featuredImage}
+                      alt={post.title}
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      className="object-cover"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <span className="text-6xl text-black/5 dark:text-white/5 font-serif italic">EL</span>
+                  )}
                 </div>
                 <div className="p-6 flex flex-col flex-grow">
                   <h3 className="text-xl font-bold text-navy dark:text-white mb-3 line-clamp-2 group-hover:text-accent dark:group-hover:text-accent transition-colors font-nepali">
@@ -94,13 +125,24 @@ export default async function NepaliCategoryPage({ params }: { params: Promise<{
                     </Link>
                   </h3>
                   <div className="mt-auto pt-4 border-t border-black/5 dark:border-white/5 flex items-center justify-between text-sm text-text-muted">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-700 flex items-center justify-center text-xs font-bold text-navy dark:text-white">
-                        {(post.author?.email)?.charAt(0) || 'U'}
-                      </div>
-                      <span className="font-medium truncate max-w-[120px]">{(post.author?.email) || 'सम्पादक'}</span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      {post.author.image ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img
+                          src={post.author.image}
+                          alt={post.author.name}
+                          className="w-6 h-6 rounded-full object-cover shrink-0"
+                        />
+                      ) : (
+                        <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-700 flex items-center justify-center text-[10px] font-bold text-navy dark:text-white shrink-0">
+                          {post.author.initials?.charAt(0) || post.author.name.charAt(0) || 'EL'}
+                        </div>
+                      )}
+                      <span className="font-bold text-navy dark:text-white truncate max-w-[130px] font-nepali">
+                        {post.author.name}
+                      </span>
                     </div>
-                    <time className="font-medium font-nepali">{formatBSDate(post.createdAt)}</time>
+                    <time className="font-medium font-nepali shrink-0">{formatBSDate(post.createdAt)}</time>
                   </div>
                 </div>
               </article>

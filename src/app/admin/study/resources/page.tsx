@@ -23,7 +23,7 @@ const STATUS_TABS = [
 export default async function AdminResourcesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; type?: string }>;
 }) {
   const session = await auth();
 
@@ -31,17 +31,27 @@ export default async function AdminResourcesPage({
     redirect('/');
   }
 
+  const { status: statusParam, type: typeParam } = await searchParams;
+  const isCaseLaw = typeParam === ResourceType.CASE_LAW;
   const isAdmin = session.user.role === 'ADMIN';
 
-  const whereClause: Prisma.ResourceWhereInput = isAdmin
-    ? {}
-    : {
-        OR: [
-          { type: { notIn: [ResourceType.LAW_NOTE, ResourceType.CASE_LAW] } }
-        ]
-      };
+  // If viewing case laws specifically, require ADMIN (editors cannot view/manage law notes/case laws)
+  if (isCaseLaw && !isAdmin) {
+    redirect('/admin/study/resources');
+  }
 
-  const { status: statusParam } = await searchParams;
+  const baseTypeFilter: Prisma.ResourceWhereInput = isCaseLaw
+    ? { type: ResourceType.CASE_LAW }
+    : isAdmin
+      ? {}
+      : {
+          OR: [
+            { type: { notIn: [ResourceType.LAW_NOTE, ResourceType.CASE_LAW] } }
+          ]
+        };
+
+  const whereClause: Prisma.ResourceWhereInput = baseTypeFilter;
+
   const activeTab = STATUS_TABS.find((t) => t.key === statusParam) ?? STATUS_TABS[0];
   const listWhere: Prisma.ResourceWhereInput =
     'status' in activeTab ? { AND: [whereClause, { status: activeTab.status }] } : whereClause;
@@ -55,6 +65,8 @@ export default async function AdminResourcesPage({
     statusCounts
       .filter((c) => !status || c.status === status)
       .reduce((sum, c) => sum + c._count._all, 0);
+
+  const orderBy = activeTab.key === 'draft' ? { updatedAt: 'desc' as const } : { title: 'asc' as const };
 
   let resources;
   try {
@@ -70,17 +82,17 @@ export default async function AdminResourcesPage({
         author: { select: { name: true, email: true } },
         createdBy: { select: { name: true, email: true } },
       },
-      orderBy: { title: 'asc' },
+      orderBy,
     });
   } catch (error) {
     const { isSpecificMissingColumnError } = await import('@/lib/prisma-errors');
-    if (!isSpecificMissingColumnError(error, ['authorId', 'createdById'])) {
+    if (!isSpecificMissingColumnError(error, ['authorId', 'createdById', 'updatedAt', 'featuredImage', 'featuredImageId'])) {
       console.error('[admin/study/resources] database error loading resources:', error);
       throw error;
     }
 
     console.warn(
-      '[admin/study/resources] resource findMany failed (authorId/createdById migration pending), falling back to base fields:',
+      '[admin/study/resources] resource findMany failed (authorId/createdById/updatedAt migration pending), falling back to base fields:',
       error
     );
 
@@ -113,6 +125,14 @@ export default async function AdminResourcesPage({
     }));
   }
 
+  const buildTabHref = (key: string) => {
+    const params = new URLSearchParams();
+    if (key !== 'all') params.set('status', key);
+    if (typeParam) params.set('type', typeParam);
+    const q = params.toString();
+    return q ? `/admin/study/resources?${q}` : '/admin/study/resources';
+  };
+
   return (
     <div className="min-h-screen bg-transparent py-10 max-w-[1400px] mx-auto">
       <div className="px-4 sm:px-6 lg:px-8">
@@ -120,20 +140,24 @@ export default async function AdminResourcesPage({
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-10 gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold text-navy dark:text-white tracking-tight">Manage Resources</h1>
+            <h1 className="text-3xl font-extrabold text-navy dark:text-white tracking-tight">
+              {isCaseLaw ? 'Manage Case Laws' : 'Manage Resources'}
+            </h1>
             <p className="mt-2 text-text-secondary font-medium">
-              A comprehensive list of all study materials, PDFs, and resources available.
+              {isCaseLaw
+                ? 'A comprehensive list of landmark judgments and precedent case laws.'
+                : 'A comprehensive list of all study materials, PDFs, and resources available.'}
             </p>
           </div>
           <div className="flex-shrink-0">
             <Link
-              href="/admin/study/resources/new"
+              href={isCaseLaw ? '/admin/study/resources/new?type=CASE_LAW' : '/admin/study/resources/new'}
               className="inline-flex items-center justify-center px-6 py-2.5 border border-transparent shadow-[0_4px_14px_0_rgba(var(--color-accent),0.39)] text-sm font-bold rounded-xl text-white bg-accent hover:bg-accent/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent transition-all duration-300 hover:-translate-y-0.5"
             >
               <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
               </svg>
-              Add Resource
+              {isCaseLaw ? 'Add Case Law' : 'Add Resource'}
             </Link>
           </div>
         </div>
@@ -145,7 +169,7 @@ export default async function AdminResourcesPage({
             return (
               <Link
                 key={tab.key}
-                href={tab.key === 'all' ? '/admin/study/resources' : `/admin/study/resources?status=${tab.key}`}
+                href={buildTabHref(tab.key)}
                 aria-current={active ? 'page' : undefined}
                 className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-bold transition-colors ${
                   active

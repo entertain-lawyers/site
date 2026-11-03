@@ -10,20 +10,23 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { unstable_cache } from 'next/cache';
 import NextTopLoader from 'nextjs-toploader';
+import dynamic from 'next/dynamic';
 import PublicOnly from '@/components/layout/PublicOnly';
-import AskAI from '@/components/ai/AskAI';
+
+const AskAI = dynamic(() => import('@/components/ai/AskAI'));
 import { getSiteSettings } from '@/lib/site-settings';
 import AnalyticsTracker from '@/components/AnalyticsTracker';
 import { serializeJsonLd, getSiteUrl } from '@/lib/seo';
 import { SEMESTERS_CACHE_TAG } from '@/lib/cache-tags';
 import MotionProvider from '@/components/motion/MotionProvider';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 /**
  * Site-wide typography. Restored Mukta as the requested legacy face
  * (Latin + Devanagari). Plus Jakarta Sans remains loaded and scoped to the
  * calculator and news reading page via `.el-type-modern` in globals.css.
  */
-const mukta = Mukta({ weight: ['400', '500', '600', '700', '800'], subsets: ['devanagari', 'latin'], variable: '--font-mukta' });
+const mukta = Mukta({ weight: ['400', '500', '600', '700', '800'], subsets: ['devanagari', 'latin'], variable: '--font-mukta', display: 'swap' });
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -107,6 +110,11 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   // Independent lookups: run them together instead of one after another.
+  // auth() reads the session cookie, so every route under this layout renders
+  // per request (the navbar needs the session for its account/admin
+  // affordances). Swapping to a client-side session provider is a layout
+  // restructure deliberately not attempted here; the heavy data (settings,
+  // semesters) is served from cache with on-demand revalidation instead.
   const [locale, dict, session, settings, semesters] = await Promise.all([
     getLocale(),
     getDictionary(),
@@ -211,6 +219,7 @@ export default async function RootLayout({
             <AskAI />
           </PublicOnly>
         </MotionProvider>
+        <SpeedInsights />
       </body>
     </html>
   );

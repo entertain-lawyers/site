@@ -26,22 +26,38 @@ function buildCspHeader(): string {
 
   return cspHeader
     .replace(
+      "script-src 'self'",
+      "script-src 'self' https://va.vercel-scripts.com"
+    )
+    .replace(
       "img-src 'self' blob: data:;",
-      `img-src 'self' blob: data:${b2OriginPart} https://entertainlawyers.com https://www.entertainlawyers.com;`
+      `img-src 'self' blob: data:${b2OriginPart} https://entertainlawyers.com https://www.entertainlawyers.com https://secure.gravatar.com;`
     )
     .replace(
       "connect-src 'self';",
-      `connect-src 'self'${b2OriginPart};`
+      `connect-src 'self'${b2OriginPart} https://va.vercel-scripts.com https://vitals.vercel-insights.com;`
     )
     .replace(/\n/g, '');
 }
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  compress: true,
+  images: {
+    formats: ['image/avif', 'image/webp'],
+    remotePatterns: [
+      { protocol: 'https', hostname: 's3.us-east-005.backblazeb2.com' },
+      { protocol: 'https', hostname: 'entertainlawyers.com' },
+      { protocol: 'https', hostname: 'www.entertainlawyers.com' },
+      { protocol: 'https', hostname: 'secure.gravatar.com' },
+    ],
+    minimumCacheTTL: 86400,
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: '25mb',
     },
+    optimizePackageImports: ['lucide-react', 'motion', '@measured/puck'],
   },
   async headers() {
     const securityHeaders = [

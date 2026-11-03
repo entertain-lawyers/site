@@ -5,12 +5,17 @@ import { Calendar, MapPin } from 'lucide-react';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
 import { sanitizeHtml } from '@/lib/sanitize';
 import { Metadata } from 'next';
+import { cache } from 'react';
+
+const getCachedEvent = cache(async (slug: string) => {
+  return prisma.event.findUnique({
+    where: { slug },
+  });
+});
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const event = await prisma.event.findUnique({
-    where: { slug },
-  });
+  const event = await getCachedEvent(slug);
 
   if (!event || event.status !== 'PUBLISHED') notFound();
 
@@ -23,9 +28,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function EventDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const event = await prisma.event.findUnique({
-    where: { slug },
-  });
+  const event = await getCachedEvent(slug);
 
   if (!event || event.status !== 'PUBLISHED') {
     notFound();

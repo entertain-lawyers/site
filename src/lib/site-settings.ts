@@ -68,55 +68,73 @@ function cleanUrl(value: string | null | undefined): string | null {
   return trimmed;
 }
 
+import { unstable_cache } from 'next/cache';
+import { SITE_SETTINGS_CACHE_TAG, HOMEPAGE_CONFIG_CACHE_TAG } from './cache-tags';
+
+const fetchSiteSettings = unstable_cache(
+  async (): Promise<SiteSettings> => {
+    try {
+      const row = await prisma.globalSettings.findUnique({
+        where: { id: SITE_SETTINGS_ID },
+      });
+
+      if (!row) return DEFAULT_SITE_SETTINGS;
+
+      return {
+        organizationName: clean(row.organizationName) ?? DEFAULT_SITE_SETTINGS.organizationName,
+        contactEmail: clean(row.contactEmail) ?? DEFAULT_SITE_SETTINGS.contactEmail,
+        contactPhone: clean(row.contactPhone) ?? DEFAULT_SITE_SETTINGS.contactPhone,
+        address: clean(row.address) ?? DEFAULT_SITE_SETTINGS.address,
+        facebookUrl: cleanUrl(row.facebookUrl) ?? DEFAULT_SITE_SETTINGS.facebookUrl,
+        twitterUrl: cleanUrl(row.twitterUrl) ?? DEFAULT_SITE_SETTINGS.twitterUrl,
+        instagramUrl: cleanUrl(row.instagramUrl) ?? DEFAULT_SITE_SETTINGS.instagramUrl,
+        youtubeUrl: cleanUrl(row.youtubeUrl) ?? DEFAULT_SITE_SETTINGS.youtubeUrl,
+        footerCopyright: clean(row.footerCopyright),
+      };
+    } catch (error) {
+      console.error('Could not load site settings; using defaults.', error);
+      return DEFAULT_SITE_SETTINGS;
+    }
+  },
+  ['global-site-settings'],
+  { revalidate: 86400, tags: [SITE_SETTINGS_CACHE_TAG] }
+);
+
 /**
- * Memoised per request with React `cache`, so the layout, footer, contact page
- * and metadata share a single query.
+ * Cached globally across requests and deduplicated within the render.
  */
 export const getSiteSettings = cache(async (): Promise<SiteSettings> => {
-  try {
-    const row = await prisma.globalSettings.findUnique({
-      where: { id: SITE_SETTINGS_ID },
-    });
-
-    if (!row) return DEFAULT_SITE_SETTINGS;
-
-    return {
-      organizationName: clean(row.organizationName) ?? DEFAULT_SITE_SETTINGS.organizationName,
-      contactEmail: clean(row.contactEmail) ?? DEFAULT_SITE_SETTINGS.contactEmail,
-      contactPhone: clean(row.contactPhone) ?? DEFAULT_SITE_SETTINGS.contactPhone,
-      address: clean(row.address) ?? DEFAULT_SITE_SETTINGS.address,
-      facebookUrl: cleanUrl(row.facebookUrl) ?? DEFAULT_SITE_SETTINGS.facebookUrl,
-      twitterUrl: cleanUrl(row.twitterUrl) ?? DEFAULT_SITE_SETTINGS.twitterUrl,
-      instagramUrl: cleanUrl(row.instagramUrl) ?? DEFAULT_SITE_SETTINGS.instagramUrl,
-      youtubeUrl: cleanUrl(row.youtubeUrl) ?? DEFAULT_SITE_SETTINGS.youtubeUrl,
-      footerCopyright: clean(row.footerCopyright),
-    };
-  } catch (error) {
-    console.error('Could not load site settings; using defaults.', error);
-    return DEFAULT_SITE_SETTINGS;
-  }
+  return fetchSiteSettings();
 });
 
+const fetchHomepageConfig = unstable_cache(
+  async (): Promise<HomepageConfig> => {
+    try {
+      const row = await prisma.homepageConfig.findUnique({
+        where: { id: HOMEPAGE_CONFIG_ID },
+      });
+
+      if (!row) return DEFAULT_HOMEPAGE_CONFIG;
+
+      return {
+        heroHeading: clean(row.heroHeading) ?? DEFAULT_HOMEPAGE_CONFIG.heroHeading,
+        heroSubheading: clean(row.heroSubheading),
+        heroCtaText: clean(row.heroCtaText),
+        heroCtaLink: clean(row.heroCtaLink),
+        announcementText: clean(row.announcementText),
+        announcementLink: clean(row.announcementLink),
+      };
+    } catch (error) {
+      console.error('Could not load homepage configuration; using defaults.', error);
+      return DEFAULT_HOMEPAGE_CONFIG;
+    }
+  },
+  ['global-homepage-config'],
+  { revalidate: 86400, tags: [HOMEPAGE_CONFIG_CACHE_TAG] }
+);
+
 export const getHomepageConfig = cache(async (): Promise<HomepageConfig> => {
-  try {
-    const row = await prisma.homepageConfig.findUnique({
-      where: { id: HOMEPAGE_CONFIG_ID },
-    });
-
-    if (!row) return DEFAULT_HOMEPAGE_CONFIG;
-
-    return {
-      heroHeading: clean(row.heroHeading) ?? DEFAULT_HOMEPAGE_CONFIG.heroHeading,
-      heroSubheading: clean(row.heroSubheading),
-      heroCtaText: clean(row.heroCtaText),
-      heroCtaLink: clean(row.heroCtaLink),
-      announcementText: clean(row.announcementText),
-      announcementLink: clean(row.announcementLink),
-    };
-  } catch (error) {
-    console.error('Could not load homepage configuration; using defaults.', error);
-    return DEFAULT_HOMEPAGE_CONFIG;
-  }
+  return fetchHomepageConfig();
 });
 
 /** Strip spaces so a display phone number works in a `tel:` link. */

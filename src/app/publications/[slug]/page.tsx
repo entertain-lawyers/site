@@ -5,12 +5,17 @@ import { BookOpen, FileText } from 'lucide-react';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
 import { sanitizeHtml } from '@/lib/sanitize';
 import { Metadata } from 'next';
+import { cache } from 'react';
+
+const getCachedPublication = cache(async (slug: string) => {
+  return prisma.publication.findUnique({
+    where: { slug },
+  });
+});
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const pub = await prisma.publication.findUnique({
-    where: { slug },
-  });
+  const pub = await getCachedPublication(slug);
 
   if (!pub || pub.status !== 'PUBLISHED') notFound();
 
@@ -23,9 +28,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function PublicationDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const pub = await prisma.publication.findUnique({
-    where: { slug },
-  });
+  const pub = await getCachedPublication(slug);
 
   if (!pub || pub.status !== 'PUBLISHED') {
     notFound();

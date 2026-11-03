@@ -2,12 +2,20 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { CheckCircle2, ExternalLink } from 'lucide-react';
 import { ResourceType, ContentStatus } from '@prisma/client';
 import { createResourceAction, deleteResourceAction, updateResourceAction } from '@/modules/admin/admin-resource.actions';
 import { editorHtmlToArticleHtml } from '@/lib/editor-html';
 import { confirmDocumentUpload, initiateDocumentUpload } from '@/modules/admin/admin-document.actions';
-import RichTextEditor from '@/components/editor/RichTextEditor';
+import dynamic from 'next/dynamic';
+
+const RichTextEditor = dynamic(() => import('@/components/editor/RichTextEditor'), {
+  loading: () => <div className="h-64 w-full rounded-2xl bg-slate-100 dark:bg-zinc-900 border border-border animate-pulse" />
+});
 import AuthorSelect from '@/components/admin/AuthorSelect';
+import FeaturedImagePanel from '@/components/admin/FeaturedImagePanel';
+import type { FeaturedImageSelection } from '@/lib/wordpress-media';
 import type { AuthorOption } from '@/lib/content-authors';
 import { writePostPreviewDraft } from '@/lib/post-preview';
 import { htmlToText } from '@/lib/html';
@@ -38,6 +46,8 @@ export type EditableResource = {
   status: ContentStatus;
   authorId: string | null;
   hasDocument: boolean;
+  featuredImage?: string | null;
+  featuredImageId?: number | null;
 };
 
 import { getInitialResourceAuthorId, getSubmittedResourceAuthorId } from './resource-form-author';
@@ -52,6 +62,8 @@ export function AdminResourceForm({
   authorMappingAvailable = true,
   defaultAuthorId = '',
   resource,
+  initialType,
+  uploadBlockedReason = null,
 }: {
   semesters: SemesterOption[];
   subjects: SubjectOption[];
@@ -61,6 +73,8 @@ export function AdminResourceForm({
   authorMappingAvailable?: boolean;
   defaultAuthorId?: string;
   resource?: EditableResource;
+  initialType?: ResourceType;
+  uploadBlockedReason?: string | null;
 }) {
   const router = useRouter();
   const isEdit = Boolean(resource);
@@ -73,14 +87,14 @@ export function AdminResourceForm({
     ? RESOURCE_TYPES
     : RESOURCE_TYPES.filter((type) => type.value !== ResourceType.LAW_NOTE && type.value !== ResourceType.CASE_LAW);
 
-  // Editing an existing resource loads its values; creating starts blank.
-  const initialType = resource?.type ?? availableTypes[0].value;
+  // Editing an existing resource loads its values; creating starts blank or with initialType.
+  const initialTypeState = initialType ?? resource?.type ?? availableTypes[0].value;
   const [title, setTitle] = useState(resource?.title ?? '');
   const [description] = useState(resource?.description ?? '');
   const [semesterId, setSemesterId] = useState(resource?.semesterId ?? '');
   const [subjectId, setSubjectId] = useState(resource?.subjectId ?? '');
   // Editors cannot create law notes/case laws, so start on a type they can use.
-  const [resourceType, setResourceType] = useState<ResourceType>(initialType);
+  const [resourceType, setResourceType] = useState<ResourceType>(initialTypeState);
   const [unitId, setUnitId] = useState(resource?.unitId ?? '');
   const [isPremium, setIsPremium] = useState(resource?.isPremium ?? false);
   const [priceAmount, setPriceAmount] = useState(
@@ -95,10 +109,25 @@ export function AdminResourceForm({
     })
   );
 
+  const [featuredImage, setFeaturedImage] = useState<FeaturedImageSelection | null>(() => {
+    if (!resource?.featuredImage) return null;
+    return {
+      id: resource.featuredImageId ?? 0,
+      lang: 'en',
+      url: resource.featuredImage,
+      thumbnailUrl: resource.featuredImage,
+      title: resource.title || 'Featured Image',
+    };
+  });
+
+  const [savedResource, setSavedResource] = useState<{ id: string; status: ContentStatus; url: string } | null>(null);
+
   // Mode selection: 'PDF' or 'NOTE'. An existing PDF keeps its document, and a
-  // resource without a PDF is edited as a written note.
+  // resource without a PDF is edited as a written note. Case laws default to NOTE.
   const [uploadMode, setUploadMode] = useState<'PDF' | 'NOTE'>(
-    resource ? (resource.hasDocument ? 'PDF' : 'NOTE') : 'PDF'
+    resource
+      ? resource.hasDocument ? 'PDF' : 'NOTE'
+      : initialTypeState === ResourceType.CASE_LAW ? 'NOTE' : 'PDF'
   );
 
   const [file, setFile] = useState<File | null>(null);
@@ -118,12 +147,24 @@ export function AdminResourceForm({
 
   // Preview the note exactly through the shared /preview route the posts
   // editor uses — same reading template, live updates, no server round-trip.
+  const selectedAuthor = authors.find((a) => a.id === authorUserId);
   const handlePreview = () => {
     writePostPreviewDraft({
       title: title || 'Untitled Resource',
       content: editorHtmlToArticleHtml(content),
       type: RESOURCE_TYPES.find((t) => t.value === resourceType)?.label || 'Resource',
-      editorUrl: '/admin/study/resources/new',
+      featuredImage: featuredImage?.url ?? null,
+      author: selectedAuthor
+        ? {
+            name: selectedAuthor.name,
+            email: selectedAuthor.email,
+            image: selectedAuthor.image,
+            bio: selectedAuthor.bio,
+            website: selectedAuthor.website,
+            role: selectedAuthor.role,
+          }
+        : null,
+      editorUrl: isEdit && resource ? `/admin/study/resources/${resource.id}/edit` : '/admin/study/resources/new',
     });
     window.open('/preview', 'el-resource-preview')?.focus();
   };
@@ -157,6 +198,7 @@ export function AdminResourceForm({
     setLoading(true);
     setSavingAs(status);
     setError('');
+    setSavedResource(null);
 
     // Track the created row so a failed PDF upload can remove it instead of
     // leaving an orphan that a retry would duplicate.
@@ -181,13 +223,21 @@ export function AdminResourceForm({
           content: uploadMode === 'NOTE' ? editorHtmlToArticleHtml(content) : undefined,
           status: status as ContentStatus,
           authorUserId: submittedAuthorUserId,
+          featuredImage: featuredImage?.url ?? null,
+          featuredImageId: featuredImage?.id ?? null,
         });
 
         if (!updateRes.success) {
           throw new Error(updateRes.error || 'Failed to update resource');
         }
 
-        router.push('/admin/study/resources');
+        setSavedResource({
+          id: resource.id,
+          status: status as ContentStatus,
+          url: `/resources/${resource.id}`,
+        });
+        setLoading(false);
+        setSavingAs(null);
         router.refresh();
         return;
       }
@@ -206,6 +256,8 @@ export function AdminResourceForm({
         content: uploadMode === 'NOTE' ? editorHtmlToArticleHtml(content) : undefined,
         status,
         authorUserId: submittedAuthorUserId,
+        featuredImage: featuredImage?.url ?? null,
+        featuredImageId: featuredImage?.id ?? null,
       });
 
       if (!createRes.success) {
@@ -264,7 +316,14 @@ export function AdminResourceForm({
 
       // Success
       createdResourceId = null;
-      router.push('/admin/study/resources');
+      setSavedResource({
+        id: resourceId,
+        status: status as ContentStatus,
+        url: `/resources/${resourceId}`,
+      });
+      window.history.replaceState(null, '', `/admin/study/resources/${resourceId}/edit`);
+      setLoading(false);
+      setSavingAs(null);
       router.refresh();
     } catch (err) {
       // If the resource row was created but the upload/confirm step failed,
@@ -287,6 +346,46 @@ export function AdminResourceForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-8 max-w-5xl">
       <AnimatePresence initial={false}>
+      {savedResource && (
+        <Appear key="saved-success">
+          <div className="p-5 bg-green-50 text-green-900 rounded-2xl border border-green-200 dark:bg-green-950/40 dark:border-green-900/60 dark:text-green-200 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400 shrink-0" />
+              <div>
+                <p className="font-bold text-navy dark:text-white text-base">
+                  {savedResource.status === 'PUBLISHED'
+                    ? `${resourceType === ResourceType.CASE_LAW ? 'Case Law' : 'Resource'} published successfully!`
+                    : `${resourceType === ResourceType.CASE_LAW ? 'Case Law' : 'Resource'} saved as draft!`}
+                </p>
+                <p className="text-sm text-text-secondary dark:text-zinc-300">
+                  {savedResource.status === 'PUBLISHED'
+                    ? 'Your resource is now live on the website.'
+                    : 'Your draft has been saved. You can continue editing or return to the list.'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              {savedResource.status === 'PUBLISHED' && (
+                <a
+                  href={savedResource.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold bg-accent text-white hover:bg-accent/90 transition-colors shadow-sm"
+                >
+                  <span>View {resourceType === ResourceType.CASE_LAW ? 'Case Law' : 'Resource'}</span>
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              )}
+              <Link
+                href={resourceType === ResourceType.CASE_LAW ? '/admin/study/resources?type=CASE_LAW' : '/admin/study/resources'}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-800 text-navy dark:text-white hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors"
+              >
+                Back to List
+              </Link>
+            </div>
+          </div>
+        </Appear>
+      )}
       {error && (
         <Appear key="error">
         <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg font-medium">
@@ -457,6 +556,20 @@ export function AdminResourceForm({
             />
           </div>
         )}
+      </div>
+
+      {/* Featured Image */}
+      <div className="pt-6 border-t border-black/10 dark:border-white/10">
+        <label className="block text-sm font-bold text-navy dark:text-white mb-2">Featured Image</label>
+        <p className="text-xs text-text-secondary mb-4">
+          Upload or select an image from the media library to display on public listings and the resource header.
+        </p>
+        <FeaturedImagePanel
+          lang="en"
+          value={featuredImage}
+          onChange={setFeaturedImage}
+          uploadBlockedReason={uploadBlockedReason ?? null}
+        />
       </div>
 
       {uploadMode === 'PDF' ? (

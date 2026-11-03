@@ -4,12 +4,16 @@ import { createSafeAction, parseOrThrow } from '@/lib/safe-action';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { isUniqueConstraintError } from '@/lib/prisma-errors';
 import {
   HOMEPAGE_CONFIG_ID,
   SITE_SETTINGS_ID,
 } from '@/lib/site-settings';
+import {
+  SITE_SETTINGS_CACHE_TAG,
+  HOMEPAGE_CONFIG_CACHE_TAG,
+} from '@/lib/cache-tags';
 import {
   normalizePath,
   redirectIdSchema,
@@ -94,6 +98,7 @@ export const updateSiteSettingsAction = createSafeAction(
     });
 
     // Refresh the public shell (footer, contact page, JSON-LD) and the form.
+    revalidateTag(SITE_SETTINGS_CACHE_TAG, { expire: 0 });
     revalidatePath('/', 'layout');
     revalidatePath('/contact');
     revalidatePath('/admin/settings');
@@ -133,6 +138,7 @@ export const updateHomepageConfigAction = createSafeAction(
       },
     });
 
+    revalidateTag(HOMEPAGE_CONFIG_CACHE_TAG, { expire: 0 });
     revalidatePath('/', 'layout');
     revalidatePath('/admin/homepage');
 

@@ -1,5 +1,6 @@
 import { getWordPressPosts } from '@/lib/wordpress';
 import Link from 'next/link';
+import Image from 'next/image';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
 import type { Metadata } from 'next';
 import { Reveal } from '@/components/motion/primitives';
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
 export const revalidate = 60;
 
 export default async function HistoricalFactsSubPage() {
-  const wpRes = await getWordPressPosts({ categories: [78], status: 'publish', lang: 'en', perPage: 20, embed: true });
+  const wpRes = await getWordPressPosts({ categories: [78], status: 'publish', lang: 'en', perPage: 20, embed: true, fields: 'id,date,title,content,_links,_embedded' });
   const posts = wpRes.data.map(p => ({
     id: String(p.id),
     title: p.title.rendered,

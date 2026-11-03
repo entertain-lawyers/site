@@ -15,6 +15,7 @@ import {
   mapTypeToCategory,
 } from '@/lib/wordpress';
 import { resolveLocalAuthor, type AuthorOption } from '@/lib/content-authors';
+import { getPublicPostUrl } from '@/lib/post-url';
 
 /**
  * Turn a failed WordPress write into a message that says what to fix. A
@@ -259,7 +260,13 @@ export const createPostAction = createSafeAction(async (rawArgs: z.infer<typeof 
     }
 
     revalidatePath('/admin/posts');
-    return { id: String(wpPost.id) };
+    const postUrl = getPublicPostUrl({ id: wpPost.id, type: args.type, lang });
+    return {
+      id: String(wpPost.id),
+      status: wpPost.status,
+      url: postUrl,
+      success: true,
+    };
   } catch (error: unknown) {
     throw toWordPressWriteError(error, lang);
   }
@@ -304,6 +311,41 @@ export const updatePostAction = createSafeAction(async (rawArgs: z.infer<typeof 
     }, lang);
 
     try {
+      let auditAuthorData: { authorUserId?: string; authorName?: string; wpAuthorId?: number } | undefined = undefined;
+      if (assignedAuthor) {
+        auditAuthorData = {
+          authorUserId: assignedAuthor.author.id,
+          authorName: assignedAuthor.author.name,
+          wpAuthorId: assignedAuthor.wpAuthorId,
+        };
+      } else {
+        try {
+          const priorLogs = await prisma.auditLog.findMany({
+            where: {
+              entityType: 'POST_WP',
+              entityId: String(wpPost.id),
+              action: { in: ['CREATE', 'UPDATE'] },
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 10,
+            select: { details: true },
+          });
+          for (const log of priorLogs) {
+            const d = log.details as { authorUserId?: string; authorName?: string; wpAuthorId?: number } | null;
+            if (d && (d.authorUserId || d.authorName)) {
+              auditAuthorData = {
+                ...(d.authorUserId ? { authorUserId: d.authorUserId } : {}),
+                ...(d.authorName ? { authorName: d.authorName } : {}),
+                ...(d.wpAuthorId ? { wpAuthorId: d.wpAuthorId } : {}),
+              };
+              break;
+            }
+          }
+        } catch (priorErr) {
+          console.warn('[updatePostAction] error preserving prior author in audit log:', priorErr);
+        }
+      }
+
       await prisma.auditLog.create({
         data: {
           userId: session.userId!,
@@ -315,13 +357,7 @@ export const updatePostAction = createSafeAction(async (rawArgs: z.infer<typeof 
             type: args.type,
             wpLang: lang,
             ...(args.featuredMediaId !== undefined ? { featuredMediaId: args.featuredMediaId } : {}),
-            ...(assignedAuthor
-              ? {
-                  authorUserId: assignedAuthor.author.id,
-                  authorName: assignedAuthor.author.name,
-                  wpAuthorId: assignedAuthor.wpAuthorId,
-                }
-              : {}),
+            ...(auditAuthorData ?? {}),
           }
         }
       });
@@ -330,7 +366,13 @@ export const updatePostAction = createSafeAction(async (rawArgs: z.infer<typeof 
     }
 
     revalidatePath('/admin/posts');
-    return { success: true };
+    const postUrl = getPublicPostUrl({ id: wpPost.id, type: args.type, lang });
+    return {
+      id: String(wpPost.id),
+      status: wpPost.status,
+      url: postUrl,
+      success: true,
+    };
   } catch (error: unknown) {
     throw toWordPressWriteError(error, lang);
   }

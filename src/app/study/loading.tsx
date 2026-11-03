@@ -1,4 +1,4 @@
-import { Library, Scale } from 'lucide-react';
+
 
 export default function StudyLoading() {
   return (

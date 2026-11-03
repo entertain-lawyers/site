@@ -6,8 +6,22 @@ import { prisma } from '@/lib/prisma';
 import { ContentStatus, Role, ResourceType } from '@prisma/client';
 import { isRecordInUseError, isRecordNotFoundError, isSpecificMissingColumnError } from '@/lib/prisma-errors';
 import { deleteObject } from '@/lib/b2';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { resolveLocalAuthor } from '@/lib/content-authors';
+import { RESOURCES_CACHE_TAG } from '@/lib/cache-tags';
+
+function revalidateResourceCache(id?: string) {
+  try {
+    revalidateTag(RESOURCES_CACHE_TAG, { expire: 0 });
+  } catch {}
+  revalidatePath('/resources');
+  revalidatePath('/study');
+  revalidatePath('/admin/study/resources');
+  if (id) {
+    revalidatePath(`/resources/${id}`);
+    revalidatePath(`/read/${id}`);
+  }
+}
 
 /**
  * Explicit minimal select fields required after creating or updating a resource.
@@ -33,6 +47,8 @@ const createResourceSchema = z.object({
   unitId: z.string().min(1).optional(),
   // Local user credited as the author; defaults to the signed-in creator.
   authorUserId: z.string().min(1).optional(),
+  featuredImage: z.string().nullable().optional(),
+  featuredImageId: z.coerce.number().int().nullable().optional(),
   // Drafts are hidden from students until published from the resources list.
   status: z.enum([ContentStatus.DRAFT, ContentStatus.PUBLISHED]).default(ContentStatus.PUBLISHED),
 }).refine(data => {
@@ -43,6 +59,18 @@ const createResourceSchema = z.object({
 }, {
   message: "Old Questions require a semester, other resources require a subject",
 });
+
+function normalizeFeaturedImageInputs(
+  featuredImage?: string | null,
+  featuredImageId?: number | null
+): { featuredImage: string | null; featuredImageId: number | null } {
+  if (featuredImage === null || featuredImageId === 0 || (typeof featuredImage === 'string' && !featuredImage.trim())) {
+    return { featuredImage: null, featuredImageId: null };
+  }
+  const url = featuredImage?.trim() || null;
+  const id = url && typeof featuredImageId === 'number' && featuredImageId > 0 ? featuredImageId : null;
+  return { featuredImage: url, featuredImageId: id };
+}
 
 export const createResourceAction = createSafeAction(async (args: z.input<typeof createResourceSchema>, session) => {
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) {
@@ -79,6 +107,10 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
   }
   await resolveLocalAuthor(authorId);
 
+  const { featuredImage: normalizedFeaturedImage, featuredImageId: normalizedFeaturedImageId } =
+    normalizeFeaturedImageInputs(input.featuredImage, input.featuredImageId);
+  const hasSubmittedFeaturedImage = Boolean(normalizedFeaturedImage || normalizedFeaturedImageId);
+
   const resourceId = await prisma.$transaction(async (tx) => {
     let resource;
     try {
@@ -97,39 +129,107 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
           status: input.status,
           authorId,
           createdById: session.userId ?? null,
+          featuredImage: normalizedFeaturedImage,
+          featuredImageId: normalizedFeaturedImageId,
         },
         select: RESOURCE_MUTATION_SELECT,
       });
     } catch (createError) {
-      if (!isSpecificMissingColumnError(createError, ['authorId', 'createdById'])) {
+      if (!isSpecificMissingColumnError(createError, ['authorId', 'createdById', 'featuredImage', 'featuredImageId'])) {
         console.error('[admin-resource] create resource database error:', createError);
         throw createError;
       }
 
+      // If featured image columns are missing and user submitted a featured image, never silently discard it!
+      if (hasSubmittedFeaturedImage && isSpecificMissingColumnError(createError, ['featuredImage', 'featuredImageId'])) {
+        throw new UserFacingError(
+          'Featured image saving failed because database migration 20261103000000 has not been applied yet. Run database migrations before setting a featured image.'
+        );
+      }
+
       // If the administrator explicitly selected an author, never silently discard it!
-      if (isExplicitAuthorSelection) {
+      if (isExplicitAuthorSelection && isSpecificMissingColumnError(createError, ['authorId', 'createdById'])) {
         throw new UserFacingError(
           'Author assignment failed because database migration 20261101000000 has not been applied yet. Run database migrations before assigning an author, or leave author unassigned.'
         );
       }
 
-      console.warn('[admin-resource] create with authorId/createdById failed (migration pending), retrying base fields:', createError);
-      resource = await tx.resource.create({
-        data: {
-          title: input.title,
-          content: input.content?.trim() || null,
-          metaDesc: input.description?.trim() || null,
-          subjectId: input.subjectId || null,
-          semesterId: input.semesterId || null,
-          isPremium,
-          priceAmount,
-          currency,
-          type: resourceType,
-          unitId: input.unitId || null,
-          status: input.status,
-        },
-        select: RESOURCE_MUTATION_SELECT,
-      });
+      // If createError was specifically missing authorId/createdById, retry preserving any submitted featured image
+      if (isSpecificMissingColumnError(createError, ['authorId', 'createdById'])) {
+        console.warn('[admin-resource] create with authorId/createdById failed (migration pending), retrying preserving other fields:', createError);
+        try {
+          resource = await tx.resource.create({
+            data: {
+              title: input.title,
+              content: input.content?.trim() || null,
+              metaDesc: input.description?.trim() || null,
+              subjectId: input.subjectId || null,
+              semesterId: input.semesterId || null,
+              isPremium,
+              priceAmount,
+              currency,
+              type: resourceType,
+              unitId: input.unitId || null,
+              status: input.status,
+              ...(hasSubmittedFeaturedImage
+                ? {
+                    featuredImage: normalizedFeaturedImage,
+                    featuredImageId: normalizedFeaturedImageId,
+                  }
+                : {}),
+            },
+            select: RESOURCE_MUTATION_SELECT,
+          });
+        } catch (retryError) {
+          if (hasSubmittedFeaturedImage && isSpecificMissingColumnError(retryError, ['featuredImage', 'featuredImageId'])) {
+            throw new UserFacingError(
+              'Featured image saving failed because database migration 20261103000000 has not been applied yet. Run database migrations before setting a featured image.'
+            );
+          }
+          if (!isSpecificMissingColumnError(retryError, ['authorId', 'createdById', 'featuredImage', 'featuredImageId'])) {
+            throw retryError;
+          }
+          if (hasSubmittedFeaturedImage) {
+            throw retryError;
+          }
+          resource = await tx.resource.create({
+            data: {
+              title: input.title,
+              content: input.content?.trim() || null,
+              metaDesc: input.description?.trim() || null,
+              subjectId: input.subjectId || null,
+              semesterId: input.semesterId || null,
+              isPremium,
+              priceAmount,
+              currency,
+              type: resourceType,
+              unitId: input.unitId || null,
+              status: input.status,
+            },
+            select: RESOURCE_MUTATION_SELECT,
+          });
+        }
+      } else {
+        // Missing featuredImage/featuredImageId, but no featured image was submitted
+        resource = await tx.resource.create({
+          data: {
+            title: input.title,
+            content: input.content?.trim() || null,
+            metaDesc: input.description?.trim() || null,
+            subjectId: input.subjectId || null,
+            semesterId: input.semesterId || null,
+            isPremium,
+            priceAmount,
+            currency,
+            type: resourceType,
+            unitId: input.unitId || null,
+            status: input.status,
+            authorId,
+            createdById: session.userId ?? null,
+          },
+          select: RESOURCE_MUTATION_SELECT,
+        });
+      }
     }
 
     if (session.userId) {
@@ -139,7 +239,13 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
           action: 'CREATE',
           entityType: 'RESOURCE',
           entityId: resource.id,
-          details: { title: resource.title, type: resource.type, status: resource.status, authorUserId: authorId }
+          details: {
+            title: resource.title,
+            type: resource.type,
+            status: resource.status,
+            authorUserId: authorId,
+            ...(input.featuredImage ? { featuredImage: input.featuredImage } : {}),
+          }
         }
       });
     }
@@ -147,8 +253,8 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
     return resource.id;
   });
 
-  revalidatePath('/admin/study/resources');
-  return { resourceId };
+  revalidateResourceCache(resourceId);
+  return { resourceId, url: `/resources/${resourceId}` };
 });
 
 const deleteResourceSchema = z.object({
@@ -269,9 +375,7 @@ export const deleteResourceAction = createSafeAction(async (args: z.infer<typeof
     }
   }
 
-  revalidatePath('/admin/study/resources');
-  revalidatePath('/resources');
-  revalidatePath('/study');
+  revalidateResourceCache(id);
 
   return { success: true, filesRemoved, filesFailed };
 });
@@ -319,9 +423,7 @@ export const setResourceArchivedAction = createSafeAction(async (args: z.infer<t
     });
   }
 
-  revalidatePath('/admin/study/resources');
-  revalidatePath('/resources');
-  revalidatePath('/study');
+  revalidateResourceCache(id);
   return { status: resource.status };
 });
 
@@ -374,9 +476,7 @@ export const setResourcePublishedAction = createSafeAction(async (args: z.infer<
     });
   }
 
-  revalidatePath('/admin/study/resources');
-  revalidatePath('/resources');
-  revalidatePath('/study');
+  revalidateResourceCache(id);
   return { status: resource.status };
 });
 
@@ -394,6 +494,8 @@ const updateResourceSchema = z.object({
   status: z.nativeEnum(ContentStatus),
   // Omitted leaves the current author unchanged (older callers, bulk edits).
   authorUserId: z.string().min(1).optional(),
+  featuredImage: z.string().nullable().optional(),
+  featuredImageId: z.coerce.number().int().nullable().optional(),
 }).refine(data => {
   if (data.type === ResourceType.OLD_QUESTION) {
     return !!data.semesterId;
@@ -427,6 +529,11 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
     await resolveLocalAuthor(input.authorUserId);
   }
 
+  const hasExplicitFeaturedImageInput = input.featuredImage !== undefined || input.featuredImageId !== undefined;
+  const { featuredImage: normalizedFeaturedImage, featuredImageId: normalizedFeaturedImageId } =
+    normalizeFeaturedImageInputs(input.featuredImage, input.featuredImageId);
+  const hasSubmittedFeaturedImage = Boolean(normalizedFeaturedImage || normalizedFeaturedImageId);
+
   await prisma.$transaction(async (tx) => {
     let resource;
     try {
@@ -445,40 +552,113 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
           unitId: input.unitId || null,
           status: input.status,
           ...(input.authorUserId ? { authorId: input.authorUserId } : {}),
+          ...(hasExplicitFeaturedImageInput
+            ? {
+                featuredImage: normalizedFeaturedImage,
+                featuredImageId: normalizedFeaturedImageId,
+              }
+            : {}),
         },
         select: RESOURCE_MUTATION_SELECT,
       });
     } catch (updateError) {
-      if (!isSpecificMissingColumnError(updateError, ['authorId', 'createdById'])) {
+      if (!isSpecificMissingColumnError(updateError, ['authorId', 'createdById', 'featuredImage', 'featuredImageId'])) {
         console.error('[admin-resource] update resource database error:', updateError);
         throw updateError;
       }
 
+      // If featured image columns are missing and user submitted a featured image, never silently discard it!
+      if (hasSubmittedFeaturedImage && isSpecificMissingColumnError(updateError, ['featuredImage', 'featuredImageId'])) {
+        throw new UserFacingError(
+          'Featured image saving failed because database migration 20261103000000 has not been applied yet. Run database migrations before setting a featured image.'
+        );
+      }
+
       // If the administrator explicitly selected an author, never silently discard it!
-      if (input.authorUserId) {
+      if (input.authorUserId && isSpecificMissingColumnError(updateError, ['authorId', 'createdById'])) {
         throw new UserFacingError(
           'Author assignment failed because database migration 20261101000000 has not been applied yet. Run database migrations before assigning an author.'
         );
       }
 
-      console.warn('[admin-resource] update with authorId failed (migration pending), retrying base fields:', updateError);
-      resource = await tx.resource.update({
-        where: { id: input.id },
-        data: {
-          title: input.title,
-          content: input.content?.trim() || null,
-          metaDesc: input.description?.trim() || null,
-          subjectId: input.subjectId || null,
-          semesterId: input.semesterId || null,
-          isPremium,
-          priceAmount,
-          currency,
-          type: input.type,
-          unitId: input.unitId || null,
-          status: input.status,
-        },
-        select: RESOURCE_MUTATION_SELECT,
-      });
+      // If updateError was specifically missing authorId/createdById, retry preserving any submitted featured image
+      if (isSpecificMissingColumnError(updateError, ['authorId', 'createdById'])) {
+        console.warn('[admin-resource] update with authorId failed (migration pending), retrying preserving other fields:', updateError);
+        try {
+          resource = await tx.resource.update({
+            where: { id: input.id },
+            data: {
+              title: input.title,
+              content: input.content?.trim() || null,
+              metaDesc: input.description?.trim() || null,
+              subjectId: input.subjectId || null,
+              semesterId: input.semesterId || null,
+              isPremium,
+              priceAmount,
+              currency,
+              type: input.type,
+              unitId: input.unitId || null,
+              status: input.status,
+              ...(hasExplicitFeaturedImageInput
+                ? {
+                    featuredImage: normalizedFeaturedImage,
+                    featuredImageId: normalizedFeaturedImageId,
+                  }
+                : {}),
+            },
+            select: RESOURCE_MUTATION_SELECT,
+          });
+        } catch (retryError) {
+          if (hasSubmittedFeaturedImage && isSpecificMissingColumnError(retryError, ['featuredImage', 'featuredImageId'])) {
+            throw new UserFacingError(
+              'Featured image saving failed because database migration 20261103000000 has not been applied yet. Run database migrations before setting a featured image.'
+            );
+          }
+          if (!isSpecificMissingColumnError(retryError, ['authorId', 'createdById', 'featuredImage', 'featuredImageId'])) {
+            throw retryError;
+          }
+          if (hasSubmittedFeaturedImage) {
+            throw retryError;
+          }
+          resource = await tx.resource.update({
+            where: { id: input.id },
+            data: {
+              title: input.title,
+              content: input.content?.trim() || null,
+              metaDesc: input.description?.trim() || null,
+              subjectId: input.subjectId || null,
+              semesterId: input.semesterId || null,
+              isPremium,
+              priceAmount,
+              currency,
+              type: input.type,
+              unitId: input.unitId || null,
+              status: input.status,
+            },
+            select: RESOURCE_MUTATION_SELECT,
+          });
+        }
+      } else {
+        // Missing featuredImage/featuredImageId, but no featured image was submitted
+        resource = await tx.resource.update({
+          where: { id: input.id },
+          data: {
+            title: input.title,
+            content: input.content?.trim() || null,
+            metaDesc: input.description?.trim() || null,
+            subjectId: input.subjectId || null,
+            semesterId: input.semesterId || null,
+            isPremium,
+            priceAmount,
+            currency,
+            type: input.type,
+            unitId: input.unitId || null,
+            status: input.status,
+            ...(input.authorUserId ? { authorId: input.authorUserId } : {}),
+          },
+          select: RESOURCE_MUTATION_SELECT,
+        });
+      }
     }
 
     if (session.userId) {
@@ -493,11 +673,13 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
             type: resource.type,
             status: resource.status,
             ...(input.authorUserId ? { authorUserId: input.authorUserId } : {}),
+            ...(input.featuredImage !== undefined ? { featuredImage: input.featuredImage } : {}),
           }
         }
       });
     }
   });
 
-  return { success: true };
+  revalidateResourceCache(input.id);
+  return { success: true, url: `/resources/${input.id}` };
 });

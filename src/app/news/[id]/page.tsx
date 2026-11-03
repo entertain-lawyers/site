@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import PostDetail from '@/components/posts/PostDetail';
 import type { Metadata } from 'next';
 import { postMetadata } from '@/lib/seo';
+import { resolvePostAuthorForDisplay } from '@/lib/post-author';
 
 export const revalidate = 60;
 
@@ -38,13 +39,22 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ id:
     notFound();
   }
 
+  const resolvedAuthor = await resolvePostAuthorForDisplay({ wpPost, lang: 'en' });
+
   const post = {
     id: String(wpPost.id),
     title: wpPost.title.rendered,
     content: wpPost.content.rendered,
     type: 'NEWS' as const,
     createdAt: new Date(wpPost.date),
-    author: { email: `WP Author (${wpPost.author})`, name: (wpPost._embedded?.['author'] as Array<{ name?: string }> | undefined)?.[0]?.name },
+    author: {
+      email: resolvedAuthor.email || `WP Author (${wpPost.author})`,
+      name: resolvedAuthor.name,
+      image: resolvedAuthor.image,
+      bio: resolvedAuthor.bio,
+      website: resolvedAuthor.website,
+      role: resolvedAuthor.role,
+    },
     featuredImage: wpPost._embedded?.['wp:featuredmedia']?.[0]?.source_url || null
   };
 
@@ -54,7 +64,8 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ id:
       status: 'publish',
       lang: 'en',
       perPage: 5,
-      embed: true
+      embed: true,
+      fields: 'id,date,title,categories,_links,_embedded',
     }),
     getLatestPosts(wpId),
   ]);

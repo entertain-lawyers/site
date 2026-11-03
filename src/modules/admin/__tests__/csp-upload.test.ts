@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars */
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import nextConfig from '../../../../next.config';
 
@@ -75,14 +76,15 @@ describe('CSP Upload Policy & Storage Connection', () => {
     process.env.B2_ENDPOINT = 'not a valid url';
     headers = await (nextConfig as any).headers();
     cspHeader = headers[0].headers.find((h: any) => h.key === 'Content-Security-Policy')?.value;
-    expect(cspHeader).toContain("connect-src 'self';");
+    expect(cspHeader).toContain("connect-src 'self'");
+    expect(cspHeader).not.toContain('not a valid url');
   });
 
   it('extracts only the exact HTTPS origin even if path or query params are provided in B2_ENDPOINT', async () => {
     process.env.B2_ENDPOINT = 'https://s3.us-east-005.backblazeb2.com/bucket-name/folder?key=secret';
     const headers = await (nextConfig as any).headers();
     const cspHeader = headers[0].headers.find((h: any) => h.key === 'Content-Security-Policy')?.value;
-    expect(cspHeader).toContain("connect-src 'self' https://s3.us-east-005.backblazeb2.com;");
+    expect(cspHeader).toContain("connect-src 'self' https://s3.us-east-005.backblazeb2.com");
     expect(cspHeader).not.toContain('bucket-name');
     expect(cspHeader).not.toContain('secret');
   });

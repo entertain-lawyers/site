@@ -1,20 +1,29 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Mail, Phone, Globe, ArrowLeft, Award, BookOpen, Briefcase, Languages, Trophy } from 'lucide-react';
 import { Metadata } from 'next';
+import { cache } from 'react';
+
+const getCachedTeamMember = cache(async (slug: string) => {
+  try {
+    const member = await prisma.teamMember.findUnique({
+      where: { slug },
+    });
+    return { member, dbError: false };
+  } catch (error: any) {
+    if (error?.code === 'P2021') {
+      return { member: null, dbError: true };
+    }
+    throw error;
+  }
+});
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  let member = null;
-  try {
-    member = await prisma.teamMember.findUnique({
-      where: { slug },
-    });
-  } catch (error: any) {
-    if (error?.code !== 'P2021') throw error;
-  }
+  const { member } = await getCachedTeamMember(slug);
 
   if (!member || !member.isPublished) notFound();
 
@@ -71,20 +80,7 @@ const ListSection = ({ title, icon: Icon, content }: { title: string, icon: any,
 
 export default async function TeamProfilePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  let member = null;
-  let dbError = false;
-
-  try {
-    member = await prisma.teamMember.findUnique({
-      where: { slug },
-    });
-  } catch (error: any) {
-    if (error?.code === 'P2021') {
-      dbError = true;
-    } else {
-      throw error;
-    }
-  }
+  const { member, dbError } = await getCachedTeamMember(slug);
 
   if (dbError) {
     return (

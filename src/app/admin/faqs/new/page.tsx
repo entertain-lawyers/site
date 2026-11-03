@@ -1,8 +1,13 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createFAQAction } from '@/modules/admin/admin-faq.actions';
-import RichTextEditor from '@/components/editor/RichTextEditor';
+import dynamic from 'next/dynamic';
+
+const RichTextEditor = dynamic(() => import('@/components/editor/RichTextEditor'), {
+  loading: () => <div className="h-48 w-full rounded-2xl bg-slate-100 dark:bg-zinc-900 border border-border animate-pulse" />
+});
 import { editorHtmlToArticleHtml } from '@/lib/editor-html';
 import { MotionButton } from '@/components/motion/primitives';
 

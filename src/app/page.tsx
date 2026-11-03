@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { BookOpen, Landmark, Newspaper, Briefcase, Search, ScrollText, MessageSquare } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { getHomepageConfig } from '@/lib/site-settings';
 import { Press } from '@/components/motion/primitives';
@@ -18,6 +17,8 @@ export const metadata = {
   description: 'Comprehensive law notes, old questions, case laws, and study resources for BA.LLB and LLB students.',
   alternates: { canonical: '/' },
 };
+
+export const revalidate = 60;
 
 export default async function HomePage() {
   const config = await getHomepageConfig();
@@ -77,7 +78,7 @@ export default async function HomePage() {
           </p>
         ) : (
           <p className="max-w-2xl text-text-secondary text-fluid-base font-medium tracking-wide mt-1">
-            Nepal's premium platform for comprehensive <span className="text-accent font-bold">law notes</span>, <span className="text-accent font-bold">case laws</span>, and <span className="text-accent font-bold">study resources</span>.
+            Nepal&apos;s premium platform for comprehensive <span className="text-accent font-bold">law notes</span>, <span className="text-accent font-bold">case laws</span>, and <span className="text-accent font-bold">study resources</span>.
           </p>
         )}
         {showCta ? (

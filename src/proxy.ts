@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import NextAuth from "next-auth";
 import { authConfig } from "@/lib/auth.config";
@@ -14,7 +15,8 @@ type RedirectRule = { source: string; destination: string; statusCode: number };
  * page views do not hit the database. A new rule becomes visible within the
  * TTL (or immediately on a fresh server instance).
  */
-const REDIRECT_CACHE_TTL_MS = 10_000;
+const REDIRECT_CACHE_TTL_MS = 300_000;
+const REDIRECT_CACHE_FAILURE_TTL_MS = 30_000;
 let redirectCache: { rules: RedirectRule[]; expiresAt: number } | null = null;
 
 async function getActiveRedirects(): Promise<RedirectRule[]> {
@@ -31,38 +33,21 @@ async function getActiveRedirects(): Promise<RedirectRule[]> {
     return rules;
   } catch (error) {
     console.error("Could not load redirects in middleware.", error);
+    // Hold the empty result briefly so a database outage does not turn every
+    // page view into a failed middleware query. Only negative results are
+    // cached this way, so valid rules are never served stale.
+    redirectCache = { rules: [], expiresAt: Date.now() + REDIRECT_CACHE_FAILURE_TTL_MS };
     return [];
   }
 }
 
-export default auth(async (req) => {
+const authMiddleware = auth(async (req) => {
   const isLoggedIn = !!req.auth;
   const nextUrl = req.nextUrl;
-
-  const isAuthRoute = nextUrl.pathname.startsWith('/login') || nextUrl.pathname.startsWith('/register');
-  // Study listings (/study, /semesters) are public so visitors can browse
-  // titles. Opening the material itself needs an account: the secure reader
-  // is gated here, and /resources/[id] applies a type-aware check
-  // server-side (Law Notes, Case Laws and Old Questions).
   const isReader = nextUrl.pathname.startsWith('/read');
-  const isProtectedRoute =
-    nextUrl.pathname.startsWith('/dashboard') ||
-    nextUrl.pathname.startsWith('/admin') ||
-    isReader;
   const isAdminRoute = nextUrl.pathname.startsWith('/admin');
 
-  // The auth pages are never redirected from here. The proxy only checks that
-  // the session cookie is well-formed; pages also check the database
-  // (deleted user, demoted role, password changed elsewhere). Bouncing a
-  // "logged-in" cookie away from /login therefore looped forever for an
-  // invalidated session: page -> /login -> callback/dashboard -> page.
-  // The login page asks the database-backed session instead (see
-  // src/app/login/page.tsx).
-  if (isAuthRoute) {
-    return NextResponse.next();
-  }
-
-  if (isProtectedRoute && !isLoggedIn) {
+  if (!isLoggedIn) {
     let callbackUrl = nextUrl.pathname;
     if (nextUrl.search) {
       callbackUrl += nextUrl.search;
@@ -76,11 +61,36 @@ export default auth(async (req) => {
 
   // Middleware Role Gating (UX only - Server Actions enforce true security)
   if (isAdminRoute) {
-    const auth = req.auth as { user?: { role?: string } } | null;
-    const role = auth?.user?.role?.toUpperCase();
+    const authUser = req.auth as { user?: { role?: string } } | null;
+    const role = authUser?.user?.role?.toUpperCase();
     if (role !== "ADMIN" && role !== "EDITOR") {
       return NextResponse.redirect(new URL('/dashboard', nextUrl));
     }
+  }
+
+  return NextResponse.next();
+});
+
+export default async function proxy(req: any, event: any) {
+  const nextUrl = req.nextUrl;
+
+  const isAuthRoute = nextUrl.pathname.startsWith('/login') || nextUrl.pathname.startsWith('/register');
+  if (isAuthRoute) {
+    return NextResponse.next();
+  }
+
+  // Study listings (/study, /semesters) are public so visitors can browse
+  // titles. Opening the material itself needs an account: the secure reader
+  // is gated here, and /resources/[id] applies a type-aware check
+  // server-side (Law Notes, Case Laws and Old Questions).
+  const isReader = nextUrl.pathname.startsWith('/read');
+  const isProtectedRoute =
+    nextUrl.pathname.startsWith('/dashboard') ||
+    nextUrl.pathname.startsWith('/admin') ||
+    isReader;
+
+  if (isProtectedRoute) {
+    return (authMiddleware as any)(req, event);
   }
 
   // Admin-managed redirects for old or changed URLs. Exact status codes are
@@ -131,16 +141,16 @@ export default auth(async (req) => {
     if (currentLocale !== 'ne') {
       response.cookies.set('NEXT_LOCALE', 'ne', { path: '/', maxAge: 365 * 24 * 60 * 60, sameSite: 'lax' });
     }
-  } else if (nextUrl.pathname === '/') {
-    // Only force English on the absolute root path to avoid mixed content.
-    // Allow other routes like /contact to persist the language cookie.
-    if (currentLocale !== 'en') {
-      response.cookies.set('NEXT_LOCALE', 'en', { path: '/', maxAge: 365 * 24 * 60 * 60, sameSite: 'lax' });
-    }
+  } else if (currentLocale === 'ne') {
+    // If the visitor was previously browsing /nepali but has navigated to an English route
+    // (any non-/nepali path like /, /news, /blogs, /resources, etc.), reset the locale cookie to 'en'.
+    // Visitors who never set Nepali (the vast majority) receive NO Set-Cookie header,
+    // preserving Vercel edge CDN caching.
+    response.cookies.set('NEXT_LOCALE', 'en', { path: '/', maxAge: 365 * 24 * 60 * 60, sameSite: 'lax' });
   }
 
   return response;
-});
+}
 
 export const config = {
   matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],

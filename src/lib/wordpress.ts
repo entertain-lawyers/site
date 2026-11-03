@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { revalidateTag } from 'next/cache';
 
 /**
@@ -387,13 +388,15 @@ export async function getWordPressPosts(
   return result;
 }
 
+import { cache } from 'react';
+
 /**
  * GET single post by slug
  */
-export async function getWordPressPostBySlug(
+export const getWordPressPostBySlug = cache(async (
   slug: string,
   lang: WordPressLanguage = 'en'
-): Promise<WordPressPost | null> {
+): Promise<WordPressPost | null> => {
   const result = await fetchWordPress<WordPressPost>('/posts', { slug, lang, perPage: 1 });
   const post = result.data[0];
   if (!post) return null;
@@ -402,7 +405,7 @@ export async function getWordPressPostBySlug(
     title: { ...post.title, rendered: decodeHtmlEntities(post.title?.rendered) },
     excerpt: { ...post.excerpt, rendered: decodeHtmlEntities(post.excerpt?.rendered) },
   };
-}
+});
 
 /** WordPress answers these for ids that do not exist or are not public. */
 const MISSING_POST_STATUSES = new Set([401, 403, 404, 410]);
@@ -415,12 +418,15 @@ const MISSING_POST_STATUSES = new Set([401, 403, 404, 410]);
  * throws. Callers previously got `null` for outages too, so article pages
  * answered a WordPress outage with a 404, which replaced the cached page and
  * told crawlers the article was gone.
+ *
+ * Wrapped in React `cache` so metadata generation and page rendering share the
+ * exact same request rather than calling WordPress twice sequentially.
  */
-export async function getWordPressPostById(
+export const getWordPressPostById = cache(async (
   id: number,
   lang: WordPressLanguage = 'en',
   { authenticated = false }: { authenticated?: boolean } = {}
-): Promise<WordPressPost | null> {
+): Promise<WordPressPost | null> => {
   try {
     const result = await fetchWordPress<WordPressPost>(`/posts/${id}`, {
       lang,
@@ -442,7 +448,7 @@ export async function getWordPressPostById(
     }
     throw error;
   }
-}
+});
 
 /**
  * Users WordPress exposes as post authors (`who=authors`). The `roles` and
