@@ -7,3 +7,6 @@ export const SITE_SETTINGS_CACHE_TAG = 'site-settings';
 /** Cache tag for homepage editable configuration */
 export const HOMEPAGE_CONFIG_CACHE_TAG = 'homepage-config';
 
+/** Cache tag for public study resources */
+export const RESOURCES_CACHE_TAG = 'resources';
+

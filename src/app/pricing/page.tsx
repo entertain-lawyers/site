@@ -15,20 +15,19 @@ export async function generateMetadata() {
   };
 }
 
+const getCachedPlans = unstable_cache(
+  async () => {
+    return prisma.plan.findMany({
+      where: { isActive: true },
+      orderBy: { priceAmount: 'asc' }
+    });
+  },
+  ['pricing-plans'],
+  { revalidate: 3600 }
+);
+
 export default async function PricingPage() {
   const dict = await getDictionary();
-
-  const getCachedPlans = unstable_cache(
-    async () => {
-      return prisma.plan.findMany({
-        where: { isActive: true },
-        orderBy: { priceAmount: 'asc' }
-      });
-    },
-    ['pricing-plans'],
-    { revalidate: 3600 }
-  );
-
   const plans = await getCachedPlans();
 
   const features = [

@@ -8,7 +8,11 @@ import { ResourceType, ContentStatus } from '@prisma/client';
 import { createResourceAction, deleteResourceAction, updateResourceAction } from '@/modules/admin/admin-resource.actions';
 import { editorHtmlToArticleHtml } from '@/lib/editor-html';
 import { confirmDocumentUpload, initiateDocumentUpload } from '@/modules/admin/admin-document.actions';
-import RichTextEditor from '@/components/editor/RichTextEditor';
+import dynamic from 'next/dynamic';
+
+const RichTextEditor = dynamic(() => import('@/components/editor/RichTextEditor'), {
+  loading: () => <div className="h-64 w-full rounded-2xl bg-slate-100 dark:bg-zinc-900 border border-border animate-pulse" />
+});
 import AuthorSelect from '@/components/admin/AuthorSelect';
 import FeaturedImagePanel from '@/components/admin/FeaturedImagePanel';
 import type { FeaturedImageSelection } from '@/lib/wordpress-media';

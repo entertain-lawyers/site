@@ -10,8 +10,10 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { unstable_cache } from 'next/cache';
 import NextTopLoader from 'nextjs-toploader';
+import dynamic from 'next/dynamic';
 import PublicOnly from '@/components/layout/PublicOnly';
-import AskAI from '@/components/ai/AskAI';
+
+const AskAI = dynamic(() => import('@/components/ai/AskAI'));
 import { getSiteSettings } from '@/lib/site-settings';
 import AnalyticsTracker from '@/components/AnalyticsTracker';
 import { serializeJsonLd, getSiteUrl } from '@/lib/seo';

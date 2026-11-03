@@ -5,7 +5,11 @@ import { useRouter } from 'next/navigation';
 import { updatePostAction } from '@/modules/admin/admin-post.actions';
 import Link from 'next/link';
 import { Eye, CheckCircle2, ExternalLink } from 'lucide-react';
-import RichTextEditor from '@/components/editor/RichTextEditor';
+import dynamic from 'next/dynamic';
+
+const RichTextEditor = dynamic(() => import('@/components/editor/RichTextEditor'), {
+  loading: () => <div className="h-96 w-full rounded-2xl bg-slate-100 dark:bg-zinc-900 border border-border animate-pulse" />
+});
 import WordPressCredentialsNotice from '@/components/admin/WordPressCredentialsNotice';
 import FeaturedImagePanel from '@/components/admin/FeaturedImagePanel';
 import AuthorSelect from '@/components/admin/AuthorSelect';

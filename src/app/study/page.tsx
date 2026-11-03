@@ -52,6 +52,41 @@ type SearchParams = Promise<{
   q?: string;
 }>;
 
+const getCachedSemesters = unstable_cache(
+  async () => {
+    const allSemesters = await prisma.semester.findMany({
+      orderBy: { order: 'asc' },
+      select: { id: true, name: true, order: true },
+    });
+    // Filter out duplicate / legacy semester labels like "S1" and guarantee 1..10 chronological
+    return allSemesters
+      .filter((s) => s.name.toLowerCase().includes('semester'))
+      .sort((a, b) => a.order - b.order);
+  },
+  ['study-semesters-canonical'],
+  { revalidate: 3600, tags: ['semesters'] }
+);
+
+const getCachedSubjects = unstable_cache(
+  async (semesterId: string) => prisma.subject.findMany({
+    where: { semesterId },
+    orderBy: { order: 'asc' },
+    select: { id: true, name: true, order: true },
+  }),
+  ['study-subjects-ordered'],
+  { revalidate: 3600 }
+);
+
+const getCachedUnits = unstable_cache(
+  async (subjectId: string) => prisma.unit.findMany({
+    where: { subjectId },
+    orderBy: { order: 'asc' },
+    select: { id: true, name: true, title: true },
+  }),
+  ['study-units'],
+  { revalidate: 3600 }
+);
+
 export default async function StudyPage(props: { searchParams: SearchParams }) {
   const dict = await getDictionary();
   const searchParams = await props.searchParams;
@@ -73,41 +108,7 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
   // prices. Opening a Law Note, Case Law or Old Question is sign-in gated on
   // /resources/[id] and /read/[id], which is where the content lives.
 
-  // 1. Fetch reference data for selectors
-  const getCachedSemesters = unstable_cache(
-    async () => {
-      const allSemesters = await prisma.semester.findMany({
-        orderBy: { order: 'asc' },
-        select: { id: true, name: true, order: true },
-      });
-      // Filter out duplicate / legacy semester labels like "S1" and guarantee 1..10 chronological
-      return allSemesters
-        .filter((s) => s.name.toLowerCase().includes('semester'))
-        .sort((a, b) => a.order - b.order);
-    },
-    ['study-semesters-canonical'],
-    { revalidate: 3600 }
-  );
-
-  const getCachedSubjects = unstable_cache(
-    async (semesterId: string) => prisma.subject.findMany({
-      where: { semesterId },
-      orderBy: { order: 'asc' },
-      select: { id: true, name: true, order: true },
-    }),
-    ['study-subjects-ordered'],
-    { revalidate: 3600 }
-  );
-
-  const getCachedUnits = unstable_cache(
-    async (subjectId: string) => prisma.unit.findMany({
-      where: { subjectId },
-      orderBy: { order: 'asc' },
-      select: { id: true, name: true, title: true },
-    }),
-    ['study-units'],
-    { revalidate: 3600 }
-  );
+  // 1. Fetch reference data for selectors and resources in parallel
 
   // 2. Fetch in parallel
   const [semesters, rawSubjects, rawUnits, rawAllResources] = await Promise.all([

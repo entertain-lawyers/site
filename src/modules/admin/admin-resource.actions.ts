@@ -6,8 +6,22 @@ import { prisma } from '@/lib/prisma';
 import { ContentStatus, Role, ResourceType } from '@prisma/client';
 import { isRecordInUseError, isRecordNotFoundError, isSpecificMissingColumnError } from '@/lib/prisma-errors';
 import { deleteObject } from '@/lib/b2';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { resolveLocalAuthor } from '@/lib/content-authors';
+import { RESOURCES_CACHE_TAG } from '@/lib/cache-tags';
+
+function revalidateResourceCache(id?: string) {
+  try {
+    revalidateTag(RESOURCES_CACHE_TAG, { expire: 0 });
+  } catch {}
+  revalidatePath('/resources');
+  revalidatePath('/study');
+  revalidatePath('/admin/study/resources');
+  if (id) {
+    revalidatePath(`/resources/${id}`);
+    revalidatePath(`/read/${id}`);
+  }
+}
 
 /**
  * Explicit minimal select fields required after creating or updating a resource.
@@ -239,7 +253,7 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
     return resource.id;
   });
 
-  revalidatePath('/admin/study/resources');
+  revalidateResourceCache(resourceId);
   return { resourceId, url: `/resources/${resourceId}` };
 });
 
@@ -361,9 +375,7 @@ export const deleteResourceAction = createSafeAction(async (args: z.infer<typeof
     }
   }
 
-  revalidatePath('/admin/study/resources');
-  revalidatePath('/resources');
-  revalidatePath('/study');
+  revalidateResourceCache(id);
 
   return { success: true, filesRemoved, filesFailed };
 });
@@ -411,9 +423,7 @@ export const setResourceArchivedAction = createSafeAction(async (args: z.infer<t
     });
   }
 
-  revalidatePath('/admin/study/resources');
-  revalidatePath('/resources');
-  revalidatePath('/study');
+  revalidateResourceCache(id);
   return { status: resource.status };
 });
 
@@ -466,9 +476,7 @@ export const setResourcePublishedAction = createSafeAction(async (args: z.infer<
     });
   }
 
-  revalidatePath('/admin/study/resources');
-  revalidatePath('/resources');
-  revalidatePath('/study');
+  revalidateResourceCache(id);
   return { status: resource.status };
 });
 
@@ -672,5 +680,6 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
     }
   });
 
+  revalidateResourceCache(input.id);
   return { success: true, url: `/resources/${input.id}` };
 });

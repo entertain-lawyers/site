@@ -136,12 +136,12 @@ export default async function proxy(req: any, event: any) {
     if (currentLocale !== 'ne') {
       response.cookies.set('NEXT_LOCALE', 'ne', { path: '/', maxAge: 365 * 24 * 60 * 60, sameSite: 'lax' });
     }
-  } else if (nextUrl.pathname === '/') {
-    // Only force English on root path if user previously explicitly had Nepali set,
-    // avoiding setting Set-Cookie on all first-time visitors (which breaks edge caching).
-    if (currentLocale === 'ne') {
-      response.cookies.set('NEXT_LOCALE', 'en', { path: '/', maxAge: 365 * 24 * 60 * 60, sameSite: 'lax' });
-    }
+  } else if (currentLocale === 'ne') {
+    // If the visitor was previously browsing /nepali but has navigated to an English route
+    // (any non-/nepali path like /, /news, /blogs, /resources, etc.), reset the locale cookie to 'en'.
+    // Visitors who never set Nepali (the vast majority) receive NO Set-Cookie header,
+    // preserving Vercel edge CDN caching.
+    response.cookies.set('NEXT_LOCALE', 'en', { path: '/', maxAge: 365 * 24 * 60 * 60, sameSite: 'lax' });
   }
 
   return response;

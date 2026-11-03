@@ -3,6 +3,9 @@ import { prisma } from '@/lib/prisma';
 import { getDictionary } from '@/lib/i18n';
 import { BookOpen, ChevronRight, Lock, Library, Clock } from 'lucide-react';
 
+import { unstable_cache } from 'next/cache';
+import { RESOURCES_CACHE_TAG } from '@/lib/cache-tags';
+
 export async function generateMetadata() {
   const dict = await getDictionary();
   return {
@@ -14,26 +17,34 @@ export async function generateMetadata() {
 
 export const revalidate = 60;
 
-export default async function ResourcesPage() {
-  const dict = await getDictionary();
-  const resources = await prisma.resource.findMany({
-    where: { status: 'PUBLISHED' },
-    orderBy: { id: 'desc' },
-    take: 50, // Limit to 50 recent resources for performance
-    select: {
-      id: true,
-      title: true,
-      isPremium: true,
-      subject: {
-        select: {
-          name: true,
-          semester: {
-            select: { name: true }
+const getCachedResources = unstable_cache(
+  async () => {
+    return prisma.resource.findMany({
+      where: { status: 'PUBLISHED' },
+      orderBy: { id: 'desc' },
+      take: 50, // Limit to 50 recent resources for performance
+      select: {
+        id: true,
+        title: true,
+        isPremium: true,
+        subject: {
+          select: {
+            name: true,
+            semester: {
+              select: { name: true }
+            }
           }
         }
       }
-    }
-  });
+    });
+  },
+  ['public-resources-list'],
+  { revalidate: 60, tags: [RESOURCES_CACHE_TAG] }
+);
+
+export default async function ResourcesPage() {
+  const dict = await getDictionary();
+  const resources = await getCachedResources();
 
   return (
     <div className="bg-background min-h-screen pb-20">
@@ -55,8 +66,8 @@ export default async function ResourcesPage() {
         {resources.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {resources.map((resource) => {
-              const subjectName = (resource as any).subject?.name || dict.subject;
-              const semesterName = (resource as any).subject?.semester?.name || dict.semester;
+              const subjectName = resource.subject?.name || dict.subject;
+              const semesterName = resource.subject?.semester?.name || dict.semester;
               
               return (
                 <Link 
