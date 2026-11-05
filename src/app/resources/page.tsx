@@ -7,14 +7,9 @@ import { BookOpen, ChevronRight, Lock, Library, Clock } from 'lucide-react';
 
 import { unstable_cache } from 'next/cache';
 import { RESOURCES_CACHE_TAG } from '@/lib/cache-tags';
+import { RESOURCES_PAGE_SIZE, parseResourcePage } from './pagination';
 
 export const revalidate = 60;
-
-// Pagination fetches one slice at a time. The page number is an argument, and
-// unstable_cache folds arguments into the cache key, so each page caches
-// separately under the same RESOURCES_CACHE_TAG that resource mutations
-// revalidate. One extra row cheaply detects a next page without a COUNT query.
-const RESOURCES_PAGE_SIZE = 50;
 
 const getCachedResources = unstable_cache(
   async (page: number) => {
@@ -44,15 +39,15 @@ const getCachedResources = unstable_cache(
 
 type SearchParams = Promise<{ page?: string }>;
 
-/** Garbage or negative page values collapse to page 1; the cap on how deep
- *  the catalogue can be walked is the real page count, nothing else. */
-function parseResourcePage(page?: string): number {
-  return Math.max(1, parseInt(page ?? '1', 10) || 1);
-}
-
 export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
   const dict = await getDictionary();
   const page = parseResourcePage((await searchParams).page);
+  if (page === null) {
+    return {
+      title: `${dict.resources} — Not Found`,
+      robots: { index: false },
+    };
+  }
   // Only the first page is canonical; deeper pages stay out of indexes so the
   // paginated URLs do not compete with /resources.
   if (page > 1) {
@@ -71,6 +66,13 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
 export default async function ResourcesPage({ searchParams }: { searchParams: SearchParams }) {
   const dict = await getDictionary();
   const pageNumber = parseResourcePage((await searchParams).page);
+
+  // Reject malformed, negative, decimal, or extreme out-of-range page numbers
+  // with a real 404 before issuing any database query.
+  if (pageNumber === null) {
+    notFound();
+  }
+
   const rows = await getCachedResources(pageNumber);
   const hasNextPage = rows.length > RESOURCES_PAGE_SIZE;
   const resources = rows.slice(0, RESOURCES_PAGE_SIZE);

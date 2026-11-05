@@ -89,4 +89,19 @@ describe('CSP Upload Policy & Storage Connection', () => {
     const scriptSrc = cspHeader.split(';').find((d) => d.trim().startsWith('script-src'))!;
     expect(scriptSrc).not.toContain('unsafe-inline');
   });
+
+  it('permits eSewa production and sandbox origins in form-action while blocking arbitrary origins', () => {
+    const cspHeader = buildCsp();
+    const formActionDirective = cspHeader
+      .split(';')
+      .map((d) => d.trim())
+      .find((d) => d.startsWith('form-action'));
+
+    expect(formActionDirective).toBeDefined();
+    expect(formActionDirective).toBe(
+      "form-action 'self' https://epay.esewa.com.np https://rc-epay.esewa.com.np"
+    );
+    expect(formActionDirective).not.toContain('*');
+    expect(formActionDirective).not.toContain('https://attacker.com');
+  });
 });

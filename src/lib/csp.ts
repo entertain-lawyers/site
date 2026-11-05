@@ -54,7 +54,7 @@ export function buildCsp(nonce?: string): string {
     `frame-src https://www.google.com https://maps.google.com https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com`,
     `object-src 'none'`,
     `base-uri 'self'`,
-    `form-action 'self'`,
+    `form-action 'self' https://epay.esewa.com.np https://rc-epay.esewa.com.np`,
     `frame-ancestors 'none'`,
     `upgrade-insecure-requests`,
   ].join("; ") + ";";

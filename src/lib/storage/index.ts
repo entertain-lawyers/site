@@ -9,48 +9,58 @@ export interface StorageAdapter {
 
 /**
  * Resolved lazily so a boot without storage credentials does not crash every
- * process that merely imports this module — the value is only needed once a
+ * process that merely imports this module — the value is only needed once an
  * upload/download actually touches mediaStorage.
  *
- * Selection: STORAGE_ENABLED='true' opts a non-production environment (e.g.
- * staging) into real B2 storage; 'false' is advisory (module itself no-ops
- * when the flag is read) and never overrides production behaviour.
+ * Configuration contract:
+ * - Development/test with STORAGE_ENABLED='false' (or unset): LocalStorageAdapter
+ * - Development/test with STORAGE_ENABLED='true': B2StorageAdapter (requires B2 credentials)
+ * - Staging/production deployment with STORAGE_ENABLED='true': B2StorageAdapter (requires B2 credentials)
+ * - Production with STORAGE_ENABLED='false' (or unset): fails loudly with configuration error
  */
 let mediaStorageInstance: StorageAdapter | null = null;
+
+export function resetStorageInstanceForTesting(): void {
+  mediaStorageInstance = null;
+}
 
 function getMediaStorage(): StorageAdapter {
   if (mediaStorageInstance) return mediaStorageInstance;
   return (mediaStorageInstance = createMediaStorage());
 }
 
-function createMediaStorage(): StorageAdapter {
-  // The STORAGE_ENABLED flag must agree with what the adapter actually does:
-  // an operator who explicitly set it to 'false' intends storage to be OFF,
-  // so fail loudly instead of silently writing to B2 anyway. (Unset or
-  // 'true' changes nothing: production always uses B2.)
-  if (process.env.STORAGE_ENABLED === 'false' && process.env.NODE_ENV === 'production') {
-    throw new Error('CRITICAL: STORAGE_ENABLED=false but production requires storage. Set B2 credentials and STORAGE_ENABLED=true.');
+export function createMediaStorage(): StorageAdapter {
+  const isProd = process.env.NODE_ENV === 'production';
+  const isStorageEnabled = process.env.STORAGE_ENABLED === 'true';
+
+  // Production requires storage to be explicitly enabled (STORAGE_ENABLED=true).
+  // Never silently fall back to local disk storage in production.
+  if (isProd && !isStorageEnabled) {
+    throw new Error(
+      'CRITICAL: Production requires storage to be enabled. Set STORAGE_ENABLED=true and configure B2 credentials (B2_ENDPOINT, B2_ACCESS_KEY_ID, B2_SECRET_ACCESS_KEY, B2_BUCKET_NAME).'
+    );
   }
 
-  // Production always uses B2: credentials are validated by src/env.ts.
-  // NODE_ENV cannot be non-production here in a production deployment.
-  if (process.env.NODE_ENV === 'production') {
+  // If storage is enabled (in production, staging, or dev/test opt-in), validate required B2 credentials.
+  if (isStorageEnabled) {
     const requiredVars = [
       'B2_ENDPOINT',
       'B2_ACCESS_KEY_ID',
       'B2_SECRET_ACCESS_KEY',
-      'B2_BUCKET_NAME'
+      'B2_BUCKET_NAME',
     ];
 
-    for (const v of requiredVars) {
-      if (!process.env[v]) {
-        throw new Error(`CRITICAL: Production storage configuration missing required environment variable: ${v}`);
-      }
+    const missing = requiredVars.filter((v) => !process.env[v]);
+    if (missing.length > 0) {
+      throw new Error(
+        `CRITICAL: Storage is enabled (STORAGE_ENABLED=true) but missing required B2 configuration: ${missing.join(', ')}`
+      );
     }
 
     return new B2StorageAdapter();
   }
 
+  // Non-production with storage disabled uses local filesystem storage.
   return new LocalStorageAdapter();
 }
 
