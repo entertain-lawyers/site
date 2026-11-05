@@ -139,7 +139,7 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
   // Labeled variant: icon + name on every button so any reader understands it.
   if (labels) {
     return (
-      <div className="social-share-toolbar grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="social-share-toolbar flex flex-nowrap items-center gap-2 overflow-x-auto pb-1">
         {platforms.map((p) => (
           <a
             key={p.name}
@@ -148,10 +148,10 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
             rel="noopener noreferrer"
             aria-label={`Share on ${p.name}`}
             title={`Share on ${p.name}`}
-            className={`flex min-h-[42px] items-center justify-center gap-2 rounded-full px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-surface ${p.color}`}
+            className="flex min-w-[40px] min-h-[36px] px-4 rounded-full transition-all items-center justify-center gap-2 shrink-0 shadow-sm ${p.color} hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
           >
             {p.icon}
-            <span>{p.label}</span>
+            <span className="text-xs font-semibold whitespace-nowrap">{p.label}</span>
           </a>
         ))}
         <button
@@ -159,10 +159,25 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
           onClick={handleCopyLink}
           aria-label="Copy article link"
           title="Copy article link"
-          className="relative flex min-h-[42px] items-center justify-center gap-2 rounded-full border border-border bg-surface-alt px-3 text-xs font-semibold text-navy transition-colors hover:border-gold hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-surface dark:text-white"
+          className="relative flex min-w-[40px] min-h-[36px] px-4 rounded-full transition-all items-center justify-center gap-2 bg-slate-200 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-zinc-700 text-navy dark:text-white shrink-0 shadow-sm hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
         >
           <Link className="w-4 h-4" aria-hidden="true" />
-          <span>{copied ? 'Copied!' : 'Copy link'}</span>
+          <span className="text-xs font-semibold whitespace-nowrap">{copied ? 'Copied!' : 'Copy Link'}</span>
+          <AnimatePresence>
+            {copied && (
+              <m.span
+                key="copied"
+                role="status"
+                initial={{ opacity: 0, y: 6, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 4, scale: 0.95 }}
+                transition={springSnappy}
+                className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-white text-xs py-1 px-2 rounded font-medium whitespace-nowrap"
+              >
+                Copied!
+              </m.span>
+            )}
+          </AnimatePresence>
         </button>
       </div>
     );
