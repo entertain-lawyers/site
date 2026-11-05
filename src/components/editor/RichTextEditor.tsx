@@ -543,9 +543,7 @@ export default function RichTextEditor({
             background: #09090b !important;
           }
 
-          /* Editor Writing Surface.
-             Desktop targets ~65% of the viewport height with a hard floor of
-             560px (35rem); small screens fall back to a compact 24rem floor. */
+          /* Editor Writing Surface (non-fill-height mode) */
           .editor-wrapper .ql-editor {
             font-family: ${fontFamily} !important;
             font-size: 1.05rem !important;
@@ -554,9 +552,6 @@ export default function RichTextEditor({
             min-height: 24rem !important;
             max-height: clamp(28rem, 72vh, 48rem) !important;
             overflow-y: auto !important;
-            /* Do not chain to the page when the writing surface cannot
-               scroll any further; the page itself keeps scrolling normally
-               when the pointer/cursor is outside the editor. */
             overscroll-behavior-y: contain !important;
             scroll-behavior: smooth !important;
           }
@@ -566,15 +561,18 @@ export default function RichTextEditor({
             display: flex !important;
             flex-direction: column !important;
             flex: 1 1 auto !important;
-            min-height: clamp(40rem, 72vh, 54rem) !important;
+            min-height: 0 !important;
             height: 100% !important;
+          }
+          .editor-wrapper.fill-height .editor-toolbar-row {
+            flex: 0 0 auto !important;
           }
           .editor-wrapper.fill-height .quill-box-container {
             display: flex !important;
             flex-direction: column !important;
             flex: 1 1 auto !important;
-            min-height: clamp(40rem, 72vh, 54rem) !important;
-            max-height: clamp(38rem, calc(100vh - 11rem), 54rem) !important;
+            min-height: 0 !important;
+            height: 100% !important;
             overflow: hidden !important;
           }
           .editor-wrapper.fill-height .quill {
@@ -592,6 +590,9 @@ export default function RichTextEditor({
             min-height: 0 !important;
             height: 100% !important;
             overflow: hidden !important;
+            border-radius: 0 !important;
+            border-bottom-left-radius: 1rem !important;
+            border-bottom-right-radius: 1rem !important;
           }
           .editor-wrapper.fill-height .ql-editor {
             flex: 1 1 0% !important;
@@ -601,10 +602,13 @@ export default function RichTextEditor({
             overflow-y: auto !important;
             overscroll-behavior-y: contain !important;
             scroll-behavior: smooth !important;
+            border-radius: 0 !important;
+            border-bottom-left-radius: 1rem !important;
+            border-bottom-right-radius: 1rem !important;
           }
-          /* Desktop: writing canvas ≈65vh, never below the 560px target floor */
+          /* Desktop: writing canvas fills remaining space, never below the 560px target floor */
           @media (min-width: 768px) {
-            .editor-wrapper .ql-editor {
+            .editor-wrapper:not(.fill-height) .ql-editor {
               min-height: clamp(35rem, 65vh, 44rem) !important;
               max-height: clamp(35rem, 70vh, 46rem) !important;
             }
@@ -694,7 +698,7 @@ export default function RichTextEditor({
         `
       }} />
 
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 px-1 shrink-0">
+      <div className="editor-toolbar-row flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 px-1 shrink-0">
         <div className="flex items-center gap-2">
           <label className="text-xs uppercase tracking-wider font-bold text-text-secondary">Font Mode:</label>
           <div className="flex bg-slate-100 dark:bg-zinc-900 rounded-lg p-0.5 border border-black/5 dark:border-white/5">
