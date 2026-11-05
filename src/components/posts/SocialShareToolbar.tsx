@@ -139,7 +139,10 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
   // Labeled variant: icon + name on every button so any reader understands it.
   if (labels) {
     return (
-      <div className="social-share-toolbar flex flex-nowrap items-center gap-2 overflow-x-auto pb-1">
+      <div className="social-share-toolbar flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-1">
+        <span className="text-xs font-bold text-text-muted mr-1.5 shrink-0 hidden sm:inline">
+          Share:
+        </span>
         {platforms.map((p) => (
           <a
             key={p.name}
@@ -148,7 +151,7 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
             rel="noopener noreferrer"
             aria-label={`Share on ${p.name}`}
             title={`Share on ${p.name}`}
-            className="flex min-w-[40px] min-h-[36px] px-4 rounded-full transition-all items-center justify-center gap-2 shrink-0 shadow-sm ${p.color} hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+            className={`flex min-w-[36px] min-h-[32px] px-3 rounded-full transition-all items-center justify-center gap-1.5 shrink-0 shadow-sm ${p.color} hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-surface`}
           >
             {p.icon}
             <span className="text-xs font-semibold whitespace-nowrap">{p.label}</span>
@@ -159,7 +162,7 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
           onClick={handleCopyLink}
           aria-label="Copy article link"
           title="Copy article link"
-          className="relative flex min-w-[40px] min-h-[36px] px-4 rounded-full transition-all items-center justify-center gap-2 bg-slate-200 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-zinc-700 text-navy dark:text-white shrink-0 shadow-sm hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
+          className="relative flex min-w-[36px] min-h-[32px] px-3 rounded-full transition-all items-center justify-center gap-1.5 bg-slate-200 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-zinc-700 text-navy dark:text-white shrink-0 shadow-sm hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
         >
           <Link className="w-4 h-4" aria-hidden="true" />
           <span className="text-xs font-semibold whitespace-nowrap">{copied ? 'Copied!' : 'Copy Link'}</span>
