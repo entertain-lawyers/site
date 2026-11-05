@@ -6,7 +6,7 @@ import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { isRecordInUseError, isUniqueConstraintError } from '@/lib/prisma-errors';
-import { RESOURCES_CACHE_TAG } from '@/lib/cache-tags';
+import { RESOURCES_CACHE_TAG, SUBJECTS_CACHE_TAG } from '@/lib/cache-tags';
 
 // The /study listings cache subjects (and the resource list orders by subject
 // order), so subject changes must refresh those cached entries too.
@@ -15,6 +15,7 @@ function revalidateSubjectCache() {
   revalidatePath('/admin/study/semesters');
   revalidatePath('/study');
   revalidateTag(RESOURCES_CACHE_TAG, { expire: 0 });
+  revalidateTag(SUBJECTS_CACHE_TAG, { expire: 0 });
 }
 
 const createSubjectSchema = z.object({

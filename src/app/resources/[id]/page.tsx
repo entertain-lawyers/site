@@ -10,6 +10,7 @@ import { env } from '@/env';
 import { Metadata } from 'next';
 import { getDictionary } from '@/lib/i18n';
 import { serializeJsonLd, getSiteUrl } from '@/lib/seo';
+import { getScriptNonce } from '@/lib/csp';
 import { resourceBodyStatus } from '@/lib/resource-status';
 import { cache } from 'react';
 import { BookOpen, FileText, Lock, ChevronLeft, ChevronRight, LockOpen } from 'lucide-react';
@@ -110,6 +111,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
   const dict = await getDictionary();
   const { id } = await params;
   const session = await auth();
+  const nonce = await getScriptNonce();
 
   const getResourceTypeLabel = (type: string) => {
     switch (type) {
@@ -206,6 +208,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
   return (
     <div className="bg-background min-h-screen pb-20">
       <script
+        nonce={nonce}
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: serializeJsonLd({

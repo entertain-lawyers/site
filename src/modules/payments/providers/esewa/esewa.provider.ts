@@ -112,12 +112,39 @@ export class EsewaProvider implements IPaymentProviderService {
     if (typeof totalAmount !== 'string' && typeof totalAmount !== 'number') {
       throw new Error("Invalid total amount from eSewa");
     }
-    // Be careful with float comparisons in JS, parse as float to compare reliably
-    if (parseFloat(String(totalAmount)) !== parseFloat(expectedAmountRs)) {
+    const amountMismatch =
+      parseFloat(String(totalAmount)) !== parseFloat(expectedAmountRs);
+    const amountPaid = parseFloat(String(totalAmount)) * 100; // back to paisa
+
+    const gatewayStatus =
+      typeof data.status === 'string' ? data.status.toUpperCase() : '';
+    // User cancel is recorded as CANCELLED, never FAILED.
+    const cancelled = ['CANCELED', 'CANCELLED'].includes(gatewayStatus);
+    // NOT_FOUND deliberately IS NOT terminal here: it also occurs while the
+    // gateway has not yet registered the transaction, and marking the row
+    // FAILED would make a later COMPLETE callback permanently unusable.
+    const terminalFailure = ['FAILED', 'REFUNDED'].includes(gatewayStatus);
+
+    if (amountMismatch) {
+      if (gatewayStatus !== 'COMPLETE') {
+        // Non-terminal billing state: keep the transaction PENDING so a later
+        // Completed callback stays usable. Finalization is blocked by this
+        // same amount check, so a wrong amount can never unlock the resource.
+        return {
+          success: !(terminalFailure || cancelled),
+          cancelled,
+          providerRef: transactionCode,
+          amountPaid,
+          currency: "NPR",
+          isComplete: false,
+        };
+      }
+      // A signed COMPLETE payload for a different amount is a real billing
+      // error (never grant access).
       return {
         success: false,
         providerRef: transactionCode,
-        amountPaid: parseFloat(String(totalAmount)) * 100, // back to paisa
+        amountPaid,
         currency: "NPR",
         isComplete: false,
       };
@@ -125,7 +152,7 @@ export class EsewaProvider implements IPaymentProviderService {
 
     // 2. Perform official server-to-server eSewa transaction status verification API
     const statusCheckUrl = `${this.getBaseUrl()}/api/epay/transaction/status/?product_code=${this.getMerchantCode()}&total_amount=${expectedAmountRs}&transaction_uuid=${idempotencyKey}`;
-    
+
     const statusResponse = await fetch(statusCheckUrl, { method: 'GET' });
     if (!statusResponse.ok) {
        throw new Error(`eSewa status check failed with status: ${statusResponse.status}`);
@@ -133,25 +160,24 @@ export class EsewaProvider implements IPaymentProviderService {
 
     const statusData = await statusResponse.json();
     // Output is usually { "status": "COMPLETE", "transaction_code": "...", "transaction_uuid": "...", "total_amount": 100 }
-    
+
     if (statusData.status !== 'COMPLETE') {
       // PENDING/AMBIGUOUS are transient: leave the transaction PENDING so a
       // later COMPLETE callback can still grant access. Only explicitly
-      // canceled/unknown transactions are terminal failures.
+      // canceled transactions are recorded as CANCELLED.
       const status =
         typeof statusData.status === 'string' ? statusData.status.toUpperCase() : '';
-      const terminalFailure = [
-        'CANCELED',
-        'CANCELLED',
-        'NOT_FOUND',
-        'FAILED',
-        'REFUNDED',
-      ].includes(status);
+      // NOT_FOUND deliberately IS NOT terminal: the status API also returns it
+      // while the transaction is not yet registered; failing the row there
+      // would make a later COMPLETE callback permanently unusable.
+      const cancelledStatus = ['CANCELED', 'CANCELLED'].includes(status);
+      const terminalFailureStatus = ['FAILED', 'REFUNDED'].includes(status);
 
       return {
-        success: !terminalFailure,
+        success: !terminalFailureStatus && !cancelledStatus,
+        cancelled: cancelledStatus,
         providerRef: transactionCode,
-        amountPaid: parseFloat(String(totalAmount)) * 100,
+        amountPaid,
         currency: "NPR",
         isComplete: false,
       };

@@ -2,7 +2,7 @@
 
 import { createSafeAction, UserFacingError } from "@/lib/safe-action";
 import { prisma } from "@/lib/prisma";
-import { generatePresignedPutUrl, getObjectMetadata, getObjectHeadBytes } from "@/lib/b2";
+import { generatePresignedPutUrl, getObjectMetadata, getObjectHeadBytes, deleteObject } from "@/lib/b2";
 import { z } from "zod";
 
 const initiateUploadSchema = z.object({
@@ -11,11 +11,32 @@ const initiateUploadSchema = z.object({
   expectedMimeType: z.enum(["application/pdf"]),
 });
 
+/**
+ * Verification failed: the uploaded object can never be referenced by a
+ * Document, so remove it instead of leaving a permanent orphan in B2.
+ * Best-effort — the intent is still marked FAILED if the delete errors.
+ */
 async function markUploadIntentFailed(intentId: string) {
+  const intent = await prisma.uploadIntent.findUnique({ where: { id: intentId } });
   await prisma.uploadIntent.update({
     where: { id: intentId },
     data: { status: "FAILED" }
   });
+
+  // Guard against deleting a key another Document already references (keys
+  // are per-intent, so this is essentially never needed — belt and braces).
+  if (intent?.storageKey?.startsWith('documents/')) {
+    const referenced = await prisma.document.count({
+      where: { storageKey: intent.storageKey },
+    });
+    if (referenced === 0) {
+      try {
+        await deleteObject(intent.storageKey);
+      } catch (error) {
+        console.error('Could not remove unverifiable upload from storage.', error);
+      }
+    }
+  }
 }
 
 export const initiateDocumentUpload = createSafeAction(

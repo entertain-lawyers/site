@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { getDictionary } from '@/lib/i18n';
 import { BookOpen, ChevronRight, Lock, Library, Clock } from 'lucide-react';
@@ -43,12 +44,18 @@ const getCachedResources = unstable_cache(
 
 type SearchParams = Promise<{ page?: string }>;
 
+/** Garbage or negative page values collapse to page 1; the cap on how deep
+ *  the catalogue can be walked is the real page count, nothing else. */
+function parseResourcePage(page?: string): number {
+  return Math.max(1, parseInt(page ?? '1', 10) || 1);
+}
+
 export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
   const dict = await getDictionary();
-  const { page } = await searchParams;
+  const page = parseResourcePage((await searchParams).page);
   // Only the first page is canonical; deeper pages stay out of indexes so the
   // paginated URLs do not compete with /resources.
-  if (page && page !== '1') {
+  if (page > 1) {
     return {
       title: `${dict.resources} (page ${page})`,
       robots: { index: false },
@@ -63,11 +70,17 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
 
 export default async function ResourcesPage({ searchParams }: { searchParams: SearchParams }) {
   const dict = await getDictionary();
-  const { page } = await searchParams;
-  const pageNumber = Math.min(Math.max(1, parseInt(page ?? '1', 10) || 1), 100);
+  const pageNumber = parseResourcePage((await searchParams).page);
   const rows = await getCachedResources(pageNumber);
   const hasNextPage = rows.length > RESOURCES_PAGE_SIZE;
   const resources = rows.slice(0, RESOURCES_PAGE_SIZE);
+
+  // A page number every published resource has been walked past does not
+  // exist: render a real 404 instead of an empty "coming soon" catalogue,
+  // which previously made the whole section look unavailable.
+  if (pageNumber > 1 && resources.length === 0) {
+    notFound();
+  }
 
   return (
     <div className="bg-background min-h-screen pb-20">

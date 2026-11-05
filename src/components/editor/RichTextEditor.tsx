@@ -543,16 +543,21 @@ export default function RichTextEditor({
             background: #09090b !important;
           }
 
-          /* Editor Writing Surface */
+          /* Editor Writing Surface.
+             Desktop targets ~65% of the viewport height with a hard floor of
+             560px (35rem); small screens fall back to a compact 24rem floor. */
           .editor-wrapper .ql-editor {
             font-family: ${fontFamily} !important;
             font-size: 1.05rem !important;
             line-height: 2;
             padding: 1.75rem 2rem !important;
-            min-height: clamp(18rem, 50vh, 38rem) !important;
-            max-height: clamp(24rem, 68vh, 50rem) !important;
+            min-height: 24rem !important;
+            max-height: clamp(28rem, 72vh, 48rem) !important;
             overflow-y: auto !important;
-            overscroll-behavior-y: auto !important;
+            /* Do not chain to the page when the writing surface cannot
+               scroll any further; the page itself keeps scrolling normally
+               when the pointer/cursor is outside the editor. */
+            overscroll-behavior-y: contain !important;
             scroll-behavior: smooth !important;
           }
 
@@ -560,16 +565,16 @@ export default function RichTextEditor({
           .editor-wrapper.fill-height {
             display: flex !important;
             flex-direction: column !important;
-            flex: 1 1 0% !important;
-            min-height: 0 !important;
+            flex: 1 1 auto !important;
+            min-height: clamp(40rem, 72vh, 54rem) !important;
             height: 100% !important;
           }
           .editor-wrapper.fill-height .quill-box-container {
             display: flex !important;
             flex-direction: column !important;
-            flex: 1 1 0% !important;
-            min-height: clamp(24rem, 60vh, 46rem) !important;
-            max-height: clamp(30rem, calc(100vh - 14rem), 62rem) !important;
+            flex: 1 1 auto !important;
+            min-height: clamp(40rem, 72vh, 54rem) !important;
+            max-height: clamp(38rem, calc(100vh - 11rem), 54rem) !important;
             overflow: hidden !important;
           }
           .editor-wrapper.fill-height .quill {
@@ -594,8 +599,15 @@ export default function RichTextEditor({
             height: 100% !important;
             max-height: 100% !important;
             overflow-y: auto !important;
-            overscroll-behavior-y: auto !important;
+            overscroll-behavior-y: contain !important;
             scroll-behavior: smooth !important;
+          }
+          /* Desktop: writing canvas ≈65vh, never below the 560px target floor */
+          @media (min-width: 768px) {
+            .editor-wrapper .ql-editor {
+              min-height: clamp(35rem, 65vh, 44rem) !important;
+              max-height: clamp(35rem, 70vh, 46rem) !important;
+            }
           }
           @media (min-width: 640px) {
             .editor-wrapper .ql-editor {
