@@ -37,10 +37,12 @@ export async function markTransactionFailed(transactionId: string) {
 }
 
 export async function markTransactionCancelled(transactionId: string) {
-  // Safe transition to CANCELLED only if it's PENDING
+  // Safe transition to CANCELLED only if it's PENDING. CANCELLED (not FAILED)
+  // keeps the ledger honest: the customer abandoned the checkout rather than
+  // having a provider-verified failure.
   await prisma.paymentTransaction.updateMany({
     where: { id: transactionId, status: 'PENDING' },
-    data: { status: 'FAILED' },
+    data: { status: 'CANCELLED' },
   });
 }
 

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import CourtFeeCalculator from '@/components/calculator/CourtFeeCalculator';
 import { Scale, HelpCircle, PhoneCall } from 'lucide-react';
 import { serializeJsonLd } from '@/lib/seo';
+import { getScriptNonce } from '@/lib/csp';
 
 export const metadata: Metadata = {
   title: 'Nepal Court Fee Calculator | Section 69 Muluki Diwani Samhita',
@@ -78,10 +79,12 @@ const FAQ_JSON_LD = {
   })),
 };
 
-export default function CalculatorPage() {
+export default async function CalculatorPage() {
+  const nonce = await getScriptNonce();
   return (
     <div className="el-type-modern w-full bg-background min-h-screen pt-6 pb-24 sm:py-16">
       <script
+        nonce={nonce}
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(FAQ_JSON_LD) }}
       />

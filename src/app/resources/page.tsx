@@ -1,19 +1,15 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { getDictionary } from '@/lib/i18n';
 import { BookOpen, ChevronRight, Lock, Library, Clock } from 'lucide-react';
 
 import { unstable_cache } from 'next/cache';
 import { RESOURCES_CACHE_TAG } from '@/lib/cache-tags';
+import { RESOURCES_PAGE_SIZE, parseResourcePage } from './pagination';
 
 export const revalidate = 60;
-
-// Pagination fetches one slice at a time. The page number is an argument, and
-// unstable_cache folds arguments into the cache key, so each page caches
-// separately under the same RESOURCES_CACHE_TAG that resource mutations
-// revalidate. One extra row cheaply detects a next page without a COUNT query.
-const RESOURCES_PAGE_SIZE = 50;
 
 const getCachedResources = unstable_cache(
   async (page: number) => {
@@ -45,10 +41,16 @@ type SearchParams = Promise<{ page?: string }>;
 
 export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
   const dict = await getDictionary();
-  const { page } = await searchParams;
+  const page = parseResourcePage((await searchParams).page);
+  if (page === null) {
+    return {
+      title: `${dict.resources} — Not Found`,
+      robots: { index: false },
+    };
+  }
   // Only the first page is canonical; deeper pages stay out of indexes so the
   // paginated URLs do not compete with /resources.
-  if (page && page !== '1') {
+  if (page > 1) {
     return {
       title: `${dict.resources} (page ${page})`,
       robots: { index: false },
@@ -63,11 +65,24 @@ export async function generateMetadata({ searchParams }: { searchParams: SearchP
 
 export default async function ResourcesPage({ searchParams }: { searchParams: SearchParams }) {
   const dict = await getDictionary();
-  const { page } = await searchParams;
-  const pageNumber = Math.min(Math.max(1, parseInt(page ?? '1', 10) || 1), 100);
+  const pageNumber = parseResourcePage((await searchParams).page);
+
+  // Reject malformed, negative, decimal, or extreme out-of-range page numbers
+  // with a real 404 before issuing any database query.
+  if (pageNumber === null) {
+    notFound();
+  }
+
   const rows = await getCachedResources(pageNumber);
   const hasNextPage = rows.length > RESOURCES_PAGE_SIZE;
   const resources = rows.slice(0, RESOURCES_PAGE_SIZE);
+
+  // A page number every published resource has been walked past does not
+  // exist: render a real 404 instead of an empty "coming soon" catalogue,
+  // which previously made the whole section look unavailable.
+  if (pageNumber > 1 && resources.length === 0) {
+    notFound();
+  }
 
   return (
     <div className="bg-background min-h-screen pb-20">

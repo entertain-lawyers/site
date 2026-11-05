@@ -8,7 +8,7 @@ import CaseLawLanding from '@/components/study/CaseLawLanding';
 import Link from 'next/link';
 import { ResourceType } from '@prisma/client';
 import { getDictionary } from '@/lib/i18n';
-import { RESOURCES_CACHE_TAG } from '@/lib/cache-tags';
+import { RESOURCES_CACHE_TAG, SUBJECTS_CACHE_TAG } from '@/lib/cache-tags';
 import { BookOpen, Scale, FileQuestion, Library, ArrowRight, Lock } from 'lucide-react';
 import { SYLLABUS_CONFIG, normalizeSubjectName } from '@/lib/syllabus-config';
 import { searchMatches } from '@/lib/translit-search';
@@ -75,7 +75,7 @@ const getCachedSubjects = unstable_cache(
     select: { id: true, name: true, order: true },
   }),
   ['study-subjects-ordered'],
-  { revalidate: 3600 }
+  { revalidate: 3600, tags: [SUBJECTS_CACHE_TAG] }
 );
 
 const getCachedUnits = unstable_cache(

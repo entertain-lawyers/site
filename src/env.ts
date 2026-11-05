@@ -67,9 +67,13 @@ export const envSchema = z.object({
   path: ["NEXT_PUBLIC_APP_URL"]
 }).refine(data => {
   if (data.NODE_ENV === 'production') {
-    // DIRECT_URL is used by Prisma CLI, not required for Next.js runtime/build
-    if (data.STORAGE_ENABLED === "true" && (!data.B2_ENDPOINT || !data.B2_ACCESS_KEY_ID || !data.B2_SECRET_ACCESS_KEY || !data.B2_BUCKET_NAME)) return false;
+    // Production must explicitly enable storage and provide valid B2 configuration
+    if (data.STORAGE_ENABLED !== "true") return false;
+    if (!data.B2_ENDPOINT || !data.B2_ACCESS_KEY_ID || !data.B2_SECRET_ACCESS_KEY || !data.B2_BUCKET_NAME) return false;
     if (data.RATE_LIMITING_ENABLED === "true" && (!data.UPSTASH_REDIS_REST_URL || !data.UPSTASH_REDIS_REST_TOKEN)) return false;
+  } else {
+    // If STORAGE_ENABLED is true in non-production, B2 configuration is required
+    if (data.STORAGE_ENABLED === "true" && (!data.B2_ENDPOINT || !data.B2_ACCESS_KEY_ID || !data.B2_SECRET_ACCESS_KEY || !data.B2_BUCKET_NAME)) return false;
   }
   
   if (data.NODE_ENV === 'production' && data.PAYMENTS_ENABLED === 'true') {
@@ -78,7 +82,7 @@ export const envSchema = z.object({
   }
   return true;
 }, {
-  message: "Production environment: If STORAGE_ENABLED is true, B2 must be fully configured. If RATE_LIMITING_ENABLED is true, Upstash must be fully configured. If PAYMENTS_ENABLED is true, Khalti and eSewa (including ESEWA_SECRET_KEY) must be fully configured.",
+  message: "Storage configuration: In production, STORAGE_ENABLED must be 'true' and B2 must be fully configured (B2_ENDPOINT, B2_ACCESS_KEY_ID, B2_SECRET_ACCESS_KEY, B2_BUCKET_NAME). If STORAGE_ENABLED is 'true' in non-production, B2 must also be fully configured. If RATE_LIMITING_ENABLED is true, Upstash must be configured. If PAYMENTS_ENABLED is true, Khalti and eSewa must be configured.",
 });
 
 // For Next.js to properly evaluate NEXT_PUBLIC_ variables during build, they must be explicitly provided.

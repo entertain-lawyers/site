@@ -39,7 +39,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </Suspense>
 
       {/* Main Content Area */}
-      <div className="admin-main flex-1 min-w-0 w-full lg:ml-64 bg-transparent min-h-screen relative flex flex-col pt-16 lg:pt-0">
+      <div className="admin-main flex-1 min-w-0 w-full lg:ml-64 bg-transparent relative flex flex-col pt-16 lg:pt-0">
         <div className="w-full flex-1 min-w-0 flex flex-col">
           {children}
         </div>

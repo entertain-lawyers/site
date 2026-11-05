@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { Role } from '@prisma/client';
 import { revalidatePath, revalidateTag } from 'next/cache';
-import { SEMESTERS_CACHE_TAG } from '@/lib/cache-tags';
+import { RESOURCES_CACHE_TAG, SEMESTERS_CACHE_TAG, SUBJECTS_CACHE_TAG } from '@/lib/cache-tags';
 
 const previewSemesterMergeSchema = z.object({
   sourceId: z.string().uuid('Invalid source semester ID'),
@@ -145,7 +145,7 @@ export const mergeSemestersAction = createSafeAction(
       throw new Error('Source and target semester must be different');
     }
 
-    return await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       const source = await tx.semester.findUnique({
         where: { id: input.sourceId },
         include: {
@@ -248,13 +248,6 @@ export const mergeSemestersAction = createSafeAction(
         });
       }
 
-      // 6. Revalidate cache
-      revalidatePath('/admin/study/semesters');
-      revalidatePath('/admin/study/subjects');
-      revalidatePath('/study');
-      revalidatePath('/semesters');
-      revalidateTag(SEMESTERS_CACHE_TAG, { expire: 0 });
-
       return {
         success: true,
         sourceName: source.name,
@@ -264,5 +257,21 @@ export const mergeSemestersAction = createSafeAction(
         reassignedSubjectsCount,
       };
     });
+
+    // 6. Revalidate cache after transaction commits to prevent stale refills
+    revalidatePath('/admin/study/semesters');
+    revalidatePath('/admin/study/subjects');
+    revalidatePath('/study');
+    revalidatePath('/semesters');
+    revalidatePath('/resources');
+    revalidateTag(SEMESTERS_CACHE_TAG, { expire: 0 });
+    // Merging moves subjects between semesters; the /study subject cache is
+    // keyed per semester and must not serve the old assignment.
+    revalidateTag(SUBJECTS_CACHE_TAG, { expire: 0 });
+    // Merging moves direct resources and reassigns subjects; the /resources
+    // and /study resource caches must reflect the updated semester mapping.
+    revalidateTag(RESOURCES_CACHE_TAG, { expire: 0 });
+
+    return result;
   }
 );

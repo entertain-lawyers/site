@@ -53,14 +53,44 @@ export class KhaltiProvider implements IPaymentProviderService {
     // 1. Perform server-to-server lookup
     const lookupData = await verifyKhaltiTransaction(pidx);
 
-    // 2. Validate amount matches what we expect. (The callback's
-    // purchase_order_id is attacker-controlled and the lookup response does
-    // not echo it, so the payment is bound to our transaction by comparing
-    // this pidx with the providerRef stored at initiation in
-    // PaymentCoreService.)
-    if (lookupData.total_amount !== expectedAmount) {
+    // 2. Status check comes first, so a payment the gateway has not finished
+    // yet is never recorded as FAILED. Expired/refunded payments are terminal
+    // failures; a user cancellation is recorded as CANCELLED; Pending/
+    // Initiated stay PENDING for a later Completed callback.
+    const status = typeof lookupData.status === 'string' ? lookupData.status : '';
+    const terminalFailure = ['Expired', 'Refunded'].includes(status);
+    const cancelled = status === 'User canceled';
+    const amountMatches = lookupData.total_amount === expectedAmount;
+
+    if (!amountMatches) {
+      // Billing differs from what was recorded at initiation.
+      if (cancelled || terminalFailure) {
+        return {
+          success: false,
+          cancelled,
+          providerRef: pidx,
+          amountPaid: lookupData.total_amount,
+          currency: "NPR",
+          isComplete: false,
+        };
+      }
+      if (status === 'Completed') {
+        // A definitely-finished payment for a different amount is a real
+        // billing error: never grant access, record the failure.
+        return {
+          success: false,
+          providerRef: pidx,
+          amountPaid: lookupData.total_amount,
+          currency: "NPR",
+          isComplete: false,
+        };
+      }
+      // While the gateway still shows a pending/initiated state the money has
+      // not finished moving: stay PENDING so a Completed callback is not
+      // permanently blocked. It can never unlock the resource with a wrong
+      // amount — the check above runs again on that callback.
       return {
-        success: false,
+        success: true,
         providerRef: pidx,
         amountPaid: lookupData.total_amount,
         currency: "NPR",
@@ -68,15 +98,9 @@ export class KhaltiProvider implements IPaymentProviderService {
       };
     }
 
-    // 3. Status check. Expired/canceled/refunded payments are terminal
-    // failures; Pending/Initiated are not, so the transaction must stay
-    // PENDING and be finalized by a later Completed callback.
-    const terminalFailure = ['Expired', 'User canceled', 'Refunded'].includes(
-      lookupData.status
-    );
-
     return {
-      success: !terminalFailure,
+      success: !terminalFailure && !cancelled,
+      cancelled,
       providerRef: pidx,
       amountPaid: lookupData.total_amount,
       currency: "NPR",

@@ -6,6 +6,7 @@ import ResourceTypeFilter from '@/components/study/ResourceTypeFilter';
 import { BookOpen, ChevronRight, Lock, Library, GraduationCap, ChevronLeft } from 'lucide-react';
 import { SYLLABUS_CONFIG, isAuthoritativeSubject, findAuthoritativeSubject } from '@/lib/syllabus-config';
 import { serializeJsonLd, getSiteUrl } from '@/lib/seo';
+import { getScriptNonce } from '@/lib/csp';
 import { Reveal } from '@/components/motion/primitives';
 
 interface PageProps {
@@ -44,6 +45,7 @@ export async function generateMetadata({ params }: PageProps) {
 export default async function SemesterPage({ params }: PageProps) {
   const dict = await getDictionary();
   const { id } = await params;
+  const nonce = await getScriptNonce();
 
   const TYPE_LABELS: Record<string, string> = {
     LAW_NOTE: dict.catLawNotes,
@@ -110,6 +112,7 @@ export default async function SemesterPage({ params }: PageProps) {
   return (
     <div className="bg-background min-h-screen pb-20">
       <script
+        nonce={nonce}
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: serializeJsonLd({

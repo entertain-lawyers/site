@@ -10,3 +10,6 @@ export const HOMEPAGE_CONFIG_CACHE_TAG = 'homepage-config';
 /** Cache tag for public study resources */
 export const RESOURCES_CACHE_TAG = 'resources';
 
+/** Cache tag for the /study subject listings (cached per semester for 1h). */
+export const SUBJECTS_CACHE_TAG = 'subjects';
+

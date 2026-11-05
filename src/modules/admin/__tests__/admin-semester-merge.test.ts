@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { prisma } from '@/lib/prisma';
-import { revalidateTag } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 
 let mockUserRole = 'ADMIN';
-let mockUserId = 'admin-user-id';
+const mockUserId = 'admin-user-id';
 
 vi.mock('@/lib/safe-action', () => ({
   UserFacingError: class UserFacingError extends Error {},
@@ -194,6 +195,9 @@ describe('admin-semester-merge.actions', () => {
 
       expect(res.success).toBe(true);
       expect(revalidateTag).toHaveBeenCalledWith('semesters', { expire: 0 });
+      expect(revalidateTag).toHaveBeenCalledWith('subjects', { expire: 0 });
+      expect(revalidateTag).toHaveBeenCalledWith('resources', { expire: 0 });
+      expect(revalidatePath).toHaveBeenCalledWith('/resources');
       expect(prisma.resource.updateMany).toHaveBeenCalledWith({
         where: { semesterId: VALID_SOURCE_ID },
         data: { semesterId: VALID_TARGET_ID },

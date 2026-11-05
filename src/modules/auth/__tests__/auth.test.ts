@@ -245,18 +245,22 @@ describeDb('Authentication & Security Foundation', () => {
     it('security headers are present in next.config.ts', async () => {
       const headersFunc = (nextConfig as any).headers;
       expect(headersFunc).toBeDefined();
-      
+
       const resolvedHeaders = await headersFunc();
       expect(resolvedHeaders.length).toBeGreaterThan(0);
-      
+
       const globalHeaders = resolvedHeaders[0].headers;
-      
-      const hasCSP = globalHeaders.some((h: any) => h.key === 'Content-Security-Policy');
+
+      // CSP now lives in src/lib/csp.ts (verified by csp-upload.test.ts) and
+      // is emitted per request with a nonce in src/proxy.ts, so next.config
+      // deliberately does not carry it: a second static policy would be
+      // enforced as a conjunction and restore 'unsafe-inline' behaviour.
       const hasHSTS = globalHeaders.some((h: any) => h.key === 'Strict-Transport-Security');
       const hasFrameOptions = globalHeaders.some((h: any) => h.key === 'X-Frame-Options');
       const hasReferrer = globalHeaders.some((h: any) => h.key === 'Referrer-Policy');
 
-      expect(hasCSP).toBe(true);
+      const csp = await import('@/lib/csp');
+      expect(csp.buildCsp()).toBeDefined();
       expect(hasHSTS).toBe(true);
       expect(hasFrameOptions).toBe(true);
       expect(hasReferrer).toBe(true);

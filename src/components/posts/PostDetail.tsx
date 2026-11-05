@@ -167,9 +167,6 @@ export default function PostDetail({
 
             {/* Share bar — icon + label on every button so it reads clearly */}
             <div id="share" className="mt-3 border border-border bg-surface p-3 sm:p-4">
-              <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-text-muted">
-                Share this story
-              </p>
               <SocialShareToolbar title={post.title} labels />
             </div>
 

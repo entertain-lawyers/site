@@ -20,6 +20,8 @@ export interface PaymentVerificationResult {
   amountPaid: number;
   currency: string;
   isComplete: boolean; // e.g. eSewa status COMPLETE, Khalti Completed
+  /** Set only when the gateway confirms the customer cancelled the payment. */
+  cancelled?: boolean;
 }
 
 export interface IPaymentProviderService {

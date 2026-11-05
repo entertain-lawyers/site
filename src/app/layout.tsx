@@ -18,6 +18,7 @@ import { getSiteSettings } from '@/lib/site-settings';
 import AnalyticsTracker from '@/components/AnalyticsTracker';
 import { serializeJsonLd, getSiteUrl } from '@/lib/seo';
 import { SEMESTERS_CACHE_TAG } from '@/lib/cache-tags';
+import { getScriptNonce } from '@/lib/csp';
 import MotionProvider from '@/components/motion/MotionProvider';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 
@@ -115,12 +116,13 @@ export default async function RootLayout({
   // affordances). Swapping to a client-side session provider is a layout
   // restructure deliberately not attempted here; the heavy data (settings,
   // semesters) is served from cache with on-demand revalidation instead.
-  const [locale, dict, session, settings, semesters] = await Promise.all([
+  const [locale, dict, session, settings, semesters, nonce] = await Promise.all([
     getLocale(),
     getDictionary(),
     auth(),
     getSiteSettings(),
     getCachedSemesters(),
+    getScriptNonce(),
   ]);
   const siteUrl = getSiteUrl();
 
@@ -151,8 +153,9 @@ export default async function RootLayout({
   return (
     <html lang={locale} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <script
+          nonce={nonce}
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: serializeJsonLd({

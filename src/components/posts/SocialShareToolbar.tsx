@@ -81,6 +81,7 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
     {
       name: 'Facebook',
       label: 'Facebook',
+      shortLabel: 'Facebook',
       icon: <FacebookIcon />,
       href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}`,
       color: 'bg-[#1877F2] hover:bg-[#1877F2]/90 text-white'
@@ -88,6 +89,7 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
     {
       name: 'X (Twitter)',
       label: 'X',
+      shortLabel: 'X',
       icon: <TwitterIcon />,
       href: `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedTitle}`,
       color: 'bg-black hover:bg-black/80 dark:bg-white dark:text-black dark:hover:bg-gray-200 text-white'
@@ -95,6 +97,7 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
     {
       name: 'WhatsApp',
       label: 'WhatsApp',
+      shortLabel: 'WhatsApp',
       icon: <WhatsappIcon />,
       href: `https://wa.me/?text=${encodedTitle}%20${encodedUrl}`,
       color: 'bg-[#25D366] hover:bg-[#25D366]/90 text-white'
@@ -102,6 +105,7 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
     {
       name: 'Telegram',
       label: 'Telegram',
+      shortLabel: 'Telegram',
       icon: <TelegramIcon />,
       href: `https://t.me/share/url?url=${encodedUrl}&text=${encodedTitle}`,
       color: 'bg-[#229ED9] hover:bg-[#229ED9]/90 text-white'
@@ -109,6 +113,7 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
     {
       name: 'LinkedIn',
       label: 'LinkedIn',
+      shortLabel: 'LinkedIn',
       icon: <LinkedinIcon />,
       href: `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`,
       color: 'bg-[#0A66C2] hover:bg-[#0A66C2]/90 text-white'
@@ -116,13 +121,15 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
     {
       name: 'Reddit',
       label: 'Reddit',
+      shortLabel: 'Reddit',
       icon: <RedditIcon />,
       href: `https://reddit.com/submit?url=${encodedUrl}&title=${encodedTitle}`,
       color: 'bg-[#FF4500] hover:bg-[#FF4500]/90 text-white'
     },
     {
       name: 'Email',
-      label: 'Mail',
+      label: 'Email',
+      shortLabel: 'Mail',
       icon: <Mail className="w-4 h-4" />,
       href: `mailto:?subject=${encodedTitle}&body=Check out this article: ${encodedUrl}`,
       color: 'bg-gray-500 hover:bg-gray-600 text-white'
@@ -132,7 +139,10 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
   // Labeled variant: icon + name on every button so any reader understands it.
   if (labels) {
     return (
-      <div className="social-share-toolbar grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="social-share-toolbar flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-1">
+        <span className="text-xs font-bold text-text-muted mr-1.5 shrink-0 hidden sm:inline">
+          Share:
+        </span>
         {platforms.map((p) => (
           <a
             key={p.name}
@@ -141,10 +151,10 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
             rel="noopener noreferrer"
             aria-label={`Share on ${p.name}`}
             title={`Share on ${p.name}`}
-            className={`flex min-h-[42px] items-center justify-center gap-2 rounded-full px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-surface ${p.color}`}
+            className={`flex min-w-[36px] min-h-[32px] px-3 rounded-full transition-all items-center justify-center gap-1.5 shrink-0 shadow-sm ${p.color} hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-surface`}
           >
             {p.icon}
-            <span>{p.label}</span>
+            <span className="text-xs font-semibold whitespace-nowrap">{p.label}</span>
           </a>
         ))}
         <button
@@ -152,26 +162,39 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
           onClick={handleCopyLink}
           aria-label="Copy article link"
           title="Copy article link"
-          className="relative flex min-h-[42px] items-center justify-center gap-2 rounded-full border border-border bg-surface-alt px-3 text-xs font-semibold text-navy transition-colors hover:border-gold hover:text-gold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-surface dark:text-white"
+          className="relative flex min-w-[36px] min-h-[32px] px-3 rounded-full transition-all items-center justify-center gap-1.5 bg-slate-200 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-zinc-700 text-navy dark:text-white shrink-0 shadow-sm hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold focus-visible:ring-offset-2 focus-visible:ring-offset-surface"
         >
           <Link className="w-4 h-4" aria-hidden="true" />
-          <span>{copied ? 'Copied!' : 'Copy link'}</span>
+          <span className="text-xs font-semibold whitespace-nowrap">{copied ? 'Copied!' : 'Copy Link'}</span>
+          <AnimatePresence>
+            {copied && (
+              <m.span
+                key="copied"
+                role="status"
+                initial={{ opacity: 0, y: 6, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 4, scale: 0.95 }}
+                transition={springSnappy}
+                className="absolute -top-10 left-1/2 -translate-x-1/2 bg-black text-white text-xs py-1 px-2 rounded font-medium whitespace-nowrap"
+              >
+                Copied!
+              </m.span>
+            )}
+          </AnimatePresence>
         </button>
       </div>
     );
   }
 
   const containerClass = compact
-    ? 'flex flex-nowrap items-center gap-1.5'
+    ? 'flex flex-nowrap items-center gap-1.5 overflow-x-auto pb-1'
     : orientation === 'horizontal'
       ? 'flex flex-wrap items-center gap-2'
       : 'flex flex-col gap-2';
 
-  const secondary = new Set(['Reddit', 'Email']);
-
   return (
     <div className={`social-share-toolbar ${containerClass}`}>
-      <span className={`text-sm font-bold text-text-muted mr-2 ${compact ? 'hidden sm:inline' : ''}`}>
+      <span className={`text-xs font-bold text-text-muted mr-2 shrink-0 ${compact ? '' : 'hidden sm:inline'}`}>
         Share:
       </span>
       {platforms.map((p) => (
@@ -181,19 +204,18 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
           target="_blank"
           rel="noopener noreferrer"
           aria-label={`Share on ${p.name}`}
-          className={`${compact ? 'min-w-[36px] min-h-[36px] p-1.5' : 'min-w-[44px] min-h-[44px] p-2'} rounded-full transition-colors flex items-center justify-center ${p.color} ${
-            compact && secondary.has(p.name) ? 'hidden sm:flex' : ''
-          }`}
+          className={`${compact ? 'min-w-[32px] min-h-[32px] px-2.5' : 'min-w-[40px] min-h-[40px] px-3'} rounded-full transition-colors flex items-center justify-center ${p.color} shrink-0`}
           title={`Share on ${p.name}`}
         >
           {p.icon}
+          {!compact && <span className="hidden sm:inline ml-1 text-xs font-medium">{p.shortLabel}</span>}
         </a>
       ))}
       <button
         onClick={handleCopyLink}
         aria-label="Copy Link"
         title="Copy Link"
-        className={`${compact ? 'min-w-[36px] min-h-[36px] p-1.5' : 'min-w-[44px] min-h-[44px] p-2'} rounded-full transition-colors flex items-center justify-center bg-slate-200 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-zinc-700 text-navy dark:text-white relative group`}
+        className={`${compact ? 'min-w-[32px] min-h-[32px] px-2.5' : 'min-w-[40px] min-h-[40px] px-3'} rounded-full transition-colors flex items-center justify-center bg-slate-200 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-zinc-700 text-navy dark:text-white relative group shrink-0`}
       >
         <Link className="w-4 h-4" />
         <AnimatePresence>
@@ -211,6 +233,7 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
             </m.span>
           )}
         </AnimatePresence>
+        {!compact && <span className="hidden sm:inline ml-1 text-xs font-medium">Copy Link</span>}
       </button>
     </div>
   );

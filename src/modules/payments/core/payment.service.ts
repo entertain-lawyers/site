@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { IPaymentProviderService, PaymentProvider } from './payment.types';
-import { createPendingTransaction, finalizeSuccessfulPayment, markTransactionFailed } from './payment.repository';
-import { IdempotencyError, PaymentVerificationError, PaymentError } from './payment.errors';
+import { createPendingTransaction, finalizeSuccessfulPayment, markTransactionCancelled, markTransactionFailed } from './payment.repository';
+import { IdempotencyError, PaymentCancelledError, PaymentPendingError, PaymentVerificationError, PaymentError } from './payment.errors';
 import { esewaProvider } from '../providers/esewa/esewa.provider';
 import { khaltiProvider } from '../providers/khalti/khalti.provider';
 
@@ -115,8 +115,16 @@ export class PaymentCoreService {
     const verifyResult = await provider.verifyPayment(payload, idempotencyKey, transaction.amount);
 
     if (!verifyResult.success) {
-      // Explicit failure: amount mismatch, or the provider reports the payment
-      // as canceled/expired/refunded.
+      // Record the customer's own abandonment as CANCELLED, everything the
+      // provider reports as a genuine failure as FAILED.
+      if (verifyResult.cancelled) {
+        await markTransactionCancelled(transaction.id);
+        throw new PaymentCancelledError(
+          "The payment was cancelled. You can start the payment again any time."
+        );
+      }
+      // Explicit failure: amount mismatch on a finished payment, or the
+      // provider reports an expired/refunded payment.
       await markTransactionFailed(transaction.id);
       throw new PaymentVerificationError("Payment verification failed.");
     }
@@ -139,7 +147,9 @@ export class PaymentCoreService {
       // eSewa "PENDING"/"AMBIGUOUS"). Keep the transaction PENDING instead of
       // failing it: the provider may send a COMPLETED callback moments later,
       // and a FAILED row would make that callback permanently unusable.
-      throw new PaymentVerificationError("Payment is not complete yet.");
+      throw new PaymentPendingError(
+        "Your payment is still processing at the gateway. It may complete shortly — check your dashboard before paying again."
+      );
     }
 
     if (verifyResult.currency !== "NPR") {

@@ -179,8 +179,8 @@ export default function NewPostClient({
   };
 
   return (
-    <div className="admin-editor-page py-10 px-4 sm:px-6 lg:px-8 max-w-[1360px] mx-auto w-full flex-1 flex flex-col">
-      <div className="mb-10">
+    <div className="admin-editor-page py-10 px-4 sm:px-6 lg:px-8 max-w-[1360px] mx-auto w-full flex-1 flex flex-col min-h-[calc(100vh-2.5rem)]">
+      <div className="mb-10 shrink-0">
         <Link href="/admin/posts" className="inline-flex items-center text-sm font-bold text-text-secondary hover:text-accent mb-6 transition-colors group">
           <svg className="w-4 h-4 mr-2 transform group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />

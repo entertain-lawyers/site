@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { paymentCoreService } from '@/modules/payments/core/payment.service';
 import { PaymentProvider } from '@/modules/payments/core/payment.types';
+import { PaymentCancelledError, PaymentPendingError } from '@/modules/payments/core/payment.errors';
 
 export async function GET(
   request: NextRequest,
@@ -83,9 +84,17 @@ async function handleCallback(request: NextRequest, providerParam: string) {
     return NextResponse.redirect(new URL(`/payment/success?txId=${idempotencyKey}`, request.url));
   } catch (error) {
     console.error('Payment callback error:', error);
-    // Safe failure redirect — do not expose internal error details to the client
+    // Safe failure redirect — do not expose internal error details to the
+    // client, but distinguish cancelled/still-processing from real failures
+    // so the UI never presents a pending gateway payment as definitive fail.
+    let reason = 'processing_error';
+    if (error instanceof PaymentCancelledError) {
+      reason = 'cancelled';
+    } else if (error instanceof PaymentPendingError) {
+      reason = 'pending';
+    }
     const failUrl = new URL(`/payment/failure`, request.url);
-    failUrl.searchParams.set('reason', 'processing_error');
+    failUrl.searchParams.set('reason', reason);
     if (idempotencyKey) {
       failUrl.searchParams.set('txId', idempotencyKey);
     }
