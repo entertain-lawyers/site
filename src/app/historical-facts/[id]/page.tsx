@@ -1,23 +1,19 @@
-import { getWordPressPostById, getWordPressPosts, mapCategoryToType, parseWordPressPostId } from '@/lib/wordpress';
+import { getWordPressPosts, mapCategoryToType } from '@/lib/wordpress';
 import { getLatestPosts } from '@/lib/latest-posts';
 import { notFound } from 'next/navigation';
 import PostDetail from '@/components/posts/PostDetail';
 import type { Metadata } from 'next';
 import { postMetadata } from '@/lib/seo';
 import { resolvePostAuthorForDisplay } from '@/lib/post-author';
+import { getPublishedHistoricalFact } from './validate';
 
 export const revalidate = 60;
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
-  const wpId = parseWordPressPostId(id);
-  if (!wpId) notFound();
-
-  const wpPost = await getWordPressPostById(wpId, 'en');
-  const type = wpPost ? mapCategoryToType(wpPost.categories, 'en') : null;
-  if (!wpPost || wpPost.status !== 'publish' || (type !== 'FACT' && type !== 'PERSONALITY')) {
-    notFound();
-  }
+  const fact = await getPublishedHistoricalFact(id);
+  if (!fact) notFound();
+  const { wpPost } = fact;
 
   return postMetadata({
     title: wpPost.title.rendered,
@@ -32,13 +28,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function FactDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const wpId = parseWordPressPostId(id);
-  if (!wpId) notFound();
-
-  const wpPost = await getWordPressPostById(wpId, 'en');
-  if (!wpPost || wpPost.status !== 'publish' || mapCategoryToType(wpPost.categories, 'en') !== 'FACT' && mapCategoryToType(wpPost.categories, 'en') !== 'PERSONALITY') {
-    notFound();
-  }
+  const fact = await getPublishedHistoricalFact(id);
+  if (!fact) notFound();
+  const wpPost = fact.wpPost;
 
   const resolvedAuthor = await resolvePostAuthorForDisplay({ wpPost, lang: 'en' });
   const postType = mapCategoryToType(wpPost.categories, 'en');
@@ -68,7 +60,7 @@ export default async function FactDetailPage({ params }: { params: Promise<{ id:
       embed: true,
       fields: 'id,date,title,categories,_links,_embedded',
     }),
-    getLatestPosts(wpId),
+    getLatestPosts(wpPost.id),
   ]);
 
   const relatedPosts = wpRelatedResponse.data
