@@ -105,6 +105,15 @@ export class PaymentCoreService {
     if (transaction.status === 'COMPLETED') {
       return { success: true, message: "Already processed" };
     }
+    // A cancelled transaction was abandoned by the customer (or cancelled at
+    // the gateway). Callbacks can be retried and the gateway may keep posting
+    // the same cancellation; report it as cancelled every time instead of
+    // falling through to the generic "already processed" idempotency error.
+    if (transaction.status === 'CANCELLED') {
+      throw new PaymentCancelledError(
+        "The payment was cancelled. You can start the payment again any time."
+      );
+    }
     if (transaction.status !== 'PENDING') {
       throw new IdempotencyError("Transaction already processed or not pending");
     }
