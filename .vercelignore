@@ -1,0 +1,4 @@
+# Local migration artifacts and build outputs never belong in deployments
+wordpress-migration-source/
+.next/
+.vercel/output/

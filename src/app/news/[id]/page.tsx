@@ -1,22 +1,18 @@
-import { getWordPressPostById, getWordPressPosts, mapCategoryToType, parseWordPressPostId } from '@/lib/wordpress';
+import { getWordPressPosts, mapCategoryToType } from '@/lib/wordpress';
 import { getLatestPosts } from '@/lib/latest-posts';
 import { notFound } from 'next/navigation';
 import PostDetail from '@/components/posts/PostDetail';
 import type { Metadata } from 'next';
 import { postMetadata } from '@/lib/seo';
 import { resolvePostAuthorForDisplay } from '@/lib/post-author';
+import { getPublishedNewsPost } from './validate';
 
 export const revalidate = 60;
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
-  const wpId = parseWordPressPostId(id);
-  if (!wpId) notFound();
-
-  const wpPost = await getWordPressPostById(wpId, 'en');
-  if (!wpPost || wpPost.status !== 'publish' || mapCategoryToType(wpPost.categories, 'en') !== 'NEWS') {
-    notFound();
-  }
+  const wpPost = await getPublishedNewsPost(id);
+  if (!wpPost) notFound();
 
   return postMetadata({
     title: wpPost.title.rendered,
@@ -31,13 +27,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function NewsDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const wpId = parseWordPressPostId(id);
-  if (!wpId) notFound();
-
-  const wpPost = await getWordPressPostById(wpId, 'en');
-  if (!wpPost || wpPost.status !== 'publish' || mapCategoryToType(wpPost.categories, 'en') !== 'NEWS') {
-    notFound();
-  }
+  const wpPost = await getPublishedNewsPost(id);
+  if (!wpPost) notFound();
 
   const resolvedAuthor = await resolvePostAuthorForDisplay({ wpPost, lang: 'en' });
 
@@ -67,7 +58,7 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ id:
       embed: true,
       fields: 'id,date,title,categories,_links,_embedded',
     }),
-    getLatestPosts(wpId),
+    getLatestPosts(wpPost.id),
   ]);
 
   const relatedPosts = wpRelatedResponse.data

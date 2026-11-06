@@ -1,4 +1,4 @@
-import { getWordPressPostById, getWordPressPosts, mapCategoryToType, parseWordPressPostId } from '@/lib/wordpress';
+import { getWordPressPosts, mapCategoryToType } from '@/lib/wordpress';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { formatBSDate } from '@/lib/nepali-date';
@@ -6,17 +6,15 @@ import { sanitizeHtml } from '@/lib/sanitize';
 import { Metadata } from 'next';
 import { postMetadata } from '@/lib/seo';
 import { resolvePostAuthorForDisplay } from '@/lib/post-author';
+import { getPublishedNepaliPost } from './validate';
 
 export const revalidate = 60;
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
-  const wpId = parseWordPressPostId(id);
-  if (!wpId) notFound();
-
-  const wpPost = await getWordPressPostById(wpId, 'ne');
-  if (!wpPost || wpPost.status !== 'publish') notFound();
-  if (!mapCategoryToType(wpPost.categories, 'ne').startsWith('NEPALI_')) notFound();
+  const wpPost = await getPublishedNepaliPost(id);
+  if (!wpPost) notFound();
+  const wpId = wpPost.id;
 
   return postMetadata({
     title: `${wpPost.title.rendered} - नेपाली`,
@@ -32,13 +30,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function NepaliPostDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const wpId = parseWordPressPostId(id);
-  if (!wpId) notFound();
-
-  const wpPost = await getWordPressPostById(wpId, 'ne');
-  if (!wpPost || wpPost.status !== 'publish') {
-    notFound();
-  }
+  const wpPost = await getPublishedNepaliPost(id);
+  if (!wpPost) notFound();
 
   const mappedType = mapCategoryToType(wpPost.categories, 'ne');
   if (!mappedType.startsWith('NEPALI_')) {
