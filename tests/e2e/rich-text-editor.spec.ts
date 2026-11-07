@@ -280,7 +280,7 @@ test.describe('Rich Text Editor workspace', () => {
     await page.reload({ waitUntil: 'load' });
     await page.waitForSelector('.editor-wrapper .ql-editor', { timeout: 90_000 });
     await page.fill('#title', postTitle + ' - UPDATED');
-    await page.getByRole('button', { name: 'Save Post' }).click();
+    await page.getByRole('button', { name: 'Update Post' }).click();
     await page.waitForTimeout(1000);
 
     await page.reload({ waitUntil: 'load' });
