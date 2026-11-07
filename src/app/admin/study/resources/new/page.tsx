@@ -52,7 +52,7 @@ export default async function NewResourcePage({
         </p>
       </div>
 
-      <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-white/10 p-6 sm:p-10 lg:flex-1 lg:min-h-0 lg:flex lg:flex-col lg:overflow-y-auto">
+      <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-white/10 p-6 sm:p-10 lg:flex-1 lg:min-h-0 lg:flex lg:flex-col lg:overflow-hidden">
         <AdminResourceForm
           semesters={semesters}
           subjects={subjects}

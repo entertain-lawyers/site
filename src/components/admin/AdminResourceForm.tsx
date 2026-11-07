@@ -344,7 +344,7 @@ export function AdminResourceForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 max-w-5xl lg:min-h-0 lg:flex lg:flex-col">
+    <form onSubmit={handleSubmit} className={`max-w-5xl lg:min-h-0 lg:flex lg:flex-col ${uploadMode === 'NOTE' ? 'lg:flex-1' : 'space-y-8'}`}>
       <AnimatePresence initial={false}>
       {savedResource && (
         <Appear key="saved-success">
@@ -395,7 +395,7 @@ export function AdminResourceForm({
       )}
       </AnimatePresence>
 
-      <div className={`space-y-8 ${uploadMode === 'NOTE' ? 'lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1' : ''}`}>
+      <div className={`space-y-8 ${uploadMode === 'NOTE' ? 'lg:shrink-0 lg:max-h-[45vh] lg:overflow-y-auto lg:pr-1' : ''}`}>
       {/* Upload Mode Toggle (not used while editing an existing file) */}
       {!isEdit && (
       <div className="flex bg-slate-100 dark:bg-zinc-800 p-1 rounded-xl w-fit">
