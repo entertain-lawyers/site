@@ -17,6 +17,7 @@ const eslintConfig = defineConfig([
     "scripts/**",
     "scripts-recovered/**",
     "scratch/**",
+    "public/**",
     "*.js",
   ]),
 ]);
