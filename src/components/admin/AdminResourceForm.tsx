@@ -344,7 +344,7 @@ export function AdminResourceForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 max-w-5xl">
+    <form onSubmit={handleSubmit} className="space-y-8 max-w-5xl lg:min-h-0 lg:flex lg:flex-col">
       <AnimatePresence initial={false}>
       {savedResource && (
         <Appear key="saved-success">
@@ -395,6 +395,7 @@ export function AdminResourceForm({
       )}
       </AnimatePresence>
 
+      <div className={`space-y-8 ${uploadMode === 'NOTE' ? 'lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:pr-1' : ''}`}>
       {/* Upload Mode Toggle (not used while editing an existing file) */}
       {!isEdit && (
       <div className="flex bg-slate-100 dark:bg-zinc-800 p-1 rounded-xl w-fit">
@@ -600,10 +601,13 @@ export function AdminResourceForm({
             </>
           )}
         </div>
-      ) : (
-        <div className="pt-6 border-t border-black/10 dark:border-white/10">
+      ) : null}
+      </div>
+
+      {uploadMode === 'NOTE' && (
+        <div className="lg:min-h-0 lg:flex-1 lg:flex lg:flex-col">
           <label className="block text-sm font-bold text-navy dark:text-white mb-4">Write Note Content</label>
-          <RichTextEditor value={content} onChange={setContent} placeholder="Write the law note or case law details here..." />
+          <RichTextEditor value={content} onChange={setContent} placeholder="Write the law note or case law details here..." fillHeight />
         </div>
       )}
 

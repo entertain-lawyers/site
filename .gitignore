@@ -109,3 +109,8 @@ cors_rules.json
 public/pdf.worker.min.mjs
 
 .claude/
+
+# Playwright editor E2E suite: runtime artifacts and stored login sessions
+playwright-report/
+test-results/
+tests/e2e/.auth/

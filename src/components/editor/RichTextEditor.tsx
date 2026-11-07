@@ -553,7 +553,6 @@ export default function RichTextEditor({
             max-height: clamp(28rem, 72vh, 48rem) !important;
             overflow-y: auto !important;
             overscroll-behavior-y: contain !important;
-            scroll-behavior: smooth !important;
           }
 
           /* Fill-height mode: editor stretches nicely alongside sidebar with smooth internal scrolling */
@@ -601,10 +600,58 @@ export default function RichTextEditor({
             max-height: 100% !important;
             overflow-y: auto !important;
             overscroll-behavior-y: contain !important;
-            scroll-behavior: smooth !important;
             border-radius: 0 !important;
             border-bottom-left-radius: 1rem !important;
             border-bottom-right-radius: 1rem !important;
+          }
+          /* Fill mode floor: when an ancestor region must scroll (e.g. the
+             resource form's metadata panel on short viewports) the flex chain
+             refuses to shrink below this, so the canvas stays usable. */
+          @media (min-width: 768px) {
+            .editor-wrapper.fill-height .ql-editor {
+              min-height: clamp(14rem, 30vh, 44rem) !important;
+            }
+          }
+          /* Below md, fill wrappers size naturally with the flowing page; keep
+             a comfortable base canvas height for touch use. */
+          @media (max-width: 767px) {
+            .editor-wrapper.fill-height .ql-editor {
+              min-height: 24rem !important;
+            }
+          }
+          /* Below lg the page itself is the scroll container; let the Quill
+             toolbar escape the fill-height overflow chain so it can stick to
+             the viewport under the fixed admin top bar. */
+          @media (max-width: 1023px) {
+            .editor-wrapper.fill-height .quill-box-container,
+            .editor-wrapper.fill-height .quill,
+            .editor-wrapper.fill-height .ql-container.ql-snow {
+              overflow: visible !important;
+            }
+            .editor-wrapper.fill-height .ql-toolbar.ql-snow {
+              top: 4rem !important;
+            }
+          }
+          /* Desktop: while the region containing the editor scrolls (resource
+             form card), keep the font selector pinned above the canvas. Where
+             nothing scrolls (posts workspace), sticky is inert. */
+          @media (min-width: 1024px) {
+            .editor-wrapper.fill-height .editor-toolbar-row {
+              position: sticky !important;
+              top: 0 !important;
+              z-index: 30 !important;
+              background: rgb(248 250 252 / 0.95) !important;
+              backdrop-filter: blur(8px) !important;
+              -webkit-backdrop-filter: blur(8px) !important;
+            }
+            .dark .editor-wrapper.fill-height .editor-toolbar-row {
+              background: rgb(24 24 27 / 0.95) !important;
+            }
+            /* Pin Quill's toolbar just below the font selector row so they
+               stack instead of overlapping in scrollable regions. */
+            .editor-wrapper.fill-height .ql-toolbar.ql-snow {
+              top: 2.75rem !important;
+            }
           }
           /* Desktop: writing canvas fills remaining space, never below the 560px target floor */
           @media (min-width: 768px) {
