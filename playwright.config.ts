@@ -13,6 +13,52 @@ import { defineConfig, devices } from '@playwright/test';
  */
 const enabled = process.env.EDITOR_E2E === '1';
 
+if (enabled) {
+  const rawBaseUrl = process.env.BASE_URL || 'http://localhost:3000';
+  let parsedBaseUrl: URL;
+  try {
+    parsedBaseUrl = new URL(rawBaseUrl);
+  } catch {
+    throw new Error(`SAFETY HALT: BASE_URL (${rawBaseUrl}) is not a valid URL.`);
+  }
+  const hostname = parsedBaseUrl.hostname;
+  const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '0.0.0.0' || hostname.endsWith('.test') || hostname.endsWith('.local');
+  if (!isLocalHost) {
+    throw new Error(`SAFETY HALT: EDITOR_E2E=1 requires a local or approved disposable BASE_URL host (localhost, 127.0.0.1). Received hostname: "${hostname}". Refusing to run against production.`);
+  }
+
+  const dbUrl = process.env.DATABASE_URL || '';
+  if (!dbUrl || dbUrl.includes('prod') || dbUrl.includes('production') || (!dbUrl.includes('localhost') && !dbUrl.includes('127.0.0.1') && !dbUrl.includes('test') && !dbUrl.includes('dev') && !dbUrl.includes('sqlite'))) {
+    throw new Error(`SAFETY HALT: DATABASE_URL is missing or appears to target a non-disposable/production database. Refusing to run E2E tests.`);
+  }
+
+  const wpEnUrl = process.env.WP_ENGLISH_URL || 'https://entertainlawyers.com/wp-json/wp/v2';
+  const wpNeUrl = process.env.WP_NEPALI_URL || 'https://entertainlawyers.com/nepali/wp-json/wp/v2';
+
+  for (const [name, wpUrl] of Object.entries({ WP_ENGLISH_URL: wpEnUrl, WP_NEPALI_URL: wpNeUrl })) {
+    let parsedWp: URL;
+    try {
+      parsedWp = new URL(wpUrl);
+    } catch {
+      throw new Error(`SAFETY HALT: ${name} (${wpUrl}) is not a valid URL.`);
+    }
+    const wpHospitality = parsedWp.hostname;
+    if (wpHospitality.includes('entertainlawyers.com') || wpHospitality.includes('production') || wpHospitality.includes('live')) {
+      throw new Error(`SAFETY HALT: ${name} points to production WordPress (${wpHospitality}). Refusing to run E2E tests against production WordPress.`);
+    }
+    const isWpLocal = wpHospitality === 'localhost' || wpHospitality === '127.0.0.1' || wpHospitality.includes('localwp') || wpHospitality.includes('test');
+    if (!isWpLocal) {
+      throw new Error(`SAFETY HALT: ${name} (${wpHospitality}) must be a local mock or disposable test endpoint.`);
+    }
+  }
+
+  const authHeader = process.env.WP_AUTH_HEADER || '';
+  const authUser = process.env.WP_AUTH_USERNAME || '';
+  if (authHeader.includes('prod') || authUser.includes('prod')) {
+    throw new Error(`SAFETY HALT: Production WordPress credentials detected in test environment variables.`);
+  }
+}
+
 export default defineConfig({
   testDir: './tests/e2e',
   // The editor pages lazily import react-quill-new; give the dev server room

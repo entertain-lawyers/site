@@ -18,23 +18,10 @@ import { test, expect, type Page } from '@playwright/test';
  * Below 1024px the page may scroll by design; the tests then only assert no
  * horizontal overflow, a usable caret, and preserved content.
  *
- * Environment: safety checks enforced at runtime when EDITOR_E2E=1.
+ * Environment: safety checks enforced at runtime via playwright.config.ts when EDITOR_E2E=1.
  */
 
 const PASSED_ENV = process.env.EDITOR_E2E === '1';
-
-if (PASSED_ENV) {
-  const baseURL = process.env.BASE_URL || 'http://localhost:3000';
-  const isLocalhost = baseURL.includes('localhost') || baseURL.includes('127.0.0.1') || baseURL.includes('0.0.0.0');
-  if (!isLocalhost) {
-    throw new Error(`SAFETY HALT: EDITOR_E2E=1 is set, but BASE_URL (${baseURL}) is not localhost/127.0.0.1. Refusing to run E2E tests against non-local hostnames.`);
-  }
-
-  const dbUrl = process.env.DATABASE_URL || '';
-  if (dbUrl && (dbUrl.includes('prod') || dbUrl.includes('production') || (!dbUrl.includes('localhost') && !dbUrl.includes('127.0.0.1') && !dbUrl.includes('test') && !dbUrl.includes('dev') && !dbUrl.includes('sqlite')))) {
-    throw new Error(`SAFETY HALT: DATABASE_URL appears to target a non-disposable/production database. Refusing to run E2E tests.`);
-  }
-}
 
 test.skip(
   !PASSED_ENV,
@@ -43,6 +30,33 @@ test.skip(
 
 const CANARY = 'END-OF-FIXTURE-EDIT-CANARY';
 const NEPALI_CANARY = 'नेपाल-कानून-अन्तिम-मार्कर-९९८८७७';
+
+// State to track test data for cleanup
+let createdPostIds: number[] = [];
+let createdResourceIds: string[] = [];
+
+test.afterEach(async ({ page }) => {
+  // Clean up any created posts
+  for (const postId of createdPostIds) {
+    try {
+      await page.request.post('/api/admin/posts/delete', { data: { id: postId, action: 'DELETE_PERMANENTLY', lang: 'en' } }).catch(() => {});
+    } catch (e) {
+      console.warn(`Failed to cleanup test post ${postId}:`, e);
+    }
+  }
+  createdPostIds = [];
+
+  // Clean up any created resources
+  for (const resId of createdResourceIds) {
+    try {
+      // Use existing resource deletion action
+      await page.request.post('/api/admin/resources/delete', { data: { id: resId } }).catch(() => {});
+    } catch (e) {
+      console.warn(`Failed to cleanup test resource ${resId}:`, e);
+    }
+  }
+  createdResourceIds = [];
+});
 
 /** Deterministic long fixture built at runtime (>= target words) - English. */
 function buildLongFixture(targetWords = 20500): string {
@@ -226,10 +240,10 @@ test.describe('Rich Text Editor workspace', () => {
     await page.keyboard.press('Control+End');
     await page.waitForTimeout(300);
     const end = await metrics(page);
-    if (wide && end?.caretRect) {
-      expect(end.editorBottom, 'typable area on screen at the end of the document').toBeLessThanOrEqual(end.innerH + 50);
-      expect(end.caretRect.bottom, 'caret is inside the visible editor viewport').toBeLessThanOrEqual(end.innerH + 20);
-      expect(end.caretRect.top).toBeGreaterThanOrEqual(0);
+    if (wide) {
+      expect(end!.caretRect, 'caret metrics must be present on desktop').not.toBeNull();
+      expect(end!.caretRect!.bottom, 'caret is inside the actual .ql-editor viewport bottom').toBeLessThanOrEqual(end!.editorBottom);
+      expect(end!.caretRect!.top, 'caret is inside the actual .ql-editor viewport top').toBeGreaterThanOrEqual(end!.editorTop);
     }
     await page.keyboard.type(' ' + CANARY + 'TYPED');
     await page.waitForTimeout(500);
@@ -238,10 +252,13 @@ test.describe('Rich Text Editor workspace', () => {
       'typed tail persists in the model'
     ).toBe(true);
 
-    // Cleanup: try to delete the created post if possible or navigate back
+    const match = page.url().match(/\/admin\/posts\/(\d+)\/edit/);
+    if (match) {
+        createdPostIds.push(Number(match[1]));
+    }
   });
 
-  test('posts: 20k-word draft round-trips through save + reload without truncation (English)', async ({ page }) => {
+  test('posts: 20k-word draft round-trips through save + reload + edit (English)', async ({ page }) => {
     await page.goto('/admin/posts/new', { waitUntil: 'load' });
     await page.waitForSelector('.editor-wrapper .ql-editor', { timeout: 90_000 });
     const postTitle = `EDITOR E2E DRAFT (safe to delete) ${Date.now() % 100000}`;
@@ -254,6 +271,18 @@ test.describe('Rich Text Editor workspace', () => {
       undefined,
       { timeout: 120_000 }
     );
+
+    // Track ID
+    const match = page.url().match(/\/admin\/posts\/(\d+)\/edit/);
+    if (match) createdPostIds.push(Number(match[1]));
+
+    // Reload and Edit
+    await page.reload({ waitUntil: 'load' });
+    await page.waitForSelector('.editor-wrapper .ql-editor', { timeout: 90_000 });
+    await page.fill('#title', postTitle + ' - UPDATED');
+    await page.getByRole('button', { name: 'Save Post' }).click();
+    await page.waitForTimeout(1000);
+
     await page.reload({ waitUntil: 'load' });
     await page.waitForSelector('.editor-wrapper .ql-editor', { timeout: 90_000 });
     await page.waitForTimeout(1500);
@@ -273,6 +302,9 @@ test.describe('Rich Text Editor workspace', () => {
 
     await pasteIntoEditor(page, buildNepaliLongFixture(20100) + '\n\n' + [NEPALI_CANARY, 'nepali-tail'].join(' '));
     await page.waitForTimeout(1500);
+
+    const match = page.url().match(/\/admin\/posts\/(\d+)\/edit/);
+    if (match) createdPostIds.push(Number(match[1]));
 
     const m = await metrics(page);
     expect(m, 'Nepali editor mounted').not.toBeNull();
@@ -317,14 +349,15 @@ test.describe('Rich Text Editor workspace', () => {
     ).toBe(true);
   });
 
-  test('resources: Write Note canvas scrolls internally, supports Nepali content, and saved note round-trips', async ({ page }) => {
+  test('resources: Write Note canvas scrolls internally, supports Nepali content, and saved note round-trips + edit', async ({ page }) => {
     await page.goto('/admin/study/resources/new', { waitUntil: 'load' });
     await page.waitForTimeout(2000);
     await page.getByRole('button', { name: /Write Note/i }).click();
     await page.waitForSelector('.editor-wrapper .ql-editor', { timeout: 90_000 });
     await page.waitForTimeout(500);
 
-    await page.fill('input[type="text"]', `नेपाली ल फर्म नोट (safe to delete) ${Date.now() % 100000}`);
+    const resTitle = `नेपाली ल फर्म नोट (safe to delete) ${Date.now() % 100000}`;
+    await page.fill('input[type="text"]', resTitle);
     const wide = (page.viewportSize() as { width: number }).width >= 1024;
 
     await pasteIntoEditor(page, buildNepaliLongFixture(20100) + '\n\n' + [NEPALI_CANARY, 'resource-nepali'].join(' '));
@@ -374,6 +407,18 @@ test.describe('Rich Text Editor workspace', () => {
 
     await page.getByRole('button', { name: 'Save as Draft' }).click();
     await page.waitForURL(/\/admin\/study\/resources\/.+\/edit/, { timeout: 120_000 });
+
+    // Track ID
+    const matchRes = page.url().match(/\/admin\/study\/resources\/(.+)\/edit/);
+    if (matchRes) createdResourceIds.push(matchRes[1]);
+
+    // Reload and Edit
+    await page.reload({ waitUntil: 'load' });
+    await page.waitForSelector('.editor-wrapper .ql-editor', { timeout: 90_000 });
+    await page.fill('input[type="text"]', resTitle + ' - UPDATED');
+    await page.getByRole('button', { name: 'Save as Draft' }).click();
+    await page.waitForTimeout(1000);
+
     await page.reload({ waitUntil: 'load' });
     await page.waitForSelector('.editor-wrapper .ql-editor', { timeout: 90_000 });
     await page.waitForTimeout(1500);
