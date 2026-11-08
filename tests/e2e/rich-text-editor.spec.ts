@@ -35,24 +35,32 @@ const NEPALI_CANARY = 'नेपाल-कानून-अन्तिम-मा
 let createdPostIds: number[] = [];
 let createdResourceIds: string[] = [];
 
+/**
+ * Real cleanup, confined to the disposable environment:
+ *  - posts only ever live in the mock WordPress instance (deleted via its REST API)
+ *  - NOTE resources live in the dev database (deleted via Prisma; the config's
+ *    safety halt already guarantees DATABASE_URL points at a disposable DB)
+ */
 test.afterEach(async ({ page }) => {
-  // Clean up any created posts
-  for (const postId of createdPostIds) {
-    try {
-      await page.request.post('/api/admin/posts/delete', { data: { id: postId, action: 'DELETE_PERMANENTLY', lang: 'en' } }).catch(() => {});
-    } catch (e) {
-      console.warn(`Failed to cleanup test post ${postId}:`, e);
-    }
+  if (createdPostIds.length && process.env.E2E_MOCK_WP_URL) {
+    await Promise.allSettled(
+      createdPostIds.map((postId) =>
+        page.request.delete(`${process.env.E2E_MOCK_WP_URL}/posts/${postId}`)
+      )
+    );
+    console.log(`[cleanup] deleted posts ${createdPostIds.join(', ')} from mock WP`);
   }
   createdPostIds = [];
 
-  // Clean up any created resources
-  for (const resId of createdResourceIds) {
+  if (createdResourceIds.length) {
     try {
-      // Use existing resource deletion action
-      await page.request.post('/api/admin/resources/delete', { data: { id: resId } }).catch(() => {});
+      const { PrismaClient } = await import('@prisma/client');
+      const prisma = new PrismaClient();
+      await prisma.resource.deleteMany({ where: { id: { in: createdResourceIds } } });
+      await prisma.$disconnect();
+      console.log(`[cleanup] deleted resources ${createdResourceIds.join(', ')} from dev DB`);
     } catch (e) {
-      console.warn(`Failed to cleanup test resource ${resId}:`, e);
+      console.warn(`[cleanup] failed to delete resources ${createdResourceIds.join(', ')}:`, e);
     }
   }
   createdResourceIds = [];
@@ -162,6 +170,8 @@ async function metrics(page: Page) {
     if (!ed || !toolbar) return null;
     const tr = toolbar.getBoundingClientRect();
     const rr = toolRow?.getBoundingClientRect();
+    const container = ed.closest('.ql-container');
+    const cr = container?.getBoundingClientRect();
 
     let caretRect = null;
     const selection = window.getSelection();
@@ -190,12 +200,29 @@ async function metrics(page: Page) {
       editorBottom: Math.round(ed.getBoundingClientRect().bottom),
       toolbarTop: Math.round(tr.top),
       toolbarRowTop: rr ? Math.round(rr.top) : -1,
+      containerH: cr ? Math.round(cr.height) : 0,
+      editorOverflowsContainer: cr ? ed.getBoundingClientRect().bottom > cr.bottom + 1 || ed.getBoundingClientRect().top < cr.top - 1 : false,
       innerH: window.innerHeight,
       pageScrollY: Math.round(window.scrollY),
       horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
       caretRect,
     };
   });
+}
+
+/**
+ * Desktop workspace assertions shared by every editor test:
+ *  1. the canvas is meaningfully tall (>= 31% of the viewport). A floor-clamped
+ *     ~270px editor at 1440x900 is exactly 30% and must NOT satisfy this;
+ *  2. the canvas never overflows (gets clipped by) its `.ql-container` box —
+ *     the signature of a collapsed flex chain;
+ *  3. `min-height` never wins over real workspace space (clientH == the visible
+ *     scroll viewport).
+ */
+function expectDesktopWorkspace(m: NonNullable<Awaited<ReturnType<typeof metrics>>>) {
+  expect(m.clientH, 'canvas is at least 31% of the viewport height').toBeGreaterThanOrEqual(0.31 * m.innerH);
+  expect(m.clientH, 'canvas matches its container (no floor-clamped overflow)').toBeLessThanOrEqual(m.containerH + 1);
+  expect(m.editorOverflowsContainer, 'canvas is not clipped by its container').toBe(false);
 }
 
 test.describe('Rich Text Editor workspace', () => {
@@ -218,12 +245,23 @@ test.describe('Rich Text Editor workspace', () => {
     if (wide) {
       expect(m!.scrollH, 'canvas overflows its own box').toBeGreaterThan(m!.clientH + 5_000);
       expect(m!.clientH, 'canvas bounded inside the viewport workspace').toBeLessThan(m!.innerH);
+      expectDesktopWorkspace(m!);
       expect(m!.pageScrollY, 'page does not scroll in the workspace layout').toBeLessThanOrEqual(3);
       expect(m!.cardScrollTop, 'card does not unexpectedly scroll').toBe(0);
       expect(m!.horizontalOverflow, 'no horizontal overflow').toBe(false);
       expect(m!.toolbarRowTop, 'font selector visible').toBeGreaterThanOrEqual(0);
     }
     expect(m!.toolbarTop).toBeGreaterThanOrEqual(-1);
+
+    // Keyboard scrolling (trusted key events): PageDown must scroll the canvas
+    // itself. Runs before the big wheel (at document bottom PageDown is a no-op).
+    await page.keyboard.press('PageDown');
+    await page.waitForTimeout(300);
+    const kb = await metrics(page);
+    if (wide) {
+      expect(kb!.scrollTop, 'PageDown scrolls the canvas itself').toBeGreaterThan(100);
+      expect(kb!.pageScrollY, 'keyboard scrolling never scrolls the page').toBeLessThanOrEqual(3);
+    }
 
     await wheelScroll(page, 40_000);
     const mid = await metrics(page);
@@ -311,6 +349,7 @@ test.describe('Rich Text Editor workspace', () => {
     if (wide) {
       expect(m!.scrollH).toBeGreaterThan(m!.clientH + 5_000);
       expect(m!.clientH).toBeLessThan(m!.innerH);
+      expectDesktopWorkspace(m!);
       expect(m!.horizontalOverflow).toBe(false);
     }
 
@@ -357,7 +396,7 @@ test.describe('Rich Text Editor workspace', () => {
     await page.waitForTimeout(500);
 
     const resTitle = `नेपाली ल फर्म नोट (safe to delete) ${Date.now() % 100000}`;
-    await page.fill('input[type="text"]', resTitle);
+    await page.fill('#resource-title', resTitle);
     const wide = (page.viewportSize() as { width: number }).width >= 1024;
 
     await pasteIntoEditor(page, buildNepaliLongFixture(20100) + '\n\n' + [NEPALI_CANARY, 'resource-nepali'].join(' '));
@@ -368,6 +407,7 @@ test.describe('Rich Text Editor workspace', () => {
     if (wide) {
       expect(m!.scrollH).toBeGreaterThan(m!.clientH + 5_000);
       expect(m!.clientH).toBeLessThan(m!.innerH);
+      expectDesktopWorkspace(m!);
       expect(m!.horizontalOverflow).toBe(false);
     }
 
@@ -385,24 +425,14 @@ test.describe('Rich Text Editor workspace', () => {
     await page.keyboard.type(' ' + NEPALI_CANARY + ' NOTE');
     await page.waitForTimeout(400);
 
-    // Select semester and subject
-    await page.evaluate(() => {
-      const semester = document.querySelectorAll('select')[1];
-      const option = [...semester.options].find((o) => o.value);
-      if (option) {
-        semester.value = option.value;
-        semester.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    });
+    // Select semester and subject (by placeholder option, NOT by index — the page
+    // has extra header selects whose count differs between desktop and mobile).
+    const semesterSelect = page.locator('select:has(option:text-is("Select Semester"))');
+    await semesterSelect.selectOption({ index: 1 });
     await page.waitForTimeout(400);
-    await page.evaluate(() => {
-      const subject = document.querySelectorAll('select')[2];
-      const option = [...subject.options].find((o) => o.value);
-      if (option) {
-        subject.value = option.value;
-        subject.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    });
+    const subjectSelect = page.locator('select:has(option:text-is("Select Subject"))');
+    await expect(subjectSelect, 'subject becomes enabled once a semester is chosen').toBeEnabled({ timeout: 20_000 });
+    await subjectSelect.selectOption({ index: 1 });
     await page.waitForTimeout(300);
 
     await page.getByRole('button', { name: 'Save as Draft' }).click();
@@ -415,7 +445,7 @@ test.describe('Rich Text Editor workspace', () => {
     // Reload and Edit
     await page.reload({ waitUntil: 'load' });
     await page.waitForSelector('.editor-wrapper .ql-editor', { timeout: 90_000 });
-    await page.fill('input[type="text"]', resTitle + ' - UPDATED');
+    await page.fill('#resource-title', resTitle + ' - UPDATED');
     await page.getByRole('button', { name: 'Save as Draft' }).click();
     await page.waitForTimeout(1000);
 
