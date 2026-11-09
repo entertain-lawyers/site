@@ -29,7 +29,7 @@ vi.mock('@/lib/prisma', () => ({
   prisma: {
     user: {
       findUnique: vi.fn(async ({ where }: { where: { id: string } }) => ({
-        role: where.id === 'admin-1' ? Role.ADMIN : Role.USER,
+        role: where.id === 'admin-1' ? Role.ADMIN : where.id === 'editor-1' ? Role.EDITOR : Role.USER,
       })),
     },
     auditLog: { create: vi.fn() },
@@ -63,6 +63,15 @@ describe('Admin Consultation Lawyer Module', () => {
         phone: '+977 9822010737',
         email: 'baburam.jnk@gmail.com',
         whatsappNumber: '+9779822010737',
+        serviceCities: 'Kathmandu, Pokhara',
+        lawFirm: 'Pentagon Law Firm',
+        officeAddress: 'Dillibazar, Kathmandu',
+        officeMapUrl: 'https://maps.google.com/?q=Dillibazar',
+        facebookUrl: 'https://facebook.com/advocate',
+        instagramUrl: 'https://instagram.com/advocate',
+        linkedInUrl: 'https://linkedin.com/in/advocate',
+        websiteUrl: 'https://lawfirm.example',
+        achievements: 'Winner of the 23rd moot court competition',
         isAvailable: true,
         displayOrder: 1,
       };
@@ -83,11 +92,16 @@ describe('Admin Consultation Lawyer Module', () => {
       const result = consultationLawyerSchema.safeParse(invalid);
       expect(result.success).toBe(false);
     });
+
+    it('rejects unsafe profile links and malformed phone numbers', () => {
+      expect(consultationLawyerSchema.safeParse({ name: 'Advocate A', title: 'Advocate', websiteUrl: 'javascript:alert(1)' }).success).toBe(false);
+      expect(consultationLawyerSchema.safeParse({ name: 'Advocate A', title: 'Advocate', phone: '------' }).success).toBe(false);
+    });
   });
 
   describe('createConsultationLawyerAction', () => {
     it('rejects regular users', async () => {
-      (auth as any).mockResolvedValue({ user: { id: 'user-1', role: Role.USER } });
+      mock(auth).mockResolvedValue({ user: { id: 'user-1', role: Role.USER } });
 
       const res = await createConsultationLawyerAction({
         name: 'Advocate Hari',
@@ -101,9 +115,9 @@ describe('Admin Consultation Lawyer Module', () => {
     });
 
     it('creates new consultation lawyer for ADMIN', async () => {
-      (auth as any).mockResolvedValue({ user: { id: 'admin-1', role: Role.ADMIN } });
-      (prisma.consultationLawyer.findUnique as any).mockResolvedValue(null);
-      (prisma.consultationLawyer.create as any).mockResolvedValue({
+      mock(auth).mockResolvedValue({ user: { id: 'admin-1', role: Role.ADMIN } });
+      mock(prisma.consultationLawyer.findUnique).mockResolvedValue(null);
+      mock(prisma.consultationLawyer.create).mockResolvedValue({
         id: 'new-lawyer-123',
         name: 'Ram Babu Das',
         slug: 'ram-babu-das',
@@ -123,6 +137,23 @@ describe('Admin Consultation Lawyer Module', () => {
         expect(res.data.name).toBe('Ram Babu Das');
       }
       expect(prisma.consultationLawyer.create).toHaveBeenCalled();
+    });
+
+    it('persists new profile fields for an authorized editor', async () => {
+      mock(auth).mockResolvedValue({ user: { id: 'editor-1', role: Role.EDITOR } });
+      mock(prisma.consultationLawyer.findFirst).mockResolvedValue(null);
+      mock(prisma.consultationLawyer.create).mockImplementation(async ({ data }: CreateArgs) => ({ id: 'new-profile', ...data }));
+      const result = await createConsultationLawyerAction({
+        name: 'Advocate Sita', title: 'Advocate', serviceCities: 'Pokhara, Janakpur', lawFirm: 'Legal Chambers',
+        officeAddress: 'New Road, Pokhara', achievements: 'Moot court winner',
+        facebookUrl: 'https://facebook.com/sita', instagramUrl: 'https://instagram.com/sita',
+        linkedInUrl: 'https://linkedin.com/in/sita', websiteUrl: 'https://example.com',
+      });
+      expect(result.success).toBe(true);
+      expect(prisma.consultationLawyer.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({
+        serviceCities: 'Pokhara, Janakpur', lawFirm: 'Legal Chambers', officeAddress: 'New Road, Pokhara', achievements: 'Moot court winner',
+        facebookUrl: 'https://facebook.com/sita', instagramUrl: 'https://instagram.com/sita', linkedInUrl: 'https://linkedin.com/in/sita', websiteUrl: 'https://example.com',
+      }) }));
     });
 
     it('names the unapplied migration instead of a generic error when the table is missing', async () => {
@@ -161,12 +192,12 @@ describe('Admin Consultation Lawyer Module', () => {
 
   describe('updateConsultationLawyerAction & toggleConsultationLawyerAvailabilityAction', () => {
     it('updates lawyer details for ADMIN', async () => {
-      (auth as any).mockResolvedValue({ user: { id: 'admin-1', role: Role.ADMIN } });
-      (prisma.consultationLawyer.findUnique as any).mockResolvedValue({
+      mock(auth).mockResolvedValue({ user: { id: 'admin-1', role: Role.ADMIN } });
+      mock(prisma.consultationLawyer.findUnique).mockResolvedValue({
         id: '11111111-1111-4111-8111-111111111111',
         slug: 'ram-babu-das',
       });
-      (prisma.consultationLawyer.update as any).mockResolvedValue({
+      mock(prisma.consultationLawyer.update).mockResolvedValue({
         id: '11111111-1111-4111-8111-111111111111',
         name: 'Ram Babu Das Updated',
         title: 'Senior Advocate',
@@ -183,8 +214,8 @@ describe('Admin Consultation Lawyer Module', () => {
     });
 
     it('toggles lawyer availability', async () => {
-      (auth as any).mockResolvedValue({ user: { id: 'admin-1', role: Role.ADMIN } });
-      (prisma.consultationLawyer.update as any).mockResolvedValue({
+      mock(auth).mockResolvedValue({ user: { id: 'admin-1', role: Role.ADMIN } });
+      mock(prisma.consultationLawyer.update).mockResolvedValue({
         id: '11111111-1111-4111-8111-111111111111',
         isAvailable: false,
       });
@@ -202,8 +233,8 @@ describe('Admin Consultation Lawyer Module', () => {
     });
 
     it('deletes lawyer profile', async () => {
-      (auth as any).mockResolvedValue({ user: { id: 'admin-1', role: Role.ADMIN } });
-      (prisma.consultationLawyer.delete as any).mockResolvedValue({ id: '11111111-1111-4111-8111-111111111111' });
+      mock(auth).mockResolvedValue({ user: { id: 'admin-1', role: Role.ADMIN } });
+      mock(prisma.consultationLawyer.delete).mockResolvedValue({ id: '11111111-1111-4111-8111-111111111111' });
 
       const res = await deleteConsultationLawyerAction({
         id: '11111111-1111-4111-8111-111111111111',

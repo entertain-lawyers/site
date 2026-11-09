@@ -80,6 +80,9 @@ describe('Consultation Request Module', () => {
         fullName: 'Ram Bahadur Thapa',
         email: 'ram.thapa@example.com',
         phone: '9841234567',
+        whatsappNumber: '9841234567',
+        permanentAddress: 'Pokhara, Nepal',
+        temporaryAddress: 'Kathmandu, Nepal',
         preferredContactMethod: 'PHONE' as const,
         consultationMode: 'PHYSICAL' as const,
         practiceArea: 'CIVIL_COMMERCIAL',
@@ -104,6 +107,9 @@ describe('Consultation Request Module', () => {
         fullName: 'Ram Thapa',
         email: 'invalid-email-string',
         phone: '9841234567',
+        whatsappNumber: '9841234567',
+        permanentAddress: 'Pokhara, Nepal',
+        temporaryAddress: 'Kathmandu, Nepal',
         practiceArea: 'CIVIL_COMMERCIAL',
         subject: 'Title Dispute',
         description: 'Description of the case with sufficient length.',
@@ -115,11 +121,14 @@ describe('Consultation Request Module', () => {
       }
     });
 
-    it('rejects too short description or missing subject', () => {
+    it('rejects a too short description when no subject is supplied', () => {
       const result = consultationRequestSchema.safeParse({
         fullName: 'Ram Thapa',
         email: 'ram@example.com',
         phone: '9841234567',
+        whatsappNumber: '9841234567',
+        permanentAddress: 'Pokhara, Nepal',
+        temporaryAddress: 'Kathmandu, Nepal',
         practiceArea: 'CIVIL_COMMERCIAL',
         subject: '',
         description: 'Too short',
@@ -128,9 +137,25 @@ describe('Consultation Request Module', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         const paths = result.error.issues.map((i) => i.path[0]);
-        expect(paths).toContain('subject');
         expect(paths).toContain('description');
       }
+    });
+
+    it('accepts English, Nepali, and mixed-language intake without an email address', () => {
+      const result = consultationRequestSchema.safeParse({
+        fullName: 'Sita Sharma', phone: '+977 9841234567', whatsappNumber: '9841234567',
+        permanentAddress: 'Pokhara, Kaski', temporaryAddress: 'Kathmandu',
+        practiceArea: 'CIVIL_COMMERCIAL', description: 'मेरो जग्गाको नक्सा सम्बन्धी समस्या छ — please call me.',
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it('rejects phone numbers without enough digits and email contact without an email', () => {
+      const base = { fullName: 'Sita Sharma', phone: '----....', whatsappNumber: '9841234567', permanentAddress: 'Pokhara', temporaryAddress: 'Kathmandu', practiceArea: 'CIVIL_COMMERCIAL', description: 'A sufficiently long legal problem description.' };
+      expect(consultationRequestSchema.safeParse(base).success).toBe(false);
+      const emailRequired = consultationRequestSchema.safeParse({ ...base, phone: '9841234567', preferredContactMethod: 'EMAIL' });
+      expect(emailRequired.success).toBe(false);
+      if (!emailRequired.success) expect(emailRequired.error.issues.some((issue) => issue.path[0] === 'email')).toBe(true);
     });
   });
 
@@ -141,12 +166,15 @@ describe('Consultation Request Module', () => {
         fullName: 'Sita Sharma',
         createdAt: new Date('2026-10-11T12:00:00Z'),
       };
-      (prisma.consultationRequest.create as any).mockResolvedValue(fakeCreated);
+      mock(prisma.consultationRequest.create).mockResolvedValue(fakeCreated);
 
       const payload = {
         fullName: '  Sita Sharma  ',
         email: 'SITA.sharma@example.COM',
         phone: ' 9801234567 ',
+        whatsappNumber: ' 9801234567 ',
+        permanentAddress: 'Pokhara',
+        temporaryAddress: 'Kathmandu',
         preferredContactMethod: 'WHATSAPP' as const,
         consultationMode: 'ONLINE' as const,
         practiceArea: 'CORPORATE_ADVISORY',
@@ -190,12 +218,15 @@ describe('Consultation Request Module', () => {
         createdAt: new Date('2026-10-12T10:00:00Z'),
       };
       mock(prisma.consultationRequest.create).mockResolvedValue(fakeCreated);
-      mock(prisma.consultationLawyer.findFirst).mockResolvedValueOnce({ name: 'Ram Babu Das' });
+      mock(prisma.consultationLawyer.findFirst).mockResolvedValueOnce({ id: '22222222-2222-4222-8222-222222222222', name: 'Ram Babu Das' });
 
       const payload = {
         fullName: 'Hari Prasad',
         email: 'hari@example.com',
         phone: '9851000000',
+        whatsappNumber: '9851000000',
+        permanentAddress: 'Pokhara',
+        temporaryAddress: 'Kathmandu',
         practiceArea: 'CRIMINAL_DEFENSE',
         subject: 'Bail Application Advice',
         description: 'Need urgent consultation regarding a court appearance in Pokhara.',
@@ -209,13 +240,14 @@ describe('Consultation Request Module', () => {
 
       expect(prisma.consultationLawyer.findFirst).toHaveBeenCalledWith({
         where: { id: '22222222-2222-4222-8222-222222222222', isAvailable: true },
-        select: { name: true },
+        select: { id: true, name: true },
       });
       expect(prisma.consultationRequest.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           fullName: 'Hari Prasad',
           description: expect.stringContaining('[Requested Advocate: Ram Babu Das]'),
           referralSource: 'Advocate: Ram Babu Das',
+          lawyerId: '22222222-2222-4222-8222-222222222222',
         }),
       });
 
@@ -228,7 +260,7 @@ describe('Consultation Request Module', () => {
       );
     });
 
-    it('ignores a client-supplied advocate name that does not match an available lawyer', async () => {
+    it('ignores a client-supplied advocate name when the valid lawyer id is unavailable', async () => {
       mock(prisma.consultationRequest.create).mockResolvedValue({
         id: 'spoof-1',
         fullName: 'Visitor',
@@ -239,16 +271,22 @@ describe('Consultation Request Module', () => {
         fullName: 'Visitor',
         email: 'victim@example.com',
         phone: '9851000000',
+        whatsappNumber: '9851000000',
+        permanentAddress: 'Pokhara',
+        temporaryAddress: 'Kathmandu',
         practiceArea: 'CRIMINAL_DEFENSE',
         subject: 'Hello there',
         description: 'Some description that is long enough.',
         lawyerName: '<a href="https://evil.example">Click to verify</a>',
-        lawyerId: 'not-a-uuid',
+        lawyerId: '33333333-3333-4333-8333-333333333333',
       });
 
       expect(result.success).toBe(true);
       if (result.success) expect(result.data.lawyerName).toBeNull();
-      expect(prisma.consultationLawyer.findFirst).not.toHaveBeenCalled();
+      expect(prisma.consultationLawyer.findFirst).toHaveBeenCalledWith({
+        where: { id: '33333333-3333-4333-8333-333333333333', isAvailable: true },
+        select: { id: true, name: true },
+      });
       const { data } = mock(prisma.consultationRequest.create).mock.calls[0][0];
       expect(data.description).not.toContain('evil.example');
       expect(data.referralSource).toBeNull();
@@ -271,6 +309,9 @@ describe('Consultation Request Module', () => {
         fullName: 'Sita',
         email: 'sita@example.com',
         phone: '9851000000',
+        whatsappNumber: '9851000000',
+        permanentAddress: 'Pokhara',
+        temporaryAddress: 'Kathmandu',
         practiceArea: 'CRIMINAL_DEFENSE',
         subject: 'Hello there',
         description: 'Some description that is long enough.',
@@ -280,11 +321,27 @@ describe('Consultation Request Module', () => {
       expect(consoleSpy).toHaveBeenCalledTimes(2);
       consoleSpy.mockRestore();
     });
+
+    it('persists sketch fields and derives a subject while skipping client email without an email address', async () => {
+      mock(prisma.consultationRequest.create).mockResolvedValue({ id: 'no-email-1', fullName: 'Sita Sharma', createdAt: new Date() });
+      const result = await submitConsultationRequestAction({
+        fullName: ' Sita Sharma ', phone: '+977 9841234567', whatsappNumber: '9841234567',
+        permanentAddress: 'Pokhara, Kaski', temporaryAddress: 'Kathmandu', practiceArea: 'CIVIL_COMMERCIAL',
+        description: 'मेरो जग्गा सम्बन्धी समस्या छ — I need advice.',
+      });
+      expect(result.success).toBe(true);
+      expect(prisma.consultationRequest.create).toHaveBeenCalledWith({ data: expect.objectContaining({
+        fullName: 'Sita Sharma', email: '', phone: '+977 9841234567', whatsappNumber: '9841234567',
+        permanentAddress: 'Pokhara, Kaski', temporaryAddress: 'Kathmandu', subject: 'मेरो जग्गा सम्बन्धी समस्या छ — I need advice.',
+      }) });
+      expect(sendConsultationNotificationEmail).toHaveBeenCalled();
+      expect(sendConsultationClientAckEmail).not.toHaveBeenCalled();
+    });
   });
 
   describe('adminGetConsultationsAction & adminUpdateConsultationStatusAction', () => {
     it('rejects unauthenticated or unauthorized users from viewing consultations', async () => {
-      (auth as any).mockResolvedValue({ user: { id: 'u1', role: Role.USER } });
+      mock(auth).mockResolvedValue({ user: { id: 'u1', role: Role.USER } });
 
       const res = await adminGetConsultationsAction({
         status: 'ALL',
@@ -299,7 +356,7 @@ describe('Consultation Request Module', () => {
     });
 
     it('allows ADMIN to fetch consultations list with filters and status breakdown', async () => {
-      (auth as any).mockResolvedValue({ user: { id: 'admin1', role: Role.ADMIN } });
+      mock(auth).mockResolvedValue({ user: { id: 'admin1', role: Role.ADMIN } });
       const mockItems = [
         {
           id: 'c1',
@@ -310,9 +367,9 @@ describe('Consultation Request Module', () => {
           createdAt: new Date(),
         },
       ];
-      (prisma.consultationRequest.findMany as any).mockResolvedValue(mockItems);
-      (prisma.consultationRequest.count as any).mockResolvedValue(1);
-      (prisma.consultationRequest.groupBy as any).mockResolvedValue([
+      mock(prisma.consultationRequest.findMany).mockResolvedValue(mockItems);
+      mock(prisma.consultationRequest.count).mockResolvedValue(1);
+      mock(prisma.consultationRequest.groupBy).mockResolvedValue([
         { status: ConsultationStatus.NEW, _count: { status: 1 } },
       ]);
 
@@ -332,14 +389,14 @@ describe('Consultation Request Module', () => {
     });
 
     it('allows EDITOR or ADMIN to update consultation status and notes', async () => {
-      (auth as any).mockResolvedValue({ user: { id: 'admin1', role: Role.ADMIN } });
+      mock(auth).mockResolvedValue({ user: { id: 'admin1', role: Role.ADMIN } });
       const consultationId = '11111111-1111-4111-8111-111111111111';
       const mockUpdated = {
         id: consultationId,
         status: ConsultationStatus.SCHEDULED,
         adminNotes: 'Appointment set for Tuesday 2 PM',
       };
-      (prisma.consultationRequest.update as any).mockResolvedValue(mockUpdated);
+      mock(prisma.consultationRequest.update).mockResolvedValue(mockUpdated);
 
       const res = await adminUpdateConsultationStatusAction({
         id: consultationId,

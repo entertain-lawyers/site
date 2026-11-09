@@ -18,13 +18,8 @@ import {
   Building2, 
   Video, 
   Clock, 
-  CheckCircle2, 
   AlertCircle, 
-  Calendar, 
-  FileText, 
-  ExternalLink, 
   X,
-  Scale,
   Receipt
 } from 'lucide-react';
 import { useEscapeKey } from '@/hooks/use-escape-key';
@@ -35,6 +30,10 @@ interface ConsultationItem {
   fullName: string;
   email: string;
   phone: string;
+  whatsappNumber: string | null;
+  permanentAddress: string | null;
+  temporaryAddress: string | null;
+  lawyer: { id: string; name: string; title: string } | null;
   preferredContactMethod: ContactMethod;
   consultationMode: ConsultationMode;
   practiceArea: string;
@@ -82,7 +81,7 @@ export default function ConsultationManager({ initialItems, dbError }: Consultat
         <AlertCircle className="w-10 h-10 text-amber-500 mx-auto" />
         <h3 className="text-lg font-bold text-text-primary">Database Migration Pending</h3>
         <p className="text-sm text-text-secondary max-w-xl mx-auto">
-          The <code>ConsultationRequest</code> table schema is defined in <code>prisma/schema.prisma</code> and migration file <code>20261011000000_add_consultation_requests</code>. Apply the reviewed migration to your PostgreSQL database to enable live consultation intake records.
+          Apply all reviewed Prisma migrations, including <code>20261109120000_expand_consultation_profiles_and_intake</code>, to enable the complete consultation intake and lawyer profile details.
         </p>
       </div>
     );
@@ -97,6 +96,9 @@ export default function ConsultationManager({ initialItems, dbError }: Consultat
       item.fullName.toLowerCase().includes(q) ||
       item.email.toLowerCase().includes(q) ||
       item.phone.toLowerCase().includes(q) ||
+      (item.whatsappNumber || '').toLowerCase().includes(q) ||
+      (item.permanentAddress || '').toLowerCase().includes(q) ||
+      (item.temporaryAddress || '').toLowerCase().includes(q) ||
       item.subject.toLowerCase().includes(q) ||
       item.practiceArea.toLowerCase().includes(q);
     return matchesStatus && matchesSearch;
@@ -145,8 +147,8 @@ export default function ConsultationManager({ initialItems, dbError }: Consultat
       } else {
         setUpdateFeedback(res.error || 'Failed to update status');
       }
-    } catch (err: any) {
-      setUpdateFeedback(err.message || 'Error updating status');
+    } catch (err: unknown) {
+      setUpdateFeedback(err instanceof Error ? err.message : 'Error updating status');
     } finally {
       setIsUpdating(false);
     }
@@ -174,8 +176,8 @@ export default function ConsultationManager({ initialItems, dbError }: Consultat
       } else {
         setUpdateFeedback(res.error || 'Failed to save notes');
       }
-    } catch (err: any) {
-      setUpdateFeedback(err.message || 'Error saving notes');
+    } catch (err: unknown) {
+      setUpdateFeedback(err instanceof Error ? err.message : 'Error saving notes');
     } finally {
       setIsUpdating(false);
     }
@@ -276,7 +278,7 @@ export default function ConsultationManager({ initialItems, dbError }: Consultat
                       {/* Client info */}
                       <td className="py-3.5 px-4">
                         <div className="font-bold text-text-primary text-sm">{item.fullName}</div>
-                        <div className="text-xs text-text-secondary mt-0.5">{item.email}</div>
+                        <div className="text-xs text-text-secondary mt-0.5">{item.email || 'Email not provided'}</div>
                         <div className="text-xs text-text-muted flex items-center gap-1 mt-0.5 font-mono">
                           <Phone className="w-3 h-3 text-accent" />
                           <span>{item.phone}</span>
@@ -284,6 +286,7 @@ export default function ConsultationManager({ initialItems, dbError }: Consultat
                             {item.preferredContactMethod}
                           </span>
                         </div>
+                        {item.lawyer && <div className="mt-1 text-xs font-semibold text-accent">Requested: {item.lawyer.name}</div>}
                       </td>
 
                       {/* Practice Area & Mode */}
@@ -413,17 +416,22 @@ export default function ConsultationManager({ initialItems, dbError }: Consultat
                 <span>Call Client ({selectedItem.phone})</span>
               </a>
 
-              <a
+              {selectedItem.email && <a
                 href={`mailto:${selectedItem.email}?subject=RE: ${encodeURIComponent(selectedItem.subject)}`}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface border border-border hover:bg-black/5 dark:hover:bg-white/5 text-text-primary transition-colors"
               >
                 <Mail className="w-3.5 h-3.5" />
                 <span>Send Email</span>
-              </a>
+              </a>}
 
               {selectedItem.phone && (
                 <a
-                  href={`https://wa.me/${selectedItem.phone.replace(/[^0-9]/g, '')}`}
+                  href={`https://wa.me/${(() => {
+                    const raw = (selectedItem.whatsappNumber || selectedItem.phone).replace(/\D/g, '');
+                    if (raw.startsWith('00')) return raw.slice(2);
+                    if ((selectedItem.whatsappNumber || selectedItem.phone).trim().startsWith('+') || raw.startsWith('977')) return raw;
+                    return `977${raw.replace(/^0+/, '')}`;
+                  })()}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-sm"
@@ -436,6 +444,22 @@ export default function ConsultationManager({ initialItems, dbError }: Consultat
 
             {/* Metadata Fields */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs sm:text-sm">
+              <div className="space-y-1">
+                <span className="text-text-muted text-xs font-bold uppercase tracking-wider">WhatsApp:</span>
+                <p className="font-semibold text-text-primary">{selectedItem.whatsappNumber || 'Same as phone'}</p>
+              </div>
+              <div className="space-y-1">
+                <span className="text-text-muted text-xs font-bold uppercase tracking-wider">Requested advocate:</span>
+                <p className="font-semibold text-text-primary">{selectedItem.lawyer ? `${selectedItem.lawyer.title || 'Advocate'} ${selectedItem.lawyer.name}` : 'General chambers assignment'}</p>
+              </div>
+              <div className="space-y-1">
+                <span className="text-text-muted text-xs font-bold uppercase tracking-wider">Permanent address:</span>
+                <p className="whitespace-pre-wrap font-semibold text-text-primary">{selectedItem.permanentAddress || 'Not provided'}</p>
+              </div>
+              <div className="space-y-1">
+                <span className="text-text-muted text-xs font-bold uppercase tracking-wider">Temporary address:</span>
+                <p className="whitespace-pre-wrap font-semibold text-text-primary">{selectedItem.temporaryAddress || 'Not provided'}</p>
+              </div>
               <div className="space-y-1">
                 <span className="text-text-muted text-xs font-bold uppercase tracking-wider">Practice Area:</span>
                 <p className="font-semibold text-text-primary">{selectedItem.practiceArea}</p>
