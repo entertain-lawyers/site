@@ -108,8 +108,8 @@ test.afterEach(async ({ page }) => {
       // $disconnect must run even when deleteMany/verification throws.
       await client?.$disconnect().catch(() => {});
     }
+    createdResourceIds = [];
   }
-  createdResourceIds = [];
 });
 
 /** Deterministic long fixture built at runtime (>= target words) - English. */
@@ -206,16 +206,62 @@ async function wheelScroll(page: Page, distance: number) {
   await page.waitForTimeout(250);
 }
 
+/** Scroll the PAGE (for document-scroll mode) using real wheel events. */
+async function wheelScrollPage(page: Page, distance: number) {
+  const vh = await page.evaluate(() => window.innerHeight);
+  const cx = vh / 2;
+  const cy = vh / 2;
+  await page.mouse.move(cx, cy);
+  let remaining = distance;
+  while (remaining > 0) {
+    const step = Math.min(remaining, 1000);
+    await page.mouse.wheel(0, step);
+    remaining -= step;
+    await page.waitForTimeout(10);
+  }
+  await page.waitForTimeout(250);
+}
+
+/** Scroll UP with real wheel events (reverse scrolling restores natural toolbar position). */
+async function wheelScrollPageUp(page: Page, distance: number) {
+  const vh = await page.evaluate(() => window.innerHeight);
+  await page.mouse.move(vh / 2, vh / 2);
+  let remaining = distance;
+  while (remaining > 0) {
+    const step = Math.min(remaining, 1000);
+    await page.mouse.wheel(0, -step);
+    remaining -= step;
+    await page.waitForTimeout(10);
+  }
+  await page.waitForTimeout(250);
+}
+
+/** Pasting collapses the caret at the document end, and the browser scrolls
+ * the caret into view (page lands at the bottom, and Quill can nudge the page
+ * once more afterwards). Tests drop the selection and scroll back to the top
+ * to observe the toolbar's natural, un-stuck position. */
+async function resetPageScrollToTop(page: Page) {
+  await page.evaluate(() => {
+    window.getSelection()?.removeAllRanges();
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  });
+  await page.waitForTimeout(400);
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  await page.waitForTimeout(250);
+}
+
 /** Extended editor workspace measurements and caret metrics. */
 async function metrics(page: Page) {
   return await page.evaluate(() => {
     const ed = document.querySelector<HTMLElement>('.editor-wrapper .ql-editor');
     const toolbar = document.querySelector<HTMLElement>('.editor-wrapper .ql-toolbar');
     const toolRow = document.querySelector<HTMLElement>('.editor-wrapper .editor-toolbar-row');
+    const wrapper = document.querySelector<HTMLElement>('.editor-wrapper');
     const card = document.querySelector<HTMLElement>('.bg-white, .dark\\:bg-zinc-900.rounded-xl') || document.querySelector<HTMLElement>('form');
-    if (!ed || !toolbar) return null;
+    if (!ed || !toolbar || !wrapper) return null;
     const tr = toolbar.getBoundingClientRect();
     const rr = toolRow?.getBoundingClientRect();
+    const wr = wrapper.getBoundingClientRect();
     const container = ed.closest('.ql-container');
     const cr = container?.getBoundingClientRect();
 
@@ -237,21 +283,32 @@ async function metrics(page: Page) {
       }
     }
 
+    const isDocumentMode = wrapper.classList.contains('document-scroll-mode');
+
     return {
       clientH: Math.round(ed.clientHeight),
       scrollH: Math.round(ed.scrollHeight),
+
       scrollTop: Math.round(ed.scrollTop),
       cardScrollTop: card ? Math.round(card.scrollTop) : 0,
       editorTop: Math.round(ed.getBoundingClientRect().top),
       editorBottom: Math.round(ed.getBoundingClientRect().bottom),
       toolbarTop: Math.round(tr.top),
+      toolbarBottom: Math.round(tr.bottom),
       toolbarRowTop: rr ? Math.round(rr.top) : -1,
+      toolbarRowBottom: rr ? Math.round(rr.bottom) : -1,
+      toolbarRowMarginTop: rr ? Math.round(parseFloat(getComputedStyle((toolRow as HTMLElement)).marginTop)) : 0,
+      toolbarRowMarginBottom: rr ? Math.round(parseFloat(getComputedStyle((toolRow as HTMLElement)).marginBottom)) : 0,
       containerH: cr ? Math.round(cr.height) : 0,
       editorOverflowsContainer: cr ? ed.getBoundingClientRect().bottom > cr.bottom + 1 || ed.getBoundingClientRect().top < cr.top - 1 : false,
       innerH: window.innerHeight,
       pageScrollY: Math.round(window.scrollY),
       horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
       caretRect,
+      isDocumentMode,
+      wrapperTop: Math.round(wr.top),
+      wrapperBottom: Math.round(wr.bottom),
+      wrapperHeight: Math.round(wr.height),
     };
   });
 }
@@ -274,60 +331,107 @@ function expectDesktopWorkspace(m: NonNullable<Awaited<ReturnType<typeof metrics
 test.describe('Rich Text Editor workspace', () => {
   test.describe.configure({ mode: 'serial' });
 
-  test('posts: canvas scrolls internally, toolbar + font selector stay visible, caret stays in view while typing (English)', async ({ page }) => {
+  test('posts: document-scroll mode - page scrolls, toolbar becomes sticky, caret stays in view (English)', async ({ page }) => {
     const wide = (page.viewportSize() as { width: number }).width >= 1024;
     await page.goto('/admin/posts/new', { waitUntil: 'load' });
     await page.waitForSelector('.editor-wrapper .ql-editor', { timeout: 90_000 });
     await page.waitForTimeout(500);
 
     const initialM = await metrics(page);
-    expect(initialM?.scrollTop).toBe(0);
+    expect(initialM, 'editor mounted').not.toBeNull();
+    expect(initialM!.isDocumentMode, 'editor should be in document-scroll-mode').toBe(true);
+    expect(initialM!.scrollTop, '.ql-editor.scrollTop should be 0 in document mode').toBe(0);
 
     await pasteIntoEditor(page, buildLongFixture() + '\n\n' + [CANARY, 'scroll-test'].join(' '));
     await page.waitForTimeout(1500);
+    // A paste collapses the caret at the document end and the browser scrolls
+    // it into view; scroll back so the toolbar's natural position is observable.
+    await resetPageScrollToTop(page);
 
     const m = await metrics(page);
-    expect(m, 'editor mounted').not.toBeNull();
+    expect(m, 'editor mounted after paste').not.toBeNull();
     if (wide) {
-      expect(m!.scrollH, 'canvas overflows its own box').toBeGreaterThan(m!.clientH + 5_000);
-      expect(m!.clientH, 'canvas bounded inside the viewport workspace').toBeLessThan(m!.innerH);
-      expectDesktopWorkspace(m!);
-      expect(m!.pageScrollY, 'page does not scroll in the workspace layout').toBeLessThanOrEqual(3);
-      expect(m!.cardScrollTop, 'card does not unexpectedly scroll').toBe(0);
+      expect(m!.scrollH, 'canvas content height exceeds viewport').toBeGreaterThan(m!.innerH + 5_000);
+      expect(m!.scrollTop, '.ql-editor.scrollTop stays 0 in document mode').toBe(0);
+      expect(m!.pageScrollY, 'page starts at top after paste + reset').toBeLessThanOrEqual(3);
       expect(m!.horizontalOverflow, 'no horizontal overflow').toBe(false);
-      expect(m!.toolbarRowTop, 'font selector visible').toBeGreaterThanOrEqual(0);
+      // Toolbar starts at its original (un-stuck) position: below the viewport top.
+      expect(m!.toolbarRowTop, 'font selector at natural position initially').toBeGreaterThan(0);
+    } else {
+      // Mobile/tablet: toolbar row sits below the fixed admin top bar and starts un-stuck.
+      expect(m!.toolbarRowTop, 'font selector starts below the fixed admin nav').toBeGreaterThan(64);
     }
     expect(m!.toolbarTop).toBeGreaterThanOrEqual(-1);
 
-    // Keyboard scrolling (trusted key events): PageDown must scroll the canvas
-    // itself. Runs before the big wheel (at document bottom PageDown is a no-op).
-    await page.keyboard.press('PageDown');
-    await page.waitForTimeout(300);
-    const kb = await metrics(page);
-    if (wide) {
-      expect(kb!.scrollTop, 'PageDown scrolls the canvas itself').toBeGreaterThan(100);
-      expect(kb!.pageScrollY, 'keyboard scrolling never scrolls the page').toBeLessThanOrEqual(3);
-    }
-
-    await wheelScroll(page, 40_000);
+    // Scroll down through the document using PAGE scroll (wheel on page)
+    await wheelScrollPage(page, 40_000);
     const mid = await metrics(page);
     expect(mid).not.toBeNull();
     if (wide) {
-      expect(mid!.scrollTop, '.ql-editor.scrollTop increases substantially').toBeGreaterThan(1000);
-      expect(mid!.cardScrollTop, 'card container does not scroll during editor scroll').toBe(0);
-      expect(mid!.editorTop, 'canvas stays in view').toBeLessThan(mid!.innerH);
-      expect(mid!.toolbarTop, 'Quill toolbar stays in view while scrolled').toBeGreaterThanOrEqual(0);
-      expect(mid!.toolbarRowTop, 'font selector stays in view while scrolled').toBeGreaterThanOrEqual(0);
-      expect(mid!.pageScrollY, 'page still does not scroll').toBeLessThanOrEqual(3);
+      expect(mid!.scrollTop, '.ql-editor.scrollTop remains 0 in document mode').toBe(0);
+      expect(mid!.pageScrollY, 'page scrolls substantially').toBeGreaterThan(1000);
+      expect(mid!.toolbarRowTop, 'font selector becomes sticky at viewport top').toBeGreaterThanOrEqual(0);
+      expect(mid!.toolbarRowTop, 'font selector stuck near top of viewport').toBeLessThanOrEqual(50);
+      // Font selector row and Quill toolbar never overlap: the sticky toolbar
+      // starts at (or below) the bottom of the row above it.
+      expect(mid!.toolbarTop, 'Quill toolbar below the font selector row (no overlap)')
+        .toBeGreaterThanOrEqual(mid!.toolbarRowBottom - 1);
+      expect(mid!.editorBottom, 'editor content continues below sticky toolbar').toBeGreaterThan(mid!.innerH);
+    } else {
+      // Mobile: sticky row must stay visible BELOW the fixed admin nav (64px),
+      // not slide under it and not float far mid-screen.
+      expect(mid!.toolbarRowTop, 'font selector sticks right below the fixed admin nav').toBeGreaterThanOrEqual(59);
+      expect(mid!.toolbarRowTop, 'font selector stays within the sticky band').toBeLessThanOrEqual(90);
+      expect(mid!.toolbarTop, 'Quill toolbar below the font selector row (no overlap)')
+        .toBeGreaterThanOrEqual(mid!.toolbarRowBottom - 1);
     }
 
+    // Continue scrolling to near the end of the editor
+    await wheelScrollPage(page, 40_000);
+    const mid2 = await metrics(page);
+    expect(mid2).not.toBeNull();
+    if (wide) {
+      // Toolbar should still be sticky while editor content remains
+      expect(mid2!.toolbarRowTop, 'font selector remains sticky').toBeGreaterThanOrEqual(0);
+      expect(mid2!.toolbarRowTop, 'font selector stuck near top').toBeLessThanOrEqual(50);
+      expect(mid2!.toolbarTop, 'Quill toolbar remains sticky and unoverlapped')
+        .toBeGreaterThanOrEqual(mid2!.toolbarRowBottom - 1);
+    } else {
+      expect(mid2!.toolbarRowTop, 'font selector remains sticky below admin nav').toBeGreaterThanOrEqual(59);
+      expect(mid2!.toolbarRowTop, 'font selector stays within the sticky band').toBeLessThanOrEqual(90);
+    }
+
+    // Reverse scrolling: toolbar goes back to its natural position near the top
+    await wheelScrollPageUp(page, 90_000);
+    const backAtTop = await metrics(page);
+    expect(backAtTop).not.toBeNull();
+    expect(backAtTop!.pageScrollY, 'page is back at the top after reverse scrolling').toBeLessThanOrEqual(3);
+    if (m!.toolbarRowTop > 0) {
+      expect(Math.abs(backAtTop!.toolbarRowTop - m!.toolbarRowTop), 'natural position restores exactly after reverse scroll')
+        .toBeLessThanOrEqual(3);
+    }
+
+    // Scroll to end and verify caret positioning. The browser smooth-scrolls
+    // toward the caret, so poll rather than assume a fixed delay.
     await page.keyboard.press('Control+End');
-    await page.waitForTimeout(300);
+    await page.waitForFunction(
+      () => {
+        const s = window.getSelection();
+        if (!s || s.rangeCount === 0) return false;
+        const r = s.getRangeAt(0).cloneRange();
+        r.collapse(false);
+        const rr = r.getBoundingClientRect();
+        return !!rr && rr.bottom < window.innerHeight + 2 && rr.top > -2;
+      },
+      undefined,
+      { timeout: 10_000 }
+    );
+    await page.waitForTimeout(200);
     const end = await metrics(page);
     if (wide) {
       expect(end!.caretRect, 'caret metrics must be present on desktop').not.toBeNull();
-      expect(end!.caretRect!.bottom, 'caret is inside the actual .ql-editor viewport bottom').toBeLessThanOrEqual(end!.editorBottom);
-      expect(end!.caretRect!.top, 'caret is inside the actual .ql-editor viewport top').toBeGreaterThanOrEqual(end!.editorTop);
+      expect(end!.caretRect!.bottom, 'caret is inside the viewport').toBeLessThanOrEqual(end!.innerH);
+      expect(end!.caretRect!.top, 'caret is inside the viewport').toBeGreaterThanOrEqual(0);
     }
     await page.keyboard.type(' ' + CANARY + 'TYPED');
     await page.waitForTimeout(500);
@@ -340,6 +444,69 @@ test.describe('Rich Text Editor workspace', () => {
     if (match) {
         createdPostIds.push(Number(match[1]));
     }
+  });
+
+  test('posts: document-scroll mode - toolbar stops sticking at editor boundary', async ({ page }) => {
+    const wide = (page.viewportSize() as { width: number }).width >= 1024;
+    if (!wide) test.skip(true, 'Desktop-only test');
+
+    await page.goto('/admin/posts/new', { waitUntil: 'load' });
+    await page.waitForSelector('.editor-wrapper .ql-editor', { timeout: 90_000 });
+    await page.waitForTimeout(500);
+
+    await pasteIntoEditor(page, buildLongFixture() + '\n\n' + [CANARY, 'boundary-test'].join(' '));
+    await page.waitForTimeout(1500);
+    await resetPageScrollToTop(page);
+
+    // The editor is the last tall block on this page, so its bottom edge sits at
+    // the very end of the scrollable document. Append a spacer AFTER the wrapper
+    // so the release phase (wrapper bottom crossing the sticky line) becomes a
+    // reachable, observable scroll position — exactly like a page with content
+    // below the editor (which the CSS must and does respect).
+    await page.evaluate(() => {
+      const wrap = document.querySelector('.editor-wrapper');
+      if (!wrap) throw new Error('editor wrapper not found');
+      const spacer = document.createElement('div');
+      spacer.id = 'e2e-boundary-spacer';
+      spacer.style.height = '200vh';
+      spacer.textContent = 'page content below the editor';
+      wrap.after(spacer);
+    });
+
+    // Phase 1: position just before the release point — the editor still spans
+    // most of the viewport from its bottom edge, and the toolbar must be stuck.
+    await page.evaluate(() => {
+      const wr = document.querySelector('.editor-wrapper')!.getBoundingClientRect();
+      const y = Math.round(window.scrollY + wr.bottom - window.innerHeight + 80);
+      window.scrollTo({ top: y, behavior: 'instant' });
+    });
+    await page.waitForTimeout(400);
+    let m = await metrics(page);
+    expect(m).not.toBeNull();
+    expect(m!.wrapperBottom, 'wrapper bottom just inside the viewport').toBeLessThanOrEqual(m!.innerH - 40);
+    expect(m!.toolbarRowTop, 'toolbar stuck while the editor spans the viewport').toBeGreaterThanOrEqual(0);
+    expect(m!.toolbarRowTop, 'toolbar stuck in the sticky band').toBeLessThanOrEqual(50);
+    expect(m!.toolbarTop, 'Quill toolbar below the row (no overlap)').toBeGreaterThanOrEqual(m!.toolbarRowBottom - 1);
+
+    // Phase 2: wheel gently across the release point — once the wrapper's
+    // bottom edge crosses the sticky line the toolbar must RELEASE: it docks
+    // to (then scrolls away with) the editor's bottom edge instead of staying
+    // pinned at the viewport top. Sticky docking keeps the row's margin box
+    // inside the wrapper, so the row bottom ends at wrapper bottom minus the
+    // row's own bottom margin (0.75rem from the wrapper's `space-y-3`).
+    for (let i = 0; i < 60 && m && m.wrapperBottom > -80; i++) {
+      await wheelScrollPage(page, 500);
+      m = await metrics(page);
+    }
+    expect(m).not.toBeNull();
+    expect(m!.wrapperBottom, 'wrapper bottom above the viewport top').toBeLessThanOrEqual(-40);
+    const rowH = m!.toolbarRowBottom - m!.toolbarRowTop;
+    const dockedTop = m!.wrapperBottom - rowH - m!.toolbarRowMarginBottom;
+    expect(m!.toolbarRowTop, 'toolbar released: not pinned at the viewport top').toBeLessThan(0);
+    expect(m!.toolbarRowTop, 'toolbar docked at the editor boundary (margin box inside the wrapper)')
+      .toBeGreaterThanOrEqual(dockedTop - 3);
+    expect(m!.toolbarRowTop)
+      .toBeLessThanOrEqual(dockedTop + 3);
   });
 
   test('posts: 20k-word draft round-trips through save + reload + edit (English)', async ({ page }) => {
@@ -363,6 +530,27 @@ test.describe('Rich Text Editor workspace', () => {
     // Reload and Edit
     await page.reload({ waitUntil: 'load' });
     await page.waitForSelector('.editor-wrapper .ql-editor', { timeout: 90_000 });
+
+    // Sticky behavior must hold in the EDIT workflow too (the reopened editor
+    // uses the same document-scroll workspace): scroll down into the document
+    // and verify the toolbar stacks in its sticky band in every viewport.
+    await page.evaluate(() => window.scrollTo({ top: 5_000, behavior: 'instant' }));
+    await page.waitForTimeout(400);
+    const editSticky = await metrics(page);
+    expect(editSticky, 'edit-page editor mounted').not.toBeNull();
+    const wideHere = (page.viewportSize() as { width: number }).width >= 1024;
+    if (wideHere) {
+      expect(editSticky!.toolbarRowTop, 'edit workflow: font selector stuck at viewport top').toBeGreaterThanOrEqual(0);
+      expect(editSticky!.toolbarRowTop, 'edit workflow: font selector stuck near the top').toBeLessThanOrEqual(50);
+    } else {
+      expect(editSticky!.toolbarRowTop, 'edit workflow: font selector sticks below the fixed admin nav').toBeGreaterThanOrEqual(59);
+      expect(editSticky!.toolbarRowTop, 'edit workflow: font selector stays within the sticky band').toBeLessThanOrEqual(90);
+    }
+    expect(editSticky!.toolbarTop, 'edit workflow: Quill toolbar below the row (no overlap)')
+      .toBeGreaterThanOrEqual(editSticky!.toolbarRowBottom - 1);
+
+    await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+    await page.waitForTimeout(300);
     await page.fill('#title', postTitle + ' - UPDATED');
     await page.getByRole('button', { name: 'Update Post' }).click();
     await page.waitForTimeout(1000);
@@ -386,23 +574,33 @@ test.describe('Rich Text Editor workspace', () => {
 
     await pasteIntoEditor(page, buildNepaliLongFixture(20100) + '\n\n' + [NEPALI_CANARY, 'nepali-tail'].join(' '));
     await page.waitForTimeout(1500);
+    // Paste places the caret at the document end (page scrolls to it — on
+    // mobile the settings sidebar sits below the editor, so the toolbar may
+    // already have released). Scroll back up to exercise sticking from the top.
+    await resetPageScrollToTop(page);
 
     const m = await metrics(page);
     expect(m, 'Nepali editor mounted').not.toBeNull();
     if (wide) {
-      expect(m!.scrollH).toBeGreaterThan(m!.clientH + 5_000);
-      expect(m!.clientH).toBeLessThan(m!.innerH);
-      expectDesktopWorkspace(m!);
+      // Document-scroll mode: the canvas grows naturally (scrollTop stays 0,
+      // the PAGE scrolls), so content far taller than the viewport is expected.
+      expect(m!.scrollTop, 'Nepali canvas does not scroll internally').toBe(0);
+      expect(m!.scrollH, 'Nepali document far exceeds the viewport height').toBeGreaterThan(m!.innerH + 5_000);
       expect(m!.horizontalOverflow).toBe(false);
     }
 
-    await wheelScroll(page, 40_000);
+    // Page scrolls in document mode; the toolbar sticks right under the fixed
+    // admin nav on <lg (4rem) and at the top on lg+.
+    await wheelScrollPage(page, 40_000);
     const mid = await metrics(page);
     if (wide) {
-      expect(mid!.scrollTop).toBeGreaterThan(1000);
-      expect(mid!.cardScrollTop).toBe(0);
-      expect(mid!.toolbarTop).toBeGreaterThanOrEqual(0);
-      expect(mid!.toolbarRowTop).toBeGreaterThanOrEqual(0);
+      expect(mid!.pageScrollY, 'page scrolled through the Nepali document').toBeGreaterThan(1000);
+      expect(mid!.toolbarRowTop, 'font selector stuck near the top').toBeGreaterThanOrEqual(0);
+      expect(mid!.toolbarRowTop, 'font selector stays in the sticky band').toBeLessThanOrEqual(50);
+      expect(mid!.toolbarTop, 'Quill toolbar below the row (no overlap)').toBeGreaterThanOrEqual(mid!.toolbarRowBottom - 1);
+    } else {
+      expect(mid!.toolbarRowTop, 'font selector sticks below the fixed admin nav').toBeGreaterThanOrEqual(59);
+      expect(mid!.toolbarRowTop, 'font selector stays within the sticky band').toBeLessThanOrEqual(90);
     }
 
     await page.keyboard.press('Control+End');

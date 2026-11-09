@@ -180,7 +180,7 @@ export default function EditPostClient({
   };
 
   return (
-    <div className="admin-editor-page py-10 px-4 sm:px-6 lg:px-8 max-w-[1360px] mx-auto w-full flex-1 flex flex-col min-h-[calc(100vh-2.5rem)] lg:h-dvh lg:min-h-0 lg:overflow-hidden">
+    <div className="admin-editor-page py-10 px-4 sm:px-6 lg:px-8 max-w-[1360px] mx-auto w-full flex-1 flex flex-col min-h-[calc(100vh-2.5rem)]">
       <div className="mb-10 shrink-0">
         <Link href="/admin/posts" className="inline-flex items-center text-sm font-bold text-text-secondary hover:text-accent mb-6 transition-colors group">
           <svg className="w-4 h-4 mr-2 transform group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -244,7 +244,7 @@ export default function EditPostClient({
       <form onSubmit={handleSubmit} className="flex-1 flex flex-col gap-10 lg:min-h-0 lg:grid lg:grid-cols-[minmax(0,860px)_340px] lg:justify-center lg:gap-12 lg:items-stretch lg:grid-rows-[minmax(0,1fr)]">
 
         {/* Left Column: Main Editor — same width as the public article column */}
-        <div className="min-w-0 flex flex-col space-y-8 h-full lg:min-h-0">
+        <div className="min-w-0 flex flex-col space-y-8">
           <div>
             <label htmlFor="title" className="block text-sm font-bold text-navy dark:text-white mb-2">Title</label>
             <input
@@ -258,9 +258,9 @@ export default function EditPostClient({
             />
           </div>
 
-          <div className="flex-1 flex flex-col min-h-0 space-y-2">
+          <div className="space-y-2">
             <label className="block text-sm font-bold text-navy dark:text-white mb-2">Content</label>
-            <RichTextEditor value={content} onChange={setContent} fillHeight />
+            <RichTextEditor value={content} onChange={setContent} scrollMode="document" />
           </div>
         </div>
 
