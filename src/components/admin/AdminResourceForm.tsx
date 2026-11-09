@@ -344,7 +344,11 @@ export function AdminResourceForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className={`max-w-5xl lg:min-h-0 lg:flex lg:flex-col ${uploadMode === 'NOTE' ? 'lg:flex-1' : 'space-y-8'}`}>
+    <form
+      onSubmit={handleSubmit}
+      data-resource-scroll-mode={uploadMode === 'NOTE' ? 'document' : 'fill-height'}
+      className={`resource-admin-form max-w-5xl lg:min-h-0 lg:flex lg:flex-col ${uploadMode === 'NOTE' ? 'lg:flex-1' : 'space-y-8'}`}
+    >
       <AnimatePresence initial={false}>
       {savedResource && (
         <Appear key="saved-success">
@@ -395,255 +399,450 @@ export function AdminResourceForm({
       )}
       </AnimatePresence>
 
-      <div className={`space-y-8 ${uploadMode === 'NOTE' ? 'lg:shrink-0 lg:max-h-[45vh] lg:overflow-y-auto lg:pr-1' : ''}`}>
-      {/* Upload Mode Toggle (not used while editing an existing file) */}
-      {!isEdit && (
-      <div className="flex bg-slate-100 dark:bg-zinc-800 p-1 rounded-xl w-fit">
-        <button
-          type="button"
-          onClick={() => setUploadMode('PDF')}
-          className={`px-4 sm:px-6 py-2.5 min-h-[44px] rounded-lg text-sm font-bold transition-all ${
-            uploadMode === 'PDF'
-              ? 'bg-white dark:bg-zinc-700 text-navy dark:text-white shadow-sm'
-              : 'text-text-muted hover:text-navy dark:hover:text-white'
-          }`}
-        >
-          Upload PDF
-        </button>
-        <button
-          type="button"
-          onClick={() => setUploadMode('NOTE')}
-          className={`px-4 sm:px-6 py-2.5 min-h-[44px] rounded-lg text-sm font-bold transition-all ${
-            uploadMode === 'NOTE'
-              ? 'bg-white dark:bg-zinc-700 text-navy dark:text-white shadow-sm'
-              : 'text-text-muted hover:text-navy dark:hover:text-white'
-          }`}
-        >
-          Write Note
-        </button>
-      </div>
-      )}
+      {uploadMode === 'NOTE' ? (
+        <>
+        {/* NOTE mode (desktop): only the note canvas lives in the main column, so it
+            fills the writing workspace instead of being squeezed by metadata. All
+            metadata + actions go into an independently scrollable sidebar, mirroring
+            the posts editor layout. Below lg everything stacks and the page scrolls. */}
+        <div className="resource-note-layout flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8 lg:items-start">
+          {/* Left column: the writing canvas itself */}
+          <div className="resource-note-canvas min-w-0">
+            <RichTextEditor value={content} onChange={setContent} placeholder="Write the law note or case law details here..." scrollMode="document" />
+          </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-bold text-navy dark:text-white mb-2">Title</label>
-          <input
-            type="text"
-            required
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-            className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
-          />
-        </div>
+          {/* Right column: metadata + actions, independently scrollable on desktop */}
+          <div className="resource-metadata-sidebar w-full space-y-6 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:pr-1">
+            {/* Upload Mode Toggle (not used while editing an existing file) */}
+            {!isEdit && (
+              <div className="flex bg-slate-100 dark:bg-zinc-800 p-1 rounded-xl w-fit">
+                <button
+                  type="button"
+                  onClick={() => setUploadMode('PDF')}
+                  className="px-4 sm:px-6 py-2.5 min-h-[44px] rounded-lg text-sm font-bold transition-all text-text-muted hover:text-navy dark:hover:text-white"
+                >
+                  Upload PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUploadMode('NOTE')}
+                  className="px-4 sm:px-6 py-2.5 min-h-[44px] rounded-lg text-sm font-bold transition-all bg-white dark:bg-zinc-700 text-navy dark:text-white shadow-sm"
+                >
+                  Write Note
+                </button>
+              </div>
+            )}
 
-        <div>
-          <label htmlFor="author" className="block text-sm font-bold text-navy dark:text-white mb-2">Author</label>
-          <AuthorSelect
-            authors={authors}
-            value={authorUserId}
-            onChange={setAuthorUserId}
-            disabled={!authorMappingAvailable}
-            placeholder={!authorMappingAvailable ? 'Author assignment unavailable (migration pending)' : undefined}
-            emptyMessage={
-              !authorMappingAvailable
-                ? 'Author assignment is temporarily unavailable because database migrations are pending.'
-                : 'No eligible author accounts found.'
-            }
-            hint={
-              !authorMappingAvailable
-                ? 'Author assignment is disabled until database migration 20261101000000 is applied.'
-                : 'Shown as the resource author. The creator is recorded separately.'
-            }
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-bold text-navy dark:text-white mb-2">Resource Type</label>
-          <select
-            value={resourceType}
-            onChange={e => setResourceType(e.target.value as ResourceType)}
-            className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
-          >
-            {availableTypes.map(type => (
-              <option key={type.value} value={type.value}>{type.label}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-bold text-navy dark:text-white mb-2">Semester</label>
-          <select
-            required
-            value={semesterId}
-            onChange={e => {
-              setSemesterId(e.target.value);
-              setSubjectId('');
-              setUnitId('');
-            }}
-            className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
-          >
-            <option value="">Select Semester</option>
-            {semesters.map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-        </div>
-
-        {resourceType !== ResourceType.OLD_QUESTION && (
-          <>
             <div>
-              <label className="block text-sm font-bold text-navy dark:text-white mb-2">Subject</label>
+              <label className="block text-sm font-bold text-navy dark:text-white mb-2">Title</label>
+              <input
+                id="resource-title"
+                type="text"
+                required
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="author" className="block text-sm font-bold text-navy dark:text-white mb-2">Author</label>
+              <AuthorSelect
+                authors={authors}
+                value={authorUserId}
+                onChange={setAuthorUserId}
+                disabled={!authorMappingAvailable}
+                placeholder={!authorMappingAvailable ? 'Author assignment unavailable (migration pending)' : undefined}
+                emptyMessage={
+                  !authorMappingAvailable
+                    ? 'Author assignment is temporarily unavailable because database migrations are pending.'
+                    : 'No eligible author accounts found.'
+                }
+                hint={
+                  !authorMappingAvailable
+                    ? 'Author assignment is disabled until database migration 20261101000000 is applied.'
+                    : 'Shown as the resource author. The creator is recorded separately.'
+                }
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-navy dark:text-white mb-2">Resource Type</label>
+              <select
+                value={resourceType}
+                onChange={e => setResourceType(e.target.value as ResourceType)}
+                className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
+              >
+                {availableTypes.map(type => (
+                  <option key={type.value} value={type.value}>{type.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-navy dark:text-white mb-2">Semester</label>
               <select
                 required
-                value={subjectId}
+                value={semesterId}
                 onChange={e => {
-                  setSubjectId(e.target.value);
+                  setSemesterId(e.target.value);
+                  setSubjectId('');
                   setUnitId('');
                 }}
-                disabled={!semesterId}
-                className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm disabled:opacity-50"
+                className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
               >
-                <option value="">Select Subject</option>
-                {filteredSubjects.map((s) => (
+                <option value="">Select Semester</option>
+                {semesters.map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-bold text-navy dark:text-white mb-2">Unit (Optional)</label>
-              <select
-                value={unitId}
-                onChange={e => setUnitId(e.target.value)}
-                disabled={!subjectId}
-                className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm disabled:opacity-50"
+            {resourceType !== ResourceType.OLD_QUESTION && (
+              <>
+                <div>
+                  <label className="block text-sm font-bold text-navy dark:text-white mb-2">Subject</label>
+                  <select
+                    required
+                    value={subjectId}
+                    onChange={e => {
+                      setSubjectId(e.target.value);
+                      setUnitId('');
+                    }}
+                    disabled={!semesterId}
+                    className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm disabled:opacity-50"
+                  >
+                    <option value="">Select Subject</option>
+                    {filteredSubjects.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-navy dark:text-white mb-2">Unit (Optional)</label>
+                  <select
+                    value={unitId}
+                    onChange={e => setUnitId(e.target.value)}
+                    disabled={!subjectId}
+                    className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm disabled:opacity-50"
+                  >
+                    <option value="">Select Unit</option>
+                    {filteredUnits.map((u) => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+
+            <div className="pt-4 border-t border-black/10 dark:border-white/10">
+              <div className="flex items-center gap-3">
+                <input
+                  id="isPremium"
+                  type="checkbox"
+                  checked={isPremium}
+                  onChange={e => setIsPremium(e.target.checked)}
+                  className="h-5 w-5 rounded border-black/20 text-accent focus:ring-accent"
+                />
+                <label htmlFor="isPremium" className="text-sm font-bold text-navy dark:text-white">
+                  Premium Resource
+                </label>
+              </div>
+
+              {isPremium && (
+                <div className="mt-4">
+                  <label className="block text-sm font-bold text-navy dark:text-white mb-2">Price (NPR)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    required={isPremium}
+                    value={priceAmount}
+                    onChange={e => setPriceAmount(e.target.value)}
+                    className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Featured Image */}
+            <div className="pt-6 border-t border-black/10 dark:border-white/10">
+              <label className="block text-sm font-bold text-navy dark:text-white mb-2">Featured Image</label>
+              <p className="text-xs text-text-secondary mb-4">
+                Upload or select an image from the media library to display on public listings and the resource header.
+              </p>
+              <FeaturedImagePanel
+                lang="en"
+                value={featuredImage}
+                onChange={setFeaturedImage}
+                uploadBlockedReason={uploadBlockedReason ?? null}
+              />
+            </div>
+
+            {/* Actions (NOTE mode): pinned at the end of the sidebar */}
+            <div className="resource-action-buttons pt-6 pb-4 border-t border-black/10 dark:border-white/10 flex flex-col gap-4">
+              <button
+                type="button"
+                onClick={handlePreview}
+                className="w-full px-6 py-4 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 text-navy dark:text-white hover:border-gold hover:text-gold text-sm font-bold transition-all"
               >
-                <option value="">Select Unit</option>
-                {filteredUnits.map((u) => (
-                  <option key={u.id} value={u.id}>{u.name}</option>
+                Preview
+              </button>
+              <button
+                type="submit"
+                name="status"
+                value="DRAFT"
+                disabled={loading}
+                className="w-full px-6 py-4 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 text-navy dark:text-white hover:border-accent/50 hover:text-accent text-sm font-bold transition-all disabled:opacity-50"
+              >
+                {savingAs === 'DRAFT' ? 'Saving Draft...' : 'Save as Draft'}
+              </button>
+              <MotionButton
+                type="submit"
+                name="status"
+                value="PUBLISHED"
+                disabled={loading}
+                className="w-full border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-accent hover:bg-accent/90 transition-[background-color,border-color,color,box-shadow,opacity] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent disabled:opacity-50 py-4"
+              >
+                {savingAs === 'PUBLISHED'
+                  ? 'Saving...'
+                  : isEdit
+                    ? 'Save & Publish'
+                    : 'Create & Publish'}
+              </MotionButton>
+            </div>
+          </div>
+        </div>
+        </>
+      ) : (
+        <>
+        {/* PDF mode: original stacked layout */}
+        <div className="space-y-8">
+          {/* Upload Mode Toggle (not used while editing an existing file) */}
+          {!isEdit && (
+            <div className="flex bg-slate-100 dark:bg-zinc-800 p-1 rounded-xl w-fit">
+              <button
+                type="button"
+                onClick={() => setUploadMode('PDF')}
+                className="px-4 sm:px-6 py-2.5 min-h-[44px] rounded-lg text-sm font-bold transition-all bg-white dark:bg-zinc-700 text-navy dark:text-white shadow-sm"
+              >
+                Upload PDF
+              </button>
+              <button
+                type="button"
+                onClick={() => setUploadMode('NOTE')}
+                className="px-4 sm:px-6 py-2.5 min-h-[44px] rounded-lg text-sm font-bold transition-all text-text-muted hover:text-navy dark:hover:text-white"
+              >
+                Write Note
+              </button>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-bold text-navy dark:text-white mb-2">Title</label>
+              <input
+                id="resource-title"
+                type="text"
+                required
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="author" className="block text-sm font-bold text-navy dark:text-white mb-2">Author</label>
+              <AuthorSelect
+                authors={authors}
+                value={authorUserId}
+                onChange={setAuthorUserId}
+                disabled={!authorMappingAvailable}
+                placeholder={!authorMappingAvailable ? 'Author assignment unavailable (migration pending)' : undefined}
+                emptyMessage={
+                  !authorMappingAvailable
+                    ? 'Author assignment is temporarily unavailable because database migrations are pending.'
+                    : 'No eligible author accounts found.'
+                }
+                hint={
+                  !authorMappingAvailable
+                    ? 'Author assignment is disabled until database migration 20261101000000 is applied.'
+                    : 'Shown as the resource author. The creator is recorded separately.'
+                }
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-navy dark:text-white mb-2">Resource Type</label>
+              <select
+                value={resourceType}
+                onChange={e => setResourceType(e.target.value as ResourceType)}
+                className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
+              >
+                {availableTypes.map(type => (
+                  <option key={type.value} value={type.value}>{type.label}</option>
                 ))}
               </select>
             </div>
-          </>
-        )}
 
-      </div>
+            <div>
+              <label className="block text-sm font-bold text-navy dark:text-white mb-2">Semester</label>
+              <select
+                required
+                value={semesterId}
+                onChange={e => {
+                  setSemesterId(e.target.value);
+                  setSubjectId('');
+                  setUnitId('');
+                }}
+                className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
+              >
+                <option value="">Select Semester</option>
+                {semesters.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
 
-      <div className="pt-4 border-t border-black/10 dark:border-white/10">
-        <div className="flex items-center gap-3">
-          <input
-            id="isPremium"
-            type="checkbox"
-            checked={isPremium}
-            onChange={e => setIsPremium(e.target.checked)}
-            className="h-5 w-5 rounded border-black/20 text-accent focus:ring-accent"
-          />
-          <label htmlFor="isPremium" className="text-sm font-bold text-navy dark:text-white">
-            Premium Resource
-          </label>
-        </div>
+            {resourceType !== ResourceType.OLD_QUESTION && (
+              <>
+                <div>
+                  <label className="block text-sm font-bold text-navy dark:text-white mb-2">Subject</label>
+                  <select
+                    required
+                    value={subjectId}
+                    onChange={e => {
+                      setSubjectId(e.target.value);
+                      setUnitId('');
+                    }}
+                    disabled={!semesterId}
+                    className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm disabled:opacity-50"
+                  >
+                    <option value="">Select Subject</option>
+                    {filteredSubjects.map((s) => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
 
-        {isPremium && (
-          <div className="mt-4">
-            <label className="block text-sm font-bold text-navy dark:text-white mb-2">Price (NPR)</label>
-            <input
-              type="number"
-              min="0"
-              step="1"
-              required={isPremium}
-              value={priceAmount}
-              onChange={e => setPriceAmount(e.target.value)}
-              className="w-full md:w-1/2 rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
+                <div>
+                  <label className="block text-sm font-bold text-navy dark:text-white mb-2">Unit (Optional)</label>
+                  <select
+                    value={unitId}
+                    onChange={e => setUnitId(e.target.value)}
+                    disabled={!subjectId}
+                    className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm disabled:opacity-50"
+                  >
+                    <option value="">Select Unit</option>
+                    {filteredUnits.map((u) => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="pt-4 border-t border-black/10 dark:border-white/10">
+            <div className="flex items-center gap-3">
+              <input
+                id="isPremium"
+                type="checkbox"
+                checked={isPremium}
+                onChange={e => setIsPremium(e.target.checked)}
+                className="h-5 w-5 rounded border-black/20 text-accent focus:ring-accent"
+              />
+              <label htmlFor="isPremium" className="text-sm font-bold text-navy dark:text-white">
+                Premium Resource
+              </label>
+            </div>
+
+            {isPremium && (
+              <div className="mt-4">
+                <label className="block text-sm font-bold text-navy dark:text-white mb-2">Price (NPR)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  required={isPremium}
+                  value={priceAmount}
+                  onChange={e => setPriceAmount(e.target.value)}
+                  className="w-full md:w-1/2 rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Featured Image */}
+          <div className="pt-6 border-t border-black/10 dark:border-white/10">
+            <label className="block text-sm font-bold text-navy dark:text-white mb-2">Featured Image</label>
+            <p className="text-xs text-text-secondary mb-4">
+              Upload or select an image from the media library to display on public listings and the resource header.
+            </p>
+            <FeaturedImagePanel
+              lang="en"
+              value={featuredImage}
+              onChange={setFeaturedImage}
+              uploadBlockedReason={uploadBlockedReason ?? null}
             />
           </div>
-        )}
-      </div>
 
-      {/* Featured Image */}
-      <div className="pt-6 border-t border-black/10 dark:border-white/10">
-        <label className="block text-sm font-bold text-navy dark:text-white mb-2">Featured Image</label>
-        <p className="text-xs text-text-secondary mb-4">
-          Upload or select an image from the media library to display on public listings and the resource header.
-        </p>
-        <FeaturedImagePanel
-          lang="en"
-          value={featuredImage}
-          onChange={setFeaturedImage}
-          uploadBlockedReason={uploadBlockedReason ?? null}
-        />
-      </div>
-
-      {uploadMode === 'PDF' ? (
-        <div className="pt-6 border-t border-black/10 dark:border-white/10">
-          {isEdit ? (
-            <p className="text-sm text-text-secondary">
-              This resource&apos;s PDF document stays attached. To replace the file, create a new resource and archive this one.
-            </p>
-          ) : (
-            <>
-          <label className="block text-sm font-bold text-navy dark:text-white mb-4">Upload PDF Document</label>
-          <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-black/10 dark:border-white/10 border-dashed rounded-2xl bg-slate-50 dark:bg-zinc-950 hover:bg-slate-100 dark:hover:bg-zinc-900 transition-colors">
-            <div className="space-y-1 text-center">
-              <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
-                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <div className="flex text-sm text-gray-600 dark:text-zinc-400 justify-center">
-                <label htmlFor="file-upload" className="relative cursor-pointer bg-white dark:bg-zinc-900 rounded-md font-medium text-accent hover:text-accent-dark focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-accent">
-                  <span>Upload a file</span>
-                  <input id="file-upload" name="file-upload" type="file" className="sr-only" accept="application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-                </label>
-                <p className="pl-1">or drag and drop</p>
-              </div>
-              <p className="text-xs text-gray-500 dark:text-zinc-400">PDF up to 50MB</p>
-            </div>
+          <div className="pt-6 border-t border-black/10 dark:border-white/10">
+            {isEdit ? (
+              <p className="text-sm text-text-secondary">
+                This resource&apos;s PDF document stays attached. To replace the file, create a new resource and archive this one.
+              </p>
+            ) : (
+              <>
+                <label className="block text-sm font-bold text-navy dark:text-white mb-4">Upload PDF Document</label>
+                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-black/10 dark:border-white/10 border-dashed rounded-2xl bg-slate-50 dark:bg-zinc-950 hover:bg-slate-100 dark:hover:bg-zinc-900 transition-colors">
+                  <div className="space-y-1 text-center">
+                    <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                      <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <div className="flex text-sm text-gray-600 dark:text-zinc-400 justify-center">
+                      <label htmlFor="file-upload" className="relative cursor-pointer bg-white dark:bg-zinc-900 rounded-md font-medium text-accent hover:text-accent-dark focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-accent">
+                        <span>Upload a file</span>
+                        <input id="file-upload" name="file-upload" type="file" className="sr-only" accept="application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+                      </label>
+                      <p className="pl-1">or drag and drop</p>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-zinc-400">PDF up to 50MB</p>
+                  </div>
+                </div>
+                {file && <p className="mt-2 text-sm text-gray-600 dark:text-zinc-300">Selected file: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</p>}
+              </>
+            )}
           </div>
-          {file && <p className="mt-2 text-sm text-gray-600 dark:text-zinc-300">Selected file: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</p>}
-            </>
-          )}
         </div>
-      ) : null}
-      </div>
 
-      {uploadMode === 'NOTE' && (
-        <div className="lg:min-h-0 lg:flex-1 lg:flex lg:flex-col">
-          <label className="block text-sm font-bold text-navy dark:text-white mb-4">Write Note Content</label>
-          <RichTextEditor value={content} onChange={setContent} placeholder="Write the law note or case law details here..." fillHeight />
-        </div>
-      )}
-
-      <div className="pt-8 flex flex-col sm:flex-row gap-4">
-        {uploadMode === 'NOTE' && (
+        <div className="pt-8 flex flex-col sm:flex-row gap-4">
           <button
-            type="button"
-            onClick={handlePreview}
-            className="flex-1 sm:flex-none sm:px-8 py-4 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 text-navy dark:text-white hover:border-gold hover:text-gold text-sm font-bold transition-all"
+            type="submit"
+            name="status"
+            value="DRAFT"
+            disabled={loading}
+            className="flex-1 sm:flex-none sm:px-8 py-4 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 text-navy dark:text-white hover:border-accent/50 hover:text-accent text-sm font-bold transition-all disabled:opacity-50"
           >
-            Preview
+            {savingAs === 'DRAFT' ? 'Saving Draft...' : 'Save as Draft'}
           </button>
-        )}
-        <button
-          type="submit"
-          name="status"
-          value="DRAFT"
-          disabled={loading}
-          className="flex-1 sm:flex-none sm:px-8 py-4 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 text-navy dark:text-white hover:border-accent/50 hover:text-accent text-sm font-bold transition-all disabled:opacity-50"
-        >
-          {savingAs === 'DRAFT' ? 'Saving Draft...' : 'Save as Draft'}
-        </button>
-        <MotionButton
-          type="submit"
-          name="status"
-          value="PUBLISHED"
-          disabled={loading}
-          className="flex-1 py-4 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-accent hover:bg-accent/90 transition-[background-color,border-color,color,box-shadow,opacity] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent disabled:opacity-50"
-        >
-          {savingAs === 'PUBLISHED'
-            ? 'Saving...'
-            : isEdit
-              ? 'Save & Publish'
-              : 'Create & Publish'}
-        </MotionButton>
-      </div>
+          <MotionButton
+            type="submit"
+            name="status"
+            value="PUBLISHED"
+            disabled={loading}
+            className="flex-1 py-4 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-accent hover:bg-accent/90 transition-[background-color,border-color,color,box-shadow,opacity] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent disabled:opacity-50"
+          >
+            {savingAs === 'PUBLISHED'
+              ? 'Saving...'
+              : isEdit
+                ? 'Save & Publish'
+                : 'Create & Publish'}
+          </MotionButton>
+        </div>
+        </>
+      )}
     </form>
   );
 }
