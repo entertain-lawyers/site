@@ -85,7 +85,8 @@ export default defineConfig({
     },
     { name: 'desktop', use: { viewport: { width: 1440, height: 900 }, storageState: 'tests/e2e/.auth/user.json' }, dependencies: ['auth'] },
     { name: 'laptop', use: { viewport: { width: 1366, height: 768 }, storageState: 'tests/e2e/.auth/user.json' }, dependencies: ['auth'] },
+    { name: 'small-laptop', use: { viewport: { width: 1280, height: 720 }, storageState: 'tests/e2e/.auth/user.json' }, dependencies: ['auth'] },
     { name: 'tablet', use: { viewport: { width: 1024, height: 768 }, storageState: 'tests/e2e/.auth/user.json' }, dependencies: ['auth'] },
-    { name: 'mobile', use: { ...devices['Pixel 7'], storageState: 'tests/e2e/.auth/user.json' }, dependencies: ['auth'] },
+    { name: 'mobile', use: { ...devices['Pixel 7'], viewport: { width: 390, height: 844 }, storageState: 'tests/e2e/.auth/user.json' }, dependencies: ['auth'] },
   ],
 });

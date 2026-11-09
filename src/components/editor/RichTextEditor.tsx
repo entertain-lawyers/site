@@ -21,11 +21,14 @@ const ReactQuill = dynamic(
   { ssr: false }
 );
 
+type ScrollMode = 'fill-height' | 'document';
+
 interface RichTextEditorProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   fillHeight?: boolean;
+  scrollMode?: ScrollMode;
   className?: string;
 }
 
@@ -130,11 +133,40 @@ export default function RichTextEditor({
   onChange,
   placeholder = 'Write your content here...',
   fillHeight = false,
+  scrollMode = 'fill-height',
   className = '',
 }: RichTextEditorProps) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const reactQuillRef = useRef<any>(null);
   const quillBoxRef = useRef<HTMLDivElement>(null);
+  const toolbarRowRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const isDocumentMode = scrollMode === 'document';
+
+  // In document-scroll mode the Quill toolbar sticks directly below the
+  // sticky font-selector row, so its `top` offset must equal the row's real
+  // rendered height (fonts, wrapping, and mobile stacking change it). A fixed
+  // rem guess would leave a gap (page background showing through) or overlap,
+  // so the row is measured and published as a CSS variable, live-updated.
+  useEffect(() => {
+    if (!isDocumentMode) return;
+    const row = toolbarRowRef.current;
+    const wrapper = wrapperRef.current;
+    const apply = () => {
+      if (row && wrapper) {
+        wrapper.style.setProperty('--editor-toolbar-row-h', `${row.offsetHeight}px`);
+      }
+    };
+    apply();
+    if (!row) return;
+    const observer = new ResizeObserver(apply);
+    observer.observe(row);
+    return () => {
+      observer.disconnect();
+      if (wrapper) wrapper.style.removeProperty('--editor-toolbar-row-h');
+    };
+  }, [isDocumentMode]);
+
   const getQuill = useCallback(() => reactQuillRef.current?.getEditor?.() ?? null, []);
   const [editorFont, setEditorFont] = useState<'english' | 'nepali'>('english');
 
@@ -393,8 +425,13 @@ export default function RichTextEditor({
 
   return (
     <div
+      ref={wrapperRef}
       className={`editor-wrapper ${articleFont.variable} space-y-3 ${
-        fillHeight ? 'fill-height flex-1 flex flex-col min-h-0 h-full' : ''
+        isDocumentMode
+          ? 'document-scroll-mode'
+          : fillHeight
+          ? 'fill-height flex-1 flex flex-col min-h-0 h-full'
+          : ''
       } ${className}`.trim()}
     >
       <style dangerouslySetInnerHTML={{
@@ -742,10 +779,128 @@ export default function RichTextEditor({
           }
           .editor-wrapper .ql-editor .ql-align-center img { margin-inline: auto; }
           .editor-wrapper .ql-editor .ql-align-right img { margin-left: auto; }
+
+          /* ============================================================
+             DOCUMENT-SCROLL MODE
+             ============================================================
+             In this mode the editor grows naturally with content. The page
+             scrolls, not the .ql-editor. The toolbar row + Quill toolbar
+             become sticky at the top of the viewport (accounting for the
+             fixed admin header on mobile/tablet) and stop sticking at the
+             bottom boundary of the editor container.
+          ============================================================ */
+
+          /* Document-scroll wrapper: natural flow, no forced heights */
+          .editor-wrapper.document-scroll-mode {
+            display: block !important;
+            height: auto !important;
+            min-height: 0 !important;
+            flex: none !important;
+          }
+          .editor-wrapper.document-scroll-mode .editor-toolbar-row {
+            flex: 0 0 auto !important;
+          }
+          .editor-wrapper.document-scroll-mode .quill-box-container {
+            display: block !important;
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+            flex: none !important;
+          }
+          .editor-wrapper.document-scroll-mode .quill {
+            display: block !important;
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+            flex: none !important;
+          }
+          .editor-wrapper.document-scroll-mode .ql-container.ql-snow {
+            display: block !important;
+            height: auto !important;
+            min-height: 0 !important;
+            overflow: visible !important;
+            flex: none !important;
+            border-radius: 1rem !important;
+          }
+
+          /* In document mode, .ql-editor grows naturally with content */
+          .editor-wrapper.document-scroll-mode .ql-editor {
+            flex: none !important;
+            height: auto !important;
+            min-height: 24rem !important;
+            max-height: none !important;
+            overflow: visible !important;
+            overscroll-behavior-y: auto !important;
+            border-radius: 0 !important;
+            border-bottom-left-radius: 1rem !important;
+            border-bottom-right-radius: 1rem !important;
+          }
+          @media (min-width: 768px) {
+            .editor-wrapper.document-scroll-mode .ql-editor {
+              min-height: 35rem !important;
+            }
+          }
+
+          /* Sticky toolbar stack in document-scroll mode.
+             The editor-toolbar-row (font selector) sits above the Quill toolbar.
+             Both become sticky together within the editor-wrapper boundary. */
+          .editor-wrapper.document-scroll-mode .editor-toolbar-row {
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 30 !important;
+            background: rgb(248 250 252 / 0.98) !important;
+            backdrop-filter: blur(8px) !important;
+            -webkit-backdrop-filter: blur(8px) !important;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+          }
+          .dark .editor-wrapper.document-scroll-mode .editor-toolbar-row {
+            background: rgb(24 24 27 / 0.98) !important;
+            border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+          }
+
+          /* Quill toolbar sticks just below the font selector row. The offset
+             is the row's measured height (--editor-toolbar-row-h, set from JS
+             with a rem fallback), so the two rows always touch without
+             overlapping or leaving a page-background gap between them. */
+          .editor-wrapper.document-scroll-mode .ql-toolbar.ql-snow {
+            position: sticky !important;
+            top: var(--editor-toolbar-row-h, 2.75rem) !important;
+            z-index: 25 !important;
+            border-top-left-radius: 0 !important;
+            border-top-right-radius: 0 !important;
+            border-top: none !important;
+          }
+
+          /* Mobile/Tablet: account for fixed admin top bar (64px = 4rem) */
+          @media (max-width: 1023px) {
+            .editor-wrapper.document-scroll-mode .editor-toolbar-row {
+              top: 4rem !important;
+            }
+            .editor-wrapper.document-scroll-mode .ql-toolbar.ql-snow {
+              top: calc(4rem + var(--editor-toolbar-row-h, 2.75rem)) !important;
+            }
+          }
+
+          /* Ensure picker dropdowns stay above sticky toolbars */
+          .editor-wrapper.document-scroll-mode .ql-picker-options {
+            z-index: 40 !important;
+          }
+
+          /* Sticky elements are already bounded by their containing block, so
+             the editor-wrapper alone provides the sticky boundary (the toolbar
+             releases at the wrapper's bottom edge). Paint containment is
+             deliberately NOT used here: clipping dropdown menus or toolbar
+             controls at the wrapper edge is worse than any residual benefit. */
+
+          /* Prevent content jump when toolbar becomes sticky */
+          .editor-wrapper.document-scroll-mode .editor-toolbar-row,
+          .editor-wrapper.document-scroll-mode .ql-toolbar.ql-snow {
+            will-change: transform;
+          }
         `
       }} />
 
-      <div className="editor-toolbar-row flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 px-1 shrink-0">
+      <div className="editor-toolbar-row flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 px-1 shrink-0" ref={toolbarRowRef}>
         <div className="flex items-center gap-2">
           <label className="text-xs uppercase tracking-wider font-bold text-text-secondary">Font Mode:</label>
           <div className="flex bg-slate-100 dark:bg-zinc-900 rounded-lg p-0.5 border border-black/5 dark:border-white/5">
@@ -782,7 +937,11 @@ export default function RichTextEditor({
       <div
         ref={quillBoxRef}
         className={`quill-box-container relative bg-white dark:bg-zinc-950 rounded-2xl border border-black/10 dark:border-white/10 shadow-sm hover:shadow transition-shadow ${
-          fillHeight ? 'flex-1 flex flex-col min-h-0' : ''
+          isDocumentMode
+            ? ''
+            : fillHeight
+            ? 'flex-1 flex flex-col min-h-0'
+            : ''
         }`}
       >
         <ReactQuill
