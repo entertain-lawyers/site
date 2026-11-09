@@ -35,24 +35,78 @@ const NEPALI_CANARY = 'नेपाल-कानून-अन्तिम-मा
 let createdPostIds: number[] = [];
 let createdResourceIds: string[] = [];
 
+/**
+ * Real cleanup, confined to the disposable environment:
+ *  - posts only ever live in the mock WordPress instance (deleted via its REST API)
+ *  - NOTE resources live in the dev database (deleted via Prisma; the config's
+ *    safety halt already guarantees DATABASE_URL points at a disposable DB)
+ *
+ * Cleanup is VERIFIED, not best-effort: every deletion response is inspected,
+ * and any failure fails the test explicitly (a warning would vanish in the
+ * output while test data keeps piling up in the disposable environment).
+ */
+interface CleanupOutcome {
+  postId: number;
+  status: 'DELETED' | 'ALREADY_DELETED' | 'FAILED';
+  detail: string;
+}
+
 test.afterEach(async ({ page }) => {
-  // Clean up any created posts
-  for (const postId of createdPostIds) {
-    try {
-      await page.request.post('/api/admin/posts/delete', { data: { id: postId, action: 'DELETE_PERMANENTLY', lang: 'en' } }).catch(() => {});
-    } catch (e) {
-      console.warn(`Failed to cleanup test post ${postId}:`, e);
+  // --- Posts: DELETE against the validated local mock WP only ---
+  if (createdPostIds.length) {
+    const mockWpUrl = process.env.E2E_MOCK_WP_URL!;
+    // The mock accepts ANY Basic credentials (it is a disposable local mock);
+    // the header is required so the request is not rejected as unauthenticated.
+    const cleanupAuth = `Basic ${Buffer.from('e2e-cleanup:disposable').toString('base64')}`;
+    const outcomes: CleanupOutcome[] = [];
+    for (const postId of createdPostIds) {
+      try {
+        const response = await page.request.delete(`${mockWpUrl}/posts/${postId}`, { headers: { Authorization: cleanupAuth } });
+        if (response.ok()) {
+          outcomes.push({ postId, status: 'DELETED', detail: `HTTP ${response.status()}` });
+        } else if (response.status() === 404) {
+          // Idempotent result: the post is already gone — acceptable.
+          outcomes.push({ postId, status: 'ALREADY_DELETED', detail: 'HTTP 404 (already deleted)' });
+        } else {
+          outcomes.push({ postId, status: 'FAILED', detail: `unexpected HTTP ${response.status()}` });
+        }
+      } catch (e) {
+        outcomes.push({ postId, status: 'FAILED', detail: `network error: ${String(e).slice(0, 200)}` });
+      }
     }
+
+    const failed = outcomes.filter((o) => o.status === 'FAILED');
+    const confirmed = outcomes.filter((o) => o.status !== 'FAILED');
+    if (failed.length > 0) {
+      // Leave the IDs on the record; the failure must surface in the test result.
+      console.error(`[cleanup] FAILED to delete posts: ${failed.map((f) => `post ${f.postId} (${f.detail})`).join('; ')}`);
+      console.error(`[cleanup] tracked post IDs needing manual deletion in the mock WP: ${failed.map((f) => f.postId).join(', ')}`);
+      throw new Error(`Post cleanup verification failed: ${failed.map((f) => `post ${f.postId}: ${f.detail}`).join('; ')}`);
+    }
+    console.log(`[cleanup] confirmed deletion of posts ${confirmed.map((c) => c.postId).join(', ')} from mock WP (${confirmed.map((c) => `${c.postId}: ${c.detail}`).join('; ')})`);
   }
   createdPostIds = [];
 
-  // Clean up any created resources
-  for (const resId of createdResourceIds) {
+  // --- Resources: verified Prisma deleteMany against the dev DB ---
+  if (createdResourceIds.length) {
+    let client: import('@prisma/client').PrismaClient | null = null;
     try {
-      // Use existing resource deletion action
-      await page.request.post('/api/admin/resources/delete', { data: { id: resId } }).catch(() => {});
+      const { PrismaClient } = await import('@prisma/client');
+      client = new PrismaClient();
+      const result = await client.resource.deleteMany({ where: { id: { in: createdResourceIds } } });
+      if (result.count === createdResourceIds.length) {
+        console.log(`[cleanup] confirmed deletion of ${result.count}/${createdResourceIds.length} resources from dev DB (${createdResourceIds.join(', ')})`);
+      } else {
+        // Fewer deletions than tracked: rows were already gone (or filters matched unexpectedly). Surface it.
+        console.error(`[cleanup] resource deletion count mismatch: deleted ${result.count} but tracked ${createdResourceIds.length} (${createdResourceIds.join(', ')})`);
+        throw new Error(`Resource cleanup verification failed: deleteMany removed ${result.count} rows but ${createdResourceIds.length} resource IDs were tracked (${createdResourceIds.join(', ')}).`);
+      }
     } catch (e) {
-      console.warn(`Failed to cleanup test resource ${resId}:`, e);
+      console.error(`[cleanup] FAILED to delete resources ${createdResourceIds.join(', ')}:`, e);
+      throw new Error(`Resource cleanup failed for IDs ${createdResourceIds.join(', ')}: ${String(e).slice(0, 300)}`);
+    } finally {
+      // $disconnect must run even when deleteMany/verification throws.
+      await client?.$disconnect().catch(() => {});
     }
   }
   createdResourceIds = [];
@@ -162,6 +216,8 @@ async function metrics(page: Page) {
     if (!ed || !toolbar) return null;
     const tr = toolbar.getBoundingClientRect();
     const rr = toolRow?.getBoundingClientRect();
+    const container = ed.closest('.ql-container');
+    const cr = container?.getBoundingClientRect();
 
     let caretRect = null;
     const selection = window.getSelection();
@@ -190,12 +246,29 @@ async function metrics(page: Page) {
       editorBottom: Math.round(ed.getBoundingClientRect().bottom),
       toolbarTop: Math.round(tr.top),
       toolbarRowTop: rr ? Math.round(rr.top) : -1,
+      containerH: cr ? Math.round(cr.height) : 0,
+      editorOverflowsContainer: cr ? ed.getBoundingClientRect().bottom > cr.bottom + 1 || ed.getBoundingClientRect().top < cr.top - 1 : false,
       innerH: window.innerHeight,
       pageScrollY: Math.round(window.scrollY),
       horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
       caretRect,
     };
   });
+}
+
+/**
+ * Desktop workspace assertions shared by every editor test:
+ *  1. the canvas is meaningfully tall (>= 31% of the viewport). A floor-clamped
+ *     ~270px editor at 1440x900 is exactly 30% and must NOT satisfy this;
+ *  2. the canvas never overflows (gets clipped by) its `.ql-container` box —
+ *     the signature of a collapsed flex chain;
+ *  3. `min-height` never wins over real workspace space (clientH == the visible
+ *     scroll viewport).
+ */
+function expectDesktopWorkspace(m: NonNullable<Awaited<ReturnType<typeof metrics>>>) {
+  expect(m.clientH, 'canvas is at least 31% of the viewport height').toBeGreaterThanOrEqual(0.31 * m.innerH);
+  expect(m.clientH, 'canvas matches its container (no floor-clamped overflow)').toBeLessThanOrEqual(m.containerH + 1);
+  expect(m.editorOverflowsContainer, 'canvas is not clipped by its container').toBe(false);
 }
 
 test.describe('Rich Text Editor workspace', () => {
@@ -218,12 +291,23 @@ test.describe('Rich Text Editor workspace', () => {
     if (wide) {
       expect(m!.scrollH, 'canvas overflows its own box').toBeGreaterThan(m!.clientH + 5_000);
       expect(m!.clientH, 'canvas bounded inside the viewport workspace').toBeLessThan(m!.innerH);
+      expectDesktopWorkspace(m!);
       expect(m!.pageScrollY, 'page does not scroll in the workspace layout').toBeLessThanOrEqual(3);
       expect(m!.cardScrollTop, 'card does not unexpectedly scroll').toBe(0);
       expect(m!.horizontalOverflow, 'no horizontal overflow').toBe(false);
       expect(m!.toolbarRowTop, 'font selector visible').toBeGreaterThanOrEqual(0);
     }
     expect(m!.toolbarTop).toBeGreaterThanOrEqual(-1);
+
+    // Keyboard scrolling (trusted key events): PageDown must scroll the canvas
+    // itself. Runs before the big wheel (at document bottom PageDown is a no-op).
+    await page.keyboard.press('PageDown');
+    await page.waitForTimeout(300);
+    const kb = await metrics(page);
+    if (wide) {
+      expect(kb!.scrollTop, 'PageDown scrolls the canvas itself').toBeGreaterThan(100);
+      expect(kb!.pageScrollY, 'keyboard scrolling never scrolls the page').toBeLessThanOrEqual(3);
+    }
 
     await wheelScroll(page, 40_000);
     const mid = await metrics(page);
@@ -303,14 +387,12 @@ test.describe('Rich Text Editor workspace', () => {
     await pasteIntoEditor(page, buildNepaliLongFixture(20100) + '\n\n' + [NEPALI_CANARY, 'nepali-tail'].join(' '));
     await page.waitForTimeout(1500);
 
-    const match = page.url().match(/\/admin\/posts\/(\d+)\/edit/);
-    if (match) createdPostIds.push(Number(match[1]));
-
     const m = await metrics(page);
     expect(m, 'Nepali editor mounted').not.toBeNull();
     if (wide) {
       expect(m!.scrollH).toBeGreaterThan(m!.clientH + 5_000);
       expect(m!.clientH).toBeLessThan(m!.innerH);
+      expectDesktopWorkspace(m!);
       expect(m!.horizontalOverflow).toBe(false);
     }
 
@@ -339,6 +421,11 @@ test.describe('Rich Text Editor workspace', () => {
       undefined,
       { timeout: 120_000 }
     );
+
+    // Track ID after the save so the URL has actually changed to /edit
+    const match = page.url().match(/\/admin\/posts\/(\d+)\/edit/);
+    if (match) createdPostIds.push(Number(match[1]));
+
     await page.reload({ waitUntil: 'load' });
     await page.waitForSelector('.editor-wrapper .ql-editor', { timeout: 90_000 });
     await page.waitForTimeout(1500);
@@ -357,7 +444,7 @@ test.describe('Rich Text Editor workspace', () => {
     await page.waitForTimeout(500);
 
     const resTitle = `नेपाली ल फर्म नोट (safe to delete) ${Date.now() % 100000}`;
-    await page.fill('input[type="text"]', resTitle);
+    await page.fill('#resource-title', resTitle);
     const wide = (page.viewportSize() as { width: number }).width >= 1024;
 
     await pasteIntoEditor(page, buildNepaliLongFixture(20100) + '\n\n' + [NEPALI_CANARY, 'resource-nepali'].join(' '));
@@ -368,6 +455,7 @@ test.describe('Rich Text Editor workspace', () => {
     if (wide) {
       expect(m!.scrollH).toBeGreaterThan(m!.clientH + 5_000);
       expect(m!.clientH).toBeLessThan(m!.innerH);
+      expectDesktopWorkspace(m!);
       expect(m!.horizontalOverflow).toBe(false);
     }
 
@@ -385,24 +473,14 @@ test.describe('Rich Text Editor workspace', () => {
     await page.keyboard.type(' ' + NEPALI_CANARY + ' NOTE');
     await page.waitForTimeout(400);
 
-    // Select semester and subject
-    await page.evaluate(() => {
-      const semester = document.querySelectorAll('select')[1];
-      const option = [...semester.options].find((o) => o.value);
-      if (option) {
-        semester.value = option.value;
-        semester.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    });
+    // Select semester and subject (by placeholder option, NOT by index — the page
+    // has extra header selects whose count differs between desktop and mobile).
+    const semesterSelect = page.locator('select:has(option:text-is("Select Semester"))');
+    await semesterSelect.selectOption({ index: 1 });
     await page.waitForTimeout(400);
-    await page.evaluate(() => {
-      const subject = document.querySelectorAll('select')[2];
-      const option = [...subject.options].find((o) => o.value);
-      if (option) {
-        subject.value = option.value;
-        subject.dispatchEvent(new Event('change', { bubbles: true }));
-      }
-    });
+    const subjectSelect = page.locator('select:has(option:text-is("Select Subject"))');
+    await expect(subjectSelect, 'subject becomes enabled once a semester is chosen').toBeEnabled({ timeout: 20_000 });
+    await subjectSelect.selectOption({ index: 1 });
     await page.waitForTimeout(300);
 
     await page.getByRole('button', { name: 'Save as Draft' }).click();
@@ -415,7 +493,7 @@ test.describe('Rich Text Editor workspace', () => {
     // Reload and Edit
     await page.reload({ waitUntil: 'load' });
     await page.waitForSelector('.editor-wrapper .ql-editor', { timeout: 90_000 });
-    await page.fill('input[type="text"]', resTitle + ' - UPDATED');
+    await page.fill('#resource-title', resTitle + ' - UPDATED');
     await page.getByRole('button', { name: 'Save as Draft' }).click();
     await page.waitForTimeout(1000);
 

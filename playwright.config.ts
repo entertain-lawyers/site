@@ -57,6 +57,39 @@ if (enabled) {
   if (authHeader.includes('prod') || authUser.includes('prod')) {
     throw new Error(`SAFETY HALT: Production WordPress credentials detected in test environment variables.`);
   }
+
+  // E2E_MOCK_WP_URL powers DESTRUCTIVE cleanup requests (DELETE /posts/{id}) in
+  // the suite. It is mandatory, must be an explicitly local host, and must
+  // point at the same mock WordPress instance the app is configured against
+  // (same origin as WP_ENGLISH_URL / WP_NEPALI_URL) so cleanup can never hit
+  // the production WordPress site.
+  const rawMockWpUrl = process.env.E2E_MOCK_WP_URL;
+  if (!rawMockWpUrl) {
+    throw new Error(`SAFETY HALT: EDITOR_E2E=1 requires E2E_MOCK_WP_URL (the disposable local mock WordPress base, e.g. http://127.0.0.1:8788/wp-json/wp/v2). Post cleanup must never be attempted against an unconfigured target.`);
+  }
+  let parsedMockWp: URL;
+  try {
+    parsedMockWp = new URL(rawMockWpUrl);
+  } catch {
+    throw new Error(`SAFETY HALT: E2E_MOCK_WP_URL (${rawMockWpUrl}) is not a valid URL.`);
+  }
+  if (parsedMockWp.protocol !== 'http:' && parsedMockWp.protocol !== 'https:') {
+    throw new Error(`SAFETY HALT: E2E_MOCK_WP_URL (${rawMockWpUrl}) must use http(s).`);
+  }
+  const mockWpHostname = parsedMockWp.hostname;
+  const productionMarkers = ['entertainlawyers.com', 'production', 'staging', 'stage', 'live'];
+  if (productionMarkers.some((marker) => mockWpHostname.includes(marker))) {
+    throw new Error(`SAFETY HALT: E2E_MOCK_WP_URL (${mockWpHostname}) looks like a production or staging WordPress host. Destructive cleanup must never target it.`);
+  }
+  const isMockWpHostApproved = mockWpHostname === 'localhost' || mockWpHostname === '127.0.0.1' || mockWpHostname === '0.0.0.0' || mockWpHostname.endsWith('.test') || mockWpHostname.endsWith('.local');
+  if (!isMockWpHostApproved) {
+    throw new Error(`SAFETY HALT: E2E_MOCK_WP_URL (${mockWpHostname}) is not an explicitly approved local host (localhost, 127.0.0.1, 0.0.0.0, *.test, *.local). Refusing destructive cleanup against an arbitrary remote host.`);
+  }
+  // The cleanup target must be the same local mock instance the app reads/writes.
+  const configuredMockWpOrigins = [wpEnUrl, wpNeUrl].map((u) => new URL(u).origin);
+  if (!configuredMockWpOrigins.includes(parsedMockWp.origin)) {
+    throw new Error(`SAFETY HALT: E2E_MOCK_WP_URL origin (${parsedMockWp.origin}) does not match the configured mock WordPress instance (${configuredMockWpOrigins.join(' / ')}). Cleanup must target the same disposable mock WP the app is configured against.`);
+  }
 }
 
 export default defineConfig({
@@ -83,8 +116,11 @@ export default defineConfig({
       name: 'auth',
       testMatch: /auth\.setup\.ts/,
     },
-    { name: 'desktop', use: { viewport: { width: 1440, height: 900 }, storageState: 'tests/e2e/.auth/user.json' }, dependencies: ['auth'] },
+    {
+      name: 'desktop', use: { viewport: { width: 1440, height: 900 }, storageState: 'tests/e2e/.auth/user.json' }, dependencies: ['auth'],
+    },
     { name: 'laptop', use: { viewport: { width: 1366, height: 768 }, storageState: 'tests/e2e/.auth/user.json' }, dependencies: ['auth'] },
+    { name: 'small-laptop', use: { viewport: { width: 1280, height: 720 }, storageState: 'tests/e2e/.auth/user.json' }, dependencies: ['auth'] },
     { name: 'tablet', use: { viewport: { width: 1024, height: 768 }, storageState: 'tests/e2e/.auth/user.json' }, dependencies: ['auth'] },
     { name: 'mobile', use: { ...devices['Pixel 7'], storageState: 'tests/e2e/.auth/user.json' }, dependencies: ['auth'] },
   ],
