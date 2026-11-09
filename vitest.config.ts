@@ -10,6 +10,7 @@ const testDatabaseUrl = process.env.TEST_DATABASE_URL;
 
 export default defineConfig({
   test: {
+    exclude: ['tests/e2e/**', '**/node_modules/**'],
     env: {
       SKIP_ENV_VALIDATION: '1',
       // Provider secrets must exist before the modules are imported; the tests

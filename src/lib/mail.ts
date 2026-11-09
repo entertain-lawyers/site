@@ -114,6 +114,9 @@ export interface ConsultationEmailData {
   fullName: string;
   email: string;
   phone: string;
+  whatsappNumber?: string | null;
+  permanentAddress?: string | null;
+  temporaryAddress?: string | null;
   preferredContactMethod: string;
   consultationMode: string;
   practiceArea: string;
@@ -169,10 +172,20 @@ export async function sendConsultationNotificationEmail({
               </td>
             </tr>
             <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 10px 0; color: #64748b; font-weight: 600;">WhatsApp Number:</td>
+              <td style="padding: 10px 0; color: #0f172a; font-weight: 700;">${escape(request.whatsappNumber || 'Same as phone')}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 10px 0; color: #64748b; font-weight: 600;">Permanent Address:</td>
+              <td style="padding: 10px 0; color: #0f172a; font-weight: 700;">${escape(request.permanentAddress || 'Not provided')}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 10px 0; color: #64748b; font-weight: 600;">Temporary Address:</td>
+              <td style="padding: 10px 0; color: #0f172a; font-weight: 700;">${escape(request.temporaryAddress || 'Not provided')}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #f1f5f9;">
               <td style="padding: 10px 0; color: #64748b; font-weight: 600;">Email:</td>
-              <td style="padding: 10px 0; color: #0f172a; font-weight: 700;">
-                <a href="mailto:${escape(request.email)}" style="color: #2563eb; text-decoration: none;">${escape(request.email)}</a>
-              </td>
+              <td style="padding: 10px 0; color: #0f172a; font-weight: 700;">${request.email ? `<a href="mailto:${escape(request.email)}" style="color: #2563eb; text-decoration: none;">${escape(request.email)}</a>` : 'Not provided'}</td>
             </tr>
             <tr style="border-bottom: 1px solid #f1f5f9;">
               <td style="padding: 10px 0; color: #64748b; font-weight: 600;">Preferred Contact:</td>
