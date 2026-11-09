@@ -574,6 +574,15 @@ model ConsultationLawyer {
   email             String?
   whatsappNumber    String?
   location          String?  // e.g. "Pokhara & Kathmandu"
+  serviceCities     String?
+  lawFirm           String?
+  officeAddress     String?
+  officeMapUrl      String?
+  facebookUrl       String?
+  instagramUrl      String?
+  linkedInUrl       String?
+  websiteUrl        String?
+  achievements      String?  @db.Text
   shortBio          String?
   bio               String?  @db.Text
   imageUrl          String?
@@ -583,6 +592,7 @@ model ConsultationLawyer {
   isFeatured        Boolean  @default(false)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+  consultationRequests ConsultationRequest[]
 
   @@index([isAvailable, displayOrder])
 }
@@ -612,6 +622,9 @@ model ConsultationRequest {
   fullName               String
   email                  String
   phone                  String
+  whatsappNumber         String?
+  permanentAddress       String?
+  temporaryAddress       String?
   preferredContactMethod ContactMethod      @default(PHONE)
   consultationMode       ConsultationMode   @default(PHYSICAL)
   practiceArea           String
@@ -621,6 +634,8 @@ model ConsultationRequest {
   subject                String
   description            String
   referralSource         String?
+  lawyerId               String?
+  lawyer                 ConsultationLawyer? @relation(fields: [lawyerId], references: [id], onDelete: SetNull)
   status                 ConsultationStatus @default(NEW)
   adminNotes             String?
   ipAddress              String?
@@ -631,4 +646,5 @@ model ConsultationRequest {
   @@index([status, createdAt])
   @@index([email])
   @@index([phone])
+  @@index([lawyerId])
 }

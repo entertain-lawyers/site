@@ -7,12 +7,13 @@ import {
   updateConsultationLawyerAction,
 } from '@/modules/admin/admin-lawyer.actions';
 import ImageUpload from '@/components/admin/ImageUpload';
+import type { ConsultationLawyer as LawyerRecord } from '@prisma/client';
 import Link from 'next/link';
-import { Loader2, ArrowLeft, Save, Scale, ShieldCheck, Phone, Mail, MapPin } from 'lucide-react';
+import { Loader2, ArrowLeft, Save, Scale, ShieldCheck, Phone, MapPin } from 'lucide-react';
 import { AnimatePresence, Appear, MotionButton } from '@/components/motion/primitives';
 
 interface LawyerFormClientProps {
-  lawyer?: any;
+  lawyer?: LawyerRecord;
 }
 
 export default function LawyerFormClient({ lawyer }: LawyerFormClientProps) {
@@ -34,8 +35,16 @@ export default function LawyerFormClient({ lawyer }: LawyerFormClientProps) {
   const [email, setEmail] = useState(lawyer?.email || '');
   const [whatsappNumber, setWhatsappNumber] = useState(lawyer?.whatsappNumber || '');
   const [location, setLocation] = useState(lawyer?.location || 'Pokhara & Kathmandu Chambers');
+  const [serviceCities, setServiceCities] = useState(lawyer?.serviceCities || lawyer?.location || '');
+  const [lawFirm, setLawFirm] = useState(lawyer?.lawFirm || '');
+  const [officeAddress, setOfficeAddress] = useState(lawyer?.officeAddress || '');
+  const [officeMapUrl, setOfficeMapUrl] = useState(lawyer?.officeMapUrl || '');
+  const [facebookUrl, setFacebookUrl] = useState(lawyer?.facebookUrl || '');
+  const [instagramUrl, setInstagramUrl] = useState(lawyer?.instagramUrl || '');
+  const [linkedInUrl, setLinkedInUrl] = useState(lawyer?.linkedInUrl || '');
+  const [websiteUrl, setWebsiteUrl] = useState(lawyer?.websiteUrl || '');
+  const [achievements, setAchievements] = useState(lawyer?.achievements || '');
   const [imageUrl, setImageUrl] = useState(lawyer?.imageUrl || '');
-  const [rating, setRating] = useState(lawyer?.rating || 5.0);
   const [displayOrder, setDisplayOrder] = useState(lawyer?.displayOrder || 0);
   const [isAvailable, setIsAvailable] = useState(lawyer ? lawyer.isAvailable : true);
   const [isFeatured, setIsFeatured] = useState(lawyer ? lawyer.isFeatured : false);
@@ -62,8 +71,17 @@ export default function LawyerFormClient({ lawyer }: LawyerFormClientProps) {
       email: email.trim() || null,
       whatsappNumber: whatsappNumber.trim() || null,
       location: location.trim() || null,
+      serviceCities: serviceCities.trim() || null,
+      lawFirm: lawFirm.trim() || null,
+      officeAddress: officeAddress.trim() || null,
+      officeMapUrl: officeMapUrl.trim() || null,
+      facebookUrl: facebookUrl.trim() || null,
+      instagramUrl: instagramUrl.trim() || null,
+      linkedInUrl: linkedInUrl.trim() || null,
+      websiteUrl: websiteUrl.trim() || null,
+      achievements: achievements.trim() || null,
       imageUrl: imageUrl.trim() || null,
-      rating: Number(rating) || 5.0,
+      rating: lawyer?.rating || 5.0,
       displayOrder: Number(displayOrder) || 0,
       isAvailable,
       isFeatured,
@@ -83,10 +101,10 @@ export default function LawyerFormClient({ lawyer }: LawyerFormClientProps) {
         router.push('/admin/lawyers');
         router.refresh();
       } else {
-        setError((res as any)?.error || 'An error occurred while saving the lawyer profile.');
+        setError(res.error || 'An error occurred while saving the lawyer profile.');
       }
-    } catch (err: any) {
-      setError(err?.message || 'An unexpected error occurred.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
     } finally {
       setLoading(false);
     }
@@ -226,6 +244,27 @@ export default function LawyerFormClient({ lawyer }: LawyerFormClientProps) {
                   className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
                 />
               </div>
+            </div>
+          </div>
+
+          <div className="bg-surface border border-border p-6 rounded-2xl space-y-5">
+            <h3 className="text-base font-extrabold text-navy dark:text-white flex items-center gap-2 border-b border-border pb-3">
+              <MapPin className="w-4 h-4 text-accent" />
+              <span>Service Areas, Firm &amp; Office</span>
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <label className="block text-xs font-bold text-text-muted uppercase tracking-wider">Service cities
+                <input value={serviceCities} onChange={(e) => setServiceCities(e.target.value)} placeholder="Kathmandu, Pokhara, Janakpur" className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-border bg-background text-text-primary text-sm" />
+              </label>
+              <label className="block text-xs font-bold text-text-muted uppercase tracking-wider">Law firm
+                <input value={lawFirm} onChange={(e) => setLawFirm(e.target.value)} placeholder="Firm or chambers name" className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-border bg-background text-text-primary text-sm" />
+              </label>
+              <label className="block text-xs font-bold text-text-muted uppercase tracking-wider sm:col-span-2">Office address
+                <textarea rows={2} value={officeAddress} onChange={(e) => setOfficeAddress(e.target.value)} placeholder="Street, city, province, Nepal" className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-border bg-background text-text-primary text-sm" />
+              </label>
+              <label className="block text-xs font-bold text-text-muted uppercase tracking-wider sm:col-span-2">Office map link
+                <input type="url" value={officeMapUrl} onChange={(e) => setOfficeMapUrl(e.target.value)} placeholder="https://maps.google.com/..." className="mt-1.5 w-full px-4 py-2.5 rounded-xl border border-border bg-background text-text-primary text-sm" />
+              </label>
             </div>
           </div>
 
@@ -398,6 +437,25 @@ export default function LawyerFormClient({ lawyer }: LawyerFormClientProps) {
                 className="w-full px-4 py-2 rounded-xl border border-border bg-background text-text-primary text-sm focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent"
               />
             </div>
+            <div>
+              <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1.5">Achievements</label>
+              <textarea rows={4} value={achievements} onChange={(e) => setAchievements(e.target.value)} placeholder="List notable awards and professional achievements" className="w-full px-4 py-2 rounded-xl border border-border bg-background text-text-primary text-sm" />
+            </div>
+          </div>
+
+          <div className="bg-surface border border-border p-6 rounded-2xl space-y-4">
+            <h3 className="text-sm font-bold text-navy dark:text-white uppercase tracking-wider">Social &amp; Web Profiles</h3>
+            {[
+              ['Facebook', facebookUrl, setFacebookUrl],
+              ['Instagram', instagramUrl, setInstagramUrl],
+              ['LinkedIn', linkedInUrl, setLinkedInUrl],
+              ['Website', websiteUrl, setWebsiteUrl],
+            ].map(([label, value, setter]) => (
+              <label key={label as string} className="block text-xs font-bold text-text-muted uppercase tracking-wider">
+                {label as string}
+                <input type="url" value={value as string} onChange={(e) => (setter as (value: string) => void)(e.target.value)} placeholder="https://" className="mt-1.5 w-full px-4 py-2 rounded-xl border border-border bg-background text-text-primary text-sm" />
+              </label>
+            ))}
           </div>
 
           {/* Education & Languages */}

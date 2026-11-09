@@ -28,6 +28,18 @@ describe("ConsultationLawyer migration", () => {
     expect(sql).toMatch(/CREATE UNIQUE INDEX "ConsultationLawyer_slug_key"/);
     expect(sql).toMatch(/CREATE INDEX "ConsultationLawyer_isAvailable_displayOrder_idx"/);
     // Additive only: this migration must never drop production data.
-    expect(sql).not.toMatch(/\b(DROP|TRUNCATE|DELETE)\b/i);
+    expect(sql).not.toMatch(/^\s*(DROP|TRUNCATE|DELETE)\s+(TABLE|FROM)\b/im);
+  });
+
+  it('has an additive profile and intake migration with a safe nullable lawyer relationship', () => {
+    const followUp = join(root, 'prisma/migrations/20261109120000_expand_consultation_profiles_and_intake/migration.sql');
+    expect(existsSync(followUp)).toBe(true);
+    const sql = readFileSync(followUp, 'utf8');
+    for (const column of ['serviceCities', 'lawFirm', 'officeAddress', 'officeMapUrl', 'facebookUrl', 'instagramUrl', 'linkedInUrl', 'websiteUrl', 'achievements', 'whatsappNumber', 'permanentAddress', 'temporaryAddress', 'lawyerId']) {
+      expect(sql).toContain(`"${column}"`);
+    }
+    expect(sql).toMatch(/FOREIGN KEY \("lawyerId"\)[\s\S]*REFERENCES "ConsultationLawyer"\("id"\)\s+ON DELETE SET NULL/i);
+    expect(sql).not.toMatch(/^\s*(DROP|TRUNCATE|DELETE)\s+(TABLE|FROM)\b/im);
+    expect(schema).toMatch(/lawyer\s+ConsultationLawyer\?\s+@relation\(fields: \[lawyerId\], references: \[id\], onDelete: SetNull\)/);
   });
 });
