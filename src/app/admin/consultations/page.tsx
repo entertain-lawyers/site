@@ -2,7 +2,8 @@ import { prisma } from '@/lib/prisma';
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import ConsultationManager from '@/components/admin/ConsultationManager';
-import { MessageSquare, Users } from 'lucide-react';
+import { MessageSquare } from 'lucide-react';
+import { Prisma } from '@prisma/client';
 
 export const metadata = { title: 'Consultations Intake | Admin Portal' };
 
@@ -13,16 +14,17 @@ export default async function AdminConsultationsPage() {
     redirect('/login?callbackUrl=/admin/consultations');
   }
 
-  let items: any[] = [];
+  let items: Prisma.ConsultationRequestGetPayload<{ include: { lawyer: { select: { id: true; name: true; title: true } } } }>[] = [];
   let dbError = false;
 
   try {
     items = await prisma.consultationRequest.findMany({
       orderBy: { createdAt: 'desc' },
       take: 100,
+      include: { lawyer: { select: { id: true, name: true, title: true } } },
     });
-  } catch (error: any) {
-    if (error?.code === 'P2021') {
+  } catch (error: unknown) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2021') {
       dbError = true;
     } else {
       console.error('Error fetching consultation requests:', error);

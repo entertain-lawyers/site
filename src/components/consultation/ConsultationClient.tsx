@@ -1,468 +1,262 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
 import {
-  Scale,
-  Phone,
-  Mail,
-  MessageCircle,
-  Calendar,
-  Building2,
-  MapPin,
-  Clock,
-  ShieldCheck,
-  Navigation,
-  ExternalLink,
-  UserCheck,
-  Sparkles,
-  ArrowDown,
-  ChevronRight,
-  Briefcase,
-  Award,
-  CheckCircle,
+  Award, BriefcaseBusiness, Building2, Calculator, Camera, Clock, GraduationCap, Navigation, Users,
+  Mail, MapPin, MessageCircle, Phone, Scale, ShieldCheck, X, Globe2,
 } from 'lucide-react';
+import Link from 'next/link';
 import ConsultationForm, { ConsultationLawyer } from './ConsultationForm';
-import { Reveal } from '@/components/motion/primitives';
-
-const QUICK_CONTACTS = [
-  {
-    href: 'tel:+9779822010737',
-    label: 'Call Chambers Desk (+977 9822010737)',
-    icon: Phone,
-    className: 'bg-navy text-white hover:bg-navy-light',
-  },
-  {
-    href:
-      'https://wa.me/9779822010737?text=' +
-      encodeURIComponent('Namaste Entertain Lawyers Chambers, I would like to consult with a certified advocate.'),
-    label: 'WhatsApp Chambers',
-    icon: MessageCircle,
-    className: 'bg-emerald-600 text-white hover:bg-emerald-700',
-    external: true,
-  },
-  {
-    href: 'mailto:contact@entertainlawyers.com',
-    label: 'contact@entertainlawyers.com',
-    icon: Mail,
-    className: 'border border-border bg-surface text-text-primary hover:border-accent/40 hover:text-accent',
-  },
-] as const;
 
 interface ConsultationClientProps {
   lawyers: ConsultationLawyer[];
   loadError?: boolean;
 }
 
+function digits(value?: string | null) {
+  return (value || '').replace(/\D/g, '');
+}
+
+function phoneHref(value?: string | null) {
+  const number = (value || '').trim();
+  return number ? `tel:${number.replace(/[^+\d]/g, '')}` : undefined;
+}
+
+function whatsappHref(value?: string | null, name?: string) {
+  const raw = digits(value);
+  if (raw.length < 7) return undefined;
+  const international = raw.startsWith('00') ? raw.slice(2) : raw;
+  const explicitlyInternational = (value || '').trim().startsWith('+') || raw.startsWith('00');
+  const number = explicitlyInternational || international.startsWith('977') ? international : `977${international.replace(/^0+/, '')}`;
+  return `https://wa.me/${number}?text=${encodeURIComponent(`Namaste Advocate ${name || ''}, I would like to book a consultation.`)}`;
+}
+
+function cityList(lawyer: ConsultationLawyer) {
+  return lawyer.serviceCities || lawyer.location || lawyer.courtJurisdiction || '';
+}
+
+function safeExternalHref(value?: string | null) {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export default function ConsultationClient({ lawyers, loadError = false }: ConsultationClientProps) {
   const [selectedLawyer, setSelectedLawyer] = useState<ConsultationLawyer | null>(null);
+  const [detailLawyer, setDetailLawyer] = useState<ConsultationLawyer | null>(null);
   const [isFormHighlighted, setIsFormHighlighted] = useState(false);
-  const bookingFormRef = useRef<HTMLDivElement>(null);
+  const bookingFormRef = useRef<HTMLElement>(null);
 
-  const handleSelectLawyerForBooking = (lawyer: ConsultationLawyer) => {
+  const handleBook = (lawyer: ConsultationLawyer) => {
     setSelectedLawyer(lawyer);
+    setDetailLawyer(null);
     setIsFormHighlighted(true);
-
-    if (bookingFormRef.current) {
-      bookingFormRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    window.setTimeout(() => bookingFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
   };
 
   useEffect(() => {
-    if (isFormHighlighted) {
-      const timer = setTimeout(() => {
-        setIsFormHighlighted(false);
-      }, 2500);
-      return () => clearTimeout(timer);
-    }
+    if (!detailLawyer) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setDetailLawyer(null);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [detailLawyer]);
+
+  useEffect(() => {
+    if (!isFormHighlighted) return;
+    const timer = window.setTimeout(() => setIsFormHighlighted(false), 1800);
+    return () => window.clearTimeout(timer);
   }, [isFormHighlighted]);
 
   return (
-    <div className="relative w-full bg-background min-h-screen py-10 sm:py-16">
-      {/* Decorative background blurs */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-96 overflow-hidden" aria-hidden="true">
-        <div className="absolute left-1/2 -translate-x-1/2 -top-32 w-[42rem] h-[42rem] bg-accent/8 rounded-full blur-3xl" />
-        <div className="absolute left-[10%] top-12 w-64 h-64 bg-gold/10 dark:bg-gold/5 rounded-full blur-3xl" />
-      </div>
-
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12 sm:space-y-16">
-        {/* Hero Section */}
-        <div className="space-y-5 max-w-3xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-accent/10 text-accent text-xs font-extrabold shadow-xs">
-            <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span>Nepal Bar Council Licensed Advocates • Pokhara &amp; Kathmandu</span>
-          </div>
-
-          <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-navy dark:text-white tracking-tight leading-[1.1]">
-            Consult Our Certified{' '}
-            <span className="bg-gradient-to-r from-accent via-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Advocates
-            </span>
-          </h1>
-
-          <p className="text-text-secondary text-base sm:text-lg leading-relaxed max-w-2xl mx-auto">
-            Review certified legal counsel profiles, Bar Council credentials, court admissions, and practice areas. Contact an advocate directly or schedule an in-person or online consultation.
+    <main className="min-h-screen bg-background py-10 sm:py-14">
+      <div className="mx-auto max-w-6xl space-y-12 px-4 sm:px-6 lg:px-8">
+        <header className="mx-auto max-w-3xl space-y-4 text-center">
+          <span className="inline-flex items-center gap-2 rounded-full border border-accent/20 bg-accent/10 px-4 py-2 text-xs font-bold text-accent">
+            <ShieldCheck className="h-4 w-4" aria-hidden="true" /> Nepal Bar Council Advocates
+          </span>
+          <h1 className="text-3xl font-black tracking-tight text-navy dark:text-white sm:text-5xl">Consult a Lawyer</h1>
+          <p className="text-base leading-relaxed text-text-secondary sm:text-lg">
+            Find an advocate by practice area and service city, review their profile, then book a consultation or contact them directly.
           </p>
-          <p className="text-xs sm:text-sm text-text-muted font-medium -mt-2">
-            प्रमाणित कानुन व्यवसायीहरूको विवरण हेरी सिधै फोन/ह्वाट्सएप मार्फत सम्पर्क गर्नुहोस् वा परामर्श समय बुक गर्नुहोस्।
-          </p>
+          <p lang="ne" className="text-sm text-text-muted">कानुनी परामर्शका लागि अधिवक्ता छान्नुहोस् वा तलको फारम भर्नुहोस्।</p>
+          <nav aria-label="Chambers direct contact" className="flex flex-wrap justify-center gap-2 pt-1">
+            <a href="tel:+9779822010737" className="inline-flex items-center gap-2 rounded-full bg-navy px-4 py-2.5 text-xs font-bold text-white hover:bg-navy-light"><Phone className="h-4 w-4" aria-hidden="true" />Call Chambers</a>
+            <a href={`https://wa.me/9779822010737?text=${encodeURIComponent('Namaste Entertain Lawyers Chambers, I would like to consult with a certified advocate.')}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-700"><MessageCircle className="h-4 w-4" aria-hidden="true" />WhatsApp Chambers</a>
+            <a href="mailto:contact@entertainlawyers.com" className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2.5 text-xs font-bold text-text-primary hover:border-accent"><Mail className="h-4 w-4" aria-hidden="true" />Email Chambers</a>
+          </nav>
+        </header>
 
-          {/* Quick contact buttons */}
-          <div className="flex flex-wrap items-center justify-center gap-2.5 pt-2">
-            {QUICK_CONTACTS.map((qc) => (
-              <a
-                key={qc.label}
-                href={qc.href}
-                {...('external' in qc && qc.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                className={`inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-full text-xs sm:text-sm font-bold shadow-xs active:scale-[0.98] transition-all ${qc.className}`}
-              >
-                <qc.icon className="w-4 h-4" />
-                <span>{qc.label}</span>
-              </a>
-            ))}
-          </div>
-        </div>
-
-        {/* Section 1: Certified Lawyer Profiles */}
-        <section aria-labelledby="lawyers-heading" className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-border pb-4">
+        <section aria-labelledby="lawyers-heading" className="space-y-5">
+          <div className="flex flex-col gap-2 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-accent mb-1">
-                <Scale className="w-3.5 h-3.5" />
-                <span>Certified Bar Advocates</span>
-              </div>
-              <h2 id="lawyers-heading" className="text-2xl sm:text-3xl font-extrabold text-navy dark:text-white tracking-tight">
-                Our Legal Counsel &amp; Advocates
-              </h2>
-              <p className="text-text-secondary text-xs sm:text-sm mt-1">
-                Licensed legal practitioners certified by the Nepal Bar Council with court admissions across Nepal.
-              </p>
+              <p className="mb-1 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent"><Scale className="h-4 w-4" aria-hidden="true" /> Lawyer directory</p>
+              <h2 id="lawyers-heading" className="text-2xl font-extrabold text-navy dark:text-white sm:text-3xl">Find the right advocate</h2>
             </div>
-
-            <a
-              href="#booking-form"
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-accent hover:underline self-start sm:self-auto"
-            >
-              <span>Jump to Intake Form</span>
-              <ArrowDown className="w-3.5 h-3.5" />
-            </a>
+            <a href="#booking-form" className="text-sm font-bold text-accent underline-offset-4 hover:underline">Go to consultation form</a>
           </div>
 
           {loadError ? (
-            <div role="alert" className="text-center py-12 bg-surface rounded-2xl border border-red-200 dark:border-red-900/50">
-              <p className="text-red-700 dark:text-red-300 font-bold text-sm">The lawyer directory is temporarily unavailable.</p>
-              <p className="text-text-secondary text-sm mt-1">
-                You can still submit a consultation request below, or call{' '}
-                <a href="tel:+9779822010737" className="font-bold underline underline-offset-4">+977 9822010737</a>.
-              </p>
+            <div role="alert" className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6 text-center text-sm text-text-secondary">
+              Lawyer profiles are temporarily unavailable. You can still submit a general consultation request below.
             </div>
           ) : lawyers.length === 0 ? (
-            <div className="text-center py-12 bg-surface rounded-2xl border border-border">
-              <p className="text-text-secondary text-sm">No lawyer profiles are published yet.</p>
-            </div>
+            <div className="rounded-2xl border border-border bg-surface p-8 text-center text-sm text-text-secondary">No lawyer profiles are published yet.</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {lawyers.map((lawyer, i) => {
-                const phone = lawyer.phone || '+9779822010737';
-                const phoneHref = `tel:${phone.replace(/[^\d+]/g, '')}`;
-                const email = lawyer.email || 'contact@entertainlawyers.com';
-                const rawDigits = (lawyer.whatsappNumber || lawyer.phone || '9822010737').replace(/[^0-9]/g, '');
-                const whatsappNumber = rawDigits.startsWith('977') ? rawDigits : `977${rawDigits.replace(/^0+/, '')}`;
-                const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(
-                  `Namaste Advocate ${lawyer.name}, I would like to consult with you regarding a legal matter via Entertain Lawyers.`
-                )}`;
-                const isSelected = selectedLawyer?.id === lawyer.id;
-
-                return (
-                  <Reveal index={i} perRow={3} lift
-                    key={lawyer.id}
-                    className={`group relative bg-surface border rounded-3xl shadow-sm overflow-hidden flex flex-col h-full transition-[box-shadow,border-color,background-color] duration-300 hover:shadow-xl dark:hover:shadow-black/50 ${
-                      isSelected
-                        ? 'border-accent ring-2 ring-accent ring-offset-2 ring-offset-background'
-                        : 'border-border'
-                    }`}
-                  >
-                    {/* Top Status Header */}
-                    {isSelected && (
-                      <div className="bg-accent text-white text-[11px] font-black uppercase tracking-wider py-1.5 px-3 text-center flex items-center justify-center gap-1.5">
-                        <UserCheck className="w-4 h-4" />
-                        <span>Selected for Consultation</span>
-                      </div>
-                    )}
-
-                    {/* Card Body */}
-                    <div className="p-6 flex-1 flex flex-col space-y-4">
-                      {/* Photo & Identity row */}
-                      <div className="flex items-start gap-4">
-                        <div className="relative w-20 h-24 rounded-2xl overflow-hidden bg-slate-100 dark:bg-zinc-800 shrink-0 ring-1 ring-border shadow-xs">
-                          {lawyer.imageUrl ? (
-                            <Image
-                              src={lawyer.imageUrl}
-                              alt={lawyer.name}
-                              fill
-                              className="object-cover group-hover:scale-105 transition-transform duration-500"
-                              sizes="96px"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-3xl font-black text-text-muted bg-surface-alt">
-                              {lawyer.name.charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="min-w-0 flex-1 space-y-1">
-                          {lawyer.isFeatured && (
-                            <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 tracking-wider">
-                              Lead Advocate
-                            </span>
-                          )}
-
-                          <h3 className="text-lg font-black text-navy dark:text-white leading-tight truncate">
-                            Advocate {lawyer.name}
-                          </h3>
-
-                          <p className="text-xs font-bold text-accent">
-                            {lawyer.title || lawyer.designation || 'Advocate'}
-                          </p>
-
-                          {lawyer.licenseNumber && (
-                            <div className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
-                              <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
-                              <span className="truncate">{lawyer.licenseNumber}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Credentials & Court Jurisdictions */}
-                      <div className="space-y-2 pt-2 border-t border-border text-xs">
-                        {lawyer.courtJurisdiction && (
-                          <div className="flex items-start gap-2 text-text-secondary">
-                            <Scale className="w-3.5 h-3.5 text-accent shrink-0 mt-0.5" />
-                            <span className="leading-snug font-medium">{lawyer.courtJurisdiction}</span>
-                          </div>
-                        )}
-
-                        {lawyer.experience && (
-                          <div className="flex items-center gap-2 text-text-muted">
-                            <Award className="w-3.5 h-3.5 text-accent shrink-0" />
-                            <span>{lawyer.experience}</span>
-                            {lawyer.qualifications && <span>• {lawyer.qualifications}</span>}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Specialization & Practice Areas */}
-                      {(lawyer.specialization || lawyer.practiceAreas) && (
-                        <div className="space-y-1.5 pt-1">
-                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-text-muted block">
-                            Specialized Practice:
-                          </span>
-                          <div className="flex flex-wrap gap-1.5">
-                            {(lawyer.practiceAreas || lawyer.specialization || '')
-                              .split(/[,\n]/)
-                              .map((area, idx) => {
-                                const trimmed = area.trim();
-                                if (!trimmed) return null;
-                                return (
-                                  <span
-                                    key={idx}
-                                    className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-surface-alt text-text-primary border border-border"
-                                  >
-                                    {trimmed}
-                                  </span>
-                                );
-                              })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Short Bio */}
-                      {lawyer.shortBio && (
-                        <p className="text-text-secondary text-xs line-clamp-3 leading-relaxed pt-1">
-                          {lawyer.shortBio}
-                        </p>
-                      )}
-
-                      {/* Direct Channels Bar: Call, WhatsApp, Email */}
-                      <div className="mt-auto pt-3 border-t border-border space-y-2.5">
-                        <div className="grid grid-cols-3 gap-2">
-                          <a
-                            href={phoneHref}
-                            title={`Call Advocate ${lawyer.name}`}
-                            className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold bg-surface-alt hover:bg-navy hover:text-white dark:hover:bg-accent border border-border transition-all text-text-primary shadow-2xs"
-                          >
-                            <Phone className="w-3.5 h-3.5 text-accent" />
-                            <span>Call</span>
-                          </a>
-
-                          <a
-                            href={whatsappUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title={`WhatsApp Message Advocate ${lawyer.name}`}
-                            className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white dark:bg-emerald-950/40 dark:text-emerald-300 dark:hover:bg-emerald-600 dark:hover:text-white border border-emerald-200 dark:border-emerald-800 transition-all shadow-2xs"
-                          >
-                            <MessageCircle className="w-3.5 h-3.5" />
-                            <span>WhatsApp</span>
-                          </a>
-
-                          <a
-                            href={`mailto:${email}?subject=${encodeURIComponent(
-                              `Legal Consultation Inquiry for Advocate ${lawyer.name}`
-                            )}`}
-                            title={`Email Advocate ${lawyer.name}`}
-                            className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-xl text-xs font-bold bg-surface-alt hover:bg-accent hover:text-white border border-border transition-all text-text-primary shadow-2xs"
-                          >
-                            <Mail className="w-3.5 h-3.5 text-accent" />
-                            <span>Email</span>
-                          </a>
-                        </div>
-
-                        {/* Booking Action */}
-                        <button
-                          type="button"
-                          onClick={() => handleSelectLawyerForBooking(lawyer)}
-                          className={`w-full py-3 px-4 rounded-xl text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2 transition-all shadow-sm ${
-                            isSelected
-                              ? 'bg-accent text-white ring-2 ring-accent ring-offset-2 ring-offset-background'
-                              : 'bg-navy text-white hover:bg-navy-light dark:bg-accent dark:hover:bg-accent-hover'
-                          }`}
-                        >
-                          <Calendar className="w-4 h-4" />
-                          <span>
-                            {isSelected
-                              ? `Selected: Advocate ${lawyer.name}`
-                              : `Book Consultation with Advocate ${lawyer.name.split(' ')[0]}`}
-                          </span>
-                        </button>
-                      </div>
-                    </div>
-                  </Reveal>
-                );
-              })}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {lawyers.map((lawyer) => <LawyerCard key={lawyer.id} lawyer={lawyer} selected={selectedLawyer?.id === lawyer.id} onView={() => setDetailLawyer(lawyer)} onBook={() => handleBook(lawyer)} />)}
             </div>
           )}
         </section>
 
-        {/* Section 2: Consultation Booking Form & Chambers Info */}
-        <section id="booking-form" ref={bookingFormRef} className="pt-8 space-y-6 scroll-mt-20">
-          <div className="max-w-2xl mx-auto text-center space-y-2">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-accent/10 text-accent text-xs font-bold">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Chambers Registry &amp; Intake</span>
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-navy dark:text-white tracking-tight">
-              Schedule Your Legal Consultation
-            </h2>
-            <p className="text-text-secondary text-sm">
-              {selectedLawyer
-                ? `Booking designated with Advocate ${selectedLawyer.name} (${selectedLawyer.licenseNumber || 'Nepal Bar Council'}). Fill in your details below to schedule your appointment.`
-                : 'Fill in your matter details below. Our senior advocates will review your submission and contact you within 1 business day.'}
-            </p>
+        <section id="booking-form" ref={bookingFormRef} aria-labelledby="booking-heading" className="scroll-mt-20 space-y-4">
+          <div className="mx-auto max-w-3xl text-center">
+            <h2 id="booking-heading" className="text-2xl font-extrabold text-navy dark:text-white sm:text-3xl">Book a Consultation</h2>
+            <p className="mt-2 text-sm text-text-secondary">{selectedLawyer ? `Your request will be sent to Advocate ${selectedLawyer.name} for review.` : 'Share your contact details and describe your legal problem in English, Nepali, or a mix of both.'}</p>
           </div>
+          <div className="mx-auto max-w-3xl">
+            <ConsultationForm lawyers={lawyers} selectedLawyer={selectedLawyer} onSelectLawyer={setSelectedLawyer} isHighlighted={isFormHighlighted} />
+          </div>
+        </section>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* Primary Action — Booking Form */}
-            <div className="lg:col-span-7 order-1 lg:order-2">
-              <ConsultationForm
-                lawyers={lawyers}
-                selectedLawyer={selectedLawyer}
-                onSelectLawyer={(lawyer) => setSelectedLawyer(lawyer)}
-                isHighlighted={isFormHighlighted}
-              />
+        <section aria-label="Chambers location and consultation resources" className="grid gap-5 lg:grid-cols-[1.3fr_1fr]">
+          <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+            <iframe title="Entertain Lawyers chambers office map" src="https://www.google.com/maps?q=Prithvi%20Narayan%20Campus%2C%20Pokhara%2C%20Kaski%2C%20Nepal&output=embed" className="h-44 w-full border-0 sm:h-52" loading="lazy" referrerPolicy="no-referrer-when-downgrade" />
+            <div className="space-y-4 p-5">
+              <h2 className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wide text-navy dark:text-white"><Building2 className="h-4 w-4 text-accent" aria-hidden="true" />Law Chambers Desk</h2>
+              <ul className="space-y-3 text-sm text-text-secondary">
+                <li className="flex items-start gap-2"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden="true" />Prithvi Narayan Law Campus, Pokhara — Kaski, Gandaki Province, Nepal</li>
+                <li className="flex items-center gap-2"><Phone className="h-4 w-4 shrink-0 text-accent" aria-hidden="true" /><a href="tel:+9779822010737" className="font-semibold underline underline-offset-4">+977 9822010737</a></li>
+                <li className="flex items-center gap-2"><Mail className="h-4 w-4 shrink-0 text-accent" aria-hidden="true" /><a href="mailto:contact@entertainlawyers.com" className="break-all font-semibold underline underline-offset-4">contact@entertainlawyers.com</a></li>
+                <li className="flex items-start gap-2"><Clock className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden="true" /><span>Sunday–Friday, 10:00 AM–5:00 PM <span className="text-text-muted">(Closed Saturdays and court holidays)</span></span></li>
+              </ul>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
+                <p className="text-xs text-text-muted">Requests are handled confidentially by the consultation team.</p>
+                <a href="https://www.google.com/maps/search/?api=1&query=Prithvi+Narayan+Campus,+Pokhara,+Kaski,+Nepal" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-2 text-xs font-bold text-accent hover:bg-accent hover:text-white"><Navigation className="h-3.5 w-3.5" aria-hidden="true" />Directions</a>
+              </div>
             </div>
-
-            {/* Sidebar — Chambers Location, Contacts & Ethics */}
-            <aside className="lg:col-span-5 order-2 lg:order-1 lg:sticky lg:top-24 space-y-6">
-              <div className="bg-surface rounded-3xl border border-border shadow-sm overflow-hidden">
-                {/* Location Map */}
-                <iframe
-                  title="Entertain Lawyers — Office Location Map"
-                  src="https://www.google.com/maps?q=Prithvi%20Narayan%20Campus%2C%20Pokhara%2C%20Kaski%2C%20Nepal&output=embed"
-                  className="w-full h-44 sm:h-52 border-0"
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                />
-
-                <div className="p-5 sm:p-6 space-y-5">
-                  <h3 className="text-sm font-black text-navy dark:text-white uppercase tracking-wider flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-accent" />
-                    <span>Law Chambers Desk</span>
-                  </h3>
-
-                  <ul className="space-y-3.5 text-sm text-text-secondary">
-                    <li className="flex items-start gap-3">
-                      <MapPin className="w-4 h-4 text-accent shrink-0 mt-0.5" />
-                      <span className="leading-snug">
-                        Prithvi Narayan Law Campus, Pokhara — Kaski, Gandaki Province, Nepal
-                      </span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <Phone className="w-4 h-4 text-accent shrink-0 mt-0.5" />
-                      <a href="tel:+9779822010737" className="font-semibold underline underline-offset-4 hover:text-accent">
-                        +977 9822010737
-                      </a>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <Mail className="w-4 h-4 text-accent shrink-0 mt-0.5" />
-                      <a
-                        href="mailto:contact@entertainlawyers.com"
-                        className="font-semibold underline underline-offset-4 hover:text-accent break-all"
-                      >
-                        contact@entertainlawyers.com
-                      </a>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <Clock className="w-4 h-4 text-accent shrink-0 mt-0.5" />
-                      <span className="leading-snug">
-                        Sunday – Friday: 10:00 AM – 5:00 PM{' '}
-                        <span className="text-text-muted">(Closed Saturdays &amp; Court Holidays)</span>
-                      </span>
-                    </li>
-                  </ul>
-
-                  <div className="flex items-center justify-between gap-3 pt-2 border-t border-border">
-                    <p className="text-[11px] text-text-muted flex items-start gap-1.5 leading-relaxed min-w-0">
-                      <ShieldCheck className="w-3.5 h-3.5 text-accent shrink-0 mt-0.5" />
-                      Strictly confidential — protected by legal privilege under Nepal Bar Council ethics.
-                    </p>
-                    <a
-                      href="https://www.google.com/maps/search/?api=1&query=Prithvi+Narayan+Campus,+Pokhara,+Kaski,+Nepal"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="shrink-0 inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-accent/10 text-xs font-bold text-accent hover:bg-accent hover:text-white transition-colors"
-                    >
-                      <Navigation className="w-3 h-3" />
-                      <span>Directions</span>
-                    </a>
-                  </div>
-                </div>
-              </div>
-
-              {/* Court Fee Calculator Card */}
-              <div className="bg-gradient-to-br from-navy to-navy-dark text-white p-6 rounded-3xl shadow-sm space-y-3">
-                <div className="inline-flex items-center gap-2 text-gold text-xs font-bold uppercase tracking-wider">
-                  <Scale className="w-4 h-4" />
-                  <span>Interactive Legal Tool</span>
-                </div>
-                <h4 className="text-lg font-bold">Court Fee Calculator</h4>
-                <p className="text-slate-300 text-xs leading-relaxed">
-                  Estimate statutory court filing fees for civil claims, property partition, and monetary disputes according to the National Civil Procedure Code 2074.
-                </p>
-                <Link
-                  href="/calculator"
-                  className="inline-flex items-center gap-2 text-xs font-bold text-white bg-accent hover:bg-accent-hover px-4 py-2.5 rounded-full transition-colors"
-                >
-                  <span>Open Court Fee Calculator</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </Link>
-              </div>
-            </aside>
+          </div>
+          <div className="flex flex-col justify-between gap-4 rounded-2xl bg-gradient-to-br from-navy to-navy-dark p-6 text-white shadow-sm sm:p-7">
+            <div className="space-y-3">
+              <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gold"><Scale className="h-4 w-4" aria-hidden="true" />Interactive legal tool</p>
+              <h2 className="text-xl font-extrabold">Court Fee Calculator</h2>
+              <p className="text-sm leading-relaxed text-slate-300">Estimate filing fees for civil claims, property partition and monetary disputes under the National Civil Procedure Code 2074.</p>
+            </div>
+            <Link href="/calculator" className="inline-flex w-fit items-center gap-2 rounded-full bg-accent px-4 py-2.5 text-sm font-bold text-white hover:bg-accent-hover"><Calculator className="h-4 w-4" aria-hidden="true" />Open Court Fee Calculator</Link>
           </div>
         </section>
       </div>
+
+      {detailLawyer && <LawyerDetails lawyer={detailLawyer} onClose={() => setDetailLawyer(null)} onBook={() => handleBook(detailLawyer)} />}
+    </main>
+  );
+}
+
+export function LawyerCard({ lawyer, selected = false, onView, onBook }: { lawyer: ConsultationLawyer; selected?: boolean; onView: () => void; onBook: () => void }) {
+  const practices = (lawyer.practiceAreas || lawyer.specialization || '').split(/[,\n]/).map((value) => value.trim()).filter(Boolean);
+  return (
+    <article className={`flex min-w-0 flex-col rounded-2xl border bg-surface p-4 shadow-sm transition-shadow hover:shadow-lg sm:p-5 ${selected ? 'border-accent ring-2 ring-accent/20' : 'border-border'}`}>
+      <div className="flex items-center gap-4">
+        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-surface-alt ring-1 ring-border sm:h-24 sm:w-24">
+          {lawyer.imageUrl ? <Image src={lawyer.imageUrl} alt={`Photo of ${lawyer.name}`} fill sizes="96px" className="object-cover" /> : <div aria-hidden="true" className="flex h-full items-center justify-center text-3xl font-black text-accent">{lawyer.name.charAt(0).toUpperCase()}</div>}
+        </div>
+        <div className="min-w-0">
+          {lawyer.isFeatured && <span className="mb-1 inline-flex rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">Featured</span>}
+          <h3 className="truncate text-lg font-extrabold text-navy dark:text-white">{lawyer.name}</h3>
+          <p className="text-sm font-semibold text-accent">{lawyer.title || 'Advocate'}</p>
+        </div>
+      </div>
+      <div className="mt-4 flex-1 space-y-3">
+        {lawyer.specialization && <p className="text-sm text-text-secondary"><span className="font-bold text-text-primary">Specialization:</span> {lawyer.specialization}</p>}
+        {practices.length > 0 && <div className="flex flex-wrap gap-1.5">{practices.slice(0, 4).map((area) => <span key={area} className="rounded-full border border-border bg-surface-alt px-2.5 py-1 text-xs text-text-secondary">{area}</span>)}</div>}
+        {cityList(lawyer) && <p className="flex items-start gap-2 text-sm text-text-secondary"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden="true" /><span>{cityList(lawyer)}</span></p>}
+      </div>
+      <div className="mt-5 grid grid-cols-2 gap-2 border-t border-border pt-4">
+        <button type="button" onClick={onView} aria-haspopup="dialog" className="rounded-xl border border-border px-3 py-2.5 text-sm font-bold text-text-primary transition-colors hover:border-accent hover:text-accent">View More</button>
+        <button type="button" onClick={onBook} className="rounded-xl bg-navy px-3 py-2.5 text-sm font-bold text-white transition-colors hover:bg-navy-light dark:bg-accent dark:hover:bg-accent-hover">Book Consultation</button>
+      </div>
+    </article>
+  );
+}
+
+export function LawyerDetails({ lawyer, onClose, onBook }: { lawyer: ConsultationLawyer; onClose: () => void; onBook: () => void }) {
+  const dialogRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    dialogRef.current?.querySelector<HTMLElement>('button, a[href]')?.focus();
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      previousFocus?.focus();
+    };
+  }, []);
+  const call = phoneHref(lawyer.phone);
+  const whatsapp = whatsappHref(lawyer.whatsappNumber || lawyer.phone, lawyer.name);
+  const mapHref = safeExternalHref(lawyer.officeMapUrl) || (lawyer.officeAddress || lawyer.location ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lawyer.officeAddress || lawyer.location || '')}` : undefined);
+  const socialLinks = [
+    [safeExternalHref(lawyer.facebookUrl), 'Facebook', Users],
+    [safeExternalHref(lawyer.instagramUrl), 'Instagram', Camera],
+    [safeExternalHref(lawyer.linkedInUrl), 'LinkedIn', BriefcaseBusiness],
+    [safeExternalHref(lawyer.websiteUrl), 'Website', Globe2],
+  ] as const;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-6" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section ref={dialogRef} tabIndex={-1} onKeyDown={(event) => {
+        if (event.key !== 'Tab') return;
+        const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])'));
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+      }} role="dialog" aria-modal="true" aria-labelledby="lawyer-detail-title" className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-3xl border border-border bg-surface shadow-2xl">
+        <div className="flex justify-end p-3 pb-0"><button type="button" onClick={onClose} aria-label="Close lawyer profile" className="rounded-full p-2 text-text-muted hover:bg-surface-alt hover:text-text-primary"><X className="h-5 w-5" aria-hidden="true" /></button></div>
+        <div className="grid gap-6 p-5 pt-1 sm:grid-cols-[230px_1fr] sm:p-8 sm:pt-2">
+          <div className="relative mx-auto h-56 w-48 overflow-hidden rounded-2xl bg-surface-alt ring-1 ring-border sm:mx-0 sm:h-72 sm:w-full">
+            {lawyer.imageUrl ? <Image src={lawyer.imageUrl} alt={`Photo of ${lawyer.name}`} fill sizes="(min-width: 640px) 230px, 192px" className="object-cover" /> : <div aria-hidden="true" className="flex h-full items-center justify-center text-6xl font-black text-accent">{lawyer.name.charAt(0).toUpperCase()}</div>}
+          </div>
+          <div className="space-y-5">
+            <header>
+              <p className="text-xs font-bold uppercase tracking-wider text-accent">Lawyer profile</p>
+              <h2 id="lawyer-detail-title" className="mt-1 text-2xl font-black text-navy dark:text-white sm:text-3xl">{lawyer.name}</h2>
+              <p className="font-semibold text-accent">{lawyer.title || 'Advocate'}{lawyer.licenseNumber ? ` · ${lawyer.licenseNumber}` : ''}</p>
+            </header>
+
+            <div className="grid gap-3 text-sm sm:grid-cols-2">
+              {lawyer.specialization && <DetailItem icon={Scale} title="Specialization" text={lawyer.specialization} />}
+              {lawyer.practiceAreas && <DetailItem icon={Scale} title="Practice areas" text={lawyer.practiceAreas} />}
+              {cityList(lawyer) && <DetailItem icon={MapPin} title="Service cities" text={cityList(lawyer)} />}
+              {lawyer.lawFirm && <DetailItem icon={BriefcaseBusiness} title="Law firm" text={lawyer.lawFirm} />}
+              {lawyer.qualifications && <DetailItem icon={GraduationCap} title="Academics" text={lawyer.qualifications} />}
+              {lawyer.achievements && <DetailItem icon={Award} title="Achievements" text={lawyer.achievements} />}
+              {lawyer.experience && <DetailItem icon={ShieldCheck} title="Experience" text={lawyer.experience} />}
+              {lawyer.officeAddress && <DetailItem icon={Building2} title="Office" text={lawyer.officeAddress} />}
+              {lawyer.phone && <DetailItem icon={Phone} title="Phone" text={lawyer.phone} />}
+              {lawyer.email && <div className="flex items-start gap-2.5"><Mail className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden="true" /><div><p className="text-xs font-bold uppercase tracking-wide text-text-muted">Email</p><a href={`mailto:${lawyer.email}`} className="break-all font-medium text-accent underline underline-offset-2">{lawyer.email}</a></div></div>}
+              {lawyer.bio && <div className="sm:col-span-2"><p className="mb-1 text-xs font-bold uppercase tracking-wide text-text-muted">About</p><p className="whitespace-pre-wrap leading-relaxed text-text-secondary">{lawyer.bio}</p></div>}
+            </div>
+
+            {socialLinks.some(([href]) => href) && <nav aria-label="Lawyer social profiles" className="flex flex-wrap gap-2">{socialLinks.map(([href, label, Icon]) => href ? <a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={`${lawyer.name} on ${label}`} className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-semibold text-text-secondary hover:border-accent hover:text-accent"><Icon className="h-4 w-4" aria-hidden="true" />{label}</a> : null)}</nav>}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 border-t border-border bg-surface-alt p-4 sm:grid-cols-4 sm:p-5">
+          <button type="button" onClick={onBook} className="col-span-2 rounded-xl bg-accent px-3 py-3 text-sm font-extrabold text-white hover:bg-accent-hover sm:col-span-1">Book a Consultation</button>
+          {call ? <a href={call} className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-3 py-3 text-sm font-bold text-text-primary hover:border-accent"><Phone className="h-4 w-4" aria-hidden="true" />Direct Call</a> : <span className="rounded-xl border border-border px-3 py-3 text-center text-xs text-text-muted">Call not listed</span>}
+          {whatsapp ? <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-3 text-sm font-bold text-white hover:bg-emerald-700"><MessageCircle className="h-4 w-4" aria-hidden="true" />WhatsApp</a> : <span className="rounded-xl border border-border px-3 py-3 text-center text-xs text-text-muted">WhatsApp not listed</span>}
+          {mapHref ? <a href={mapHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-3 py-3 text-sm font-bold text-text-primary hover:border-accent"><MapPin className="h-4 w-4" aria-hidden="true" />Visit Office</a> : <span className="rounded-xl border border-border px-3 py-3 text-center text-xs text-text-muted">Office not listed</span>}
+        </div>
+      </section>
     </div>
   );
+}
+
+function DetailItem({ icon: Icon, title, text }: { icon: typeof Scale; title: string; text: string }) {
+  return <div className="flex items-start gap-2.5"><Icon className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden="true" /><div><p className="text-xs font-bold uppercase tracking-wide text-text-muted">{title}</p><p className="whitespace-pre-wrap font-medium text-text-primary">{text}</p></div></div>;
 }
