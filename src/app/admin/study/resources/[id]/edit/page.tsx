@@ -91,7 +91,7 @@ export default async function EditResourcePage({ params }: { params: Promise<{ i
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:h-dvh lg:min-h-0 lg:flex lg:flex-col lg:overflow-hidden">
+    <div data-resource-page-shell className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:h-dvh lg:min-h-0 lg:flex lg:flex-col lg:overflow-hidden">
       <div className="mb-8 shrink-0">
         <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">
           {resource.type === ResourceType.CASE_LAW ? 'Edit Case Law' : 'Edit Resource'}
@@ -103,7 +103,7 @@ export default async function EditResourcePage({ params }: { params: Promise<{ i
         </p>
       </div>
 
-      <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-white/10 p-6 sm:p-10 lg:flex-1 lg:min-h-0 lg:flex lg:flex-col lg:overflow-hidden">
+      <div data-resource-form-card className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-white/10 p-6 sm:p-10 lg:flex-1 lg:min-h-0 lg:flex lg:flex-col lg:overflow-hidden">
         <AdminResourceForm
           semesters={semesters}
           subjects={subjects.map((subject) => ({

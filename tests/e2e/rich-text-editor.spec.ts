@@ -8,15 +8,11 @@ import { test, expect, type Page } from '@playwright/test';
  * scrolled instead of `.ql-editor`, and the toolbar + font selector
  * disappeared while writing long documents.
  *
- * Contract under test (viewport-width >= 1024):
- *   1. `.ql-editor` overflows (scrollHeight > clientHeight) and scrolls
- *      internally; the page itself does not scroll while the canvas does.
- *   2. The Quill toolbar and the custom font selector row stay visible while
- *      the internal scroll moves.
- *   3. Typing at the end of a 20k+ word document keeps the caret visible.
- *   4. Saved drafts round-trip without truncation.
- * Below 1024px the page may scroll by design; the tests then only assert no
- * horizontal overflow, a usable caret, and preserved content.
+ * Posts and resource notes use natural document scrolling. Their stacked
+ * toolbars remain sticky at the viewport offset, release at the editor's
+ * boundary, and return to their natural position on reverse scrolling.
+ * Resource notes retain an independently scrolling metadata sidebar on wide
+ * screens while the writing canvas remains in page flow at every viewport.
  *
  * Environment: safety checks enforced at runtime via playwright.config.ts when EDITOR_E2E=1.
  */
@@ -189,23 +185,6 @@ async function pasteIntoEditor(page: Page, source: string) {
   }, source);
 }
 
-/** Scroll using real (trusted) wheel bubbles, exactly like a trackpad user. */
-async function wheelScroll(page: Page, distance: number) {
-  const box = (await page.locator('.editor-wrapper .ql-editor').boundingBox()) ?? { x: 0, y: 0, width: 100, height: 100 };
-  const vh = await page.evaluate(() => window.innerHeight);
-  const cx = box.x + box.width / 2;
-  const cy = Math.min(Math.max(box.y + 80, 20), vh - 10);
-  await page.mouse.move(cx, cy);
-  let remaining = distance;
-  while (remaining > 0) {
-    const step = Math.min(remaining, 1000);
-    await page.mouse.wheel(0, step);
-    remaining -= step;
-    await page.waitForTimeout(10);
-  }
-  await page.waitForTimeout(250);
-}
-
 /** Scroll the PAGE (for document-scroll mode) using real wheel events. */
 async function wheelScrollPage(page: Page, distance: number) {
   const vh = await page.evaluate(() => window.innerHeight);
@@ -257,13 +236,10 @@ async function metrics(page: Page) {
     const toolbar = document.querySelector<HTMLElement>('.editor-wrapper .ql-toolbar');
     const toolRow = document.querySelector<HTMLElement>('.editor-wrapper .editor-toolbar-row');
     const wrapper = document.querySelector<HTMLElement>('.editor-wrapper');
-    const card = document.querySelector<HTMLElement>('.bg-white, .dark\\:bg-zinc-900.rounded-xl') || document.querySelector<HTMLElement>('form');
     if (!ed || !toolbar || !wrapper) return null;
     const tr = toolbar.getBoundingClientRect();
     const rr = toolRow?.getBoundingClientRect();
     const wr = wrapper.getBoundingClientRect();
-    const container = ed.closest('.ql-container');
-    const cr = container?.getBoundingClientRect();
 
     let caretRect = null;
     const selection = window.getSelection();
@@ -290,7 +266,6 @@ async function metrics(page: Page) {
       scrollH: Math.round(ed.scrollHeight),
 
       scrollTop: Math.round(ed.scrollTop),
-      cardScrollTop: card ? Math.round(card.scrollTop) : 0,
       editorTop: Math.round(ed.getBoundingClientRect().top),
       editorBottom: Math.round(ed.getBoundingClientRect().bottom),
       toolbarTop: Math.round(tr.top),
@@ -299,8 +274,6 @@ async function metrics(page: Page) {
       toolbarRowBottom: rr ? Math.round(rr.bottom) : -1,
       toolbarRowMarginTop: rr ? Math.round(parseFloat(getComputedStyle((toolRow as HTMLElement)).marginTop)) : 0,
       toolbarRowMarginBottom: rr ? Math.round(parseFloat(getComputedStyle((toolRow as HTMLElement)).marginBottom)) : 0,
-      containerH: cr ? Math.round(cr.height) : 0,
-      editorOverflowsContainer: cr ? ed.getBoundingClientRect().bottom > cr.bottom + 1 || ed.getBoundingClientRect().top < cr.top - 1 : false,
       innerH: window.innerHeight,
       pageScrollY: Math.round(window.scrollY),
       horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
@@ -311,21 +284,6 @@ async function metrics(page: Page) {
       wrapperHeight: Math.round(wr.height),
     };
   });
-}
-
-/**
- * Desktop workspace assertions shared by every editor test:
- *  1. the canvas is meaningfully tall (>= 31% of the viewport). A floor-clamped
- *     ~270px editor at 1440x900 is exactly 30% and must NOT satisfy this;
- *  2. the canvas never overflows (gets clipped by) its `.ql-container` box —
- *     the signature of a collapsed flex chain;
- *  3. `min-height` never wins over real workspace space (clientH == the visible
- *     scroll viewport).
- */
-function expectDesktopWorkspace(m: NonNullable<Awaited<ReturnType<typeof metrics>>>) {
-  expect(m.clientH, 'canvas is at least 31% of the viewport height').toBeGreaterThanOrEqual(0.31 * m.innerH);
-  expect(m.clientH, 'canvas matches its container (no floor-clamped overflow)').toBeLessThanOrEqual(m.containerH + 1);
-  expect(m.editorOverflowsContainer, 'canvas is not clipped by its container').toBe(false);
 }
 
 test.describe('Rich Text Editor workspace', () => {
@@ -634,52 +592,184 @@ test.describe('Rich Text Editor workspace', () => {
     ).toBe(true);
   });
 
-  test('resources: Write Note canvas scrolls internally, supports Nepali content, and saved note round-trips + edit', async ({ page }) => {
+  test('resources: create and edit use document scrolling for long English and Nepali notes', async ({ page }) => {
     await page.goto('/admin/study/resources/new', { waitUntil: 'load' });
     await page.waitForTimeout(2000);
+    const beforeNote = await page.locator('form').getAttribute('data-resource-scroll-mode');
+    expect(beforeNote, 'new resources retain their existing PDF workspace by default').toBe('fill-height');
     await page.getByRole('button', { name: /Write Note/i }).click();
     await page.waitForSelector('.editor-wrapper .ql-editor', { timeout: 90_000 });
     await page.waitForTimeout(500);
 
-    const resTitle = `नेपाली ल फर्म नोट (safe to delete) ${Date.now() % 100000}`;
+    const resTitle = `Resource scroll E2E (safe to delete) ${Date.now() % 100000}`;
     await page.fill('#resource-title', resTitle);
     const wide = (page.viewportSize() as { width: number }).width >= 1024;
+    const viewport = page.viewportSize()!;
 
-    await pasteIntoEditor(page, buildNepaliLongFixture(20100) + '\n\n' + [NEPALI_CANARY, 'resource-nepali'].join(' '));
+    await pasteIntoEditor(page, buildLongFixture(20100) + '\n\n' + [CANARY, 'resource-english'].join(' '));
     await page.waitForTimeout(1500);
 
-    const m = await metrics(page);
-    expect(m, 'resource note editor mounted').not.toBeNull();
+    const initial = await page.evaluate(() => {
+      const editor = document.querySelector<HTMLElement>('.editor-wrapper .ql-editor');
+      const aside = document.querySelector<HTMLElement>('.resource-metadata-sidebar');
+      const actions = document.querySelector<HTMLElement>('.resource-action-buttons');
+      const wrapper = document.querySelector<HTMLElement>('.editor-wrapper');
+      if (!editor || !aside || !actions || !wrapper) return null;
+      const editorRect = wrapper.getBoundingClientRect();
+      const actionRect = actions.getBoundingClientRect();
+      return {
+        mode: document.querySelector('form')?.getAttribute('data-resource-scroll-mode'),
+        editorScrollTop: editor.scrollTop,
+        editorHeight: editor.scrollHeight,
+        editorClientHeight: editor.clientHeight,
+        pageScrollHeight: document.documentElement.scrollHeight,
+        horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+        asideOverflowY: getComputedStyle(aside).overflowY,
+        asideScrollHeight: aside.scrollHeight,
+        asideClientHeight: aside.clientHeight,
+        actionsPosition: getComputedStyle(actions).position,
+        editorLeft: editorRect.left,
+        editorRight: editorRect.right,
+        editorTop: editorRect.top,
+        editorBottom: editorRect.bottom,
+        actionsLeft: actionRect.left,
+        actionsRight: actionRect.right,
+        actionsTop: actionRect.top,
+        actionsBottom: actionRect.bottom,
+        actionsVisible: actionRect.width > 0 && actionRect.height > 0,
+        rowNaturalTop: document.querySelector('.editor-toolbar-row')!.getBoundingClientRect().top,
+      };
+    });
+    expect(initial).not.toBeNull();
+    expect(initial!.mode, 'Write Note opts into document-scroll mode').toBe('document');
+    expect(initial!.editorScrollTop, 'the writing canvas is not an internal scroll container').toBe(0);
+    expect(initial!.editorHeight, 'the editor grows with the long note').toBeGreaterThan(viewport.height + 5_000);
+    expect(initial!.pageScrollHeight, 'the whole document can scroll past the writing canvas').toBeGreaterThan(viewport.height + 5_000);
+    expect(initial!.horizontalOverflow).toBe(false);
+    expect(initial!.actionsPosition, 'save actions stay in document/sidebar flow').not.toBe('fixed');
+    const horizontalOverlap = initial!.editorLeft < initial!.actionsRight && initial!.actionsLeft < initial!.editorRight;
+    const verticalOverlap = initial!.editorTop < initial!.actionsBottom && initial!.actionsTop < initial!.editorBottom;
+    expect(initial!.actionsVisible, 'save actions remain rendered and reachable').toBe(true);
+    expect(horizontalOverlap && verticalOverlap, 'save actions do not overlay the writing canvas').toBe(false);
+
+    // Desktop/tablet metadata is an independent scroll region; at mobile widths
+    // it remains in normal page flow so the user can scroll naturally.
     if (wide) {
-      expect(m!.scrollH).toBeGreaterThan(m!.clientH + 5_000);
-      expect(m!.clientH).toBeLessThan(m!.innerH);
-      expectDesktopWorkspace(m!);
-      expect(m!.horizontalOverflow).toBe(false);
+      expect(initial!.asideOverflowY).toBe('auto');
+      expect(initial!.asideScrollHeight).toBeGreaterThan(initial!.asideClientHeight);
+      await page.evaluate(() => {
+        const aside = document.querySelector<HTMLElement>('.resource-metadata-sidebar')!;
+        aside.scrollTop = 0;
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      });
+      const pageBeforeAsideWheel = await page.evaluate(() => window.scrollY);
+      const asideBox = await page.locator('.resource-metadata-sidebar').boundingBox();
+      expect(asideBox).not.toBeNull();
+      await page.mouse.move(asideBox!.x + asideBox!.width / 2, asideBox!.y + asideBox!.height / 2);
+      await page.mouse.wheel(0, 600);
+      await page.waitForTimeout(250);
+      const asideAfterWheel = await page.evaluate(() => ({
+        asideTop: document.querySelector<HTMLElement>('.resource-metadata-sidebar')!.scrollTop,
+        pageTop: window.scrollY,
+      }));
+      expect(asideAfterWheel.asideTop, 'wheel over metadata moves its own sidebar').toBeGreaterThan(100);
+      expect(asideAfterWheel.pageTop, 'sidebar wheel does not move the document').toBe(pageBeforeAsideWheel);
     }
 
-    await wheelScroll(page, 40_000);
-    const mid = await metrics(page);
-    if (wide) {
-      expect(mid!.scrollTop).toBeGreaterThan(1000);
-      expect(mid!.cardScrollTop).toBe(0);
-      expect(mid!.toolbarTop).toBeGreaterThanOrEqual(0);
-      expect(mid!.toolbarRowTop).toBeGreaterThanOrEqual(0);
-    }
-
-    await page.keyboard.press('Control+End');
+    // Exercise sticky activation, release at the editor boundary, and reverse
+    // restoration. A spacer after the editor makes the boundary observable.
+    await page.evaluate(() => {
+      const wrap = document.querySelector('.editor-wrapper')!;
+      const spacer = document.createElement('div');
+      spacer.id = 'resource-e2e-boundary-spacer';
+      spacer.style.height = '160vh';
+      wrap.after(spacer);
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    });
+    await page.waitForTimeout(250);
+    const naturalRowTop = await page.locator('.editor-toolbar-row').evaluate((el) => el.getBoundingClientRect().top);
+    await page.evaluate(() => window.scrollTo({ top: 1800, behavior: 'instant' }));
     await page.waitForTimeout(300);
-    await page.keyboard.type(' ' + NEPALI_CANARY + ' NOTE');
-    await page.waitForTimeout(400);
+    const activated = await metrics(page);
+    expect(activated).not.toBeNull();
+    const stickyTop = viewport.width < 1024 ? 64 : 0;
+    expect(activated!.toolbarRowTop, 'font row sticks at the viewport offset').toBeGreaterThanOrEqual(stickyTop - 2);
+    expect(activated!.toolbarRowTop, 'font row stays near its sticky offset').toBeLessThanOrEqual(stickyTop + 24);
+    expect(activated!.toolbarTop, 'Quill toolbar touches the measured font row without overlap')
+      .toBeGreaterThanOrEqual(activated!.toolbarRowBottom - 1);
+    expect(activated!.scrollTop, 'the browser page scrolls instead of the Quill canvas').toBe(0);
 
-    // Select semester and subject (by placeholder option, NOT by index — the page
-    // has extra header selects whose count differs between desktop and mobile).
+    await page.evaluate(() => {
+      const wrapper = document.querySelector('.editor-wrapper')!;
+      const y = Math.round(window.scrollY + wrapper.getBoundingClientRect().bottom - window.innerHeight + 80);
+      window.scrollTo({ top: y, behavior: 'instant' });
+    });
+    await page.waitForTimeout(300);
+    let boundary = await metrics(page);
+    for (let i = 0; i < 60 && boundary && boundary.wrapperBottom > -80; i++) {
+      await wheelScrollPage(page, 400);
+      boundary = await metrics(page);
+    }
+    expect(boundary).not.toBeNull();
+    expect(boundary!.toolbarRowTop, 'toolbar releases instead of staying pinned past the editor').toBeLessThan(stickyTop - 2);
+
+    await page.evaluate(() => window.scrollTo({ top: 1800, behavior: 'instant' }));
+    await page.waitForTimeout(250);
+    const reverse = await metrics(page);
+    expect(reverse!.toolbarRowTop, 'reverse scroll reactivates the sticky toolbar').toBeGreaterThanOrEqual(stickyTop - 2);
+    await resetPageScrollToTop(page);
+    const restoredRowTop = await page.locator('.editor-toolbar-row').evaluate((el) => el.getBoundingClientRect().top);
+    expect(Math.abs(restoredRowTop - naturalRowTop), 'reverse scroll restores the toolbar natural position').toBeLessThanOrEqual(4);
+    await page.locator('#resource-e2e-boundary-spacer').evaluate((el) => el.remove());
+
+    // Type at the real document end, which also proves that the bottom remains
+    // reachable after the long paste in both desktop and compact layouts.
+    await page.locator('.editor-wrapper .ql-editor').click();
+    await page.keyboard.press('Control+End');
+    await page.waitForFunction(
+      () => {
+        const selection = window.getSelection();
+        if (!selection || !selection.rangeCount) return false;
+        const range = selection.getRangeAt(0).cloneRange();
+        range.collapse(false);
+        const rect = range.getBoundingClientRect();
+        return rect.height > 0 && rect.top >= -2 && rect.bottom <= window.innerHeight + 2;
+      },
+      undefined,
+      { timeout: 10_000 }
+    );
+    await page.keyboard.type(' ' + CANARY + ' resource-english-end');
+    await page.waitForFunction(
+      () => {
+        const selection = window.getSelection();
+        if (!selection || !selection.rangeCount) return false;
+        const range = selection.getRangeAt(0).cloneRange();
+        range.collapse(false);
+        const rect = range.getBoundingClientRect();
+        return rect.height > 0 && rect.top >= -2 && rect.bottom <= window.innerHeight + 2;
+      },
+      undefined,
+      { timeout: 10_000 }
+    );
+    const tailRect = await page.evaluate(() => {
+      const selection = window.getSelection();
+      if (!selection || !selection.rangeCount) return null;
+      const range = selection.getRangeAt(0).cloneRange();
+      range.collapse(false);
+      const rect = range.getBoundingClientRect();
+      return { top: rect.top, bottom: rect.bottom, height: window.innerHeight };
+    });
+    expect(tailRect, 'caret metrics exist at the note end').not.toBeNull();
+    expect(tailRect!.top, 'caret at the bottom remains in view').toBeGreaterThanOrEqual(-2);
+    expect(tailRect!.bottom, 'caret at the bottom remains in view').toBeLessThanOrEqual(tailRect!.height + 2);
+
+    // Select semester/subject by their options; their count differs by page and
+    // viewport, so never address them by select index.
     const semesterSelect = page.locator('select:has(option:text-is("Select Semester"))');
     await semesterSelect.selectOption({ index: 1 });
-    await page.waitForTimeout(400);
     const subjectSelect = page.locator('select:has(option:text-is("Select Subject"))');
-    await expect(subjectSelect, 'subject becomes enabled once a semester is chosen').toBeEnabled({ timeout: 20_000 });
+    await expect(subjectSelect).toBeEnabled({ timeout: 20_000 });
     await subjectSelect.selectOption({ index: 1 });
-    await page.waitForTimeout(300);
 
     await page.getByRole('button', { name: 'Save as Draft' }).click();
     await page.waitForURL(/\/admin\/study\/resources\/.+\/edit/, { timeout: 120_000 });
@@ -688,22 +778,67 @@ test.describe('Rich Text Editor workspace', () => {
     const matchRes = page.url().match(/\/admin\/study\/resources\/(.+)\/edit/);
     if (matchRes) createdResourceIds.push(matchRes[1]);
 
-    // Reload and Edit
+    // Reopen the created record and verify the English tail persisted.
     await page.reload({ waitUntil: 'load' });
     await page.waitForSelector('.editor-wrapper .ql-editor', { timeout: 90_000 });
+    expect(await page.locator('form').getAttribute('data-resource-scroll-mode'), 'reopened notes stay in document-scroll mode').toBe('document');
+    expect(await page.locator('.editor-wrapper .ql-editor').textContent()).toContain(`${CANARY} resource-english-end`);
+    await page.evaluate(() => window.scrollTo({ top: 1800, behavior: 'instant' }));
+    await page.waitForTimeout(250);
+    const reopenedSticky = await metrics(page);
+    expect(reopenedSticky, 'edit page toolbar metrics are available').not.toBeNull();
+    expect(reopenedSticky!.toolbarRowTop, 'edit page toolbar also sticks during document scrolling').toBeGreaterThanOrEqual(stickyTop - 2);
+    expect(reopenedSticky!.toolbarRowTop, 'edit page toolbar stays in its viewport band').toBeLessThanOrEqual(stickyTop + 24);
+    await resetPageScrollToTop(page);
     await page.fill('#resource-title', resTitle + ' - UPDATED');
+    await page.locator('.editor-wrapper .ql-editor').click();
+    await page.waitForFunction(
+      () => {
+        const editor = document.querySelector('.editor-wrapper .ql-editor');
+        return !!editor && editor.textContent?.length > 100_000;
+      },
+      undefined,
+      { timeout: 10_000 }
+    );
+    await page.keyboard.press('Control+A');
+    await page.keyboard.press('Backspace');
+    await page.waitForFunction(
+      () => (document.querySelector('.editor-wrapper .ql-editor')?.textContent?.length ?? 0) < 5,
+      undefined,
+      { timeout: 10_000 }
+    );
+    await pasteIntoEditor(page, buildNepaliLongFixture(15000) + '\n\n' + [NEPALI_CANARY, 'resource-nepali-end'].join(' '));
+    await page.waitForTimeout(1500);
+    await page.locator('.editor-wrapper .ql-editor').click();
+    await page.keyboard.press('Control+End');
+    await page.waitForFunction(
+      () => {
+        const selection = window.getSelection();
+        if (!selection || !selection.rangeCount) return false;
+        const range = selection.getRangeAt(0).cloneRange();
+        range.collapse(false);
+        const rect = range.getBoundingClientRect();
+        return rect.height > 0 && rect.top >= -2 && rect.bottom <= window.innerHeight + 2;
+      },
+      undefined,
+      { timeout: 10_000 }
+    );
+    await page.keyboard.type(' ' + NEPALI_CANARY + ' EDITED');
+    await expect(page.locator('.editor-wrapper .ql-editor')).toContainText(NEPALI_CANARY);
+    await expect(page.locator('.editor-wrapper .ql-editor')).toContainText('EDITED');
     await page.getByRole('button', { name: 'Save as Draft' }).click();
-    await page.waitForTimeout(1000);
+    await expect(page.getByText(/saved as draft!/i)).toBeVisible({ timeout: 30_000 });
 
     await page.reload({ waitUntil: 'load' });
     await page.waitForSelector('.editor-wrapper .ql-editor', { timeout: 90_000 });
     await page.waitForTimeout(1500);
 
     const textLen = await page.evaluate(() => document.querySelector('.editor-wrapper .ql-editor')?.textContent?.length ?? 0);
-    expect(textLen, 'Nepali note content survives save/reopen without truncation').toBeGreaterThan(100_000);
+    expect(textLen, 'edited Nepali note survives save/reopen without truncation').toBeGreaterThan(100_000);
     expect(
       await page.evaluate((mk) => document.querySelector('.editor-wrapper .ql-editor')?.textContent?.includes(mk), NEPALI_CANARY),
-      'unique Nepali tail marker survives resource round trip'
+      'unique Nepali tail marker survives the edit round trip'
     ).toBe(true);
+    await expect(page.locator('#resource-title')).toHaveValue(resTitle + ' - UPDATED');
   });
 });

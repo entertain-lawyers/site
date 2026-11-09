@@ -344,7 +344,11 @@ export function AdminResourceForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className={`max-w-5xl lg:min-h-0 lg:flex lg:flex-col ${uploadMode === 'NOTE' ? 'lg:flex-1' : 'space-y-8'}`}>
+    <form
+      onSubmit={handleSubmit}
+      data-resource-scroll-mode={uploadMode === 'NOTE' ? 'document' : 'fill-height'}
+      className={`resource-admin-form max-w-5xl lg:min-h-0 lg:flex lg:flex-col ${uploadMode === 'NOTE' ? 'lg:flex-1' : 'space-y-8'}`}
+    >
       <AnimatePresence initial={false}>
       {savedResource && (
         <Appear key="saved-success">
@@ -401,14 +405,14 @@ export function AdminResourceForm({
             fills the writing workspace instead of being squeezed by metadata. All
             metadata + actions go into an independently scrollable sidebar, mirroring
             the posts editor layout. Below lg everything stacks and the page scrolls. */}
-        <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8 lg:items-stretch lg:min-h-0 lg:grid-rows-[minmax(0,1fr)]">
+        <div className="resource-note-layout flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8 lg:items-start">
           {/* Left column: the writing canvas itself */}
-          <div className="min-w-0 flex-1 flex flex-col min-h-0">
-            <RichTextEditor value={content} onChange={setContent} placeholder="Write the law note or case law details here..." fillHeight />
+          <div className="resource-note-canvas min-w-0">
+            <RichTextEditor value={content} onChange={setContent} placeholder="Write the law note or case law details here..." scrollMode="document" />
           </div>
 
           {/* Right column: metadata + actions, independently scrollable on desktop */}
-          <div className="w-full space-y-6 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
+          <div className="resource-metadata-sidebar w-full space-y-6 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:pr-1">
             {/* Upload Mode Toggle (not used while editing an existing file) */}
             {!isEdit && (
               <div className="flex bg-slate-100 dark:bg-zinc-800 p-1 rounded-xl w-fit">
@@ -577,7 +581,7 @@ export function AdminResourceForm({
             </div>
 
             {/* Actions (NOTE mode): pinned at the end of the sidebar */}
-            <div className="pt-6 border-t border-black/10 dark:border-white/10 flex flex-col gap-4">
+            <div className="resource-action-buttons pt-6 pb-4 border-t border-black/10 dark:border-white/10 flex flex-col gap-4">
               <button
                 type="button"
                 onClick={handlePreview}

@@ -626,6 +626,33 @@
   }
 }
 
+/* Resource NOTE mode follows the document flow so the Quill toolbar can use
+   native sticky positioning. Keep the legacy fixed-height workspace for PDF
+   mode, and release only the page/card constraints when NOTE mode is active. */
+@media (min-width: 64rem) {
+  [data-resource-page-shell]:has([data-resource-scroll-mode="document"]) {
+    height: auto !important;
+    min-height: 100dvh !important;
+    overflow: visible !important;
+  }
+
+  [data-resource-page-shell]:has([data-resource-scroll-mode="document"]) > [data-resource-form-card] {
+    flex: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  .resource-note-layout {
+    align-items: start;
+  }
+
+  .resource-metadata-sidebar {
+    top: 1rem !important;
+    max-height: calc(100dvh - 2rem) !important;
+    scrollbar-gutter: stable;
+  }
+}
+
 /* Rich text written in the admin editor inside .prose (events, publications,
    FAQs): same layout rules as the article body, see src/lib/editor-html.ts.
    Unlayered so they apply over the typography plugin's margins. */
