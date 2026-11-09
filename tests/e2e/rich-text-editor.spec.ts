@@ -40,27 +40,73 @@ let createdResourceIds: string[] = [];
  *  - posts only ever live in the mock WordPress instance (deleted via its REST API)
  *  - NOTE resources live in the dev database (deleted via Prisma; the config's
  *    safety halt already guarantees DATABASE_URL points at a disposable DB)
+ *
+ * Cleanup is VERIFIED, not best-effort: every deletion response is inspected,
+ * and any failure fails the test explicitly (a warning would vanish in the
+ * output while test data keeps piling up in the disposable environment).
  */
+interface CleanupOutcome {
+  postId: number;
+  status: 'DELETED' | 'ALREADY_DELETED' | 'FAILED';
+  detail: string;
+}
+
 test.afterEach(async ({ page }) => {
-  if (createdPostIds.length && process.env.E2E_MOCK_WP_URL) {
-    await Promise.allSettled(
-      createdPostIds.map((postId) =>
-        page.request.delete(`${process.env.E2E_MOCK_WP_URL}/posts/${postId}`)
-      )
-    );
-    console.log(`[cleanup] deleted posts ${createdPostIds.join(', ')} from mock WP`);
+  // --- Posts: DELETE against the validated local mock WP only ---
+  if (createdPostIds.length) {
+    const mockWpUrl = process.env.E2E_MOCK_WP_URL!;
+    // The mock accepts ANY Basic credentials (it is a disposable local mock);
+    // the header is required so the request is not rejected as unauthenticated.
+    const cleanupAuth = `Basic ${Buffer.from('e2e-cleanup:disposable').toString('base64')}`;
+    const outcomes: CleanupOutcome[] = [];
+    for (const postId of createdPostIds) {
+      try {
+        const response = await page.request.delete(`${mockWpUrl}/posts/${postId}`, { headers: { Authorization: cleanupAuth } });
+        if (response.ok()) {
+          outcomes.push({ postId, status: 'DELETED', detail: `HTTP ${response.status()}` });
+        } else if (response.status() === 404) {
+          // Idempotent result: the post is already gone — acceptable.
+          outcomes.push({ postId, status: 'ALREADY_DELETED', detail: 'HTTP 404 (already deleted)' });
+        } else {
+          outcomes.push({ postId, status: 'FAILED', detail: `unexpected HTTP ${response.status()}` });
+        }
+      } catch (e) {
+        outcomes.push({ postId, status: 'FAILED', detail: `network error: ${String(e).slice(0, 200)}` });
+      }
+    }
+
+    const failed = outcomes.filter((o) => o.status === 'FAILED');
+    const confirmed = outcomes.filter((o) => o.status !== 'FAILED');
+    if (failed.length > 0) {
+      // Leave the IDs on the record; the failure must surface in the test result.
+      console.error(`[cleanup] FAILED to delete posts: ${failed.map((f) => `post ${f.postId} (${f.detail})`).join('; ')}`);
+      console.error(`[cleanup] tracked post IDs needing manual deletion in the mock WP: ${failed.map((f) => f.postId).join(', ')}`);
+      throw new Error(`Post cleanup verification failed: ${failed.map((f) => `post ${f.postId}: ${f.detail}`).join('; ')}`);
+    }
+    console.log(`[cleanup] confirmed deletion of posts ${confirmed.map((c) => c.postId).join(', ')} from mock WP (${confirmed.map((c) => `${c.postId}: ${c.detail}`).join('; ')})`);
   }
   createdPostIds = [];
 
+  // --- Resources: verified Prisma deleteMany against the dev DB ---
   if (createdResourceIds.length) {
+    let client: import('@prisma/client').PrismaClient | null = null;
     try {
       const { PrismaClient } = await import('@prisma/client');
-      const prisma = new PrismaClient();
-      await prisma.resource.deleteMany({ where: { id: { in: createdResourceIds } } });
-      await prisma.$disconnect();
-      console.log(`[cleanup] deleted resources ${createdResourceIds.join(', ')} from dev DB`);
+      client = new PrismaClient();
+      const result = await client.resource.deleteMany({ where: { id: { in: createdResourceIds } } });
+      if (result.count === createdResourceIds.length) {
+        console.log(`[cleanup] confirmed deletion of ${result.count}/${createdResourceIds.length} resources from dev DB (${createdResourceIds.join(', ')})`);
+      } else {
+        // Fewer deletions than tracked: rows were already gone (or filters matched unexpectedly). Surface it.
+        console.error(`[cleanup] resource deletion count mismatch: deleted ${result.count} but tracked ${createdResourceIds.length} (${createdResourceIds.join(', ')})`);
+        throw new Error(`Resource cleanup verification failed: deleteMany removed ${result.count} rows but ${createdResourceIds.length} resource IDs were tracked (${createdResourceIds.join(', ')}).`);
+      }
     } catch (e) {
-      console.warn(`[cleanup] failed to delete resources ${createdResourceIds.join(', ')}:`, e);
+      console.error(`[cleanup] FAILED to delete resources ${createdResourceIds.join(', ')}:`, e);
+      throw new Error(`Resource cleanup failed for IDs ${createdResourceIds.join(', ')}: ${String(e).slice(0, 300)}`);
+    } finally {
+      // $disconnect must run even when deleteMany/verification throws.
+      await client?.$disconnect().catch(() => {});
     }
   }
   createdResourceIds = [];
@@ -341,9 +387,6 @@ test.describe('Rich Text Editor workspace', () => {
     await pasteIntoEditor(page, buildNepaliLongFixture(20100) + '\n\n' + [NEPALI_CANARY, 'nepali-tail'].join(' '));
     await page.waitForTimeout(1500);
 
-    const match = page.url().match(/\/admin\/posts\/(\d+)\/edit/);
-    if (match) createdPostIds.push(Number(match[1]));
-
     const m = await metrics(page);
     expect(m, 'Nepali editor mounted').not.toBeNull();
     if (wide) {
@@ -378,6 +421,11 @@ test.describe('Rich Text Editor workspace', () => {
       undefined,
       { timeout: 120_000 }
     );
+
+    // Track ID after the save so the URL has actually changed to /edit
+    const match = page.url().match(/\/admin\/posts\/(\d+)\/edit/);
+    if (match) createdPostIds.push(Number(match[1]));
+
     await page.reload({ waitUntil: 'load' });
     await page.waitForSelector('.editor-wrapper .ql-editor', { timeout: 90_000 });
     await page.waitForTimeout(1500);
