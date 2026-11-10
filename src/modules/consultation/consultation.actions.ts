@@ -126,8 +126,8 @@ export const submitConsultationRequestAction = createSafeAction(
   },
   {
     rateLimitKey: 'consultation_submit',
-    rateLimitMax: 5,
-    rateLimitWindow: 300, // 5 submissions per 5 minutes per IP
+    rateLimitMax: 50,
+    rateLimitWindow: 300, // 50 submissions per 5 minutes per IP
   }
 );
 

@@ -11,14 +11,27 @@ const MEDIA_MIME_EXTENSIONS = {
   'image/png': 'png',
   'image/webp': 'webp',
   'image/gif': 'gif',
+  'application/pdf': 'pdf',
 } as const;
 
-const initiateMediaUploadSchema = z.object({
-  filename: z.string().min(1),
-  mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp', 'image/gif']),
-  size: z.number().positive().max(10 * 1024 * 1024, "Image must be under 10MB"), // 10MB limit
-  type: z.enum(['POST', 'EVENT', 'GALLERY', 'PUBLICATION', 'RICH_TEXT', 'TEAM', 'PROFILE']),
-});
+const initiateMediaUploadSchema = z
+  .object({
+    filename: z.string().min(1),
+    mimeType: z.enum(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf']),
+    size: z.number().positive(),
+    type: z.enum(['POST', 'EVENT', 'GALLERY', 'PUBLICATION', 'RICH_TEXT', 'TEAM', 'PROFILE', 'ACT']),
+  })
+  .refine(
+    (data) => {
+      if (data.mimeType === 'application/pdf') {
+        return data.size <= 50 * 1024 * 1024; // 50MB for PDFs
+      }
+      return data.size <= 10 * 1024 * 1024; // 10MB for images
+    },
+    {
+      message: 'Image must be under 10MB (PDFs up to 50MB)',
+    }
+  );
 
 export const initiateMediaUploadAction = createSafeAction(async (args: z.infer<typeof initiateMediaUploadSchema>, session) => {
   if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) {
@@ -50,6 +63,7 @@ export const initiateMediaUploadAction = createSafeAction(async (args: z.infer<t
   else if (input.type === 'RICH_TEXT') prefix = 'rich-text';
   else if (input.type === 'TEAM') prefix = 'team';
   else if (input.type === 'PROFILE') prefix = 'profiles';
+  else if (input.type === 'ACT') prefix = 'acts';
 
   const key = `editorial/${prefix}/${dateStr}-${uuid}.${ext}`;
 

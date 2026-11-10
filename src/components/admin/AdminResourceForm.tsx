@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { CheckCircle2, ExternalLink } from 'lucide-react';
+import {
+  Archive, CheckCircle2, ChevronLeft, ChevronRight, CircleDot, ExternalLink, Eye, FileText, Loader2,
+  RotateCcw, TriangleAlert,
+} from 'lucide-react';
 import { ResourceType, ContentStatus } from '@prisma/client';
 import { createResourceAction, deleteResourceAction, updateResourceAction } from '@/modules/admin/admin-resource.actions';
 import { editorHtmlToArticleHtml } from '@/lib/editor-html';
@@ -53,6 +56,22 @@ export type EditableResource = {
 import { getInitialResourceAuthorId, getSubmittedResourceAuthorId } from './resource-form-author';
 export { getInitialResourceAuthorId, getSubmittedResourceAuthorId };
 
+const selectClass = 'w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed';
+const groupDetailsClass = 'group rounded-2xl border border-black/10 dark:border-white/10 bg-slate-50/60 dark:bg-zinc-950/60 open:bg-white dark:open:bg-zinc-900 transition-colors';
+const groupSummaryClass = 'flex cursor-pointer select-none items-center justify-between gap-3 px-4 py-3.5 text-sm font-bold text-navy dark:text-white [&::-webkit-details-marker]:hidden';
+const groupBodyClass = 'space-y-4 border-t border-black/5 dark:border-white/5 px-4 py-4';
+
+/** Status pill shared by the workspace header and the sidebar. */
+export function ResourceStatusBadge({ status, archived }: { status?: ContentStatus | null; archived?: boolean }) {
+  const label = archived ? 'Archived' : status === ContentStatus.PUBLISHED ? 'Published' : 'Draft';
+  const styles = archived
+    ? 'bg-zinc-100 text-zinc-600 border-zinc-200 dark:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-700'
+    : status === ContentStatus.PUBLISHED
+      ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800'
+      : 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800';
+  return <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ${styles}`}>{label}</span>;
+}
+
 export function AdminResourceForm({
   semesters,
   subjects,
@@ -82,6 +101,7 @@ export function AdminResourceForm({
   // Which submit button is saving, so only that one shows progress.
   const [savingAs, setSavingAs] = useState<'DRAFT' | 'PUBLISHED' | null>(null);
   const [error, setError] = useState('');
+  const [lastSavedStatus, setLastSavedStatus] = useState<ContentStatus | null>(resource?.status ?? null);
 
   const availableTypes = canManageLawTypes
     ? RESOURCE_TYPES
@@ -120,7 +140,34 @@ export function AdminResourceForm({
     };
   });
 
-  const [savedResource, setSavedResource] = useState<{ id: string; status: ContentStatus; url: string } | null>(null);
+  // Success feedback is handed across the post-create navigation through
+  // sessionStorage: the /new form cannot simply mutate its URL because the next
+  // server action would be POSTed under the new path, and its response payload
+  // (the /edit route tree) would then be applied as a navigation — remounting
+  // this form and wiping plain client state. So after a successful create we
+  // navigate to /edit for real (router.replace) and restore banner + chip from
+  // this memo exactly once, when the new /edit mount carries the same resource.
+  const [restoredSuccess] = useState<{ id: string; status: ContentStatus } | null>(() => {
+    if (!resource) return null;
+    try {
+      const raw = sessionStorage.getItem('admin-resource-success');
+      if (!raw) return null;
+      const memo = JSON.parse(raw) as { id: string; status: ContentStatus; at: number };
+      sessionStorage.removeItem('admin-resource-success');
+      if (memo.id === resource.id && Date.now() - memo.at < 15_000) {
+        return { id: memo.id, status: memo.status };
+      }
+    } catch {
+      // Corrupt or inaccessible storage: fall back to no restored banner.
+    }
+    return null;
+  });
+
+  const [savedResource, setSavedResource] = useState<{ id: string; status: ContentStatus; url: string } | null>(() =>
+    restoredSuccess
+      ? { id: restoredSuccess.id, status: restoredSuccess.status, url: `/resources/${restoredSuccess.id}` }
+      : null
+  );
 
   // Mode selection: 'PDF' or 'NOTE'. An existing PDF keeps its document, and a
   // resource without a PDF is edited as a written note. Case laws default to NOTE.
@@ -131,6 +178,7 @@ export function AdminResourceForm({
   );
 
   const [file, setFile] = useState<File | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [content, setContent] = useState(resource?.content ?? '');
 
   // Filter subjects by selected semester
@@ -144,6 +192,52 @@ export function AdminResourceForm({
     () => units.filter((u) => u.subjectId === subjectId),
     [units, subjectId]
   );
+
+  // ---- Unsaved-changes tracking -------------------------------------------
+  // A serialisable snapshot of every editable field. The baseline is captured
+  // on first render (and refreshed after each successful save); anything that
+  // drifts from it marks the form dirty, which drives the header save-status
+  // chip, the beforeunload guard and the "Back to Resources" confirmation.
+  const snapshot = () => JSON.stringify({
+    title,
+    resourceType,
+    semesterId,
+    subjectId,
+    unitId,
+    isPremium,
+    priceAmount,
+    authorUserId,
+    uploadMode,
+    hasFile: Boolean(file),
+    fileName: file?.name ?? null,
+    content,
+    featuredImage: featuredImage ? { id: featuredImage.id, url: featuredImage.url } : null,
+  });
+  const [baseline, setBaseline] = useState<string>(() => snapshot());
+  const formSnapshot = snapshot();
+  const dirty = formSnapshot !== baseline;
+
+  useEffect(() => {
+    if (!dirty) return;
+    const handler = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [dirty]);
+
+  // Save status shown in the workspace header.
+  const saveStatus: 'saving' | 'unsaved' | 'saved' | 'inprogress' =
+    loading ? 'saving' : dirty ? 'unsaved' : savedResource ? 'saved' : 'inprogress';
+
+  const listHref = resourceType === ResourceType.CASE_LAW ? '/admin/study/resources?type=CASE_LAW' : '/admin/study/resources';
+
+  const handleBackNavigation = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    if (dirty && !window.confirm('You have unsaved changes. Leave this page without saving?')) {
+      event.preventDefault();
+    }
+  };
 
   // Preview the note exactly through the shared /preview route the posts
   // editor uses — same reading template, live updates, no server round-trip.
@@ -169,6 +263,12 @@ export function AdminResourceForm({
     window.open('/preview', 'el-resource-preview')?.focus();
   };
 
+  const showValidationError = (message: string) => {
+    setError(message);
+    // Bring the message into view without stealing the editor caret.
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     // "Save as Draft" and "Create & Publish" both submit the form.
@@ -178,11 +278,11 @@ export function AdminResourceForm({
     if (uploadMode === 'PDF') {
       if (!isEdit) {
         if (!file) {
-          setError('Please select a PDF file');
+          showValidationError('Please select a PDF file');
           return;
         }
         if (file.type !== 'application/pdf') {
-          setError('Only PDF files are allowed');
+          showValidationError('Only PDF files are allowed');
           return;
         }
       }
@@ -190,9 +290,21 @@ export function AdminResourceForm({
       // Quill's semantic HTML renders an empty editor as <p></p>, so
       // tag-strip instead of string-comparing (image-only notes still count).
       if (!htmlToText(content) && !/<img\b/i.test(content)) {
-        setError('Please write some content for the note');
+        showValidationError('Please write some content for the note');
         return;
       }
+    }
+
+    // Metadata selects live inside collapsible sidebar groups: native browser
+    // validation cannot focus a hidden control, so validate here and surface
+    // a readable message in the workspace banner instead.
+    if (!semesterId) {
+      showValidationError('Please select a semester.');
+      return;
+    }
+    if (resourceType !== ResourceType.OLD_QUESTION && !subjectId) {
+      showValidationError('Please select a subject for this resource.');
+      return;
     }
 
     setLoading(true);
@@ -201,15 +313,19 @@ export function AdminResourceForm({
     setSavedResource(null);
 
     // Track the created row so a failed PDF upload can remove it instead of
-    // leaving an orphan that a retry would duplicate.
-    let createdResourceId: string | null = null;
+    // leaving an orphan that a retry would duplicate. Deliberately a local (not
+    // the createdResourceId state) — this is only the *current attempt's* id.
+    let createdIdForCleanup: string | null = null;
     const submittedAuthorUserId = getSubmittedResourceAuthorId({
       authorMappingAvailable,
       authorUserId,
     });
 
     try {
-      if (resource) {
+      if (isEdit && resource) {
+        // Mounted on a real /edit route: the action request URL matches this
+        // route tree, so the response reconciles in place (no remount) and the
+        // success banner survives.
         const updateRes = await updateResourceAction({
           id: resource.id,
           title,
@@ -231,11 +347,57 @@ export function AdminResourceForm({
           throw new Error(updateRes.error || 'Failed to update resource');
         }
 
+        if (uploadMode === 'PDF' && file) {
+          const initRes = await initiateDocumentUpload({
+            resourceId: resource.id,
+            expectedSize: file.size,
+            expectedMimeType: 'application/pdf',
+          });
+
+          if (!initRes.success) {
+            throw new Error(initRes.error || 'Failed to initiate upload');
+          }
+
+          const uploadUrl = initRes.data.uploadUrl;
+
+          let r2Response: Response;
+          try {
+            r2Response = await fetch(uploadUrl, {
+              method: 'PUT',
+              body: file,
+              headers: {
+                'Content-Type': 'application/pdf',
+              },
+            });
+          } catch {
+            throw new Error(
+              process.env.NODE_ENV === 'development'
+                ? 'Could not reach file storage at B2_ENDPOINT. If it points at a local mock (e.g. http://localhost:9000), make sure that server is running, then try again.'
+                : 'Could not reach file storage. Check your connection and try again.'
+            );
+          }
+
+          if (!r2Response.ok) {
+            throw new Error(`Upload failed with status ${r2Response.status}`);
+          }
+
+          const confirmRes = await confirmDocumentUpload({
+            resourceId: resource.id,
+            uploadIntentId: initRes.data.uploadIntentId,
+          });
+
+          if (!confirmRes.success) {
+            throw new Error(confirmRes.error || 'Uploaded file could not be verified');
+          }
+        }
+
         setSavedResource({
           id: resource.id,
           status: status as ContentStatus,
           url: `/resources/${resource.id}`,
         });
+        setLastSavedStatus(status as ContentStatus);
+        setBaseline(formSnapshot);
         setLoading(false);
         setSavingAs(null);
         router.refresh();
@@ -265,7 +427,7 @@ export function AdminResourceForm({
       }
 
       const resourceId = createRes.data.resourceId;
-      createdResourceId = resourceId;
+      createdIdForCleanup = resourceId;
 
       // 2. If PDF mode, upload file
       if (uploadMode === 'PDF' && file) {
@@ -314,23 +476,31 @@ export function AdminResourceForm({
         }
       }
 
-      // Success
-      createdResourceId = null;
-      setSavedResource({
-        id: resourceId,
-        status: status as ContentStatus,
-        url: `/resources/${resourceId}`,
-      });
-      window.history.replaceState(null, '', `/admin/study/resources/${resourceId}/edit`);
+      // Success. Navigate to the new resource's edit page for real — do NOT
+      // just rewrite the URL under this component: the next server action
+      // would be POSTed under the new path and its response (the /edit route
+      // tree) applied as a navigation, remounting the form and destroying any
+      // client state. The success banner/chip ride across the remount via the
+      // sessionStorage memo initialized above.
+      createdIdForCleanup = null;
+      try {
+        sessionStorage.setItem(
+          'admin-resource-success',
+          JSON.stringify({ id: resourceId, status, at: Date.now() })
+        );
+      } catch {
+        // Storage unavailable (private mode): the /edit page simply opens
+        // without restored success feedback.
+      }
+      router.replace(`/admin/study/resources/${resourceId}/edit`);
       setLoading(false);
       setSavingAs(null);
-      router.refresh();
     } catch (err) {
       // If the resource row was created but the upload/confirm step failed,
       // delete the orphan so the user can retry without duplicates.
-      if (createdResourceId) {
+      if (createdIdForCleanup) {
         try {
-          await deleteResourceAction({ id: createdResourceId });
+          await deleteResourceAction({ id: createdIdForCleanup });
         } catch {
           // Best-effort cleanup; surface the original failure below.
         }
@@ -343,352 +513,473 @@ export function AdminResourceForm({
     }
   };
 
+  // ---- Shared header pieces ---------------------------------------------------
+
+  const saveStatusChip =
+    saveStatus === 'saving' ? (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-700 dark:bg-blue-950/40 dark:text-blue-300" role="status">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> Saving…
+      </span>
+    ) : saveStatus === 'unsaved' ? (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300" role="status">
+        <CircleDot className="h-3.5 w-3.5" aria-hidden="true" /> Unsaved changes
+      </span>
+    ) : saveStatus === 'saved' ? (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300" role="status">
+        <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" /> All changes saved
+      </span>
+    ) : (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-text-muted dark:bg-zinc-800 dark:text-zinc-400" role="status">
+        <CircleDot className="h-3.5 w-3.5" aria-hidden="true" /> Draft in progress
+      </span>
+    );
+
+  // ---- Shared sidebar field blocks (used by the NOTE-mode sidebar) -----------
+
+  const semesterField = (
+    <div>
+      <label htmlFor="resource-semester" className="block text-sm font-bold text-navy dark:text-white mb-2">Semester</label>
+      <select
+        id="resource-semester"
+        value={semesterId}
+        onChange={e => {
+          setSemesterId(e.target.value);
+          setSubjectId('');
+          setUnitId('');
+        }}
+        className={selectClass}
+      >
+        <option value="">Select Semester</option>
+        {semesters.map(s => (
+          <option key={s.id} value={s.id}>{s.name}</option>
+        ))}
+      </select>
+    </div>
+  );
+
+  const subjectField = (
+    <div>
+      <label htmlFor="resource-subject" className="block text-sm font-bold text-navy dark:text-white mb-2">Subject</label>
+      <select
+        id="resource-subject"
+        value={subjectId}
+        onChange={e => {
+          setSubjectId(e.target.value);
+          setUnitId('');
+        }}
+        disabled={!semesterId}
+        className={selectClass}
+      >
+        <option value="">Select Subject</option>
+        {filteredSubjects.map((s) => (
+          <option key={s.id} value={s.id}>{s.name}</option>
+        ))}
+      </select>
+    </div>
+  );
+
+  const unitField = (
+    <div>
+      <label htmlFor="resource-unit" className="block text-sm font-bold text-navy dark:text-white mb-2">Unit (Optional)</label>
+      <select
+        id="resource-unit"
+        value={unitId}
+        onChange={e => setUnitId(e.target.value)}
+        disabled={!subjectId}
+        className={selectClass}
+      >
+        <option value="">Select Unit</option>
+        {filteredUnits.map((u) => (
+          <option key={u.id} value={u.id}>{u.name}</option>
+        ))}
+      </select>
+    </div>
+  );
+
+  const typeField = (
+    <div>
+      <label htmlFor="resource-type" className="block text-sm font-bold text-navy dark:text-white mb-2">Resource Type</label>
+      <select
+        id="resource-type"
+        value={resourceType}
+        onChange={e => setResourceType(e.target.value as ResourceType)}
+        className={selectClass}
+      >
+        {availableTypes.map(type => (
+          <option key={type.value} value={type.value}>{type.label}</option>
+        ))}
+      </select>
+      <p className="mt-2 text-xs text-text-secondary">Old Question resources are filed by semester; other types are filed by subject.</p>
+    </div>
+  );
+
+  const authorField = (
+    <div>
+      <label htmlFor="author" className="block text-sm font-bold text-navy dark:text-white mb-2">Author</label>
+      <AuthorSelect
+        authors={authors}
+        value={authorUserId}
+        onChange={setAuthorUserId}
+        disabled={!authorMappingAvailable}
+        placeholder={!authorMappingAvailable ? 'Author assignment unavailable (migration pending)' : undefined}
+        emptyMessage={
+          !authorMappingAvailable
+            ? 'Author assignment is temporarily unavailable because database migrations are pending.'
+            : 'No eligible author accounts found.'
+        }
+        hint={
+          !authorMappingAvailable
+            ? 'Author assignment is disabled until database migration 20261101000000 is applied.'
+            : 'Shown as the resource author. The creator is recorded separately.'
+        }
+      />
+    </div>
+  );
+
+  const premiumField = (
+    <div>
+      <div className="flex items-center gap-3">
+        <input
+          id="isPremium"
+          type="checkbox"
+          checked={isPremium}
+          onChange={e => setIsPremium(e.target.checked)}
+          className="h-5 w-5 rounded border-black/20 text-accent focus:ring-accent"
+        />
+        <label htmlFor="isPremium" className="text-sm font-bold text-navy dark:text-white">
+          Premium Resource
+        </label>
+      </div>
+
+      {isPremium && (
+        <div className="mt-4">
+          <label htmlFor="resource-price" className="block text-sm font-bold text-navy dark:text-white mb-2">Price (NPR)</label>
+          <input
+            id="resource-price"
+            type="number"
+            min="0"
+            step="1"
+            required={isPremium}
+            value={priceAmount}
+            onChange={e => setPriceAmount(e.target.value)}
+            className={selectClass}
+          />
+        </div>
+      )}
+    </div>
+  );
+
+  const featuredImageField = (
+    <div>
+      <label className="block text-sm font-bold text-navy dark:text-white mb-2">Featured Image</label>
+      <p className="text-xs text-text-secondary mb-4">
+        Upload or select an image from the media library to display on public listings and the resource header.
+      </p>
+      <FeaturedImagePanel
+        lang="en"
+        value={featuredImage}
+        onChange={setFeaturedImage}
+        uploadBlockedReason={uploadBlockedReason ?? null}
+      />
+    </div>
+  );
+
+  // ---- Header action buttons (single source of workflow actions) --------------
+
+  const previewButton = uploadMode === 'NOTE' && (
+    <button
+      type="button"
+      onClick={handlePreview}
+      className="inline-flex items-center gap-2 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 px-4 py-2.5 text-sm font-bold text-navy dark:text-white hover:border-gold hover:text-gold transition-colors"
+    >
+      <Eye className="h-4 w-4" aria-hidden="true" /> Preview
+    </button>
+  );
+
+  const viewLiveButton = isEdit && lastSavedStatus === ContentStatus.PUBLISHED && resource && (
+    <a
+      href={`/resources/${resource.id}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-2 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 px-4 py-2.5 text-sm font-bold text-navy dark:text-white hover:border-accent hover:text-accent transition-colors"
+    >
+      View Live
+    </a>
+  );
+
+  // ---- Workspace body per mode ------------------------------------------------
+
+  const modeSwitch = !isEdit && (
+    <div className="flex flex-col gap-2 pt-6">
+      <span id="resource-mode-label" className="text-xs font-bold uppercase tracking-wider text-text-muted">Choose how to add this resource</span>
+      <div role="group" aria-labelledby="resource-mode-label" className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setUploadMode('PDF')}
+          aria-pressed={uploadMode === 'PDF'}
+          className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold transition-all ${
+            uploadMode === 'PDF'
+              ? 'border-accent bg-accent text-white shadow-sm'
+              : 'border-black/10 dark:border-white/10 bg-white dark:bg-zinc-800 text-text-muted hover:text-navy dark:hover:text-white'
+          }`}
+        >
+          <FileText className="h-4 w-4" aria-hidden="true" /> Upload PDF
+        </button>
+        <button
+          type="button"
+          onClick={() => setUploadMode('NOTE')}
+          aria-pressed={uploadMode === 'NOTE'}
+          className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold transition-all ${
+            uploadMode === 'NOTE'
+              ? 'border-accent bg-accent text-white shadow-sm'
+              : 'border-black/10 dark:border-white/10 bg-white dark:bg-zinc-800 text-text-muted hover:text-navy dark:hover:text-white'
+          }`}
+        >
+          <FileText className="h-4 w-4" aria-hidden="true" /> Write Note
+        </button>
+      </div>
+      <p className="text-xs text-text-secondary">
+        {uploadMode === 'PDF'
+          ? 'Attach a study document as a downloadable PDF file. Switching to Write Note keeps any draft you have typed.'
+          : 'Write the note directly in the editor with English or Nepali fonts. Switching to Upload PDF keeps your text in the editor.'}
+      </p>
+    </div>
+  );
+
+  const workspaceHeader = (
+    <div className="resource-workspace-header mb-6 border-b border-black/5 dark:border-white/5 pb-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <Link
+            href={listHref}
+            onClick={handleBackNavigation}
+            className="inline-flex items-center gap-1.5 text-sm font-bold text-text-secondary hover:text-accent transition-colors"
+          >
+            <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Back to Resources
+          </Link>
+          <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-navy dark:text-white sm:text-3xl">
+            {isEdit ? 'Edit Resource' : 'New Resource'}
+          </h1>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <ResourceStatusBadge status={lastSavedStatus ?? undefined} archived={lastSavedStatus === ContentStatus.ARCHIVED} />
+            {saveStatusChip}
+          </div>
+        </div>
+        <div className="resource-action-buttons flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+          {previewButton}
+          {viewLiveButton}
+          <button
+            type="submit"
+            name="status"
+            value="DRAFT"
+            disabled={loading}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 px-5 py-2.5 text-sm font-bold text-navy dark:text-white hover:border-accent/50 hover:text-accent transition-colors disabled:opacity-50"
+          >
+            {savingAs === 'DRAFT' ? (<><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Saving Draft…</>) : 'Save as Draft'}
+          </button>
+          <MotionButton
+            type="submit"
+            name="status"
+            value="PUBLISHED"
+            disabled={loading}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-transparent shadow-sm bg-accent px-5 py-2.5 text-sm font-bold text-white hover:bg-accent/90 transition-[background-color,border-color,color,box-shadow,opacity] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent disabled:opacity-50"
+          >
+            {savingAs === 'PUBLISHED' ? (<><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Saving…</>) : isEdit ? 'Save & Publish' : 'Create & Publish'}
+          </MotionButton>
+        </div>
+      </div>
+      {modeSwitch}
+    </div>
+  );
+
+  const successBanner = savedResource && (
+    <Appear key="saved-success" className="mb-6">
+      <div className="p-5 bg-green-50 text-green-900 rounded-2xl border border-green-200 dark:bg-green-950/40 dark:border-green-900/60 dark:text-green-200 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400 shrink-0" />
+          <div>
+            <p className="font-bold text-navy dark:text-white text-base">
+              {savedResource.status === 'PUBLISHED'
+                ? `${resourceType === ResourceType.CASE_LAW ? 'Case Law' : 'Resource'} published successfully!`
+                : `${resourceType === ResourceType.CASE_LAW ? 'Case Law' : 'Resource'} saved as draft!`}
+            </p>
+            <p className="text-sm text-text-secondary dark:text-zinc-300">
+              {savedResource.status === 'PUBLISHED'
+                ? 'Your resource is now live on the website.'
+                : 'Your draft has been saved. You can continue editing or return to the list.'}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          {savedResource.status === 'PUBLISHED' && (
+            <a
+              href={savedResource.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold bg-accent text-white hover:bg-accent/90 transition-colors shadow-sm"
+            >
+              <span>View {resourceType === ResourceType.CASE_LAW ? 'Case Law' : 'Resource'}</span>
+              <ExternalLink className="h-4 w-4" />
+            </a>
+          )}
+          <Link
+            href={listHref}
+            onClick={handleBackNavigation}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-800 text-navy dark:text-white hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors"
+          >
+            Back to List
+          </Link>
+        </div>
+      </div>
+    </Appear>
+  );
+
+  const errorBanner = error && (
+    <Appear key="error" className="mb-6" role="alert">
+      <div className="flex items-start gap-3 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl font-medium">
+        <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+        <p>{error}</p>
+      </div>
+    </Appear>
+  );
+
+  // NOTE-mode publication-status note (sidebar footer, informational only).
+  const publicationStatusNote = (
+    <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 p-4 text-sm">
+      <p className="mb-1 flex items-center gap-2 font-bold text-navy dark:text-white"><Archive className="h-4 w-4 text-text-muted" aria-hidden="true" /> Publication status</p>
+      <p className="text-text-secondary">
+        {lastSavedStatus === ContentStatus.PUBLISHED
+          ? 'This resource is live. Edits made here go public when you press Save & Publish; use Save as Draft to keep changes private first.'
+          : lastSavedStatus === ContentStatus.ARCHIVED
+            ? 'This resource is archived and hidden from the study library. Republish it to make it visible again.'
+            : 'This resource is a draft — only you and other admins can see it. Press Create & Publish to make it public.'}
+      </p>
+    </div>
+  );
+
   return (
     <form
       onSubmit={handleSubmit}
       data-resource-scroll-mode={uploadMode === 'NOTE' ? 'document' : 'fill-height'}
-      className={`resource-admin-form max-w-5xl lg:min-h-0 lg:flex lg:flex-col ${uploadMode === 'NOTE' ? 'lg:flex-1' : 'space-y-8'}`}
+      className={`resource-admin-form p-6 sm:p-8 flex flex-col flex-1 ${uploadMode === 'NOTE' ? '' : 'space-y-8'}`}
     >
+      {workspaceHeader}
+
       <AnimatePresence initial={false}>
-      {savedResource && (
-        <Appear key="saved-success">
-          <div className="p-5 bg-green-50 text-green-900 rounded-2xl border border-green-200 dark:bg-green-950/40 dark:border-green-900/60 dark:text-green-200 shadow-sm flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400 shrink-0" />
-              <div>
-                <p className="font-bold text-navy dark:text-white text-base">
-                  {savedResource.status === 'PUBLISHED'
-                    ? `${resourceType === ResourceType.CASE_LAW ? 'Case Law' : 'Resource'} published successfully!`
-                    : `${resourceType === ResourceType.CASE_LAW ? 'Case Law' : 'Resource'} saved as draft!`}
-                </p>
-                <p className="text-sm text-text-secondary dark:text-zinc-300">
-                  {savedResource.status === 'PUBLISHED'
-                    ? 'Your resource is now live on the website.'
-                    : 'Your draft has been saved. You can continue editing or return to the list.'}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 shrink-0">
-              {savedResource.status === 'PUBLISHED' && (
-                <a
-                  href={savedResource.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold bg-accent text-white hover:bg-accent/90 transition-colors shadow-sm"
-                >
-                  <span>View {resourceType === ResourceType.CASE_LAW ? 'Case Law' : 'Resource'}</span>
-                  <ExternalLink className="h-4 w-4" />
-                </a>
-              )}
-              <Link
-                href={resourceType === ResourceType.CASE_LAW ? '/admin/study/resources?type=CASE_LAW' : '/admin/study/resources'}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-800 text-navy dark:text-white hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors"
-              >
-                Back to List
-              </Link>
-            </div>
-          </div>
-        </Appear>
-      )}
-      {error && (
-        <Appear key="error">
-        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg font-medium">
-          {error}
-        </div>
-        </Appear>
-      )}
+        {successBanner}
+        {errorBanner}
       </AnimatePresence>
 
       {uploadMode === 'NOTE' ? (
         <>
         {/* NOTE mode (desktop): only the note canvas lives in the main column, so it
             fills the writing workspace instead of being squeezed by metadata. All
-            metadata + actions go into an independently scrollable sidebar, mirroring
-            the posts editor layout. Below lg everything stacks and the page scrolls. */}
-        <div className="resource-note-layout flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8 lg:items-start">
+            metadata lives in an independently scrollable sidebar, mirroring the posts
+            editor layout. Below lg everything stacks and the page scrolls. */}
+        <div className="resource-note-layout flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-8 lg:items-start">
           {/* Left column: the writing canvas itself */}
           <div className="resource-note-canvas min-w-0">
-            <RichTextEditor value={content} onChange={setContent} placeholder="Write the law note or case law details here..." scrollMode="document" />
+            <RichTextEditor
+              value={content}
+              onChange={setContent}
+              placeholder="Start writing the note — use Font Mode above to switch between English and Nepali typed fonts."
+              scrollMode="document"
+            />
           </div>
 
-          {/* Right column: metadata + actions, independently scrollable on desktop */}
-          <div className="resource-metadata-sidebar w-full space-y-6 lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:pr-1">
-            {/* Upload Mode Toggle (not used while editing an existing file) */}
-            {!isEdit && (
-              <div className="flex bg-slate-100 dark:bg-zinc-800 p-1 rounded-xl w-fit">
+          {/* Right column: metadata, independently scrollable on desktop */}
+          <div className="resource-metadata-sidebar w-full space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto lg:pr-1">
+            <div className="flex flex-col gap-2 rounded-2xl border border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 p-4">
+              <span className="text-xs font-bold text-navy dark:text-white uppercase tracking-wider">Save & Publish</span>
+              <div className="flex flex-col gap-2">
                 <button
-                  type="button"
-                  onClick={() => setUploadMode('PDF')}
-                  className="px-4 sm:px-6 py-2.5 min-h-[44px] rounded-lg text-sm font-bold transition-all text-text-muted hover:text-navy dark:hover:text-white"
+                  type="submit"
+                  name="status"
+                  value="DRAFT"
+                  disabled={loading}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 px-4 py-2.5 text-sm font-bold text-navy dark:text-white hover:border-accent/50 hover:text-accent transition-colors disabled:opacity-50"
                 >
-                  Upload PDF
+                  {savingAs === 'DRAFT' ? (<><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Saving Draft…</>) : 'Save as Draft'}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setUploadMode('NOTE')}
-                  className="px-4 sm:px-6 py-2.5 min-h-[44px] rounded-lg text-sm font-bold transition-all bg-white dark:bg-zinc-700 text-navy dark:text-white shadow-sm"
+                <MotionButton
+                  type="submit"
+                  name="status"
+                  value="PUBLISHED"
+                  disabled={loading}
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-transparent shadow-sm bg-accent px-4 py-2.5 text-sm font-bold text-white hover:bg-accent/90 transition-colors disabled:opacity-50"
                 >
-                  Write Note
-                </button>
+                  {savingAs === 'PUBLISHED' ? (<><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Saving…</>) : isEdit ? 'Save & Publish' : 'Create & Publish'}
+                </MotionButton>
               </div>
-            )}
+            </div>
 
             <div>
-              <label className="block text-sm font-bold text-navy dark:text-white mb-2">Title</label>
+              <label htmlFor="resource-title" className="block text-sm font-bold text-navy dark:text-white mb-2">Title</label>
               <input
                 id="resource-title"
                 type="text"
                 required
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
+                className={`${selectClass} bg-white dark:bg-zinc-950`}
               />
             </div>
 
-            <div>
-              <label htmlFor="author" className="block text-sm font-bold text-navy dark:text-white mb-2">Author</label>
-              <AuthorSelect
-                authors={authors}
-                value={authorUserId}
-                onChange={setAuthorUserId}
-                disabled={!authorMappingAvailable}
-                placeholder={!authorMappingAvailable ? 'Author assignment unavailable (migration pending)' : undefined}
-                emptyMessage={
-                  !authorMappingAvailable
-                    ? 'Author assignment is temporarily unavailable because database migrations are pending.'
-                    : 'No eligible author accounts found.'
-                }
-                hint={
-                  !authorMappingAvailable
-                    ? 'Author assignment is disabled until database migration 20261101000000 is applied.'
-                    : 'Shown as the resource author. The creator is recorded separately.'
-                }
-              />
-            </div>
+            <details open className={groupDetailsClass}>
+              <summary className={groupSummaryClass}>Classification <ChevronRight className="h-4 w-4 text-text-muted transition-transform group-open:rotate-90" aria-hidden="true" /></summary>
+              <div className={groupBodyClass}>{typeField}</div>
+            </details>
 
-            <div>
-              <label className="block text-sm font-bold text-navy dark:text-white mb-2">Resource Type</label>
-              <select
-                value={resourceType}
-                onChange={e => setResourceType(e.target.value as ResourceType)}
-                className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
-              >
-                {availableTypes.map(type => (
-                  <option key={type.value} value={type.value}>{type.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-navy dark:text-white mb-2">Semester</label>
-              <select
-                required
-                value={semesterId}
-                onChange={e => {
-                  setSemesterId(e.target.value);
-                  setSubjectId('');
-                  setUnitId('');
-                }}
-                className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
-              >
-                <option value="">Select Semester</option>
-                {semesters.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-            </div>
-
-            {resourceType !== ResourceType.OLD_QUESTION && (
-              <>
-                <div>
-                  <label className="block text-sm font-bold text-navy dark:text-white mb-2">Subject</label>
-                  <select
-                    required
-                    value={subjectId}
-                    onChange={e => {
-                      setSubjectId(e.target.value);
-                      setUnitId('');
-                    }}
-                    disabled={!semesterId}
-                    className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm disabled:opacity-50"
-                  >
-                    <option value="">Select Subject</option>
-                    {filteredSubjects.map((s) => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold text-navy dark:text-white mb-2">Unit (Optional)</label>
-                  <select
-                    value={unitId}
-                    onChange={e => setUnitId(e.target.value)}
-                    disabled={!subjectId}
-                    className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm disabled:opacity-50"
-                  >
-                    <option value="">Select Unit</option>
-                    {filteredUnits.map((u) => (
-                      <option key={u.id} value={u.id}>{u.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </>
-            )}
-
-            <div className="pt-4 border-t border-black/10 dark:border-white/10">
-              <div className="flex items-center gap-3">
-                <input
-                  id="isPremium"
-                  type="checkbox"
-                  checked={isPremium}
-                  onChange={e => setIsPremium(e.target.checked)}
-                  className="h-5 w-5 rounded border-black/20 text-accent focus:ring-accent"
-                />
-                <label htmlFor="isPremium" className="text-sm font-bold text-navy dark:text-white">
-                  Premium Resource
-                </label>
+            <details open className={groupDetailsClass}>
+              <summary className={groupSummaryClass}>Semester & Subject <ChevronRight className="h-4 w-4 text-text-muted transition-transform group-open:rotate-90" aria-hidden="true" /></summary>
+              <div className={groupBodyClass}>
+                {semesterField}
+                {resourceType !== ResourceType.OLD_QUESTION && subjectField}
+                {resourceType !== ResourceType.OLD_QUESTION && unitField}
               </div>
+            </details>
 
-              {isPremium && (
-                <div className="mt-4">
-                  <label className="block text-sm font-bold text-navy dark:text-white mb-2">Price (NPR)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    step="1"
-                    required={isPremium}
-                    value={priceAmount}
-                    onChange={e => setPriceAmount(e.target.value)}
-                    className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
-                  />
-                </div>
-              )}
-            </div>
+            <details open className={groupDetailsClass}>
+              <summary className={groupSummaryClass}>Access <ChevronRight className="h-4 w-4 text-text-muted transition-transform group-open:rotate-90" aria-hidden="true" /></summary>
+              <div className={groupBodyClass}>{premiumField}</div>
+            </details>
 
-            {/* Featured Image */}
-            <div className="pt-6 border-t border-black/10 dark:border-white/10">
-              <label className="block text-sm font-bold text-navy dark:text-white mb-2">Featured Image</label>
-              <p className="text-xs text-text-secondary mb-4">
-                Upload or select an image from the media library to display on public listings and the resource header.
-              </p>
-              <FeaturedImagePanel
-                lang="en"
-                value={featuredImage}
-                onChange={setFeaturedImage}
-                uploadBlockedReason={uploadBlockedReason ?? null}
-              />
-            </div>
+            <details open className={groupDetailsClass}>
+              <summary className={groupSummaryClass}>Authorship <ChevronRight className="h-4 w-4 text-text-muted transition-transform group-open:rotate-90" aria-hidden="true" /></summary>
+              <div className={groupBodyClass}>{authorField}</div>
+            </details>
 
-            {/* Actions (NOTE mode): pinned at the end of the sidebar */}
-            <div className="resource-action-buttons pt-6 pb-4 border-t border-black/10 dark:border-white/10 flex flex-col gap-4">
-              <button
-                type="button"
-                onClick={handlePreview}
-                className="w-full px-6 py-4 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 text-navy dark:text-white hover:border-gold hover:text-gold text-sm font-bold transition-all"
-              >
-                Preview
-              </button>
-              <button
-                type="submit"
-                name="status"
-                value="DRAFT"
-                disabled={loading}
-                className="w-full px-6 py-4 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 text-navy dark:text-white hover:border-accent/50 hover:text-accent text-sm font-bold transition-all disabled:opacity-50"
-              >
-                {savingAs === 'DRAFT' ? 'Saving Draft...' : 'Save as Draft'}
-              </button>
-              <MotionButton
-                type="submit"
-                name="status"
-                value="PUBLISHED"
-                disabled={loading}
-                className="w-full border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-accent hover:bg-accent/90 transition-[background-color,border-color,color,box-shadow,opacity] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent disabled:opacity-50 py-4"
-              >
-                {savingAs === 'PUBLISHED'
-                  ? 'Saving...'
-                  : isEdit
-                    ? 'Save & Publish'
-                    : 'Create & Publish'}
-              </MotionButton>
-            </div>
+            <details open className={groupDetailsClass}>
+              <summary className={groupSummaryClass}>Media <ChevronRight className="h-4 w-4 text-text-muted transition-transform group-open:rotate-90" aria-hidden="true" /></summary>
+              <div className={groupBodyClass}>{featuredImageField}</div>
+            </details>
+
+            {publicationStatusNote}
           </div>
         </div>
         </>
       ) : (
         <>
-        {/* PDF mode: original stacked layout */}
+        {/* PDF mode: original stacked layout, now under the shared workspace header */}
         <div className="space-y-8">
-          {/* Upload Mode Toggle (not used while editing an existing file) */}
-          {!isEdit && (
-            <div className="flex bg-slate-100 dark:bg-zinc-800 p-1 rounded-xl w-fit">
-              <button
-                type="button"
-                onClick={() => setUploadMode('PDF')}
-                className="px-4 sm:px-6 py-2.5 min-h-[44px] rounded-lg text-sm font-bold transition-all bg-white dark:bg-zinc-700 text-navy dark:text-white shadow-sm"
-              >
-                Upload PDF
-              </button>
-              <button
-                type="button"
-                onClick={() => setUploadMode('NOTE')}
-                className="px-4 sm:px-6 py-2.5 min-h-[44px] rounded-lg text-sm font-bold transition-all text-text-muted hover:text-navy dark:hover:text-white"
-              >
-                Write Note
-              </button>
-            </div>
-          )}
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-bold text-navy dark:text-white mb-2">Title</label>
+              <label htmlFor="resource-title" className="block text-sm font-bold text-navy dark:text-white mb-2">Title</label>
               <input
                 id="resource-title"
                 type="text"
                 required
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
+                className={selectClass}
               />
             </div>
-
+            {authorField}
+            {typeField}
             <div>
-              <label htmlFor="author" className="block text-sm font-bold text-navy dark:text-white mb-2">Author</label>
-              <AuthorSelect
-                authors={authors}
-                value={authorUserId}
-                onChange={setAuthorUserId}
-                disabled={!authorMappingAvailable}
-                placeholder={!authorMappingAvailable ? 'Author assignment unavailable (migration pending)' : undefined}
-                emptyMessage={
-                  !authorMappingAvailable
-                    ? 'Author assignment is temporarily unavailable because database migrations are pending.'
-                    : 'No eligible author accounts found.'
-                }
-                hint={
-                  !authorMappingAvailable
-                    ? 'Author assignment is disabled until database migration 20261101000000 is applied.'
-                    : 'Shown as the resource author. The creator is recorded separately.'
-                }
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-navy dark:text-white mb-2">Resource Type</label>
+              <label htmlFor="resource-semester" className="block text-sm font-bold text-navy dark:text-white mb-2">Semester</label>
               <select
-                value={resourceType}
-                onChange={e => setResourceType(e.target.value as ResourceType)}
-                className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
-              >
-                {availableTypes.map(type => (
-                  <option key={type.value} value={type.value}>{type.label}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-bold text-navy dark:text-white mb-2">Semester</label>
-              <select
+                id="resource-semester"
                 required
                 value={semesterId}
                 onChange={e => {
@@ -696,7 +987,7 @@ export function AdminResourceForm({
                   setSubjectId('');
                   setUnitId('');
                 }}
-                className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
+                className={selectClass}
               >
                 <option value="">Select Semester</option>
                 {semesters.map(s => (
@@ -708,8 +999,9 @@ export function AdminResourceForm({
             {resourceType !== ResourceType.OLD_QUESTION && (
               <>
                 <div>
-                  <label className="block text-sm font-bold text-navy dark:text-white mb-2">Subject</label>
+                  <label htmlFor="resource-subject" className="block text-sm font-bold text-navy dark:text-white mb-2">Subject</label>
                   <select
+                    id="resource-subject"
                     required
                     value={subjectId}
                     onChange={e => {
@@ -717,7 +1009,7 @@ export function AdminResourceForm({
                       setUnitId('');
                     }}
                     disabled={!semesterId}
-                    className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm disabled:opacity-50"
+                    className={selectClass}
                   >
                     <option value="">Select Subject</option>
                     {filteredSubjects.map((s) => (
@@ -727,12 +1019,13 @@ export function AdminResourceForm({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-navy dark:text-white mb-2">Unit (Optional)</label>
+                  <label htmlFor="resource-unit" className="block text-sm font-bold text-navy dark:text-white mb-2">Unit (Optional)</label>
                   <select
+                    id="resource-unit"
                     value={unitId}
                     onChange={e => setUnitId(e.target.value)}
                     disabled={!subjectId}
-                    className="w-full rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm disabled:opacity-50"
+                    className={selectClass}
                   >
                     <option value="">Select Unit</option>
                     {filteredUnits.map((u) => (
@@ -745,101 +1038,107 @@ export function AdminResourceForm({
           </div>
 
           <div className="pt-4 border-t border-black/10 dark:border-white/10">
-            <div className="flex items-center gap-3">
-              <input
-                id="isPremium"
-                type="checkbox"
-                checked={isPremium}
-                onChange={e => setIsPremium(e.target.checked)}
-                className="h-5 w-5 rounded border-black/20 text-accent focus:ring-accent"
-              />
-              <label htmlFor="isPremium" className="text-sm font-bold text-navy dark:text-white">
-                Premium Resource
-              </label>
-            </div>
-
-            {isPremium && (
-              <div className="mt-4">
-                <label className="block text-sm font-bold text-navy dark:text-white mb-2">Price (NPR)</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="1"
-                  required={isPremium}
-                  value={priceAmount}
-                  onChange={e => setPriceAmount(e.target.value)}
-                  className="w-full md:w-1/2 rounded-xl border border-black/10 dark:border-white/10 px-4 py-3 bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm"
-                />
-              </div>
-            )}
+            {premiumField}
           </div>
 
           {/* Featured Image */}
           <div className="pt-6 border-t border-black/10 dark:border-white/10">
-            <label className="block text-sm font-bold text-navy dark:text-white mb-2">Featured Image</label>
-            <p className="text-xs text-text-secondary mb-4">
-              Upload or select an image from the media library to display on public listings and the resource header.
-            </p>
-            <FeaturedImagePanel
-              lang="en"
-              value={featuredImage}
-              onChange={setFeaturedImage}
-              uploadBlockedReason={uploadBlockedReason ?? null}
-            />
+            {featuredImageField}
           </div>
 
           <div className="pt-6 border-t border-black/10 dark:border-white/10">
-            {isEdit ? (
-              <p className="text-sm text-text-secondary">
-                This resource&apos;s PDF document stays attached. To replace the file, create a new resource and archive this one.
+            <label className="block text-sm font-bold text-navy dark:text-white mb-2">
+              {isEdit ? 'PDF Document' : 'Upload PDF Document'}
+            </label>
+            {isEdit && (
+              <p className="text-sm text-text-secondary mb-3">
+                This resource&apos;s PDF document stays attached. You can optionally upload a new PDF below to replace it.
               </p>
-            ) : (
-              <>
-                <label className="block text-sm font-bold text-navy dark:text-white mb-4">Upload PDF Document</label>
-                <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-black/10 dark:border-white/10 border-dashed rounded-2xl bg-slate-50 dark:bg-zinc-950 hover:bg-slate-100 dark:hover:bg-zinc-900 transition-colors">
-                  <div className="space-y-1 text-center">
-                    <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
-                      <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    <div className="flex text-sm text-gray-600 dark:text-zinc-400 justify-center">
-                      <label htmlFor="file-upload" className="relative cursor-pointer bg-white dark:bg-zinc-900 rounded-md font-medium text-accent hover:text-accent-dark focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-accent">
-                        <span>Upload a file</span>
-                        <input id="file-upload" name="file-upload" type="file" className="sr-only" accept="application/pdf" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-                      </label>
-                      <p className="pl-1">or drag and drop</p>
-                    </div>
-                    <p className="text-xs text-gray-500 dark:text-zinc-400">PDF up to 50MB</p>
-                  </div>
+            )}
+            <label
+              htmlFor="file-upload"
+              onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                setIsDragging(false);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsDragging(false);
+                const droppedFile = e.dataTransfer.files?.[0];
+                if (droppedFile) {
+                  if (droppedFile.type === 'application/pdf') {
+                    setFile(droppedFile);
+                    setError('');
+                  } else {
+                    setError('Only PDF files are allowed');
+                  }
+                }
+              }}
+              className={`mt-1 flex flex-col items-center justify-center cursor-pointer px-6 pt-6 pb-6 border-2 border-dashed rounded-2xl transition-colors ${
+                isDragging
+                  ? 'border-accent bg-accent/5 dark:bg-accent/10'
+                  : 'border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 hover:bg-slate-100 dark:hover:bg-zinc-900'
+              }`}
+            >
+              <div className="space-y-2 text-center pointer-events-none">
+                <svg className="mx-auto h-12 w-12 text-accent/60" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
+                  <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <div className="flex text-sm text-gray-600 dark:text-zinc-400 justify-center">
+                  <span className="font-bold text-accent hover:text-accent-dark">
+                    Upload a file
+                  </span>
+                  <p className="pl-1">or drag and drop</p>
                 </div>
-                {file && <p className="mt-2 text-sm text-gray-600 dark:text-zinc-300">Selected file: {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)</p>}
-              </>
+                <p className="text-xs text-gray-500 dark:text-zinc-400">PDF up to 50MB</p>
+              </div>
+              <input
+                id="file-upload"
+                name="file-upload"
+                type="file"
+                className="sr-only"
+                accept="application/pdf"
+                onChange={(e) => {
+                  const selectedFile = e.target.files?.[0] || null;
+                  if (selectedFile && selectedFile.type !== 'application/pdf') {
+                    setError('Only PDF files are allowed');
+                    return;
+                  }
+                  setFile(selectedFile);
+                  setError('');
+                }}
+              />
+            </label>
+            {file && (
+              <div className="mt-3 flex items-center justify-between rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50/80 dark:bg-emerald-950/30 p-3">
+                <div className="flex items-center gap-2 text-sm text-emerald-800 dark:text-emerald-300 min-w-0">
+                  <FileText className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <span className="truncate font-medium">{file.name}</span>
+                  <span className="shrink-0 text-xs text-emerald-600 dark:text-emerald-400">
+                    ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFile(null)}
+                  className="ml-3 shrink-0 text-xs font-bold text-red-600 hover:text-red-700 dark:text-red-400 underline"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+            {uploadBlockedReason && (
+              <p className="mt-2 flex items-center gap-2 text-sm text-amber-700 dark:text-amber-400">
+                <RotateCcw className="h-4 w-4" aria-hidden="true" /> {uploadBlockedReason}
+              </p>
             )}
           </div>
-        </div>
 
-        <div className="pt-8 flex flex-col sm:flex-row gap-4">
-          <button
-            type="submit"
-            name="status"
-            value="DRAFT"
-            disabled={loading}
-            className="flex-1 sm:flex-none sm:px-8 py-4 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 text-navy dark:text-white hover:border-accent/50 hover:text-accent text-sm font-bold transition-all disabled:opacity-50"
-          >
-            {savingAs === 'DRAFT' ? 'Saving Draft...' : 'Save as Draft'}
-          </button>
-          <MotionButton
-            type="submit"
-            name="status"
-            value="PUBLISHED"
-            disabled={loading}
-            className="flex-1 py-4 px-4 border border-transparent rounded-xl shadow-sm text-sm font-bold text-white bg-accent hover:bg-accent/90 transition-[background-color,border-color,color,box-shadow,opacity] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent disabled:opacity-50"
-          >
-            {savingAs === 'PUBLISHED'
-              ? 'Saving...'
-              : isEdit
-                ? 'Save & Publish'
-                : 'Create & Publish'}
-          </MotionButton>
+          {publicationStatusNote}
         </div>
         </>
       )}

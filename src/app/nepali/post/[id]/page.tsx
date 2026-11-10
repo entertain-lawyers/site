@@ -7,6 +7,7 @@ import { Metadata } from 'next';
 import { postMetadata } from '@/lib/seo';
 import { resolvePostAuthorForDisplay } from '@/lib/post-author';
 import { getPublishedNepaliPost } from './validate';
+import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 
 export const revalidate = 60;
 
@@ -120,33 +121,23 @@ export default async function NepaliPostDetailPage({ params }: { params: Promise
           </h1>
 
           <div className="flex items-center gap-4 py-6 border-y border-black/5 dark:border-white/5">
-            {post.author.image ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={post.author.image}
-                alt={post.author.name}
-                className="w-12 h-12 rounded-full object-cover border border-accent/30 shrink-0"
-              />
-            ) : (
-              <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-zinc-800 flex items-center justify-center text-sm font-bold text-navy dark:text-white shrink-0">
-                {post.author.initials || post.author.name.charAt(0) || 'EL'}
-              </div>
-            )}
+            <AuthorBioTrigger
+              author={post.author}
+              size="lg"
+              showName={false}
+              lang="ne"
+            />
             <div>
-              <p className="font-bold text-navy dark:text-white text-lg">
-                {post.author.website ? (
-                  <a
-                    href={post.author.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:text-accent transition-colors"
-                  >
-                    {post.author.name}
-                  </a>
-                ) : (
-                  post.author.name
-                )}
-              </p>
+              <AuthorBioTrigger
+                author={post.author}
+                showName
+                lang="ne"
+                nameClassName="text-lg font-bold text-navy dark:text-white font-nepali hover:text-accent"
+              >
+                <span className="font-bold text-navy dark:text-white text-lg font-nepali hover:text-accent transition-colors cursor-pointer">
+                  {post.author.name}
+                </span>
+              </AuthorBioTrigger>
               <p className="text-sm text-text-secondary font-nepali">
                 {post.author.role === 'ADMIN' ? 'प्रशासक' : 'सम्पादक'}
               </p>
@@ -173,33 +164,23 @@ export default async function NepaliPostDetailPage({ params }: { params: Promise
             लेखकको बारेमा
           </h2>
           <div className="flex items-start gap-4">
-            {post.author.image ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={post.author.image}
-                alt={post.author.name}
-                className="w-16 h-16 rounded-full object-cover border-2 border-accent/30 shrink-0"
-              />
-            ) : (
-              <div className="w-16 h-16 rounded-full bg-slate-200 dark:bg-zinc-800 flex items-center justify-center text-xl font-bold text-navy dark:text-white shrink-0">
-                {post.author.initials || post.author.name.charAt(0) || 'EL'}
-              </div>
-            )}
+            <AuthorBioTrigger
+              author={post.author}
+              size="lg"
+              showName={false}
+              lang="ne"
+            />
             <div className="min-w-0">
-              <p className="font-bold text-navy dark:text-white text-lg font-nepali">
-                {post.author.website ? (
-                  <a
-                    href={post.author.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:text-accent transition-colors"
-                  >
-                    {post.author.name}
-                  </a>
-                ) : (
-                  post.author.name
-                )}
-              </p>
+              <AuthorBioTrigger
+                author={post.author}
+                showName
+                lang="ne"
+                nameClassName="text-lg font-bold text-navy dark:text-white font-nepali hover:text-accent"
+              >
+                <span className="font-bold text-navy dark:text-white text-lg font-nepali hover:text-accent transition-colors cursor-pointer">
+                  {post.author.name}
+                </span>
+              </AuthorBioTrigger>
               <p className="mt-1 text-sm leading-relaxed text-text-secondary font-nepali">
                 {post.author.bio}
               </p>

@@ -5,11 +5,11 @@
  * sections: Profile Picture, Names, Contact Info, About, Account Management.
  * One "Update User" save that pushes everything via updateUserAction.
  */
-import { useMemo, useState, useRef } from 'react';
+import { useMemo, useState } from 'react';
 import { Role } from '@prisma/client';
-import { Camera, Loader2, Trash2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { initiateMediaUploadAction } from '@/modules/admin/admin-media.actions';
+import ImageUpload from '@/components/admin/ImageUpload';
 import { updateUserAction } from '@/modules/admin/admin-user.actions';
 import { AnimatePresence, Appear, MotionButton } from '@/components/motion/primitives';
 
@@ -37,8 +37,6 @@ interface WordPressAuthors {
   neError: string | null;
 }
 
-const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
-
 export default function UserEditClient({
   user,
   displayOptions,
@@ -49,7 +47,6 @@ export default function UserEditClient({
   wpAuthors: WordPressAuthors;
 }) {
   const router = useRouter();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [firstName, setFirstName] = useState(user.firstName || '');
   const [lastName, setLastName] = useState(user.lastName || '');
@@ -67,7 +64,6 @@ export default function UserEditClient({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   // Display-name choices — the live-typed candidates plus whatever still fits.
   const displayChoices = useMemo(() => {
@@ -84,48 +80,6 @@ export default function UserEditClient({
   }, [displayName, nickname, firstName, lastName, displayOptions, user.email]);
 
   const showPasswordFields = password.length > 0;
-
-  const handleAvatarFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-
-    setError('');
-    if (!ALLOWED_IMAGE_MIME_TYPES.has(file.type)) {
-      setError('Avatar must be a JPG, PNG, WebP, or GIF image');
-      return;
-    }
-    const mimeType = file.type as 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
-    if (file.size > 10 * 1024 * 1024) {
-      setError('Avatar must be under 10MB');
-      return;
-    }
-
-    setUploadingAvatar(true);
-    try {
-      const res = await initiateMediaUploadAction({
-        filename: file.name,
-        mimeType,
-        size: file.size,
-        type: 'PROFILE',
-      });
-      if (!res.success) throw new Error(res.error);
-
-      const uploadRes = await fetch(res.data.uploadUrl, {
-        method: 'PUT',
-        body: file,
-        headers: { 'Content-Type': file.type },
-      });
-      if (!uploadRes.ok) throw new Error('Failed to upload image');
-
-      setImage(res.data.publicUrl);
-      setSuccess('Image uploaded — press "Update User" to save it.');
-    } catch (err) {
-      setError((err as Error).message || 'Upload failed');
-    } finally {
-      setUploadingAvatar(false);
-    }
-  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -330,40 +284,18 @@ export default function UserEditClient({
         {/* ============================================================================
         Profile Picture */}
         <section className="bg-white dark:bg-zinc-900 rounded-2xl border border-black/5 dark:border-white/5 p-6 sm:p-8">
-          <h2 className="text-lg font-extrabold text-navy dark:text-white mb-6">Profile Picture</h2>
-          <div className="flex items-center gap-6">
-            {image ? (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img src={image} alt={`${displayName || user.email} profile`} className="h-20 w-20 rounded-full object-cover border border-black/10 dark:border-white/10" />
-            ) : (
-              <span className="flex h-20 w-20 items-center justify-center rounded-full bg-navy text-2xl font-bold text-white" aria-hidden="true">
-                {(displayName || user.email).charAt(0).toUpperCase()}
-              </span>
-            )}
-            <div className="flex flex-col gap-3">
-              <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={handleAvatarFile} className="hidden" />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingAvatar}
-                className="inline-flex items-center gap-2 border border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 hover:border-gold px-4 py-2.5 rounded-xl font-bold text-navy dark:text-white text-sm transition-colors disabled:opacity-60"
-              >
-                {uploadingAvatar ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Camera className="h-4 w-4" aria-hidden="true" />}
-                {uploadingAvatar ? 'Uploading...' : 'Choose Image'}
-              </button>
-              {image && (
-                <button
-                  type="button"
-                  onClick={() => setImage('')}
-                  className="inline-flex items-center gap-1.5 text-sm font-bold text-red-500 hover:text-red-600 min-h-[44px] justify-start"
-                >
-                  <Trash2 className="h-4 w-4" aria-hidden="true" /> Remove
-                </button>
-              )}
-            </div>
-          </div>
+          <ImageUpload
+            value={image}
+            onChange={(url) => {
+              setImage(url);
+              setSuccess('Image updated — press "Update User" to save it.');
+            }}
+            type="PROFILE"
+            label="Profile Picture"
+            aspectRatio={1}
+          />
           <p className="mt-4 text-xs text-text-secondary">
-            JPG, PNG, WebP, or GIF under 10MB. Removal takes effect after saving.
+            JPG, PNG, WebP, or GIF under 10MB. Use the crop tool to center and position the portrait before uploading.
           </p>
         </section>
 

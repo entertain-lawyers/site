@@ -28,26 +28,29 @@ const NEPALI_CARDS = [
 
 import { getWordPressPosts } from '@/lib/wordpress';
 import { batchResolvePostAuthorsForDisplay } from '@/lib/post-author';
+import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 
 export const revalidate = 60;
 
 export default async function NepaliLandingPage() {
-  const wpRes = await getWordPressPosts({ 
-    categories: [58, 56, 61], 
-    status: 'publish', 
-    lang: 'ne', 
+  const wpRes = await getWordPressPosts({
+    categories: [58, 56, 61],
+    status: 'publish',
+    lang: 'ne',
     perPage: 10,
+    orderBy: 'date',
+    order: 'desc',
     embed: true,
     fields: 'id,date,title,categories,_links,_embedded',
   });
 
   const resolvedAuthors = await batchResolvePostAuthorsForDisplay({ posts: wpRes.data, lang: 'ne' });
-  
+
   const recentPosts = wpRes.data.map((p) => {
     let mappedType = 'NEPALI_SAMANYA_SAMACHAR';
     if (p.categories.includes(56)) mappedType = 'NEPALI_ADALAT_SAMACHAR';
     else if (p.categories.includes(61) || p.categories.includes(60)) mappedType = 'NEPALI_BLOG_BICHAR';
-    
+
     const authorInfo = resolvedAuthors.get(String(p.id));
     return {
       id: String(p.id),
@@ -57,11 +60,14 @@ export default async function NepaliLandingPage() {
       author: {
         name: authorInfo?.name || 'सम्पादक',
         image: authorInfo?.image || null,
+        bio: authorInfo?.bio || null,
+        role: authorInfo?.role || null,
+        website: authorInfo?.website || null,
         initials: authorInfo?.initials || 'सम्पा',
       },
       featuredImage: p._embedded?.['wp:featuredmedia']?.[0]?.source_url || null
     };
-  });
+  }).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
   const getTypeLabel = (type: string) => {
     switch (type) {
@@ -91,6 +97,7 @@ export default async function NepaliLandingPage() {
             src="/wordmark_navy.png"
             alt="Entertain Lawyers - Connecting with Legal Updates"
             fill
+            sizes="(max-width: 640px) 280px, (max-width: 768px) 480px, 600px"
             className="object-contain dark:hidden"
             priority
           />
@@ -99,6 +106,7 @@ export default async function NepaliLandingPage() {
             src="/wordmark_white.png"
             alt="Entertain Lawyers - Connecting with Legal Updates"
             fill
+            sizes="(max-width: 640px) 280px, (max-width: 768px) 480px, 600px"
             className="object-contain hidden dark:block"
             priority
           />
@@ -164,24 +172,8 @@ export default async function NepaliLandingPage() {
                       {post.title}
                     </Link>
                   </h3>
-                  <div className="mt-auto pt-4 border-t border-black/5 dark:border-white/5 flex items-center justify-between text-sm text-text-muted">
-                    <div className="flex items-center gap-2 min-w-0">
-                      {post.author.image ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img
-                          src={post.author.image}
-                          alt={post.author.name}
-                          className="w-6 h-6 rounded-full object-cover shrink-0"
-                        />
-                      ) : (
-                        <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-700 flex items-center justify-center text-[10px] font-bold text-navy dark:text-white shrink-0">
-                          {post.author.initials?.charAt(0) || post.author.name.charAt(0) || 'EL'}
-                        </div>
-                      )}
-                      <span className="font-bold text-navy dark:text-white truncate max-w-[130px] font-nepali">
-                        {post.author.name}
-                      </span>
-                    </div>
+                  <div className="mt-auto pt-4 border-t border-black/5 dark:border-white/5 flex items-center justify-between text-sm text-text-muted gap-3">
+                    <AuthorBioTrigger author={post.author} size="xs" showName lang="ne" />
                     <time className="font-medium font-nepali shrink-0">{formatBSDate(post.createdAt)}</time>
                   </div>
                 </div>

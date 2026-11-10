@@ -147,7 +147,15 @@ export default async function AdminPostsPage({
     lang,
   });
 
-  const posts: AdminPostRow[] = (listResult?.data ?? []).map((p) => {
+  const rawPosts = listResult?.data ?? [];
+  // Ensure recently posted appear on top (newest date first)
+  const sortedPosts = [...rawPosts].sort((a, b) => {
+    const timeA = new Date(status === 'draft' ? (a.modified || a.date) : (a.date || a.modified)).getTime() || 0;
+    const timeB = new Date(status === 'draft' ? (b.modified || b.date) : (b.date || b.modified)).getTime() || 0;
+    return timeB - timeA;
+  });
+
+  const posts: AdminPostRow[] = sortedPosts.map((p) => {
     const type = mapCategoryToType(p.categories, lang);
     const isModified = p.modified && p.modified !== p.date;
     // `_embed` payload typing is deliberately loose in the WP lib — normalize here.
@@ -156,10 +164,19 @@ export default async function AdminPostsPage({
       'wp:term'?: Array<Array<{ name?: string }>>;
     } | undefined;
     const authorRaw = Array.isArray(embedded?.author) ? embedded.author[0] : undefined;
+    const authorDetails = resolvedAuthors.get(String(p.id));
     const authorName =
-      resolvedAuthors.get(String(p.id))?.name ||
+      authorDetails?.name ||
       (authorRaw && typeof authorRaw === 'object' ? authorRaw?.name : undefined) ||
       `WP Author (${p.author})`;
+    const author = {
+      name: authorName,
+      image: authorDetails?.image || null,
+      bio: authorDetails?.bio || null,
+      role: authorDetails?.role || null,
+      website: authorDetails?.website || null,
+      initials: authorDetails?.initials || null,
+    };
     const catNames =
       embedded?.['wp:term']?.[0]
         ?.map((c) => c?.name)
@@ -177,6 +194,7 @@ export default async function AdminPostsPage({
       type,
       status: p.status === 'publish' ? 'PUBLISHED' : p.status === 'trash' ? 'TRASH' : 'DRAFT',
       authorName,
+      author,
       categories: catNames,
       dateHeadline: isModified ? 'Last Modified' : 'Published',
       dateValue: new Date(isModified ? p.modified : p.date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),

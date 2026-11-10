@@ -771,7 +771,8 @@ test.describe('Rich Text Editor workspace', () => {
     await expect(subjectSelect).toBeEnabled({ timeout: 20_000 });
     await subjectSelect.selectOption({ index: 1 });
 
-    await page.getByRole('button', { name: 'Save as Draft' }).click();
+    // Use the header action bar button to avoid strict mode violation with sidebar duplicate.
+    await page.locator('.resource-action-buttons button[name="status"][value="DRAFT"]').first().click();
     await page.waitForURL(/\/admin\/study\/resources\/.+\/edit/, { timeout: 120_000 });
 
     // Track ID
@@ -826,7 +827,8 @@ test.describe('Rich Text Editor workspace', () => {
     await page.keyboard.type(' ' + NEPALI_CANARY + ' EDITED');
     await expect(page.locator('.editor-wrapper .ql-editor')).toContainText(NEPALI_CANARY);
     await expect(page.locator('.editor-wrapper .ql-editor')).toContainText('EDITED');
-    await page.getByRole('button', { name: 'Save as Draft' }).click();
+    // Use the header action bar button to avoid strict mode violation with sidebar duplicate.
+    await page.locator('.resource-action-buttons button[name="status"][value="DRAFT"]').first().click();
     await expect(page.getByText(/saved as draft!/i)).toBeVisible({ timeout: 30_000 });
 
     await page.reload({ waitUntil: 'load' });

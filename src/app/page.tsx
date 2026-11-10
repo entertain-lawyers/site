@@ -59,6 +59,7 @@ export default async function HomePage() {
             src="/wordmark_navy.png"
             alt={config.heroHeading}
             fill
+            sizes="(max-width: 640px) 280px, (max-width: 768px) 480px, 600px"
             className="object-contain dark:hidden"
             priority
           />
@@ -67,6 +68,7 @@ export default async function HomePage() {
             src="/wordmark_white.png"
             alt={config.heroHeading}
             fill
+            sizes="(max-width: 640px) 280px, (max-width: 768px) 480px, 600px"
             className="object-contain hidden dark:block"
             priority
           />
