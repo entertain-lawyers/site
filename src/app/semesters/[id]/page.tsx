@@ -11,6 +11,8 @@ import { Reveal } from '@/components/motion/primitives';
 import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 import { ResourceType } from '@prisma/client';
 
+export const revalidate = 60;
+
 interface PageProps {
   params: Promise<{ id: string }>;
   searchParams?: Promise<{ type?: string }>;

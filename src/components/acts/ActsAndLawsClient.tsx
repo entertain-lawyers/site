@@ -387,13 +387,26 @@ export default function ActsAndLawsClient({ initialActs }: ActsAndLawsClientProp
             </div>
 
             {/* Embedded PDF Viewer */}
-            <div className="flex-1 w-full bg-zinc-800 relative">
+            <div className="flex-1 w-full bg-zinc-800 relative flex flex-col">
               {viewingAct.documentUrl ? (
-                <iframe
-                  src={`${viewingAct.documentUrl}#toolbar=1&navpanes=0`}
-                  title={viewingAct.title}
-                  className="w-full h-full border-none"
-                />
+                <>
+                  <div className="bg-amber-500/10 dark:bg-amber-500/20 border-b border-amber-500/20 px-4 py-2 flex items-center justify-between text-xs text-amber-800 dark:text-amber-200">
+                    <span className="truncate">Official legal document. If preview does not appear, open it in a new tab.</span>
+                    <a
+                      href={viewingAct.documentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 font-bold underline ml-2 shrink-0 hover:text-amber-950 dark:hover:text-white"
+                    >
+                      Open in new tab <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                    </a>
+                  </div>
+                  <iframe
+                    src={`${viewingAct.documentUrl}#toolbar=1&navpanes=0`}
+                    title={viewingAct.title}
+                    className="w-full flex-1 border-none"
+                  />
+                </>
               ) : (
                 <div className="flex h-full items-center justify-center text-white/70 text-sm">
                   PDF document preview unavailable

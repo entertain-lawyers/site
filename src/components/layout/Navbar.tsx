@@ -253,12 +253,12 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
                   onClick={() => { setIsExploreOpen(!isExploreOpen); setIsStudyOpen(false); }}
                   onKeyDown={handleExploreKeyDown}
                   className={`relative isolate flex items-center gap-1 px-5 py-2 rounded-full text-[14px] font-bold transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-                    ['/events', '/faqs', '/blogs', '/news', '/historical-facts', '/consultation'].some(p => pathname?.startsWith(p))
+                    ['/events', '/faqs', '/blogs', '/news', '/historical-facts', '/consultation', '/acts-and-laws'].some(p => pathname?.startsWith(p))
                       ? 'text-accent'
                       : 'text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5'
                   }`}
                 >
-                  {['/events', '/faqs', '/blogs', '/news', '/historical-facts', '/consultation'].some(p => pathname?.startsWith(p)) && <NavPill />}
+                  {['/events', '/faqs', '/blogs', '/news', '/historical-facts', '/consultation', '/acts-and-laws'].some(p => pathname?.startsWith(p)) && <NavPill />}
                   Explore
                   <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExploreOpen ? 'rotate-180 text-accent' : 'text-text-muted'}`} />
                 </button>
@@ -267,6 +267,7 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
                 {isExploreOpen && (
                   <PopoverPanel key="explore" className="absolute top-full left-32 pt-2 z-50">
                     <div className="w-56 bg-surface dark:bg-zinc-950 rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:shadow-2xl border border-border dark:border-white/10 py-1.5 flex flex-col">
+                      <Link href="/acts-and-laws" prefetch={true} className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 dark:hover:bg-white/5 transition-colors">Acts &amp; Laws</Link>
                       <Link href="/calculator" prefetch={true} className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 dark:hover:bg-white/5 transition-colors">Court Fee Calculator</Link>
                       <Link href="/consultation" prefetch={true} className="flex items-center px-5 py-3 text-sm font-medium text-text-secondary hover:text-accent hover:bg-accent/5 dark:hover:bg-white/5 transition-colors">Consult a Lawyer</Link>
                       <div className="h-px bg-border dark:bg-white/10 my-1" />
