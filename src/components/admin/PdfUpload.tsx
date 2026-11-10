@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { Upload, FileText, CheckCircle2, AlertCircle, X, ExternalLink, Loader2 } from 'lucide-react';
+import { FileText, CheckCircle2, AlertCircle, X, ExternalLink, Loader2 } from 'lucide-react';
 import { initiateMediaUploadAction } from '@/modules/admin/admin-media.actions';
 
 interface PdfUploadProps {
