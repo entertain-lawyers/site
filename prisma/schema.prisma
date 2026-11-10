@@ -648,3 +648,23 @@ model ConsultationRequest {
   @@index([phone])
   @@index([lawyerId])
 }
+
+model ActLaw {
+  id          String        @id @default(uuid())
+  title       String
+  titleEn     String?
+  slug        String        @unique
+  category    String        // CONSTITUTION, ACTS, RULES_REGULATIONS, ORDINANCE, POLICIES, INTERNATIONAL_TREATIES, HISTORICAL_DOCUMENTS, OTHERS
+  description String?
+  documentUrl String?
+  fileSize    Int?
+  publishDate DateTime?
+  status      ContentStatus @default(PUBLISHED)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([category, status])
+  @@index([title])
+  @@index([status, createdAt])
+}
+

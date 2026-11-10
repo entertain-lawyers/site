@@ -60,9 +60,9 @@ export async function PUT(request: Request) {
     return new NextResponse('MIME type mismatch', { status: 400 });
   }
 
-  // Validate File Size (10MB limit already checked conceptually, but enforce it on buffer)
+  // Validate File Size (10MB for images, 50MB for PDFs)
   const contentLength = Number(request.headers.get('content-length')) || 0;
-  if (contentLength > 10 * 1024 * 1024) {
+  if (contentLength > 50 * 1024 * 1024) {
     return new NextResponse('Payload too large', { status: 413 });
   }
 
