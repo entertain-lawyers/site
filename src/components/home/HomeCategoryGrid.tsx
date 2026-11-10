@@ -37,7 +37,7 @@ export function HomeCategoryGrid() {
     {
       title: "ACTS AND LAWS",
       subtitle: "Browse Nepal's acts and laws",
-      href: "/resources",
+      href: "/acts-and-laws",
       icon: Gavel,
     },
     {

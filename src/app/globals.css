@@ -626,18 +626,17 @@
   }
 }
 
-/* Resource NOTE mode follows the document flow so the Quill toolbar can use
-   native sticky positioning. Keep the legacy fixed-height workspace for PDF
-   mode, and release only the page/card constraints when NOTE mode is active. */
+/* Resource page follows document flow so the Quill toolbar and metadata
+   sidebar can use native sticky positioning. */
 @media (min-width: 64rem) {
-  [data-resource-page-shell]:has([data-resource-scroll-mode="document"]) {
+  [data-resource-page-shell] {
     height: auto !important;
     min-height: 100dvh !important;
     overflow: visible !important;
   }
 
-  [data-resource-page-shell]:has([data-resource-scroll-mode="document"]) > [data-resource-form-card] {
-    flex: none !important;
+  [data-resource-page-shell] > [data-resource-form-card] {
+    flex: 1 1 auto !important;
     min-height: 0 !important;
     overflow: visible !important;
   }

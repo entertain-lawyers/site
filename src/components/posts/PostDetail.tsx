@@ -9,6 +9,7 @@ import { articleFont } from './article-font';
 import type { LatestPost } from './LatestPostsSidebar';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
 import { sanitizeHtml } from '@/lib/sanitize';
+import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 
 export interface PostAuthor {
   email: string;
@@ -70,7 +71,6 @@ export default function PostDetail({
 }) {
   const featuredImage = post.featuredImage || extractFirstImage(post.content);
   const authorName = post.author.name?.trim() || 'Entertain Lawyers';
-  const authorInitial = authorName.charAt(0).toUpperCase();
 
   const formatLongDate = (d: Date) =>
     d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -111,35 +111,7 @@ export default function PostDetail({
               </h1>
 
               <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 pb-5 text-sm text-text-muted">
-                <span className="inline-flex items-center gap-2">
-                  {post.author.image ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img
-                      src={post.author.image}
-                      alt={authorName}
-                      className="h-7 w-7 rounded-full object-cover border border-gold/40"
-                    />
-                  ) : (
-                    <span
-                      className="flex h-7 w-7 items-center justify-center rounded-full bg-navy text-[11px] font-bold text-white"
-                      aria-hidden="true"
-                    >
-                      {authorInitial}
-                    </span>
-                  )}
-                  {post.author.website ? (
-                    <a
-                      href={post.author.website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-bold text-navy dark:text-white hover:text-gold transition-colors"
-                    >
-                      {authorName}
-                    </a>
-                  ) : (
-                    <span className="font-bold text-navy dark:text-white">{authorName}</span>
-                  )}
-                </span>
+                <AuthorBioTrigger author={post.author} size="sm" showName />
                 <span className="inline-flex items-center gap-1.5">
                   <Clock className="h-4 w-4" aria-hidden="true" />
                   <time dateTime={post.createdAt.toISOString()}>{formatLongDate(post.createdAt)}</time>
@@ -181,36 +153,17 @@ export default function PostDetail({
             <section aria-labelledby="about-author-heading" className="mt-8 border border-border bg-surface">
               <SectionBar id="about-author-heading">About Author</SectionBar>
               <div className="flex items-start gap-4 p-5">
-                {post.author.image ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={post.author.image}
-                    alt={authorName}
-                    className="h-16 w-16 shrink-0 rounded-full border-2 border-gold/40 object-cover"
-                  />
-                ) : (
-                  <div
-                    className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-2 border-gold/40 bg-navy text-xl font-bold text-white"
-                    aria-hidden="true"
-                  >
-                    {authorInitial}
-                  </div>
-                )}
+                <AuthorBioTrigger author={post.author} size="lg" showName={false} />
                 <div className="min-w-0">
-                  <p className="font-bold text-navy dark:text-white text-base">
-                    {post.author.website ? (
-                      <a
-                        href={post.author.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="hover:text-gold transition-colors"
-                      >
-                        {authorName}
-                      </a>
-                    ) : (
-                      authorName
-                    )}
-                  </p>
+                  <AuthorBioTrigger
+                    author={post.author}
+                    showName
+                    nameClassName="text-base text-navy dark:text-white hover:text-gold"
+                  >
+                    <span className="font-bold text-navy dark:text-white text-base hover:text-gold transition-colors cursor-pointer">
+                      {authorName}
+                    </span>
+                  </AuthorBioTrigger>
                   <p className="mt-1 text-sm leading-relaxed text-text-secondary">
                     {post.author.bio || AUTHOR_BIO}
                   </p>

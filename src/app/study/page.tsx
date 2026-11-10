@@ -13,6 +13,7 @@ import { BookOpen, Scale, FileQuestion, Library, ArrowRight, Lock } from 'lucide
 import { SYLLABUS_CONFIG, normalizeSubjectName } from '@/lib/syllabus-config';
 import { searchMatches } from '@/lib/translit-search';
 import { Reveal } from '@/components/motion/primitives';
+import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 
 export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
   const params = await searchParams;
@@ -108,7 +109,12 @@ const getCachedResourceList = unstable_cache(
     const resourceType = Object.values(ResourceType).find((t) => t === rawType);
     return prisma.resource.findMany({
       where: { status: 'PUBLISHED',
-        ...(semesterId && (resourceType === 'OLD_QUESTION' ? { semesterId } : { subject: { semesterId } })),
+        ...(semesterId && {
+          OR: [
+            { semesterId },
+            { subject: { semesterId } },
+          ],
+        }),
         ...(subjectId && { subjectId }),
         ...(unitId && { unitId }),
         ...(resourceType && { type: resourceType }),
@@ -126,6 +132,8 @@ const getCachedResourceList = unstable_cache(
         semester: { select: { name: true } },
         subject: { select: { name: true, semester: { select: { name: true } } } },
         unit: { select: { name: true } },
+        author: { select: { name: true, image: true, bio: true, role: true, website: true, email: true } },
+        createdBy: { select: { name: true, image: true, bio: true, role: true, website: true, email: true } },
       },
       orderBy: [
         { subject: { order: 'asc' } },
@@ -373,11 +381,20 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {resources.map((resource, i) => {
                 const Icon = iconMap[resource.type] || Library;
+                const authorUser = resource.author ?? resource.createdBy;
+                const resourceAuthor = {
+                  name: authorUser?.name || 'Entertain Lawyers',
+                  image: authorUser?.image || null,
+                  bio: authorUser?.bio || 'Entertain Lawyers provides comprehensive law notes, old questions, case laws, and study resources for law students and legal practitioners in Nepal.',
+                  role: authorUser?.role ? (authorUser.role === 'ADMIN' ? 'Administrator' : authorUser.role === 'EDITOR' ? 'Editor' : 'Contributor') : 'Editorial Team',
+                  website: authorUser?.website || null,
+                  email: authorUser?.email || null,
+                };
+
                 return (
                   <Reveal key={resource.id} index={i} perRow={3} lift className="h-full">
-                  <Link
-                    href={`/resources/${resource.id}`}
-                    className="group flex flex-col bg-surface border border-border rounded-2xl hover:border-accent hover:shadow-[0_8px_30px_rgba(var(--color-accent),0.12)] transition-[box-shadow,border-color,background-color] duration-300 p-6 h-full relative overflow-hidden"
+                  <div
+                    className="group relative flex flex-col bg-surface border border-border rounded-2xl hover:border-accent hover:shadow-[0_8px_30px_rgba(var(--color-accent),0.12)] transition-[box-shadow,border-color,background-color] duration-300 p-6 h-full overflow-hidden"
                   >
                     {/* Top Accent Bar */}
                     <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent/40 to-accent/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -414,7 +431,10 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
                     </div>
 
                     <h3 className="text-lg font-bold text-navy dark:text-white group-hover:text-accent transition-colors mb-4 line-clamp-2 leading-tight">
-                      {resource.title}
+                      <Link href={`/resources/${resource.id}`} className="focus:outline-none">
+                        <span className="absolute inset-0" aria-hidden="true" />
+                        {resource.title}
+                      </Link>
                     </h3>
 
                     <div className="mt-auto space-y-2 mb-6">
@@ -450,12 +470,15 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
                     </div>
 
                     <div className="mt-auto pt-5 border-t border-border flex justify-between items-center group-hover:border-accent/30 transition-colors">
-                      <span className="text-sm font-bold text-accent">
-                        {resource.type === 'LAW_NOTE' ? 'Read Note' : resource.type === 'CASE_LAW' ? 'Read Case' : resource.type === 'OLD_QUESTION' ? 'View Question' : dict.readMore}
-                      </span>
-                      <ArrowRight className="w-4 h-4 text-accent opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
+                      <AuthorBioTrigger author={resourceAuthor} size="xs" showName />
+                      <div className="flex items-center gap-1 text-sm font-bold text-accent">
+                        <span>
+                          {resource.type === 'LAW_NOTE' ? 'Read Note' : resource.type === 'CASE_LAW' ? 'Read Case' : resource.type === 'OLD_QUESTION' ? 'View Question' : dict.readMore}
+                        </span>
+                        <ArrowRight className="w-4 h-4 text-accent opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
+                      </div>
                     </div>
-                  </Link>
+                  </div>
                   </Reveal>
                 );
               })}

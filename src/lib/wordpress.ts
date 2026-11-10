@@ -257,8 +257,16 @@ async function fetchWordPress<T>(
     }
     if (options.slug) url.searchParams.set('slug', options.slug);
     if (options.status) url.searchParams.set('status', options.status);
-    if (options.order) url.searchParams.set('order', options.order);
-    if (options.orderBy) url.searchParams.set('orderby', options.orderBy);
+    if (options.order) {
+      url.searchParams.set('order', options.order);
+    } else if (endpoint.startsWith('/posts')) {
+      url.searchParams.set('order', 'desc');
+    }
+    if (options.orderBy) {
+      url.searchParams.set('orderby', options.orderBy);
+    } else if (endpoint.startsWith('/posts')) {
+      url.searchParams.set('orderby', 'date');
+    }
     if (options.embed) url.searchParams.set('_embed', 'true');
     if (options.fields) url.searchParams.set('_fields', options.fields);
     for (const [key, value] of Object.entries(options.params ?? {})) url.searchParams.set(key, value);

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { LayoutDashboard, FileText, Database, Users, Settings, LogOut, Globe, History, Menu, X, MessageSquare, Brain, LayoutTemplate, Images, BookOpen, ShieldCheck, Home, ArrowRightLeft, Scale } from 'lucide-react';
+import { LayoutDashboard, FileText, Database, Users, Settings, LogOut, Globe, History, Menu, X, MessageSquare, Brain, LayoutTemplate, Images, BookOpen, ShieldCheck, Home, ArrowRightLeft, Scale, Scroll } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { AnimatePresence, Backdrop, m } from '@/components/motion/primitives';
 import { springSnappy } from '@/lib/motion';
@@ -62,6 +62,7 @@ export default function AdminSidebar({
     { name: 'Consultations', href: '/admin/consultations', icon: MessageSquare, roles: ['ADMIN', 'EDITOR'], badge: pendingConsultations },
     { name: 'Consult Lawyers', href: '/admin/lawyers', icon: Scale, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Posts', href: '/admin/posts', icon: FileText, roles: ['ADMIN', 'EDITOR'] },
+    { name: 'Acts & Laws', href: '/admin/acts', icon: Scroll, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Visual Pages', href: '/admin/pages', icon: LayoutTemplate, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Events', href: '/admin/events', icon: FileText, roles: ['ADMIN', 'EDITOR'] },
     { name: 'FAQs', href: '/admin/faqs', icon: FileText, roles: ['ADMIN', 'EDITOR'] },
@@ -88,7 +89,7 @@ export default function AdminSidebar({
     { label: 'Overview', names: ['Dashboard'] },
     { label: 'Requests', names: ['Consultations', 'Consult Lawyers'] },
     { label: 'Resources', names: ['Resources', 'Case Laws', 'Semesters', 'Subjects', 'Units'] },
-    { label: 'Publishing', names: ['Posts', 'Visual Pages', 'Events', 'FAQs', 'Gallery', 'Publications', 'Team'] },
+    { label: 'Publishing', names: ['Posts', 'Acts & Laws', 'Visual Pages', 'Events', 'FAQs', 'Gallery', 'Publications', 'Team'] },
     { label: 'Site Control', names: ['Site Settings', 'Homepage', 'Redirects'] },
     { label: 'System', names: ['Users & Roles', 'Protection Center', 'Audit Logs', 'AI Index'] },
   ];

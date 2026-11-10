@@ -25,8 +25,8 @@ export default function DeleteResourceButton({ id }: { id: string }) {
         }
         router.refresh();
       }
-    } catch (err: any) {
-      alert(err.message || 'An error occurred');
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }

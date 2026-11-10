@@ -22,6 +22,7 @@ const MIXED_MARKER = 'ARN-E2E-PARTITION-2244';
 
 let client: import('@prisma/client').PrismaClient | null = null;
 let seededLawyerId = '';
+let seededLawyerSlug = '';
 let submittedRequestId = '';
 
 test.beforeAll(async () => {
@@ -33,11 +34,12 @@ test.beforeAll(async () => {
   await client.consultationLawyer.deleteMany({ where: { name: { startsWith: LAWYER_NAME } } });
   // Generate a valid UUID for the lawyer ID
   const lawyerId = crypto.randomUUID();
+  seededLawyerSlug = `e2e-consult-advocate-${Date.now()}`;
   const lawyer = await client.consultationLawyer.create({
     data: {
       id: lawyerId,
       name: LAWYER_NAME,
-      slug: `e2e-consult-advocate-${Date.now()}`,
+      slug: seededLawyerSlug,
       title: 'Senior Advocate',
       licenseNumber: 'E2E-LIC-007',
       specialization: 'Constitutional and family law',
@@ -85,7 +87,7 @@ function seededCard(page: Page) {
 }
 
 function bookingForm(page: Page) {
-  return page.locator('#booking-form');
+  return page.locator('form');
 }
 
 test.describe('Consult a Lawyer discovery', () => {
@@ -98,73 +100,62 @@ test.describe('Consult a Lawyer discovery', () => {
     await expect(card.locator('[class*="aspect-[4/5]"]')).toHaveCount(1);
     await expect(card).toContainText(LAWYER_NAME);
     await expect(card).toContainText('Senior Advocate');
-    await expect(card).toContainText('Constitutional law'); // primary specialization
     await expect(card).toContainText('Lalitpur'); // service location
-    // No biography or contact channels on the collapsed card.
+    // Specialization, biography or contact channels kept off the card.
+    await expect(card).not.toContainText('Constitutional and family law');
     await expect(card).not.toContainText('+977 9800000001');
     await expect(card).not.toContainText('Pulchowk, Lalitpur');
-    // ONE primary action; no links (team page leaves links out entirely).
-    await expect(card.getByRole('button')).toHaveCount(1);
-    await expect(card.getByRole('button')).toContainText('View More');
-    await expect(card.getByRole('link')).toHaveCount(0);
+    // ONE primary action: "View More / Consult" navigating to dedicated profile page.
+    const action = card.getByRole('button', { name: /View More \/ Consult/i });
+    await expect(action).toHaveCount(1);
+    await expect(action).toContainText('View More / Consult');
+    await expect(action).toHaveAttribute('href', `/consultation/${seededLawyerSlug}`);
   });
 
-  test('the single action expands the full profile inline and collapse restores the grid', async ({ page }) => {
+  test('clicking View More / Consult navigates to the dedicated lawyer profile page in a new page', async ({ page }) => {
     await page.goto('/consultation', { waitUntil: 'load' });
     await page.waitForSelector('article');
     const card = seededCard(page);
-    await card.getByRole('button').click();
+    await card.getByRole('button', { name: /View More \/ Consult/i }).click();
 
+    await expect(page).toHaveURL(`/consultation/${seededLawyerSlug}`);
     const panel = page.locator('#consult-lawyer-profile');
     await expect(panel).toBeVisible();
     await expect(panel).toContainText(LAWYER_NAME);
-    // LEFT/TOP identity block.
+    // Identity block.
     await expect(panel).toContainText('Senior Advocate · E2E-LIC-007');
     await expect(panel).toContainText('E2E Chambers LLP');
-    // MAIN profile details — only sections with backend data.
+    // Profile details.
     await expect(panel.getByRole('heading', { name: LAWYER_NAME })).toBeVisible();
     await expect(panel).toContainText('B.A. LL.B. (Hons)');
     await expect(panel).toContainText('E2E Moot Court champion');
     await expect(panel).toContainText('Pulchowk, Lalitpur');
-    // Direct-call contact link uses a tel: href (not visible text).
-    await expect(panel.locator('a[href="tel:+9779800000001"]')).toHaveCount(1);
-    // Empty sections stay hidden (no bio seeded for this lawyer), while the
+    // Direct-call contact links (one in Contacts card, one in Direct Call CTA button).
+    await expect(panel.locator('a[href="tel:+9779800000001"]')).toHaveCount(2);
     // WhatsApp channel correctly derives from the seeded phone number.
-    await expect(panel.getByText('About', { exact: true })).toHaveCount(0);
     await expect(panel.locator('a[href*="wa.me/9779800000001"]')).toHaveCount(1);
-    // Prominent booking CTA inside the profile.
-    await expect(panel.getByRole('button', { name: /Book a Consultation/ })).toHaveCount(1);
-
-    // Collapse: pressing Escape closes the panel and restores the toggle label.
-    await page.keyboard.press('Escape');
-    await expect(panel).toHaveCount(0);
-    await expect(card.getByRole('button')).toContainText('View More');
+    // Prominent booking CTA inside the profile linking to the dedicated booking page.
+    const bookCta = panel.getByRole('link', { name: /Book a Consultation/ });
+    await expect(bookCta).toHaveCount(1);
+    await expect(bookCta).toHaveAttribute('href', `/consultation/${seededLawyerSlug}/book`);
   });
 
-  test('Book a Consultation in the expanded profile opens the form with the lawyer preselected', async ({ page }) => {
-    await page.goto('/consultation', { waitUntil: 'load' });
-    await page.waitForSelector('article');
-    const card = seededCard(page);
-    await card.getByRole('button').click();
+  test('Book a Consultation in the profile opens the dedicated booking page with the lawyer preselected', async ({ page }) => {
+    await page.goto(`/consultation/${seededLawyerSlug}`, { waitUntil: 'load' });
     const panel = page.locator('#consult-lawyer-profile');
-    await panel.getByRole('button', { name: /Book a Consultation/ }).click();
+    await panel.getByRole('link', { name: /Book a Consultation/ }).click();
 
+    await expect(page).toHaveURL(`/consultation/${seededLawyerSlug}/book`);
     const form = bookingForm(page);
-    await expect(form).toBeInViewport();
-    await expect(form.getByText(`Advocate ${LAWYER_NAME}`)).toBeVisible();
+    await expect(form).toBeVisible();
+    await expect(page.getByRole('heading', { name: `Advocate ${LAWYER_NAME}` })).toBeVisible();
     await expect(form).toContainText('Selected advocate:');
-    // The form keeps the selection: the booking submit must carry it.
-    await expect(card).toHaveClass(/border-accent/);
   });
 
   test('required field validation blocks an empty submission', async ({ page }) => {
-    await page.goto('/consultation', { waitUntil: 'load' });
-    await page.waitForSelector('article');
-    const card = seededCard(page);
-    await card.getByRole('button').click();
-    await page.locator('#consult-lawyer-profile').getByRole('button', { name: /Book a Consultation/ }).click();
+    await page.goto(`/consultation/${seededLawyerSlug}/book`, { waitUntil: 'load' });
 
-    const form = bookingForm(page).locator('form');
+    const form = bookingForm(page);
     await expect(form).toBeVisible();
     const valid = await form.evaluate((el: HTMLFormElement) => el.checkValidity());
     expect(valid).toBe(false);
@@ -183,21 +174,25 @@ test.describe('Consult a Lawyer discovery', () => {
 
 test.describe('Consult a Lawyer booking', () => {
   test('a Nepali/mixed-language submission creates a real request bound to the selected lawyer', async ({ page }) => {
-    await page.goto('/consultation', { waitUntil: 'load' });
-    await page.waitForSelector('article');
-    const card = seededCard(page);
-    await card.getByRole('button').click();
-    await page.locator('#consult-lawyer-profile').getByRole('button', { name: /Book a Consultation/ }).click();
+    await page.goto(`/consultation/${seededLawyerSlug}/book`, { waitUntil: 'load' });
 
     const form = bookingForm(page);
-    await expect(form).toBeInViewport();
+    await expect(form).toBeVisible();
     const fullName = `${CLIENT_NAME} Sub`;
-    await form.locator('input[autocomplete="name"]').fill(fullName);
-    await form.locator('input[type="tel"]').first().fill('+977 9800000002');
-    await form.locator('input[type="tel"]').nth(1).fill('+977 9800000002');
-    await form.locator('input[autocomplete="street-address"]').fill('Lalitpur ward 4, Nepal');
+    const nameInput = form.getByPlaceholder('Your full name');
+    await expect(nameInput).toBeVisible();
+    await page.waitForLoadState('networkidle');
+    await nameInput.click();
+    await nameInput.fill(fullName);
+    if ((await nameInput.inputValue()) !== fullName) {
+      await nameInput.fill(fullName);
+    }
+    await expect(nameInput).toHaveValue(fullName);
+    await form.getByPlaceholder('+977 98XXXXXXXX').first().fill('+977 9800000002');
+    await form.getByPlaceholder('+977 98XXXXXXXX').nth(1).fill('+977 9800000002');
+    await form.getByPlaceholder('District, city or municipality').fill('Lalitpur ward 4, Nepal');
     await form.getByPlaceholder('Where you currently stay').fill('Kathmandu hostel, Nepal');
-    await form.locator('textarea').fill(`${NEPALI_MARKER}. Please help with the family partition matter ${MIXED_MARKER}.`);
+    await form.getByPlaceholder(/write your legal problem here/i).fill(`${NEPALI_MARKER}. Please help with the family partition matter ${MIXED_MARKER}.`);
 
     const submit = form.getByRole('button', { name: /Submit/i });
     await submit.click();
@@ -223,9 +218,8 @@ test.describe('Consult a Lawyer booking', () => {
 
     // Duplicate submissions are prevented after success: the form is replaced
     // by the confirmation (no double-submit possible) with an explicit reset.
-    // #booking-form is the persistent section; the <form> inside it is gone.
-    await expect(form.locator('form')).toHaveCount(0);
-    await expect(form).toContainText('Submit another request');
+    await expect(page.locator('form')).toHaveCount(0);
+    await expect(page.getByRole('status')).toContainText('Submit another request');
   });
 
   test('administrators can review the request, read the description, and update its status', async ({ page }) => {

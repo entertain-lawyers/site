@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { getWordPressPosts } from '@/lib/wordpress';
 import Link from 'next/link';
-import Image from 'next/image';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
 import type { Metadata } from 'next';
 import { Reveal } from '@/components/motion/primitives';
+import { batchResolvePostAuthorsForDisplay } from '@/lib/post-author';
+import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 
 export const metadata: Metadata = {
   title: 'Historical Facts',
@@ -14,15 +16,40 @@ export const metadata: Metadata = {
 export const revalidate = 60;
 
 export default async function HistoricalFactsSubPage() {
-  const wpRes = await getWordPressPosts({ categories: [78], status: 'publish', lang: 'en', perPage: 20, embed: true, fields: 'id,date,title,content,_links,_embedded' });
-  const posts = wpRes.data.map(p => ({
-    id: String(p.id),
-    title: p.title.rendered,
-    type: 'FACT',
-    content: p.content.rendered,
-    createdAt: new Date(p.date),
-    featuredImage: (p as any)._embedded?.['wp:featuredmedia']?.[0]?.source_url || null
-  }));
+  const wpRes = await getWordPressPosts({
+    categories: [78],
+    status: 'publish',
+    lang: 'en',
+    perPage: 20,
+    orderBy: 'date',
+    order: 'desc',
+    embed: true,
+    fields: 'id,date,title,content,_links,_embedded'
+  });
+
+  const resolvedAuthors = await batchResolvePostAuthorsForDisplay({ posts: wpRes.data, lang: 'en' });
+
+  const posts = wpRes.data
+    .map(p => {
+      const authorInfo = resolvedAuthors.get(String(p.id));
+      return {
+        id: String(p.id),
+        title: p.title.rendered,
+        type: 'FACT',
+        content: p.content.rendered,
+        createdAt: new Date(p.date),
+        author: {
+          name: authorInfo?.name || 'Entertain Lawyers',
+          image: authorInfo?.image || null,
+          bio: authorInfo?.bio || null,
+          role: authorInfo?.role || null,
+          website: authorInfo?.website || null,
+          initials: authorInfo?.initials || 'EL',
+        },
+        featuredImage: (p as any)._embedded?.['wp:featuredmedia']?.[0]?.source_url || null
+      };
+    })
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
   return (
     <div className="min-h-screen bg-background py-16">
@@ -63,8 +90,9 @@ export default async function HistoricalFactsSubPage() {
                     </Link>
                   </h3>
                 </div>
-                <div className="mt-6">
-                  <span className="text-accent font-bold text-sm uppercase tracking-wider group-hover:text-accent-dark transition-colors flex items-center">
+                <div className="mt-6 pt-4 border-t border-border flex items-center justify-between gap-3">
+                  <AuthorBioTrigger author={post.author} size="xs" showName />
+                  <span className="text-accent font-bold text-sm uppercase tracking-wider group-hover:text-accent-dark transition-colors flex items-center shrink-0">
                     READ MORE &raquo;
                   </span>
                 </div>

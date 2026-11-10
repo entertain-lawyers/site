@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { LawyerCard, LawyerProfilePanel } from '../ConsultationClient';
+import { LawyerCard } from '../ConsultationClient';
+import LawyerProfileView from '../LawyerProfileView';
 import ConsultationForm from '../ConsultationForm';
 import type { ConsultationLawyer } from '../ConsultationForm';
 
@@ -32,38 +33,28 @@ const lawyer: ConsultationLawyer = {
 
 describe('Consult a Lawyer public profile', () => {
   it('renders a team-style directory card with a 4/5 portrait and essential info only', () => {
-    const html = renderToStaticMarkup(<LawyerCard lawyer={lawyer} onToggle={vi.fn()} />);
+    const html = renderToStaticMarkup(<LawyerCard lawyer={lawyer} />);
     expect(html).toContain('Sita Sharma');
     expect(html).toContain('Advocate');
-    expect(html).toContain('Divorce');
     expect(html).toContain('Kathmandu, Pokhara');
     expect(html).toContain('aspect-[4/5]');
-    // Biography and contact channels stay out of the collapsed card.
+    // Specialization, biography and contact channels stay out of the directory card.
+    expect(html).not.toContain('Family and property law');
     expect(html).not.toContain('Practising advocate');
     expect(html).not.toContain('+977 9841234567');
   });
 
-  it('renders exactly one primary action on the collapsed card', () => {
-    const html = renderToStaticMarkup(<LawyerCard lawyer={lawyer} onToggle={vi.fn()} />);
-    expect(html).toContain('View More');
-    expect(html).toContain('aria-expanded="false"');
-    // No competing booking action on the collapsed card.
-    expect(html).not.toContain('Book Consultation');
-    expect(html).not.toContain('Book a Consultation');
-    expect((html.match(/<button /g) ?? []).length).toBe(1);
+  it('renders View More / Consult action on the directory card linking to lawyer profile page', () => {
+    const html = renderToStaticMarkup(<LawyerCard lawyer={lawyer} />);
+    expect(html).toContain('View More / Consult');
+    expect(html).toContain('href="/consultation/sita-sharma"');
+    // Exactly one action link/button on the card.
+    expect((html.match(/href="\/consultation\/sita-sharma"/g) ?? []).length).toBe(1);
   });
 
-  it('marks the expanded card state on the toggle', () => {
-    const html = renderToStaticMarkup(<LawyerCard lawyer={lawyer} expanded onToggle={vi.fn()} />);
-    expect(html).toContain('Close Profile');
-    expect(html).toContain('aria-expanded="true"');
-  });
-
-  it('renders the expanded profile with biography, credentials, contact links, and a single booking CTA', () => {
-    const html = renderToStaticMarkup(
-      <LawyerProfilePanel lawyer={lawyer} onClose={vi.fn()} onBook={vi.fn()} />
-    );
-    expect(html).toContain('Lawyer profile');
+  it('renders the dedicated profile with biography, credentials, contact links, and a booking CTA', () => {
+    const html = renderToStaticMarkup(<LawyerProfileView lawyer={lawyer} />);
+    expect(html).toContain('Specialization');
     expect(html).toContain('Practising advocate focused on family dispute resolution.');
     expect(html).toContain('Pentagon Law Firm');
     expect(html).toContain('B.A. LL.B., LL.M.');
@@ -76,7 +67,7 @@ describe('Consult a Lawyer public profile', () => {
     expect(html).toContain('https://instagram.com/sita');
     expect(html).toContain('https://linkedin.com/in/sita');
     expect(html).toContain('Book a Consultation');
-    expect((html.match(/Book a Consultation/g) ?? []).length).toBe(1);
+    expect(html).toContain('href="/consultation/sita-sharma/book"');
   });
 
   it('only shows sections for data that exists in the backend', () => {
@@ -86,23 +77,24 @@ describe('Consult a Lawyer public profile', () => {
       slug: 'ram-bahadur',
       title: 'Senior Advocate',
     };
-    const html = renderToStaticMarkup(
-      <LawyerProfilePanel lawyer={minimal} onClose={vi.fn()} onBook={vi.fn()} />
-    );
+    const html = renderToStaticMarkup(<LawyerProfileView lawyer={minimal} />);
     expect(html).toContain('Ram Bahadur');
-    expect(html).not.toContain('About');
+    expect(html).not.toContain('About &amp; Experience');
     expect(html).not.toContain('Pentagon Law Firm');
-    expect(html).not.toContain('WhatsApp');
+    expect(html).not.toContain('Contact on WhatsApp');
     expect(html).not.toContain('Visit Office');
   });
 
   it('renders the sketch intake fields with required contact details and multilingual problem input', () => {
-    const html = renderToStaticMarkup(<ConsultationForm />);
-    for (const field of ['Full name', 'Phone number', 'WhatsApp number', 'Permanent address', 'Temporary address', 'Explain your legal problem']) {
-      expect(html).toContain(field);
-    }
-    expect(html).toContain('English, Nepali, or a mix of both is welcome.');
-    expect(html).toContain('dir="auto"');
-    expect(html).toContain('Submit</button>');
+    const html = renderToStaticMarkup(<ConsultationForm selectedLawyer={lawyer} />);
+    expect(html).toContain('Book a Consultation');
+    expect(html).toContain('Full name');
+    expect(html).toContain('Phone number');
+    expect(html).toContain('WhatsApp number');
+    expect(html).toContain('Your Permanent Address');
+    expect(html).toContain('Your Temporary Address');
+    expect(html).toContain('Explain your problem (English or Nepali or mix language)');
+    expect(html).toContain('write your legal problem here...');
+    expect(html).toContain('Advocate Sita Sharma');
   });
 });

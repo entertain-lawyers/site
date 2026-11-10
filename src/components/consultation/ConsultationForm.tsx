@@ -139,7 +139,7 @@ export default function ConsultationForm({
         <p className="text-sm text-text-secondary">Tell us how to reach you and briefly explain the legal matter.</p>
       </header>
 
-      {selectedLawyer && <div className="flex items-center justify-between gap-3 rounded-xl border border-accent/20 bg-accent/5 p-3 text-sm"><p className="min-w-0 text-text-primary"><span className="font-bold">Selected advocate:</span> {selectedLawyer.name} <span className="text-text-muted">({selectedLawyer.title || 'Advocate'})</span></p><button type="button" onClick={() => onSelectLawyer?.(null)} className="shrink-0 text-xs font-bold text-accent underline">Clear</button></div>}
+      {selectedLawyer && <div className="flex items-center justify-between gap-3 rounded-xl border border-accent/20 bg-accent/5 p-3 text-sm"><p className="min-w-0 text-text-primary"><span className="font-bold">Selected advocate:</span> Advocate {selectedLawyer.name} <span className="text-text-muted">({selectedLawyer.title || 'Advocate'})</span></p><button type="button" onClick={() => onSelectLawyer?.(null)} className="shrink-0 text-xs font-bold text-accent underline">Clear</button></div>}
 
       {error && <p role="alert" className="flex items-start gap-2 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-700 dark:text-red-300"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />{error}</p>}
 
@@ -147,13 +147,13 @@ export default function ConsultationForm({
         <Field label="Full name" required><input className={inputClass} autoComplete="name" maxLength={100} required value={values.fullName} onChange={(e) => update('fullName', e.target.value)} placeholder="Your full name" /></Field>
         <Field label="Phone number" required><input className={inputClass} type="tel" inputMode="tel" autoComplete="tel" pattern="[+0-9().\\s-]{7,25}" title="Enter 7 to 25 digits, with optional +, spaces, or punctuation" required value={values.phone} onChange={(e) => update('phone', e.target.value)} placeholder="+977 98XXXXXXXX" /></Field>
         <Field label="WhatsApp number" required><input className={inputClass} type="tel" inputMode="tel" pattern="[+0-9().\\s-]{7,25}" title="Enter 7 to 25 digits, with optional +, spaces, or punctuation" required value={values.whatsappNumber} onChange={(e) => update('whatsappNumber', e.target.value)} placeholder="+977 98XXXXXXXX" /></Field>
+        <Field label="Your Permanent Address" required><input className={inputClass} autoComplete="street-address" maxLength={300} required minLength={3} value={values.permanentAddress} onChange={(e) => update('permanentAddress', e.target.value)} placeholder="District, city or municipality" /></Field>
+        <Field label="Your Temporary Address" required><input className={inputClass} maxLength={300} required minLength={3} value={values.temporaryAddress} onChange={(e) => update('temporaryAddress', e.target.value)} placeholder="Where you currently stay" /></Field>
         <Field label="Email address (optional)"><input className={inputClass} type="email" autoComplete="email" maxLength={254} value={values.email} onChange={(e) => update('email', e.target.value)} placeholder="you@example.com" /></Field>
-        <Field label="Permanent address" required><input className={inputClass} autoComplete="street-address" maxLength={300} required minLength={3} value={values.permanentAddress} onChange={(e) => update('permanentAddress', e.target.value)} placeholder="District, city or municipality" /></Field>
-        <Field label="Temporary address" required><input className={inputClass} maxLength={300} required minLength={3} value={values.temporaryAddress} onChange={(e) => update('temporaryAddress', e.target.value)} placeholder="Where you currently stay" /></Field>
       </div>
 
-      <Field label="Explain your legal problem" hint="English, Nepali, or a mix of both is welcome." required>
-        <textarea className={`${inputClass} min-h-44 resize-y leading-relaxed`} required minLength={10} maxLength={5000} value={values.description} onChange={(e) => update('description', e.target.value)} placeholder="Write your legal problem here... / आफ्नो कानुनी समस्या यहाँ लेख्नुहोस्..." lang="mul" dir="auto" />
+      <Field label="Explain your problem (English or Nepali or mix language)" hint="write your legal problem here..." required>
+        <textarea className={`${inputClass} min-h-44 resize-y leading-relaxed`} required minLength={10} maxLength={5000} value={values.description} onChange={(e) => update('description', e.target.value)} placeholder="write your legal problem here... / आफ्नो कानुनी समस्या यहाँ लेख्नुहोस्..." lang="mul" dir="auto" />
       </Field>
 
       <details className="group rounded-xl border border-border bg-surface-alt">

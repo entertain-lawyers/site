@@ -32,6 +32,10 @@ export async function getScriptNonce(): Promise<string | undefined> {
  * This replaces the static header in next.config.ts: duplicated CSP headers
  * would be enforced as a conjunction, re-allowing unsafe-inline and defeating
  * the nonce entirely.
+ *
+ * `upgrade-insecure-requests` is production-only: on http://localhost it makes
+ * Chromium rewrite same-origin requests to https://localhost, which no local
+ * dev server listens on (form posts and navigations fail with SSL errors).
  */
 export function buildCsp(nonce?: string): string {
   const b2Origin = storageOriginForCsp(process.env.B2_ENDPOINT, isDev);
@@ -43,7 +47,7 @@ export function buildCsp(nonce?: string): string {
     ...(nonce ? [`'nonce-${nonce}'`] : []),
   ].join(" ");
 
-  return [
+  const directives = [
     `default-src 'self'`,
     `script-src ${scriptSrc}`,
     `style-src 'self' 'unsafe-inline'`,
@@ -56,6 +60,8 @@ export function buildCsp(nonce?: string): string {
     `base-uri 'self'`,
     `form-action 'self' https://epay.esewa.com.np https://rc-epay.esewa.com.np`,
     `frame-ancestors 'none'`,
-    `upgrade-insecure-requests`,
-  ].join("; ") + ";";
+    ...(isDev ? [] : [`upgrade-insecure-requests`]),
+  ];
+
+  return directives.join("; ") + ";";
 }

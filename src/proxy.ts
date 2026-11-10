@@ -115,9 +115,12 @@ const authMiddleware = auth(async (req) => {
     }
   }
 
-  // Plain next(): forwards the headers attached to the request we were given
-  // (the caller passes a request that already carries the CSP nonce headers).
-  return NextResponse.next();
+  // NextResponse.next() on its own does NOT forward modified request headers
+  // to the renderer; the nonce/CSP headers only reach it when they are passed
+  // back explicitly. Without this the framework scripts get a nonce but the
+  // hand-authored inline scripts (theme init, JSON-LD) do not, so CSP blocks
+  // them on every protected route (/admin, /dashboard, /read).
+  return NextResponse.next({ request: { headers: req.headers } });
 });
 
 export default async function proxy(req: any, event: any) {
@@ -189,7 +192,6 @@ export default async function proxy(req: any, event: any) {
       "Strict-Transport-Security",
       "max-age=31536000; includeSubDomains; preload"
     );
-    // upgrade-insecure-requests is part of buildCsp; nothing to append here.
   }
 
   const currentLocale = req.cookies.get("NEXT_LOCALE")?.value;

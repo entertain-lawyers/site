@@ -26,6 +26,7 @@ export default function BrandSearchHeader() {
             src="/wordmark_navy.png"
             alt="Entertain Lawyers - Connecting with Legal Updates"
             fill
+            sizes="(max-width: 640px) 280px, (max-width: 768px) 480px, 600px"
             className="object-contain dark:hidden"
             priority
           />
@@ -33,6 +34,7 @@ export default function BrandSearchHeader() {
             src="/wordmark_white.png"
             alt="Entertain Lawyers - Connecting with Legal Updates"
             fill
+            sizes="(max-width: 640px) 280px, (max-width: 768px) 480px, 600px"
             className="object-contain hidden dark:block"
             priority
           />

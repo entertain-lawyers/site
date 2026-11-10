@@ -14,6 +14,7 @@ import { getScriptNonce } from '@/lib/csp';
 import { resourceBodyStatus } from '@/lib/resource-status';
 import { cache } from 'react';
 import { BookOpen, FileText, Lock, ChevronLeft, ChevronRight, LockOpen } from 'lucide-react';
+import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 
 const getCachedResource = cache(async (id: string) => {
   try {
@@ -26,8 +27,8 @@ const getCachedResource = cache(async (id: string) => {
           }
         },
         unit: true,
-        author: { select: { name: true, email: true } },
-        createdBy: { select: { name: true, email: true } },
+        author: { select: { id: true, name: true, email: true, image: true, bio: true, role: true, website: true } },
+        createdBy: { select: { id: true, name: true, email: true, image: true, bio: true, role: true, website: true } },
       }
     });
   } catch (error) {
@@ -153,6 +154,16 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
   const currentIndex = allResourcesQuery.findIndex(r => r.id === resource.id);
   const prevResource = currentIndex > 0 ? allResourcesQuery[currentIndex - 1] : null;
   const nextResource = currentIndex < allResourcesQuery.length - 1 ? allResourcesQuery[currentIndex + 1] : null;
+
+  const authorUser = resource.author ?? resource.createdBy;
+  const resourceAuthor = {
+    name: authorUser?.name || 'Entertain Lawyers',
+    email: authorUser?.email || null,
+    image: authorUser?.image || null,
+    bio: authorUser?.bio || 'Entertain Lawyers provides comprehensive law notes, old questions, case laws, and study resources for law students and legal practitioners in Nepal.',
+    role: authorUser?.role ? (authorUser.role === 'ADMIN' ? 'Administrator' : authorUser.role === 'EDITOR' ? 'Editor' : 'Contributor') : 'Editorial Team',
+    website: authorUser?.website || null,
+  };
 
   const siteUrl = getSiteUrl();
 
@@ -317,17 +328,10 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
                 <span className="text-navy dark:text-white font-bold">{resource.unit.name}</span>
               </div>
             )}
-            {(() => {
-              const displayAuthor = resource.author ?? resource.createdBy;
-              return displayAuthor ? (
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-text-muted uppercase tracking-wider">{dict.author}:</span>
-                  <span className="text-navy dark:text-white font-bold">
-                    {displayAuthor.name || displayAuthor.email}
-                  </span>
-                </div>
-              ) : null;
-            })()}
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-text-muted uppercase tracking-wider">{dict.author}:</span>
+              <AuthorBioTrigger author={resourceAuthor} size="sm" showName />
+            </div>
           </div>
         </div>
 
@@ -452,6 +456,47 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
             />
           </div>
         )}
+
+        {/* About Author */}
+        <section aria-labelledby="resource-author-heading" className="bg-surface border border-border rounded-2xl p-6 sm:p-7 shadow-sm mb-12">
+          <div className="border-b border-border pb-3 mb-5">
+            <h2 id="resource-author-heading" className="text-xs font-bold uppercase tracking-wider text-text-muted">
+              About Author
+            </h2>
+          </div>
+          <div className="flex items-start gap-4 sm:gap-5">
+            <AuthorBioTrigger author={resourceAuthor} size="lg" showName={false} />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <AuthorBioTrigger
+                  author={resourceAuthor}
+                  showName
+                  nameClassName="text-lg font-bold text-navy dark:text-white hover:text-accent"
+                >
+                  <span className="font-bold text-navy dark:text-white text-lg hover:text-accent transition-colors cursor-pointer">
+                    {resourceAuthor.name}
+                  </span>
+                </AuthorBioTrigger>
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-accent/10 text-accent">
+                  {resourceAuthor.role}
+                </span>
+              </div>
+              <p className="mt-2 text-sm leading-relaxed text-text-secondary">
+                {resourceAuthor.bio}
+              </p>
+              {resourceAuthor.website && (
+                <a
+                  href={resourceAuthor.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-3 inline-flex items-center text-xs font-semibold text-accent hover:underline"
+                >
+                  {resourceAuthor.website.replace(/^https?:\/\//, '')} &rarr;
+                </a>
+              )}
+            </div>
+          </div>
+        </section>
 
         {/* Navigation */}
         {(prevResource || nextResource) && (

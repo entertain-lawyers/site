@@ -17,7 +17,7 @@ setup('sign in as a fixture admin/editor', async ({ page }) => {
   await page.goto('/login');
   await page.fill('input[name="email"]', emails!);
   await page.fill('input[name="password"]', password!);
-  await page.getByRole('button', { name: 'Sign In to Continue' }).click();
+  await page.getByRole('button', { name: 'Sign In to Continue' }).click({ noWaitAfter: true });
   // Successful auth redirects off /login (dashboard or callback landing).
   await expect(page).toHaveURL(/(dashboard|\/admin)/, { timeout: 60_000 });
   mkdirSync(resolve(process.cwd(), 'tests/e2e/.auth'), { recursive: true });
