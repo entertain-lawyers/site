@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { prisma } from '@/lib/prisma';
-import ActsAndLawsClient from '@/components/acts/ActsAndLawsClient';
+import ActsAndLawsClient, { type ActItem } from '@/components/acts/ActsAndLawsClient';
+import { isMissingTableError } from '@/lib/prisma-errors';
 
 export const revalidate = 60;
 
@@ -14,22 +15,29 @@ export const metadata: Metadata = {
 };
 
 export default async function ActsAndLawsPage() {
-  const acts = await prisma.actLaw.findMany({
-    where: { status: 'PUBLISHED' },
-    orderBy: { title: 'asc' },
-    select: {
-      id: true,
-      title: true,
-      titleEn: true,
-      slug: true,
-      category: true,
-      description: true,
-      documentUrl: true,
-      fileSize: true,
-      publishDate: true,
-      status: true,
-    },
-  });
+  let acts: ActItem[] = [];
+  try {
+    acts = await prisma.actLaw.findMany({
+      where: { status: 'PUBLISHED' },
+      orderBy: { title: 'asc' },
+      select: {
+        id: true,
+        title: true,
+        titleEn: true,
+        slug: true,
+        category: true,
+        description: true,
+        documentUrl: true,
+        fileSize: true,
+        publishDate: true,
+        status: true,
+      },
+    });
+  } catch (error) {
+    if (!isMissingTableError(error)) {
+      console.error('[acts-and-laws] Database error:', error);
+    }
+  }
 
   return <ActsAndLawsClient initialActs={acts} />;
 }
