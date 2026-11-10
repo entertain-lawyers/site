@@ -59,6 +59,8 @@ export default function AuthorBioTrigger({
   children,
 }: AuthorBioTriggerProps) {
   const [open, setOpen] = useState(false);
+  const [imgError, setImgError] = useState(false);
+  const [modalImgError, setModalImgError] = useState(false);
   const mounted = useSyncExternalStore(
     emptySubscribe,
     () => true,
@@ -81,6 +83,7 @@ export default function AuthorBioTrigger({
   const displayName = author?.name?.trim() || (lang === 'ne' ? 'सम्पादकीय समूह' : 'Entertain Lawyers');
   const initials = computeInitials(author?.name, author?.initials);
   const bio = author?.bio?.trim() || (lang === 'ne' ? DEFAULT_BIO_NE : DEFAULT_BIO_EN);
+  const authorImage = author?.image?.trim() || '/logo.jpg';
 
   const roleLabel = author?.role
     ? author.role === 'ADMIN'
@@ -147,11 +150,12 @@ export default function AuthorBioTrigger({
           children
         ) : (
           <>
-            {author?.image ? (
+            {authorImage && !imgError ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
-                src={author.image}
+                src={authorImage}
                 alt={displayName}
+                onError={() => setImgError(true)}
                 className={`${sizeClasses.avatar} rounded-full object-cover border border-accent/40 shadow-xs shrink-0 group-hover:scale-105 group-hover:border-accent transition-transform`}
               />
             ) : (
@@ -203,11 +207,12 @@ export default function AuthorBioTrigger({
 
               {/* Author Overview */}
               <div className="flex flex-col items-center text-center mt-2">
-                {author?.image ? (
+                {authorImage && !modalImgError ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img
-                    src={author.image}
+                    src={authorImage}
                     alt={displayName}
+                    onError={() => setModalImgError(true)}
                     className="w-20 h-20 rounded-full object-cover border-2 border-accent shadow-md mb-3"
                   />
                 ) : (

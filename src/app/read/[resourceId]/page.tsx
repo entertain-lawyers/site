@@ -271,6 +271,58 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
             {/* Same sanitized renderer and reading typography as articles, so
                 headings, lists and inserted (resized) images survive. */}
             <ArticleBody html={resource.content} />
+
+            {/* About Author Section */}
+            {(() => {
+              const displayAuthor = resource.author ?? resource.createdBy;
+              const resourceAuthor = {
+                name: displayAuthor?.name || 'Entertain Lawyers',
+                image: displayAuthor?.image || '/logo.jpg',
+                bio: displayAuthor?.bio || 'Entertain Lawyers provides comprehensive law notes, old questions, case laws, and study resources for law students and legal practitioners in Nepal.',
+                role: displayAuthor?.role ? (displayAuthor.role === 'ADMIN' ? 'Administrator' : displayAuthor.role === 'EDITOR' ? 'Editor' : 'Contributor') : 'Editorial Team',
+                website: displayAuthor?.website || null,
+                email: displayAuthor?.email || null,
+              };
+              return (
+                <section aria-labelledby="read-author-heading" className="mt-10 pt-6 border-t border-border">
+                  <h2 id="read-author-heading" className="text-xs font-bold uppercase tracking-wider text-text-muted mb-4">
+                    About Author
+                  </h2>
+                  <div className="flex items-start gap-4 p-5 rounded-2xl bg-surface border border-border">
+                    <AuthorBioTrigger author={resourceAuthor} size="lg" showName={false} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <AuthorBioTrigger
+                          author={resourceAuthor}
+                          showName
+                          nameClassName="text-base font-bold text-navy dark:text-white hover:text-accent"
+                        >
+                          <span className="font-bold text-navy dark:text-white text-base hover:text-accent transition-colors cursor-pointer">
+                            {resourceAuthor.name}
+                          </span>
+                        </AuthorBioTrigger>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-accent/10 text-accent">
+                          {resourceAuthor.role}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm leading-relaxed text-text-secondary">
+                        {resourceAuthor.bio}
+                      </p>
+                      {resourceAuthor.website && (
+                        <a
+                          href={resourceAuthor.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-2 inline-flex items-center text-xs font-semibold text-accent hover:underline"
+                        >
+                          {resourceAuthor.website.replace(/^https?:\/\//, '')} &rarr;
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </section>
+              );
+            })()}
           </div>
         </div>
       );

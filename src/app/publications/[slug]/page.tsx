@@ -6,10 +6,24 @@ import { extractFirstImage } from '@/lib/media/extract-first-image';
 import { sanitizeHtml } from '@/lib/sanitize';
 import { Metadata } from 'next';
 import { cache } from 'react';
+import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 
 const getCachedPublication = cache(async (slug: string) => {
   return prisma.publication.findUnique({
     where: { slug },
+    include: {
+      User: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+          bio: true,
+          role: true,
+          website: true,
+        },
+      },
+    },
   });
 });
 
@@ -35,6 +49,15 @@ export default async function PublicationDetailPage({ params }: { params: Promis
   }
 
   const coverImage = pub.coverImage || extractFirstImage(pub.content);
+
+  const pubAuthor = {
+    name: pub.User?.name || 'Entertain Lawyers',
+    email: pub.User?.email || null,
+    image: pub.User?.image || '/logo.jpg',
+    bio: pub.User?.bio || 'Entertain Lawyers publishes legal research, monographs, and academic publications for the legal community of Nepal.',
+    role: pub.User?.role ? (pub.User.role === 'ADMIN' ? 'Administrator' : pub.User.role === 'EDITOR' ? 'Editor' : 'Author') : 'Publication Author',
+    website: pub.User?.website || null,
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 py-16 lg:py-24">
@@ -67,6 +90,10 @@ export default async function PublicationDetailPage({ params }: { params: Promis
                      {new Date(pub.publishDate).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}
                    </span>
                  )}
+                 <div className="flex items-center gap-2">
+                   <span className="text-xs font-bold text-text-muted uppercase tracking-wider">Author:</span>
+                   <AuthorBioTrigger author={pubAuthor} size="sm" showName />
+                 </div>
                </div>
 
                <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-navy dark:text-white leading-tight mb-8">
@@ -85,6 +112,45 @@ export default async function PublicationDetailPage({ params }: { params: Promis
                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(pub.content) }}
                  />
                )}
+
+               {/* About Author */}
+               <section aria-labelledby="pub-author-heading" className="mt-8 mb-8 p-5 sm:p-6 rounded-2xl bg-surface border border-border">
+                 <h2 id="pub-author-heading" className="text-xs font-bold uppercase tracking-wider text-text-muted mb-4">
+                   About Author
+                 </h2>
+                 <div className="flex items-start gap-4">
+                   <AuthorBioTrigger author={pubAuthor} size="lg" showName={false} />
+                   <div className="min-w-0 flex-1">
+                     <div className="flex flex-wrap items-center gap-2">
+                       <AuthorBioTrigger
+                         author={pubAuthor}
+                         showName
+                         nameClassName="text-base sm:text-lg font-bold text-navy dark:text-white hover:text-accent"
+                       >
+                         <span className="font-bold text-navy dark:text-white text-base sm:text-lg hover:text-accent transition-colors cursor-pointer">
+                           {pubAuthor.name}
+                         </span>
+                       </AuthorBioTrigger>
+                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-accent/10 text-accent">
+                         {pubAuthor.role}
+                       </span>
+                     </div>
+                     <p className="mt-1 text-sm leading-relaxed text-text-secondary">
+                       {pubAuthor.bio}
+                     </p>
+                     {pubAuthor.website && (
+                       <a
+                         href={pubAuthor.website}
+                         target="_blank"
+                         rel="noopener noreferrer"
+                         className="mt-2 inline-flex items-center text-xs font-semibold text-accent hover:underline"
+                       >
+                         {pubAuthor.website.replace(/^https?:\/\//, '')} &rarr;
+                       </a>
+                     )}
+                   </div>
+                 </div>
+               </section>
 
                <div className="mt-auto pt-8 flex flex-col sm:flex-row items-center gap-4">
                  {pub.documentId ? (
