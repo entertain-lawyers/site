@@ -109,7 +109,12 @@ const getCachedResourceList = unstable_cache(
     const resourceType = Object.values(ResourceType).find((t) => t === rawType);
     return prisma.resource.findMany({
       where: { status: 'PUBLISHED',
-        ...(semesterId && (resourceType === 'OLD_QUESTION' ? { semesterId } : { subject: { semesterId } })),
+        ...(semesterId && {
+          OR: [
+            { semesterId },
+            { subject: { semesterId } },
+          ],
+        }),
         ...(subjectId && { subjectId }),
         ...(unitId && { unitId }),
         ...(resourceType && { type: resourceType }),

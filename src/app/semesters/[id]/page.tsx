@@ -3,15 +3,17 @@ import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import { getDictionary } from '@/lib/i18n';
 import ResourceTypeFilter from '@/components/study/ResourceTypeFilter';
-import { BookOpen, ChevronRight, Lock, Library, GraduationCap, ChevronLeft } from 'lucide-react';
+import { BookOpen, ChevronRight, Lock, Library, GraduationCap, ChevronLeft, FileQuestion } from 'lucide-react';
 import { SYLLABUS_CONFIG, isAuthoritativeSubject, findAuthoritativeSubject } from '@/lib/syllabus-config';
 import { serializeJsonLd, getSiteUrl } from '@/lib/seo';
 import { getScriptNonce } from '@/lib/csp';
 import { Reveal } from '@/components/motion/primitives';
 import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
+import { ResourceType } from '@prisma/client';
 
 interface PageProps {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ type?: string }>;
 }
 
 const TYPE_COLORS: Record<string, string> = {
@@ -43,9 +45,11 @@ export async function generateMetadata({ params }: PageProps) {
   };
 }
 
-export default async function SemesterPage({ params }: PageProps) {
+export default async function SemesterPage({ params, searchParams }: PageProps) {
   const dict = await getDictionary();
   const { id } = await params;
+  const { type: rawType } = (await searchParams) || {};
+  const selectedType = rawType && Object.values(ResourceType).includes(rawType as ResourceType) ? (rawType as ResourceType) : undefined;
   const nonce = await getScriptNonce();
 
   const TYPE_LABELS: Record<string, string> = {
@@ -55,63 +59,90 @@ export default async function SemesterPage({ params }: PageProps) {
     OTHER: dict.catHistoricalFacts,
   };
 
-  const semester = await prisma.semester.findUnique({
-    where: { id },
-    include: {
-      subjects: {
-        orderBy: { order: 'asc' },
-        include: {
-          units: {
-            orderBy: { order: 'asc' },
-            include: {
-              resources: {
-                // Titles only: never load note text into a public listing, and
-                // never list draft or archived material.
-                where: { status: 'PUBLISHED' },
-                orderBy: [{ order: 'asc' }, { title: 'asc' }],
-                select: {
-                  id: true,
-                  title: true,
-                  type: true,
-                  isPremium: true,
-                  unitId: true,
-                  author: { select: { name: true, image: true, bio: true, role: true, website: true, email: true } },
-                  createdBy: { select: { name: true, image: true, bio: true, role: true, website: true, email: true } },
+  const [semester, semesterResources] = await Promise.all([
+    prisma.semester.findUnique({
+      where: { id },
+      include: {
+        subjects: {
+          orderBy: { order: 'asc' },
+          include: {
+            units: {
+              orderBy: { order: 'asc' },
+              include: {
+                resources: {
+                  where: {
+                    status: 'PUBLISHED',
+                    ...(selectedType ? { type: selectedType } : {}),
+                  },
+                  orderBy: [{ order: 'asc' }, { title: 'asc' }],
+                  select: {
+                    id: true,
+                    title: true,
+                    type: true,
+                    isPremium: true,
+                    unitId: true,
+                    author: { select: { name: true, image: true, bio: true, role: true, website: true, email: true } },
+                    createdBy: { select: { name: true, image: true, bio: true, role: true, website: true, email: true } },
+                  },
                 },
               },
             },
-          },
-          resources: {
-            where: { status: 'PUBLISHED' },
-            orderBy: [{ order: 'asc' }, { title: 'asc' }],
-            select: {
-              id: true,
-              title: true,
-              type: true,
-              isPremium: true,
-              unitId: true,
-              author: { select: { name: true, image: true, bio: true, role: true, website: true, email: true } },
-              createdBy: { select: { name: true, image: true, bio: true, role: true, website: true, email: true } },
+            resources: {
+              where: {
+                status: 'PUBLISHED',
+                ...(selectedType ? { type: selectedType } : {}),
+              },
+              orderBy: [{ order: 'asc' }, { title: 'asc' }],
+              select: {
+                id: true,
+                title: true,
+                type: true,
+                isPremium: true,
+                unitId: true,
+                author: { select: { name: true, image: true, bio: true, role: true, website: true, email: true } },
+                createdBy: { select: { name: true, image: true, bio: true, role: true, website: true, email: true } },
+              },
             },
           },
         },
       },
-    },
-  });
+    }),
+    prisma.resource.findMany({
+      where: {
+        semesterId: id,
+        subjectId: null,
+        status: 'PUBLISHED',
+        ...(selectedType ? { type: selectedType } : {}),
+      },
+      orderBy: [{ order: 'asc' }, { title: 'asc' }],
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        isPremium: true,
+        unitId: true,
+        author: { select: { name: true, image: true, bio: true, role: true, website: true, email: true } },
+        createdBy: { select: { name: true, image: true, bio: true, role: true, website: true, email: true } },
+      },
+    }),
+  ]);
 
   if (!semester) {
     notFound();
   }
 
-  // Filter out empty legacy subjects (0 units and 0 resources) and sort in authoritative 1..N order
+  // Filter subjects in authoritative 1..N order
   const semesterConfig = SYLLABUS_CONFIG.find((c) => c.order === semester.order);
   const activeSubjects = semester.subjects
     .filter((sub) => {
+      const hasContent = sub.resources.length > 0 || sub.units.some((u) => u.resources.length > 0);
+      if (selectedType) {
+        return hasContent;
+      }
       if (semesterConfig) {
         const isAuth = isAuthoritativeSubject(semester.order, sub.name);
         if (isAuth) return true;
-        // Keep if it has attached resources
-        return sub.resources.length > 0 || sub.units.some((u) => u.resources.length > 0);
+        return hasContent;
       }
       return true;
     })
@@ -125,6 +156,11 @@ export default async function SemesterPage({ params }: PageProps) {
       }
       return a.order - b.order;
     });
+
+  const totalSubjectResources = activeSubjects.reduce((acc, s) => {
+    return acc + s.resources.length + s.units.reduce((uAcc, u) => uAcc + u.resources.length, 0);
+  }, 0);
+  const hasAnyResources = totalSubjectResources > 0 || semesterResources.length > 0;
 
   return (
     <div className="bg-background min-h-screen pb-20">
@@ -180,7 +216,7 @@ export default async function SemesterPage({ params }: PageProps) {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {activeSubjects.some(s => s.resources.length > 0) && (
+        {hasAnyResources && (
           <div className="mb-10">
             <ResourceTypeFilter 
               dict={{
@@ -192,6 +228,70 @@ export default async function SemesterPage({ params }: PageProps) {
               }}
             />
           </div>
+        )}
+
+        {semesterResources.length > 0 && (
+          <Reveal index={0} perRow={1}>
+            <section className="bg-surface border border-border rounded-2xl overflow-hidden shadow-soft transition-[box-shadow,border-color,background-color] hover:shadow-soft-lg mb-10">
+              <div className="bg-amber-600 dark:bg-amber-950 dark:border-b dark:border-white/10 px-6 py-5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <FileQuestion className="w-6 h-6 text-amber-100" />
+                  <h2 className="text-xl font-bold text-white">{dict.catOldQuestions}</h2>
+                </div>
+                <Link
+                  href={`/study?semester=${semester.id}&type=OLD_QUESTION`}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-full text-sm font-semibold transition-colors"
+                >
+                  {dict.study}
+                  <ChevronRight className="w-4 h-4" />
+                </Link>
+              </div>
+              <div className="p-6">
+                <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {semesterResources.map((resource) => {
+                    const authorUser = resource.author ?? resource.createdBy;
+                    const resourceAuthor = {
+                      name: authorUser?.name || 'Entertain Lawyers',
+                      image: authorUser?.image || null,
+                      bio: authorUser?.bio || 'Entertain Lawyers provides comprehensive law notes, old questions, case laws, and study resources for law students and legal practitioners in Nepal.',
+                      role: authorUser?.role ? (authorUser.role === 'ADMIN' ? 'Administrator' : authorUser.role === 'EDITOR' ? 'Editor' : 'Contributor') : 'Editorial Team',
+                      website: authorUser?.website || null,
+                      email: authorUser?.email || null,
+                    };
+
+                    return (
+                      <li key={resource.id}>
+                        <div className="group relative flex flex-col justify-between h-full p-4 border border-border rounded-xl hover:border-accent hover:bg-surface-alt transition-all">
+                          <div>
+                            <div className="flex items-start justify-between mb-3 gap-2">
+                              <span className={`text-xs font-bold px-2.5 py-1 rounded-md border tracking-wide ${TYPE_COLORS[resource.type] || TYPE_COLORS.OTHER}`}>
+                                {TYPE_LABELS[resource.type] || 'Other'}
+                              </span>
+                              {resource.isPremium && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-gold/10 text-gold-dark border border-gold/20 uppercase tracking-wider">
+                                  <Lock className="w-3 h-3" />
+                                  {dict.premium}
+                                </span>
+                              )}
+                            </div>
+                            <h4 className="text-[15px] font-semibold text-text-primary group-hover:text-accent transition-colors leading-snug">
+                              <Link href={`/resources/${resource.id}`} className="focus:outline-none">
+                                <span className="absolute inset-0" aria-hidden="true" />
+                                {resource.title}
+                              </Link>
+                            </h4>
+                          </div>
+                          <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
+                            <AuthorBioTrigger author={resourceAuthor} size="xs" showName />
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </section>
+          </Reveal>
         )}
 
         {activeSubjects.length > 0 ? (
@@ -379,7 +479,7 @@ export default async function SemesterPage({ params }: PageProps) {
               );
             })}
           </div>
-        ) : (
+        ) : semesterResources.length === 0 ? (
           <div className="bg-surface border border-border rounded-2xl p-16 text-center shadow-sm">
             <div className="w-16 h-16 bg-surface-alt rounded-full flex items-center justify-center mx-auto mb-4 text-text-muted">
               <Library className="w-8 h-8" />
@@ -387,7 +487,7 @@ export default async function SemesterPage({ params }: PageProps) {
             <h3 className="text-xl font-bold text-navy dark:text-white mb-2">{dict.noResourcesFound}</h3>
             <p className="text-text-secondary">{dict.noResourcesFound}</p>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );
