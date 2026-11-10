@@ -46,13 +46,12 @@ describe('ActsAndLawsClient Component Suite', () => {
     const html = renderToStaticMarkup(<ActsAndLawsClient initialActs={MOCK_ACTS} />);
 
     expect(html).toContain('Acts and Laws');
-    expect(html).toContain('Get all the important Acts, Laws &amp; Regulations in Alphabetical order');
-    expect(html).toContain('Search Acts, Laws, Regulations...');
-    expect(html).toContain('Short list: All');
-    expect(html).toContain('Constitution');
-    expect(html).toContain('Rules / Regulations');
-    expect(html).toContain('International Treaties');
-    expect(html).toContain('Historical Documents');
+    expect(html).toContain('Get all the important Acts Laws &amp; Regulations');
+    expect(html).toContain('in Alphabetical order');
+    expect(html).toContain('Search...');
+    expect(html).toContain('Short List');
+    expect(html).toContain('Arbitration Act, 2055');
+    expect(html).toContain('Constitution of Nepal');
   });
 
   it('renders numbered cards with View and Download buttons matching the sketch', () => {
