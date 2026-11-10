@@ -8,7 +8,7 @@ import ImageCropperModal, { CropResult } from './ImageCropperModal';
 interface ImageUploadProps {
   value: string;
   onChange: (url: string) => void;
-  type: 'POST' | 'EVENT' | 'GALLERY' | 'PUBLICATION' | 'TEAM';
+  type: 'POST' | 'EVENT' | 'GALLERY' | 'PUBLICATION' | 'TEAM' | 'PROFILE';
   label?: string;
   aspectRatio?: number;
 }
@@ -37,7 +37,9 @@ export default function ImageUpload({
   const [cropFilename, setCropFilename] = useState('');
   const [cropMimeType, setCropMimeType] = useState('image/jpeg');
 
-  const defaultRatio = aspectRatio || (type === 'TEAM' ? 4 / 5 : 16 / 9);
+  const defaultRatio =
+    aspectRatio ||
+    (type === 'TEAM' || type === 'PUBLICATION' ? 4 / 5 : type === 'PROFILE' ? 1 / 1 : 16 / 9);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -176,8 +178,12 @@ export default function ImageUpload({
 
       {value ? (
         <div
-          className={`mt-4 rounded-xl overflow-hidden border border-black/10 dark:border-white/10 relative shadow-sm ${
-            type === 'TEAM' ? 'max-w-[240px] aspect-[4/5]' : 'aspect-video'
+          className={`mt-4 overflow-hidden border border-black/10 dark:border-white/10 relative shadow-sm ${
+            type === 'PROFILE'
+              ? 'h-28 w-28 rounded-full'
+              : type === 'TEAM' || type === 'PUBLICATION'
+              ? 'max-w-[240px] aspect-[4/5] rounded-xl'
+              : 'aspect-video rounded-xl'
           }`}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -189,8 +195,12 @@ export default function ImageUpload({
         </div>
       ) : (
         <div
-          className={`mt-4 rounded-xl border-2 border-dashed border-black/10 dark:border-white/10 flex items-center justify-center bg-slate-50 dark:bg-zinc-950/50 ${
-            type === 'TEAM' ? 'max-w-[240px] aspect-[4/5]' : 'aspect-video'
+          className={`mt-4 border-2 border-dashed border-black/10 dark:border-white/10 flex items-center justify-center bg-slate-50 dark:bg-zinc-950/50 ${
+            type === 'PROFILE'
+              ? 'h-28 w-28 rounded-full'
+              : type === 'TEAM' || type === 'PUBLICATION'
+              ? 'max-w-[240px] aspect-[4/5] rounded-xl'
+              : 'aspect-video rounded-xl'
           }`}
         >
           <p className="text-sm font-medium text-text-muted">No image selected</p>
@@ -208,7 +218,15 @@ export default function ImageUpload({
           defaultAspectRatio={defaultRatio}
           onClose={handleCloseCropper}
           onConfirm={handleCropConfirm}
-          title={type === 'TEAM' ? 'Crop Advocate Profile Photo' : 'Crop & Adjust Photo'}
+          title={
+            type === 'PROFILE'
+              ? 'Crop Profile Picture'
+              : type === 'TEAM'
+              ? 'Crop Advocate / Team Member Photo'
+              : type === 'PUBLICATION'
+              ? 'Crop Publication Cover'
+              : 'Crop & Adjust Photo'
+          }
         />
       )}
     </div>

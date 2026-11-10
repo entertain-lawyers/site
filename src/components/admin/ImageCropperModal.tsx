@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ZoomIn, ZoomOut, RotateCcw, Check, X, Move, Crop } from 'lucide-react';
 
 export interface CropResult {
@@ -13,7 +13,7 @@ interface ImageCropperModalProps {
   imageSrc: string;
   filename: string;
   mimeType: string;
-  defaultAspectRatio?: number; // width / height, e.g. 4/5 = 0.8
+  defaultAspectRatio?: number; // width / height, e.g. 4/5 = 0.8, 1/1 = 1
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (result: CropResult) => void;
@@ -42,40 +42,93 @@ export default function ImageCropperModal({
   const [pan, setPan] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [imageLoaded, setImageLoaded] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [imageObj, setImageObj] = useState<HTMLImageElement | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const imageRef = useRef<HTMLImageElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Compute maximum allowed pan for current zoom to prevent letterboxing
+  // Load image object once when imageSrc changes
+  useEffect(() => {
+    if (!imageSrc) return;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      setImageObj(img);
+      // Initialize scale and pan so portrait photos are top-aligned with headroom (head never chopped off)
+      const container = containerRef.current;
+      if (container) {
+        const boxW = container.clientWidth || 320;
+        const boxH = container.clientHeight || 400;
+        const scale0 = Math.max(boxW / img.naturalWidth, boxH / img.naturalHeight);
+        const h = img.naturalHeight * scale0;
+        const maxPanY = Math.max(0, (h - boxH) / 2);
+        // Default pan.y to top alignment with natural headroom (maxPanY * 0.9)
+        setZoom(1);
+        setPan({ x: 0, y: maxPanY > 0 ? maxPanY * 0.9 : 0 });
+      }
+    };
+    img.src = imageSrc;
+  }, [imageSrc, aspectRatio]);
+
+  // Redraw canvas whenever zoom, pan, or aspectRatio changes
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !imageObj || !container) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const boxW = container.clientWidth || 320;
+    const boxH = container.clientHeight || 400;
+
+    canvas.width = boxW * window.devicePixelRatio;
+    canvas.height = boxH * window.devicePixelRatio;
+
+    ctx.save();
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    ctx.clearRect(0, 0, boxW, boxH);
+
+    const scale0 = Math.max(boxW / imageObj.naturalWidth, boxH / imageObj.naturalHeight);
+    const w = imageObj.naturalWidth * scale0 * zoom;
+    const h = imageObj.naturalHeight * scale0 * zoom;
+
+    const imgLeft = (boxW - w) / 2 + pan.x;
+    const imgTop = (boxH - h) / 2 + pan.y;
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(imageObj, imgLeft, imgTop, w, h);
+    ctx.restore();
+  }, [zoom, pan, aspectRatio, imageObj]);
+
   const getClampedPan = useCallback(
     (newPan: { x: number; y: number }, currentZoom: number) => {
       const container = containerRef.current;
-      const img = imageRef.current;
-      if (!container || !img || !img.naturalWidth || !img.naturalHeight) {
-        return newPan;
-      }
+      if (!container || !imageObj) return newPan;
 
-      const W_box = container.clientWidth;
-      const H_box = container.clientHeight;
-      const scale0 = Math.max(W_box / img.naturalWidth, H_box / img.naturalHeight);
-      const w = img.naturalWidth * scale0 * currentZoom;
-      const h = img.naturalHeight * scale0 * currentZoom;
+      const boxW = container.clientWidth || 320;
+      const boxH = container.clientHeight || 400;
+      const scale0 = Math.max(boxW / imageObj.naturalWidth, boxH / imageObj.naturalHeight);
+      const w = imageObj.naturalWidth * scale0 * currentZoom;
+      const h = imageObj.naturalHeight * scale0 * currentZoom;
 
-      const maxPanX = Math.max(0, (w - W_box) / 2);
-      const maxPanY = Math.max(0, (h - H_box) / 2);
+      const marginX = currentZoom < 1 ? Math.max(0, (boxW - w) / 2) : boxW * 0.15;
+      const marginY = currentZoom < 1 ? Math.max(0, (boxH - h) / 2) : boxH * 0.15;
+      const limitX = Math.max(0, (w - boxW) / 2) + marginX;
+      const limitY = Math.max(0, (h - boxH) / 2) + marginY;
 
       return {
-        x: Math.min(maxPanX, Math.max(-maxPanX, newPan.x)),
-        y: Math.min(maxPanY, Math.max(-maxPanY, newPan.y)),
+        x: Math.min(limitX, Math.max(-limitX, newPan.x)),
+        y: Math.min(limitY, Math.max(-limitY, newPan.y)),
       };
     },
-    []
+    [imageObj]
   );
 
   const handleZoomChange = (newZoom: number) => {
-    const clampedZoom = Math.min(3, Math.max(1, newZoom));
+    const clampedZoom = Math.min(3, Math.max(0.5, newZoom));
     setZoom(clampedZoom);
     setPan((current) => getClampedPan(current, clampedZoom));
   };
@@ -97,7 +150,7 @@ export default function ImageCropperModal({
     setIsDragging(false);
   };
 
-  // Touch drag handlers for mobile / tablet
+  // Touch drag handlers
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 1) {
       setIsDragging(true);
@@ -123,38 +176,40 @@ export default function ImageCropperModal({
   };
 
   const handleReset = () => {
-    setZoom(1);
-    setPan({ x: 0, y: 0 });
+    const container = containerRef.current;
+    if (imageObj && container) {
+      const boxW = container.clientWidth || 320;
+      const boxH = container.clientHeight || 400;
+      const scale0 = Math.max(boxW / imageObj.naturalWidth, boxH / imageObj.naturalHeight);
+      const h = imageObj.naturalHeight * scale0;
+      const maxPanY = Math.max(0, (h - boxH) / 2);
+      setZoom(1);
+      setPan({ x: 0, y: maxPanY > 0 ? maxPanY * 0.9 : 0 });
+    } else {
+      setZoom(1);
+      setPan({ x: 0, y: 0 });
+    }
   };
 
-  // Generate cropped output on offscreen canvas
+  // Generate cropped output
   const handleApplyCrop = async () => {
     const container = containerRef.current;
-    const img = imageRef.current;
-    if (!container || !img || !img.naturalWidth || !img.naturalHeight) return;
+    if (!container || !imageObj) return;
 
     setProcessing(true);
     try {
-      const W_box = container.clientWidth;
-      const H_box = container.clientHeight;
-      const scale0 = Math.max(W_box / img.naturalWidth, H_box / img.naturalHeight);
-      const w = img.naturalWidth * scale0 * zoom;
-      const h = img.naturalHeight * scale0 * zoom;
+      const boxW = container.clientWidth || 320;
+      const boxH = container.clientHeight || 400;
+      const scale0 = Math.max(boxW / imageObj.naturalWidth, boxH / imageObj.naturalHeight);
+      const w = imageObj.naturalWidth * scale0 * zoom;
+      const h = imageObj.naturalHeight * scale0 * zoom;
 
-      const imgLeft = (W_box - w) / 2 + pan.x;
-      const imgTop = (H_box - h) / 2 + pan.y;
+      const imgLeft = (boxW - w) / 2 + pan.x;
+      const imgTop = (boxH - h) / 2 + pan.y;
 
-      // Coordinate mapping into the natural image
-      const sx = -imgLeft / (scale0 * zoom);
-      const sy = -imgTop / (scale0 * zoom);
-      const sWidth = W_box / (scale0 * zoom);
-      const sHeight = H_box / (scale0 * zoom);
-
-      // Desired export resolution (standard 1200px max dimension for retina crispness)
       let targetWidth = 1000;
       let targetHeight = Math.round(targetWidth / aspectRatio);
       if (aspectRatio < 1) {
-        // Portrait
         targetHeight = 1200;
         targetWidth = Math.round(targetHeight * aspectRatio);
       }
@@ -165,13 +220,20 @@ export default function ImageCropperModal({
       const ctx = canvas.getContext('2d');
       if (!ctx) throw new Error('Could not initialize canvas context');
 
-      // Use high quality image smoothing
+      const targetScale = targetWidth / boxW;
+      const destW = w * targetScale;
+      const destH = h * targetScale;
+      const destX = imgLeft * targetScale;
+      const destY = imgTop * targetScale;
+
+      // Fill white background for clean margins if zoomed out
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, targetWidth, targetHeight);
+
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(imageObj, destX, destY, destW, destH);
 
-      ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, targetWidth, targetHeight);
-
-      // Export format
       const outMime: 'image/jpeg' | 'image/png' = mimeType === 'image/png' ? 'image/png' : 'image/jpeg';
       const blob = await new Promise<Blob | null>((resolve) => {
         canvas.toBlob(resolve, outMime, 0.92);
@@ -233,7 +295,6 @@ export default function ImageCropperModal({
               onClick={() => {
                 setAspectRatio(preset.value);
                 setZoom(1);
-                setPan({ x: 0, y: 0 });
               }}
               className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-colors ${
                 Math.abs(aspectRatio - preset.value) < 0.01
@@ -246,7 +307,7 @@ export default function ImageCropperModal({
           ))}
         </div>
 
-        {/* Viewport Area */}
+        {/* Viewport Area with Interactive Canvas */}
         <div className="flex flex-1 items-center justify-center bg-black/90 p-4 sm:p-6 select-none">
           <div
             ref={containerRef}
@@ -262,34 +323,15 @@ export default function ImageCropperModal({
               aspectRatio: `${aspectRatio}`,
               maxHeight: '420px',
               maxWidth: '100%',
-              width: aspectRatio < 1 ? '320px' : '460px',
+              width: aspectRatio < 1 ? '300px' : '440px',
             }}
             className={`relative overflow-hidden rounded-2xl ring-2 ring-accent/60 shadow-inner ${
               isDragging ? 'cursor-grabbing' : 'cursor-grab'
             }`}
           >
-            {/* The Image being positioned */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              ref={imageRef}
-              src={imageSrc}
-              alt="Crop target"
-              draggable={false}
-              onLoad={() => {
-                setImageLoaded(true);
-                setPan({ x: 0, y: 0 });
-                setZoom(1);
-              }}
-              style={{
-                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-                transformOrigin: 'center center',
-                transition: isDragging ? 'none' : 'transform 0.05s ease-out',
-                maxWidth: 'none',
-                maxHeight: 'none',
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-              }}
+            <canvas
+              ref={canvasRef}
+              style={{ width: '100%', height: '100%', display: 'block' }}
               className="pointer-events-none select-none"
             />
 
@@ -306,9 +348,9 @@ export default function ImageCropperModal({
               <div />
             </div>
 
-            {/* Drag hint overlay */}
+            {/* Drag hint */}
             <div className="pointer-events-none absolute bottom-2 left-2 flex items-center gap-1 rounded-md bg-black/60 px-2 py-0.5 text-[10px] font-semibold text-white/90 backdrop-blur">
-              <Move className="h-3 w-3" aria-hidden="true" /> Drag to reposition
+              <Move className="h-3 w-3" aria-hidden="true" /> Drag to position head & frame
             </div>
           </div>
         </div>
@@ -319,7 +361,7 @@ export default function ImageCropperModal({
             <button
               type="button"
               onClick={() => handleZoomChange(zoom - 0.2)}
-              disabled={zoom <= 1}
+              disabled={zoom <= 0.5}
               className="rounded-lg p-1.5 text-text-secondary hover:bg-surface-alt disabled:opacity-30"
               aria-label="Zoom out"
             >
@@ -327,7 +369,7 @@ export default function ImageCropperModal({
             </button>
             <input
               type="range"
-              min={1}
+              min={0.5}
               max={3}
               step={0.05}
               value={zoom}
@@ -352,27 +394,32 @@ export default function ImageCropperModal({
               <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" /> Reset
             </button>
           </div>
+        </div>
 
-          {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={processing}
-              className="rounded-xl border border-border px-4 py-2.5 text-sm font-bold text-text-primary hover:bg-surface-alt"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleApplyCrop}
-              disabled={!imageLoaded || processing}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-extrabold text-white shadow-md hover:bg-accent-hover disabled:opacity-50"
-            >
-              <Check className="h-4 w-4" aria-hidden="true" />
-              {processing ? 'Applying Crop...' : 'Apply & Upload'}
-            </button>
-          </div>
+        {/* Footer actions */}
+        <div className="flex items-center justify-end gap-3 border-t border-border bg-surface-alt/50 px-6 py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={processing}
+            className="rounded-xl border border-border px-4 py-2.5 text-sm font-bold text-text-secondary hover:bg-surface hover:text-text-primary disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleApplyCrop}
+            disabled={processing}
+            className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-bold text-white shadow-md hover:bg-accent-hover disabled:opacity-50"
+          >
+            {processing ? (
+              <>Processing...</>
+            ) : (
+              <>
+                <Check className="h-4 w-4" aria-hidden="true" /> Apply & Upload
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>

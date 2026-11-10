@@ -1,8 +1,9 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { AlertCircle, CheckCircle2, ImageIcon, Images, Loader2, Trash2, Upload } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Crop, ImageIcon, Images, Loader2, Trash2, Upload } from 'lucide-react';
 import WordPressMediaLibraryDialog from '@/components/admin/WordPressMediaLibraryDialog';
+import ImageCropperModal, { CropResult } from '@/components/admin/ImageCropperModal';
 import type { WordPressLanguage } from '@/lib/wordpress';
 import {
   toFeaturedImageSelection,
@@ -78,8 +79,44 @@ export default function FeaturedImagePanel({
   const [error, setError] = useState('');
   const [dragging, setDragging] = useState(false);
 
+  // Cropper state
+  const [cropperOpen, setCropperOpen] = useState(false);
+  const [cropSrc, setCropSrc] = useState('');
+  const [cropFilename, setCropFilename] = useState('');
+  const [cropMimeType, setCropMimeType] = useState('image/jpeg');
+
   const busy = upload.phase === 'uploading' || upload.phase === 'processing';
   const canUpload = !uploadBlockedReason && !busy;
+
+  const handleFileSelect = (file: File | undefined) => {
+    if (!file || !canUpload) return;
+    setError('');
+    const invalid = validateImageFile(file);
+    if (invalid) {
+      setError(invalid);
+      return;
+    }
+    const objectUrl = URL.createObjectURL(file);
+    setCropSrc(objectUrl);
+    setCropFilename(file.name);
+    setCropMimeType(file.type);
+    setCropperOpen(true);
+    if (inputRef.current) inputRef.current.value = '';
+  };
+
+  const handleCropConfirm = async (result: CropResult) => {
+    setCropperOpen(false);
+    const croppedFile = new File([result.blob], result.filename, { type: result.mimeType });
+    await startUpload(croppedFile);
+  };
+
+  const handleOpenRecrop = () => {
+    if (!value?.url) return;
+    setCropSrc(value.url);
+    setCropFilename(`${value.title || 'featured-image'}.jpg`);
+    setCropMimeType('image/jpeg');
+    setCropperOpen(true);
+  };
 
   const startUpload = async (file: File | undefined) => {
     if (!file || !canUpload) return;
@@ -130,7 +167,7 @@ export default function FeaturedImagePanel({
         type="file"
         accept={WP_MEDIA_ACCEPT}
         className="hidden"
-        onChange={(e) => startUpload(e.target.files?.[0])}
+        onChange={(e) => handleFileSelect(e.target.files?.[0])}
       />
 
       {value ? (
@@ -149,6 +186,9 @@ export default function FeaturedImagePanel({
             </p>
           </div>
           <div className="flex gap-2">
+            <button type="button" onClick={handleOpenRecrop} disabled={busy} className={secondaryButton}>
+              <Crop className="h-4 w-4" aria-hidden="true" /> Re-crop
+            </button>
             <button type="button" onClick={() => setLibraryOpen(true)} disabled={busy} className={secondaryButton}>
               <Images className="h-4 w-4" aria-hidden="true" /> Replace
             </button>
@@ -183,7 +223,7 @@ export default function FeaturedImagePanel({
           onDrop={(e) => {
             e.preventDefault();
             setDragging(false);
-            startUpload(e.dataTransfer.files?.[0]);
+            handleFileSelect(e.dataTransfer.files?.[0]);
           }}
           className={`flex flex-col items-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 text-center transition ${
             dragging ? 'border-accent bg-accent/5' : 'border-black/10 dark:border-white/10'
@@ -275,6 +315,23 @@ export default function FeaturedImagePanel({
         onClose={() => setLibraryOpen(false)}
         onSelect={chooseFromLibrary}
       />
+
+      {cropperOpen && (
+        <ImageCropperModal
+          key={cropSrc}
+          isOpen={cropperOpen}
+          imageSrc={cropSrc}
+          filename={cropFilename}
+          mimeType={cropMimeType}
+          defaultAspectRatio={16 / 9}
+          onClose={() => {
+            setCropperOpen(false);
+            if (cropSrc.startsWith('blob:')) URL.revokeObjectURL(cropSrc);
+          }}
+          onConfirm={handleCropConfirm}
+          title="Crop Featured Image"
+        />
+      )}
     </div>
   );
 }
