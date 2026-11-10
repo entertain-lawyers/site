@@ -39,6 +39,19 @@ describe('Admin Acts & Laws Actions Suite', () => {
   });
 
   afterAll(async () => {
+    await prisma.actLaw.deleteMany({
+      where: {
+        OR: [
+          { title: { contains: 'Test' } },
+          { title: { contains: 'Temporary' } },
+          { title: { contains: 'Updated Treaty Act' } },
+          { title: { contains: 'Act to Delete' } },
+          { slug: { startsWith: 'test-' } },
+          { slug: { startsWith: 'temp-' } },
+          { slug: { startsWith: 'delete-act-' } },
+        ],
+      },
+    });
     await prisma.user.deleteMany({
       where: { email: 'admin-acts-test@example.com' },
     });

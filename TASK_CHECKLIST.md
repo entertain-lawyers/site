@@ -1,46 +1,39 @@
-# Task Checklist: Audit of `feat/resource-editor-consult-redesign` and Related Branches
+# Resource Placement Audit & Repair Checklist
 
-## 1. Git and Branch Audit
-- [x] Inspect git tree, all relevant branches (`feat/resource-editor-consult-redesign`, `fix/consult-resource-final-ux`, `main`, etc.)
-- [x] Determine branch relationships, PR status, commit divergence, base branch alignment
-- [x] Audit for duplicate commits, conflicting changes, unfinished work, and unrelated modifications
+## Phase 1 — Investigate
+- [x] Inspect study-resource pages, server components, and queries (Semester -> Subject -> Resources, and Search)
+- [x] Inspect database records: Semesters, Subjects, Units, Resources, Documents
+- [x] Trace original WordPress IDs / categories from staging JSON files and migration scripts
+- [x] Analyze 4th Semester duplicate "Family Law" subject, resource foreign keys, and empty original entry
+- [x] Investigate why search finds resources that normal browsing cannot
+- [x] Verify Document records, storage providers, Cloudflare R2 / storage keys, and file URLs
 
-## 2. Feature Verification
-- [x] **Author Attribution**:
-  - [x] Inspect `AuthorBioTrigger` and author rendering across English/Nepali posts, blogs, news, historical facts, personalities, study resources, notes, publications
-  - [x] Verify author images, `/logo.jpg` fallback, clickable names/avatars, bio modal, role, email, social/website links
-  - [x] Check missing authors, broken relations, inconsistent layouts, and mobile responsiveness
-- [x] **Acts & Laws**:
-  - [x] Verify `ActLaw` Prisma model, schema, and migration
-  - [x] Verify all 23 seeded Nepal acts and authenticity
-  - [x] Test public search, category filters, pagination, PDF preview, document viewer
-  - [x] Test admin create, edit, delete, upload, and authorization
-  - [x] Check upload limits, file validation, storage permissions, and migration safety
-- [x] **Resource Editor and Consult a Lawyer**:
-  - [x] Verify draft, preview, publish, editing, PDF mode, sticky toolbar, responsive layouts
-  - [x] Verify lawyer cards, expanded profiles, booking form, submission handling, admin consultation management
+## Phase 2 — Establish Canonical Mapping
+- [x] Extract and verify mapping: WP terms/categories -> Canonical Semester -> Canonical Subject -> Units -> Resource Types
+- [x] Cross-reference original syllabus / curriculum vs current database state across all semesters (1-10)
+- [x] Document duplicate subjects and resolution strategy (preserving all resources and files)
 
-## 3. Technical and Security Audit
-- [x] TypeScript errors (`npm run type-check` or `npx tsc --noEmit`) - 0 errors
-- [x] ESLint violations (`npm run lint` on touched modules) - 0 errors, 0 warnings
-- [x] Prisma schema/client consistency and migration status (`npx prisma validate`, `npx prisma migrate status`) - 32 migrations up to date
-- [x] Authentication and role-based authorization check
-- [x] Server actions and API validation (Zod, schemas, input bounds)
-- [x] XSS, unsafe HTML, file upload vulnerabilities, data exposure
-- [x] Missing assets, broken routes, hydration issues, dead buttons
-- [x] Accessibility, SEO, responsive behavior, performance
-- [x] Duplicate or conflicting implementations across branches/agents
+## Phase 3 — Repair & Reconcile
+- [x] Build safe repair script with dry-run mode and verification checks
+- [x] Reassign resources from duplicate subjects to canonical subjects
+- [x] Ensure correct semester and unit associations for all resources
+- [x] Ensure correct resource types (`LAW_NOTE`, `OLD_QUESTION`, `CASE_LAW`, `OTHER`)
+- [x] Safely clean up / merge duplicate subjects without data loss
+- [x] Verify no orphaned resources or broken foreign keys
 
-## 4. Run Verification & Test Suite
-- [x] `npx prisma validate`
-- [x] Unit & integration tests (`npm run test` / Vitest) - 63 test files passed (615 tests passing, 0 failing)
-- [x] Production build (`npm run build`) - 76/76 static & dynamic routes compiled
-- [x] Add targeted regression tests for verified components (`src/components/author/__tests__/author-bio-trigger.test.tsx`)
-- [x] Fix verified bugs (clean up unused import in `PdfUpload.tsx`)
-- [x] Clean up old Vercel deployments, preserving only the active live production deployment
+## Phase 4 — Full Audit Across All Semesters
+- [x] Audit Semesters 1 through 10 (and any others)
+- [x] Check for duplicate subjects across all semesters
+- [x] Check for orphaned resources (null subject, null semester, or mismatch)
+- [x] Check search vs normal browsing parity for every semester and subject
+- [x] Verify document storage keys and file accessibility
 
-## 5. Git and PR
-- [x] Preserve unrelated and uncommitted changes
-- [x] Commit and push verified fixes
-- [x] Update or verify PR #60 against base branch
-- [x] Generate comprehensive final audit report
+## Phase 5 — Tests & Verification
+- [x] Add automated tests for curriculum hierarchy, resource placement, search consistency, and resource type filters
+- [x] Run Vitest test suite (`npm run test` / `npx vitest run`)
+- [x] Run TypeScript checks (`npm run type-check` / `npx tsc --noEmit`)
+- [x] Run production build (`npm run build`)
+
+## Phase 6 — Final Verification & Report
+- [x] Verify site endpoints and browsing navigation
+- [x] Generate comprehensive final report covering all 8 required sections
