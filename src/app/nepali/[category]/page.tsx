@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation';
 import { formatBSDate } from '@/lib/nepali-date';
 import { PostType } from '@prisma/client';
 import { batchResolvePostAuthorsForDisplay } from '@/lib/post-author';
+import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 
 export const revalidate = 60;
 
@@ -67,6 +68,9 @@ export default async function NepaliCategoryPage({ params }: { params: Promise<{
       author: {
         name: authorInfo?.name || 'सम्पादक',
         image: authorInfo?.image || null,
+        bio: authorInfo?.bio || null,
+        role: authorInfo?.role || null,
+        website: authorInfo?.website || null,
         initials: authorInfo?.initials || 'सम्पा',
       },
       featuredImage: p._embedded?.['wp:featuredmedia']?.[0]?.source_url || null,
@@ -124,24 +128,8 @@ export default async function NepaliCategoryPage({ params }: { params: Promise<{
                       {post.title}
                     </Link>
                   </h3>
-                  <div className="mt-auto pt-4 border-t border-black/5 dark:border-white/5 flex items-center justify-between text-sm text-text-muted">
-                    <div className="flex items-center gap-2 min-w-0">
-                      {post.author.image ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img
-                          src={post.author.image}
-                          alt={post.author.name}
-                          className="w-6 h-6 rounded-full object-cover shrink-0"
-                        />
-                      ) : (
-                        <div className="w-6 h-6 rounded-full bg-slate-200 dark:bg-zinc-700 flex items-center justify-center text-[10px] font-bold text-navy dark:text-white shrink-0">
-                          {post.author.initials?.charAt(0) || post.author.name.charAt(0) || 'EL'}
-                        </div>
-                      )}
-                      <span className="font-bold text-navy dark:text-white truncate max-w-[130px] font-nepali">
-                        {post.author.name}
-                      </span>
-                    </div>
+                  <div className="mt-auto pt-4 border-t border-black/5 dark:border-white/5 flex items-center justify-between text-sm text-text-muted gap-3">
+                    <AuthorBioTrigger author={post.author} size="xs" showName lang="ne" />
                     <time className="font-medium font-nepali shrink-0">{formatBSDate(post.createdAt)}</time>
                   </div>
                 </div>

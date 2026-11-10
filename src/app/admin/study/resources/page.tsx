@@ -8,6 +8,8 @@ import ArchiveResourceButton from './ArchiveResourceButton';
 import PublishResourceButton from './PublishResourceButton';
 import { ContentStatus, ResourceType, Prisma } from '@prisma/client';
 import { resourceBodyStatus } from '@/lib/resource-status';
+import { Search, X } from 'lucide-react';
+import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 
 export const metadata: Metadata = {
   title: 'Manage Resources - Admin',
@@ -20,10 +22,15 @@ const STATUS_TABS = [
   { key: 'archived', label: 'Archived', status: ContentStatus.ARCHIVED },
 ] as const;
 
+const PAGE_SIZE = 20;
+
+const formatDate = (value: Date | string) =>
+  new Date(value).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: '2-digit' });
+
 export default async function AdminResourcesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; type?: string }>;
+  searchParams: Promise<{ status?: string; type?: string; q?: string; semester?: string; subject?: string; page?: string }>;
 }) {
   const session = await auth();
 
@@ -31,17 +38,26 @@ export default async function AdminResourcesPage({
     redirect('/');
   }
 
-  const { status: statusParam, type: typeParam } = await searchParams;
-  const isCaseLaw = typeParam === ResourceType.CASE_LAW;
+  const { status: statusParam, type: typeParam, q: qParam, semester: semesterParam, subject: subjectParam, page: pageParam } = await searchParams;
   const isAdmin = session.user.role === 'ADMIN';
 
-  // If viewing case laws specifically, require ADMIN (editors cannot view/manage law notes/case laws)
-  if (isCaseLaw && !isAdmin) {
+  // Optional type filter. Editors may not manage law notes/case laws, so any
+  // attempt to open those views bounces them back to the general list.
+  const requestedType = Object.values(ResourceType)
+    .find((value) => value === typeParam) as ResourceType | undefined;
+  if (requestedType && !isAdmin && (requestedType === ResourceType.LAW_NOTE || requestedType === ResourceType.CASE_LAW)) {
     redirect('/admin/study/resources');
   }
+  const isCaseLaw = requestedType === ResourceType.CASE_LAW;
 
-  const baseTypeFilter: Prisma.ResourceWhereInput = isCaseLaw
-    ? { type: ResourceType.CASE_LAW }
+  // Query filter inputs (kept as plain strings for href building).
+  const q = (qParam ?? '').trim().slice(0, 100);
+  const semesterFilter = semesterParam ?? '';
+  const subjectFilter = subjectParam ?? '';
+  const page = Math.max(1, Number.parseInt(pageParam ?? '', 10) || 1);
+
+  const baseTypeFilter: Prisma.ResourceWhereInput = requestedType
+    ? { type: requestedType }
     : isAdmin
       ? {}
       : {
@@ -50,7 +66,30 @@ export default async function AdminResourcesPage({
           ]
         };
 
-  const whereClause: Prisma.ResourceWhereInput = baseTypeFilter;
+  // Server-side search: match resource title, subject name, or author/creator.
+  const searchWhere: Prisma.ResourceWhereInput | undefined = q
+    ? {
+        OR: [
+          { title: { contains: q, mode: 'insensitive' as const } },
+          { subject: { is: { name: { contains: q, mode: 'insensitive' as const } } } },
+          { author: { is: { OR: [
+            { name: { contains: q, mode: 'insensitive' as const } },
+            { email: { contains: q, mode: 'insensitive' as const } },
+          ] } } },
+          { createdBy: { is: { OR: [
+            { name: { contains: q, mode: 'insensitive' as const } },
+            { email: { contains: q, mode: 'insensitive' as const } },
+          ] } } },
+        ],
+      }
+    : undefined;
+
+  const metadataWhere: Prisma.ResourceWhereInput = {
+    ...(semesterFilter ? { semesterId: semesterFilter } : {}),
+    ...(subjectFilter ? { subjectId: subjectFilter } : {}),
+  };
+
+  const whereClause: Prisma.ResourceWhereInput = { AND: [baseTypeFilter, ...(searchWhere ? [searchWhere] : []), metadataWhere] };
 
   const activeTab = STATUS_TABS.find((t) => t.key === statusParam) ?? STATUS_TABS[0];
   const listWhere: Prisma.ResourceWhereInput =
@@ -58,7 +97,8 @@ export default async function AdminResourcesPage({
 
   const statusCounts = await prisma.resource.groupBy({
     by: ['status'],
-    where: whereClause,
+    // Counts reflect the base scope + type, not the transient search filters.
+    where: baseTypeFilter,
     _count: { _all: true },
   });
   const countFor = (status?: ContentStatus) =>
@@ -66,7 +106,23 @@ export default async function AdminResourcesPage({
       .filter((c) => !status || c.status === status)
       .reduce((sum, c) => sum + c._count._all, 0);
 
-  const orderBy = activeTab.key === 'draft' ? { updatedAt: 'desc' as const } : { title: 'asc' as const };
+  const orderBy = activeTab.key === 'draft' ? { updatedAt: 'desc' as const } : { createdAt: 'desc' as const };
+
+  const semesters = await prisma.semester.findMany({ orderBy: { order: 'asc' } });
+  const subjects = await prisma.subject.findMany({
+    orderBy: { name: 'asc' },
+    select: { id: true, name: true, semesterId: true },
+  });
+
+  let total = 0;
+  try {
+    total = await prisma.resource.count({ where: listWhere });
+  } catch {
+    // Count failures surface below via the findMany fallback; don't crash here.
+    total = 0;
+  }
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const currentPage = Math.min(page, pageCount);
 
   let resources;
   try {
@@ -79,10 +135,12 @@ export default async function AdminResourcesPage({
           },
         },
         document: true,
-        author: { select: { name: true, email: true } },
-        createdBy: { select: { name: true, email: true } },
+        author: { select: { id: true, name: true, email: true, image: true, bio: true, role: true, website: true } },
+        createdBy: { select: { id: true, name: true, email: true, image: true, bio: true, role: true, website: true } },
       },
       orderBy,
+      take: PAGE_SIZE + 1,
+      skip: (currentPage - 1) * PAGE_SIZE,
     });
   } catch (error) {
     const { isSpecificMissingColumnError } = await import('@/lib/prisma-errors');
@@ -115,23 +173,42 @@ export default async function AdminResourcesPage({
           },
         },
       },
-      orderBy: { title: 'asc' },
+      orderBy: { createdAt: 'desc' },
     });
 
     resources = fallbackResources.map((item) => ({
       ...item,
+      updatedAt: undefined,
       author: null,
       createdBy: null,
     }));
   }
 
-  const buildTabHref = (key: string) => {
+  const hasPrevPage = currentPage > 1;
+  const hasNextPage = resources.length > PAGE_SIZE;
+  // Fetching one extra row lets us know a next page exists without a second count.
+  resources = resources.slice(0, PAGE_SIZE);
+
+  const buildHref = (overrides: Record<string, string | undefined>) => {
     const params = new URLSearchParams();
-    if (key !== 'all') params.set('status', key);
-    if (typeParam) params.set('type', typeParam);
-    const q = params.toString();
-    return q ? `/admin/study/resources?${q}` : '/admin/study/resources';
+    const merged: Record<string, string | undefined> = {
+      status: activeTab.key === 'all' ? undefined : activeTab.key,
+      type: typeParam,
+      q: q || undefined,
+      semester: semesterFilter || undefined,
+      subject: subjectFilter || undefined,
+      page: currentPage > 1 ? String(currentPage) : undefined,
+      ...overrides,
+    };
+    for (const [key, value] of Object.entries(merged)) {
+      if (value) params.set(key, value);
+    }
+    const qs = params.toString();
+    return qs ? `/admin/study/resources?${qs}` : '/admin/study/resources';
   };
+
+  const clearFiltersHref = buildHref({ q: undefined, semester: undefined, subject: undefined, page: undefined });
+  const filtersActive = Boolean(q || semesterFilter || subjectFilter);
 
   return (
     <div className="min-h-screen bg-transparent py-10 max-w-[1400px] mx-auto">
@@ -163,13 +240,13 @@ export default async function AdminResourcesPage({
         </div>
 
         {/* Status filter */}
-        <nav aria-label="Filter resources by status" className="mb-6 flex flex-wrap gap-2">
+        <nav aria-label="Filter resources by status" className="mb-4 flex flex-wrap gap-2">
           {STATUS_TABS.map((tab) => {
             const active = tab.key === activeTab.key;
             return (
               <Link
                 key={tab.key}
-                href={buildTabHref(tab.key)}
+                href={buildHref({ status: tab.key === 'all' ? undefined : tab.key, page: undefined })}
                 aria-current={active ? 'page' : undefined}
                 className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2 text-sm font-bold transition-colors ${
                   active
@@ -186,6 +263,74 @@ export default async function AdminResourcesPage({
           })}
         </nav>
 
+        {/* Search + metadata filters (server-side, submitted via GET params) */}
+        <form
+          method="get"
+          action="/admin/study/resources"
+          className="mb-6 grid grid-cols-1 gap-3 rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-zinc-900 p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]"
+        >
+          {activeTab.key !== 'all' && <input type="hidden" name="status" value={activeTab.key} />}
+          {typeParam && <input type="hidden" name="type" value={typeParam} />}
+          <div className="relative">
+            <label htmlFor="resource-search" className="sr-only">Search resources</label>
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" aria-hidden="true" />
+            <input
+              id="resource-search"
+              name="q"
+              type="search"
+              defaultValue={q}
+              maxLength={100}
+              placeholder="Search title, subject, or author…"
+              className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 px-9 py-2.5 text-sm text-navy dark:text-white placeholder:text-text-muted"
+            />
+          </div>
+          <div>
+            <label htmlFor="filter-semester" className="sr-only">Filter by semester</label>
+            <select
+              id="filter-semester"
+              name="semester"
+              defaultValue={semesterFilter}
+              className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 px-3 py-2.5 text-sm text-navy dark:text-white"
+            >
+              <option value="">All semesters</option>
+              {semesters.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="filter-subject" className="sr-only">Filter by subject</label>
+            <select
+              id="filter-subject"
+              name="subject"
+              defaultValue={subjectFilter}
+              className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 px-3 py-2.5 text-sm text-navy dark:text-white"
+            >
+              <option value="">All subjects</option>
+              {(semesterFilter ? subjects.filter((s) => s.semesterId === semesterFilter) : subjects).map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="submit"
+              className="inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-navy px-4 py-2.5 text-sm font-bold text-white hover:bg-navy-light dark:bg-accent dark:hover:bg-accent-hover transition-colors"
+            >
+              <Search className="h-4 w-4" aria-hidden="true" /> Apply
+            </button>
+            {filtersActive && (
+              <Link
+                href={clearFiltersHref}
+                aria-label="Clear search and filters"
+                className="inline-flex items-center justify-center rounded-xl border border-black/10 dark:border-white/10 px-3 py-2.5 text-sm font-bold text-text-secondary hover:text-navy dark:hover:text-white transition-colors"
+              >
+                <X className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            )}
+          </div>
+        </form>
+
         {/* Table */}
         <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] border border-black/5 dark:border-white/5 overflow-hidden">
           <div className="overflow-x-auto">
@@ -196,6 +341,7 @@ export default async function AdminResourcesPage({
                   <th scope="col" className="px-8 py-4 text-left text-xs font-bold text-text-muted uppercase tracking-wider">Subject & Semester</th>
                   <th scope="col" className="px-8 py-4 text-left text-xs font-bold text-text-muted uppercase tracking-wider">Type / Price</th>
                   <th scope="col" className="px-8 py-4 text-left text-xs font-bold text-text-muted uppercase tracking-wider">Document Status</th>
+                  <th scope="col" className="px-8 py-4 text-left text-xs font-bold text-text-muted uppercase tracking-wider">Updated</th>
                   <th scope="col" className="px-8 py-4 text-right text-xs font-bold text-text-muted uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
@@ -208,10 +354,20 @@ export default async function AdminResourcesPage({
                           <div className="text-sm font-bold text-navy dark:text-white line-clamp-2 max-w-xs">{resource.title}</div>
                           <div className="text-xs text-text-muted font-mono mt-1" title={resource.id}>ID: {resource.id.split('-')[0]}...</div>
                           {(() => {
-                            const authorName = resource.author?.name || resource.author?.email || resource.createdBy?.name || resource.createdBy?.email;
-                            return authorName ? (
-                              <div className="text-xs text-text-secondary mt-0.5">Author: {authorName}</div>
-                            ) : null;
+                            const authorUser = resource.author || resource.createdBy;
+                            if (!authorUser) return null;
+                            const authorObj = {
+                              name: authorUser.name || authorUser.email || 'Entertain Lawyers',
+                              image: authorUser.image || null,
+                              bio: authorUser.bio || null,
+                              role: authorUser.role || null,
+                              website: authorUser.website || null,
+                            };
+                            return (
+                              <div className="mt-1">
+                                <AuthorBioTrigger author={authorObj} size="xs" showName />
+                              </div>
+                            );
                           })()}
                           {resource.status !== 'PUBLISHED' && (
                             <span className="mt-1.5 inline-flex px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wide bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800">
@@ -261,6 +417,9 @@ export default async function AdminResourcesPage({
                             </span>
                           )}
                         </td>
+                        <td className="px-8 py-5 whitespace-nowrap text-sm text-text-secondary">
+                          {'updatedAt' in resource && resource.updatedAt ? formatDate(resource.updatedAt as Date) : '—'}
+                        </td>
                         <td className="px-8 py-5 whitespace-nowrap text-right text-sm font-medium">
                           <Link href={`/admin/study/resources/${resource.id}/edit`} className="inline-flex items-center justify-center px-4 py-2 border border-black/5 dark:border-white/5 rounded-lg text-navy dark:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors shadow-sm mr-2">
                             Edit
@@ -281,7 +440,7 @@ export default async function AdminResourcesPage({
                   })
                 ) : (
                   <tr>
-                    <td colSpan={5} className="px-8 py-16 text-center">
+                    <td colSpan={6} className="px-8 py-16 text-center">
                       <div className="flex flex-col items-center gap-3">
                         <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center mb-2">
                           <svg className="w-8 h-8 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -289,11 +448,20 @@ export default async function AdminResourcesPage({
                           </svg>
                         </div>
                         <h3 className="text-lg font-bold text-navy dark:text-white">
-                          {activeTab.key === 'draft' ? 'No drafts' : activeTab.key === 'archived' ? 'No archived resources' : 'No resources found'}
+                          {filtersActive
+                            ? 'No matching resources'
+                            : activeTab.key === 'draft' ? 'No drafts' : activeTab.key === 'archived' ? 'No archived resources' : 'No resources found'}
                         </h3>
                         <p className="text-sm text-text-secondary">
-                          {activeTab.key === 'draft' ? 'Resources saved as drafts appear here until you publish them.' : 'Click "Add Resource" to create one.'}
+                          {filtersActive
+                            ? 'Try changing the search term or clearing the semester/subject filters.'
+                            : activeTab.key === 'draft' ? 'Resources saved as drafts appear here until you publish them.' : 'Click "Add Resource" to create one.'}
                         </p>
+                        {filtersActive && (
+                          <Link href={clearFiltersHref} className="text-sm font-bold text-accent underline underline-offset-4">
+                            Clear search & filters
+                          </Link>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -302,6 +470,38 @@ export default async function AdminResourcesPage({
             </table>
           </div>
         </div>
+
+        {/* Pagination */}
+        {pageCount > 1 && (
+          <nav aria-label="Resource pages" className="mt-6 flex items-center justify-between">
+            <p className="text-sm text-text-secondary">
+              Page {currentPage} of {pageCount}
+              {total > 0 && <span className="hidden sm:inline"> · {total} resource{total === 1 ? '' : 's'}</span>}
+            </p>
+            <div className="flex gap-2">
+              {hasPrevPage ? (
+                <Link
+                  href={buildHref({ page: String(currentPage - 1) })}
+                  className="inline-flex items-center gap-1 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 px-4 py-2 text-sm font-bold text-navy dark:text-white hover:border-accent/50 transition-colors"
+                >
+                  Previous
+                </Link>
+              ) : (
+                <span aria-disabled="true" className="inline-flex items-center gap-1 rounded-xl border border-black/5 dark:border-white/5 px-4 py-2 text-sm font-bold text-text-muted opacity-50">Previous</span>
+              )}
+              {hasNextPage ? (
+                <Link
+                  href={buildHref({ page: String(currentPage + 1) })}
+                  className="inline-flex items-center gap-1 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 px-4 py-2 text-sm font-bold text-navy dark:text-white hover:border-accent/50 transition-colors"
+                >
+                  Next
+                </Link>
+              ) : (
+                <span aria-disabled="true" className="inline-flex items-center gap-1 rounded-xl border border-black/5 dark:border-white/5 px-4 py-2 text-sm font-bold text-text-muted opacity-50">Next</span>
+              )}
+            </div>
+          </nav>
+        )}
 
       </div>
     </div>

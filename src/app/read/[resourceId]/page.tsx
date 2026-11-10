@@ -19,6 +19,7 @@ import StudyOutlineSidebar from '@/components/study/StudyOutlineSidebar';
 import { Metadata } from 'next';
 import { getDictionary } from '@/lib/i18n';
 import ArticleBody from '@/components/posts/ArticleBody';
+import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 
 export async function generateMetadata({ params }: { params: Promise<{ resourceId: string }> }): Promise<Metadata> {
   const { resourceId } = await params;
@@ -54,8 +55,8 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
           include: {
             document: true;
             unit: true;
-            author: { select: { name: true; email: true } };
-            createdBy: { select: { name: true, email: true } };
+            author: { select: { name: true; image: true; bio: true; role: true; website: true; email: true } };
+            createdBy: { select: { name: true; image: true; bio: true; role: true; website: true; email: true } };
             subject: {
               include: {
                 semester: true;
@@ -81,8 +82,8 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
       include: {
         document: true,
         unit: true,
-        author: { select: { name: true, email: true } },
-        createdBy: { select: { name: true, email: true } },
+        author: { select: { name: true, image: true, bio: true, role: true, website: true, email: true } },
+        createdBy: { select: { name: true, image: true, bio: true, role: true, website: true, email: true } },
         subject: {
           include: {
             semester: true,
@@ -239,11 +240,20 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
             )}
             {(() => {
               const displayAuthor = resource.author ?? resource.createdBy;
-              return displayAuthor ? (
-                <p className="mt-1 text-sm text-text-muted">
-                  {dict.author}: <span className="font-semibold text-navy dark:text-white">{displayAuthor.name || displayAuthor.email}</span>
-                </p>
-              ) : null;
+              const resourceAuthor = {
+                name: displayAuthor?.name || 'Entertain Lawyers',
+                image: displayAuthor?.image || null,
+                bio: displayAuthor?.bio || 'Entertain Lawyers provides comprehensive law notes, old questions, case laws, and study resources for law students and legal practitioners in Nepal.',
+                role: displayAuthor?.role ? (displayAuthor.role === 'ADMIN' ? 'Administrator' : displayAuthor.role === 'EDITOR' ? 'Editor' : 'Contributor') : 'Editorial Team',
+                website: displayAuthor?.website || null,
+                email: displayAuthor?.email || null,
+              };
+              return (
+                <div className="mt-4 flex items-center gap-2">
+                  <span className="text-xs font-bold text-text-muted uppercase tracking-wider">{dict.author}:</span>
+                  <AuthorBioTrigger author={resourceAuthor} size="sm" showName />
+                </div>
+              );
             })()}
 
             {/* Featured Image */}
@@ -402,6 +412,25 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
           <h1 className="text-sm font-bold text-navy dark:text-white truncate max-w-[160px] sm:max-w-[200px] md:max-w-md ml-0 md:ml-1">
             {resource.title}
           </h1>
+        </div>
+        <div className="flex items-center gap-3">
+          {(() => {
+            const displayAuthor = resource.author ?? resource.createdBy;
+            const resourceAuthor = {
+              name: displayAuthor?.name || 'Entertain Lawyers',
+              image: displayAuthor?.image || null,
+              bio: displayAuthor?.bio || 'Entertain Lawyers provides comprehensive law notes, old questions, case laws, and study resources for law students and legal practitioners in Nepal.',
+              role: displayAuthor?.role ? (displayAuthor.role === 'ADMIN' ? 'Administrator' : displayAuthor.role === 'EDITOR' ? 'Editor' : 'Contributor') : 'Editorial Team',
+              website: displayAuthor?.website || null,
+              email: displayAuthor?.email || null,
+            };
+            return (
+              <div className="flex items-center gap-2">
+                <span className="hidden sm:inline text-xs font-bold text-text-muted uppercase tracking-wider">{dict.author}:</span>
+                <AuthorBioTrigger author={resourceAuthor} size="xs" showName />
+              </div>
+            );
+          })()}
         </div>
       </div>
 

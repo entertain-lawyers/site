@@ -34,7 +34,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="flex min-h-screen bg-slate-50 dark:bg-zinc-950 relative selection:bg-accent/30">
-      <Suspense fallback={<div className="hidden lg:block w-64 h-full bg-white dark:bg-zinc-900 border-r border-black/5 dark:border-white/5" />}>
+      <Suspense fallback={<div className="admin-sidebar hidden lg:block w-64 h-full bg-white dark:bg-zinc-900 border-r border-black/5 dark:border-white/5" />}>
         <AdminSidebar userRole={dbUser.role} pendingConsultations={pendingConsultations} />
       </Suspense>
 

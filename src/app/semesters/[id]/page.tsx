@@ -8,6 +8,7 @@ import { SYLLABUS_CONFIG, isAuthoritativeSubject, findAuthoritativeSubject } fro
 import { serializeJsonLd, getSiteUrl } from '@/lib/seo';
 import { getScriptNonce } from '@/lib/csp';
 import { Reveal } from '@/components/motion/primitives';
+import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -68,14 +69,30 @@ export default async function SemesterPage({ params }: PageProps) {
                 // never list draft or archived material.
                 where: { status: 'PUBLISHED' },
                 orderBy: [{ order: 'asc' }, { title: 'asc' }],
-                select: { id: true, title: true, type: true, isPremium: true, unitId: true },
+                select: {
+                  id: true,
+                  title: true,
+                  type: true,
+                  isPremium: true,
+                  unitId: true,
+                  author: { select: { name: true, image: true, bio: true, role: true, website: true, email: true } },
+                  createdBy: { select: { name: true, image: true, bio: true, role: true, website: true, email: true } },
+                },
               },
             },
           },
           resources: {
             where: { status: 'PUBLISHED' },
             orderBy: [{ order: 'asc' }, { title: 'asc' }],
-            select: { id: true, title: true, type: true, isPremium: true, unitId: true },
+            select: {
+              id: true,
+              title: true,
+              type: true,
+              isPremium: true,
+              unitId: true,
+              author: { select: { name: true, image: true, bio: true, role: true, website: true, email: true } },
+              createdBy: { select: { name: true, image: true, bio: true, role: true, website: true, email: true } },
+            },
           },
         },
       },
@@ -218,29 +235,48 @@ export default async function SemesterPage({ params }: PageProps) {
                             
                             {unit.resources.length > 0 ? (
                               <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {unit.resources.map((resource) => (
-                                  <li key={resource.id}>
-                                    <Link
-                                      href={`/resources/${resource.id}`}
-                                      className="group flex flex-col justify-between h-full p-4 border border-border rounded-xl hover:border-accent hover:bg-surface-alt transition-all"
-                                    >
-                                      <div className="flex items-start justify-between mb-3 gap-2">
-                                        <span className={`text-xs font-bold px-2.5 py-1 rounded-md border tracking-wide ${TYPE_COLORS[resource.type] || TYPE_COLORS.OTHER}`}>
-                                          {TYPE_LABELS[resource.type] || 'Other'}
-                                        </span>
-                                        {resource.isPremium && (
-                                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-gold/10 text-gold-dark border border-gold/20 uppercase tracking-wider">
-                                            <Lock className="w-3 h-3" />
-                                            {dict.premium}
-                                          </span>
-                                        )}
+                                {unit.resources.map((resource) => {
+                                  const authorUser = resource.author ?? resource.createdBy;
+                                  const resourceAuthor = {
+                                    name: authorUser?.name || 'Entertain Lawyers',
+                                    image: authorUser?.image || null,
+                                    bio: authorUser?.bio || 'Entertain Lawyers provides comprehensive law notes, old questions, case laws, and study resources for law students and legal practitioners in Nepal.',
+                                    role: authorUser?.role ? (authorUser.role === 'ADMIN' ? 'Administrator' : authorUser.role === 'EDITOR' ? 'Editor' : 'Contributor') : 'Editorial Team',
+                                    website: authorUser?.website || null,
+                                    email: authorUser?.email || null,
+                                  };
+
+                                  return (
+                                    <li key={resource.id}>
+                                      <div
+                                        className="group relative flex flex-col justify-between h-full p-4 border border-border rounded-xl hover:border-accent hover:bg-surface-alt transition-all"
+                                      >
+                                        <div>
+                                          <div className="flex items-start justify-between mb-3 gap-2">
+                                            <span className={`text-xs font-bold px-2.5 py-1 rounded-md border tracking-wide ${TYPE_COLORS[resource.type] || TYPE_COLORS.OTHER}`}>
+                                              {TYPE_LABELS[resource.type] || 'Other'}
+                                            </span>
+                                            {resource.isPremium && (
+                                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-gold/10 text-gold-dark border border-gold/20 uppercase tracking-wider">
+                                                <Lock className="w-3 h-3" />
+                                                {dict.premium}
+                                              </span>
+                                            )}
+                                          </div>
+                                          <h4 className="text-[15px] font-semibold text-text-primary group-hover:text-accent transition-colors leading-snug">
+                                            <Link href={`/resources/${resource.id}`} className="focus:outline-none">
+                                              <span className="absolute inset-0" aria-hidden="true" />
+                                              {resource.title}
+                                            </Link>
+                                          </h4>
+                                        </div>
+                                        <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
+                                          <AuthorBioTrigger author={resourceAuthor} size="xs" showName />
+                                        </div>
                                       </div>
-                                      <h4 className="text-[15px] font-semibold text-text-primary group-hover:text-accent transition-colors leading-snug">
-                                        {resource.title}
-                                      </h4>
-                                    </Link>
-                                  </li>
-                                ))}
+                                    </li>
+                                  );
+                                })}
                               </ul>
                             ) : (
                               <div className="bg-surface-alt border border-border border-dashed rounded-xl p-6 text-center">
@@ -257,29 +293,48 @@ export default async function SemesterPage({ params }: PageProps) {
                               Additional {dict.resources}
                             </h3>
                             <ul className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              {unassignedResources.map((resource) => (
-                                <li key={resource.id}>
-                                  <Link
-                                    href={`/resources/${resource.id}`}
-                                    className="group flex flex-col justify-between h-full p-4 border border-border rounded-xl hover:border-accent hover:bg-surface-alt transition-all"
-                                  >
-                                    <div className="flex items-start justify-between mb-3 gap-2">
-                                      <span className={`text-xs font-bold px-2.5 py-1 rounded-md border tracking-wide ${TYPE_COLORS[resource.type] || TYPE_COLORS.OTHER}`}>
-                                        {TYPE_LABELS[resource.type] || 'Other'}
-                                      </span>
-                                      {resource.isPremium && (
-                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-gold/10 text-gold-dark border border-gold/20 uppercase tracking-wider">
-                                          <Lock className="w-3 h-3" />
-                                          {dict.premium}
-                                        </span>
-                                      )}
+                              {unassignedResources.map((resource) => {
+                                const authorUser = resource.author ?? resource.createdBy;
+                                const resourceAuthor = {
+                                  name: authorUser?.name || 'Entertain Lawyers',
+                                  image: authorUser?.image || null,
+                                  bio: authorUser?.bio || 'Entertain Lawyers provides comprehensive law notes, old questions, case laws, and study resources for law students and legal practitioners in Nepal.',
+                                  role: authorUser?.role ? (authorUser.role === 'ADMIN' ? 'Administrator' : authorUser.role === 'EDITOR' ? 'Editor' : 'Contributor') : 'Editorial Team',
+                                  website: authorUser?.website || null,
+                                  email: authorUser?.email || null,
+                                };
+
+                                return (
+                                  <li key={resource.id}>
+                                    <div
+                                      className="group relative flex flex-col justify-between h-full p-4 border border-border rounded-xl hover:border-accent hover:bg-surface-alt transition-all"
+                                    >
+                                      <div>
+                                        <div className="flex items-start justify-between mb-3 gap-2">
+                                          <span className={`text-xs font-bold px-2.5 py-1 rounded-md border tracking-wide ${TYPE_COLORS[resource.type] || TYPE_COLORS.OTHER}`}>
+                                            {TYPE_LABELS[resource.type] || 'Other'}
+                                          </span>
+                                          {resource.isPremium && (
+                                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-gold/10 text-gold-dark border border-gold/20 uppercase tracking-wider">
+                                              <Lock className="w-3 h-3" />
+                                              {dict.premium}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <h4 className="text-[15px] font-semibold text-text-primary group-hover:text-accent transition-colors leading-snug">
+                                          <Link href={`/resources/${resource.id}`} className="focus:outline-none">
+                                            <span className="absolute inset-0" aria-hidden="true" />
+                                            {resource.title}
+                                          </Link>
+                                        </h4>
+                                      </div>
+                                      <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
+                                        <AuthorBioTrigger author={resourceAuthor} size="xs" showName />
+                                      </div>
                                     </div>
-                                    <h4 className="text-[15px] font-semibold text-text-primary group-hover:text-accent transition-colors leading-snug">
-                                      {resource.title}
-                                    </h4>
-                                  </Link>
-                                </li>
-                              ))}
+                                  </li>
+                                );
+                              })}
                             </ul>
                           </div>
                         )}
