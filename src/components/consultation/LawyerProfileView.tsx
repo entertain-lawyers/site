@@ -276,7 +276,7 @@ export default function LawyerProfileView({ lawyer }: LawyerProfileViewProps) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <Link
                   href={`/consultation/${lawyer.slug}/book`}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-5 py-3.5 text-sm font-extrabold text-white shadow-md transition-colors hover:bg-accent-hover"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-5 py-3.5 text-sm font-bold text-white shadow-sm shadow-accent/20 transition-all hover:bg-accent-hover active:scale-[0.99]"
                 >
                   <Scale className="h-4 w-4" aria-hidden="true" />
                   Book a Consultation
@@ -285,9 +285,9 @@ export default function LawyerProfileView({ lawyer }: LawyerProfileViewProps) {
                 {call && (
                   <a
                     href={call}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-navy px-4 py-3.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-navy-light dark:bg-navy-light dark:hover:bg-navy"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-navy/15 bg-navy/[0.04] px-4 py-3.5 text-sm font-semibold text-navy transition-all hover:bg-navy/[0.08] hover:border-navy/30 dark:border-white/15 dark:bg-white/[0.04] dark:text-white dark:hover:bg-white/[0.08] active:scale-[0.99]"
                   >
-                    <Phone className="h-4 w-4" aria-hidden="true" />
+                    <Phone className="h-4 w-4 text-accent" aria-hidden="true" />
                     Direct Call
                   </a>
                 )}
@@ -297,9 +297,9 @@ export default function LawyerProfileView({ lawyer }: LawyerProfileViewProps) {
                     href={whatsapp}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-emerald-700"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-600/20 bg-emerald-500/[0.08] px-4 py-3.5 text-sm font-semibold text-emerald-700 transition-all hover:bg-emerald-500/[0.16] hover:border-emerald-600/35 dark:border-emerald-500/30 dark:bg-emerald-500/[0.12] dark:text-emerald-300 dark:hover:bg-emerald-500/[0.22] active:scale-[0.99]"
                   >
-                    <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                    <MessageCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
                     Contact on WhatsApp
                   </a>
                 )}
@@ -309,9 +309,9 @@ export default function LawyerProfileView({ lawyer }: LawyerProfileViewProps) {
                     href={mapHref}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-3.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-slate-900 dark:bg-zinc-700 dark:hover:bg-zinc-600"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-3.5 text-sm font-semibold text-text-primary transition-all hover:bg-surface-alt hover:border-accent hover:text-accent active:scale-[0.99]"
                   >
-                    <MapPin className="h-4 w-4" aria-hidden="true" />
+                    <MapPin className="h-4 w-4 text-accent" aria-hidden="true" />
                     Visit Office
                   </a>
                 )}
