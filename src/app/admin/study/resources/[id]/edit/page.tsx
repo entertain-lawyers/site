@@ -91,19 +91,8 @@ export default async function EditResourcePage({ params }: { params: Promise<{ i
   }
 
   return (
-    <div data-resource-page-shell className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:h-dvh lg:min-h-0 lg:flex lg:flex-col lg:overflow-hidden">
-      <div className="mb-8 shrink-0">
-        <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">
-          {resource.type === ResourceType.CASE_LAW ? 'Edit Case Law' : 'Edit Resource'}
-        </h1>
-        <p className="mt-2 text-gray-500 dark:text-gray-400">
-          {resource.type === ResourceType.CASE_LAW
-            ? 'Update the precedent case law details, citations, and featured image.'
-            : 'Update the resource details and who it is credited to.'}
-        </p>
-      </div>
-
-      <div data-resource-form-card className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-gray-200 dark:border-white/10 p-6 sm:p-10 lg:flex-1 lg:min-h-0 lg:flex lg:flex-col lg:overflow-hidden">
+    <div data-resource-page-shell className="admin-editor-page w-full min-h-screen flex flex-col">
+      <div data-resource-form-card className="bg-white dark:bg-zinc-900 shadow-sm border-b border-gray-200 dark:border-white/10 flex-1 flex flex-col">
         <AdminResourceForm
           semesters={semesters}
           subjects={subjects.map((subject) => ({

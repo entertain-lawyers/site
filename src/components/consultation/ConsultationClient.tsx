@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import {
-  Award, BriefcaseBusiness, Building2, Calculator, Camera, Clock, GraduationCap, Navigation, Users,
-  Mail, MapPin, MessageCircle, Phone, Scale, ShieldCheck, X, Globe2,
+  Award, BriefcaseBusiness, Building2, Calculator, Camera, ChevronDown, ChevronUp, Clock, GraduationCap,
+  Mail, MapPin, MessageCircle, Phone, Scale, ShieldCheck, Users, X, Globe2,
 } from 'lucide-react';
 import Link from 'next/link';
 import ConsultationForm, { ConsultationLawyer } from './ConsultationForm';
@@ -48,25 +48,40 @@ function safeExternalHref(value?: string | null) {
 
 export default function ConsultationClient({ lawyers, loadError = false }: ConsultationClientProps) {
   const [selectedLawyer, setSelectedLawyer] = useState<ConsultationLawyer | null>(null);
-  const [detailLawyer, setDetailLawyer] = useState<ConsultationLawyer | null>(null);
+  const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
   const [isFormHighlighted, setIsFormHighlighted] = useState(false);
   const bookingFormRef = useRef<HTMLElement>(null);
+  const profileHeadingRef = useRef<HTMLHeadingElement>(null);
+
+  const profileLawyer = lawyers.find((lawyer) => lawyer.id === activeProfileId) ?? null;
+
+  const openProfile = (lawyer: ConsultationLawyer) => {
+    setActiveProfileId((current) => (current === lawyer.id ? null : lawyer.id));
+  };
 
   const handleBook = (lawyer: ConsultationLawyer) => {
+    // Keep the profile open and the selected lawyer pinned to the intake form.
     setSelectedLawyer(lawyer);
-    setDetailLawyer(null);
     setIsFormHighlighted(true);
     window.setTimeout(() => bookingFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
   };
 
+  // Focus the expanded profile heading and let Escape collapse it.
   useEffect(() => {
-    if (!detailLawyer) return;
+    if (!profileLawyer) return;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    profileHeadingRef.current?.focus();
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setDetailLawyer(null);
+      if (event.key === 'Escape') setActiveProfileId(null);
     };
     window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [detailLawyer]);
+    return () => {
+      window.removeEventListener('keydown', closeOnEscape);
+      if (previousFocus instanceof HTMLElement && document.body.contains(previousFocus)) {
+        previousFocus.focus();
+      }
+    };
+  }, [profileLawyer]);
 
   useEffect(() => {
     if (!isFormHighlighted) return;
@@ -85,15 +100,9 @@ export default function ConsultationClient({ lawyers, loadError = false }: Consu
           <p className="text-base leading-relaxed text-text-secondary sm:text-lg">
             Find an advocate by practice area and service city, review their profile, then book a consultation or contact them directly.
           </p>
-          <p lang="ne" className="text-sm text-text-muted">कानुनी परामर्शका लागि अधिवक्ता छान्नुहोस् वा तलको फारम भर्नुहोस्।</p>
-          <nav aria-label="Chambers direct contact" className="flex flex-wrap justify-center gap-2 pt-1">
-            <a href="tel:+9779822010737" className="inline-flex items-center gap-2 rounded-full bg-navy px-4 py-2.5 text-xs font-bold text-white hover:bg-navy-light"><Phone className="h-4 w-4" aria-hidden="true" />Call Chambers</a>
-            <a href={`https://wa.me/9779822010737?text=${encodeURIComponent('Namaste Entertain Lawyers Chambers, I would like to consult with a certified advocate.')}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-emerald-700"><MessageCircle className="h-4 w-4" aria-hidden="true" />WhatsApp Chambers</a>
-            <a href="mailto:contact@entertainlawyers.com" className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-4 py-2.5 text-xs font-bold text-text-primary hover:border-accent"><Mail className="h-4 w-4" aria-hidden="true" />Email Chambers</a>
-          </nav>
         </header>
 
-        <section aria-labelledby="lawyers-heading" className="space-y-5">
+        <section aria-labelledby="lawyers-heading" className="space-y-6">
           <div className="flex flex-col gap-2 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="mb-1 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-accent"><Scale className="h-4 w-4" aria-hidden="true" /> Lawyer directory</p>
@@ -109,9 +118,27 @@ export default function ConsultationClient({ lawyers, loadError = false }: Consu
           ) : lawyers.length === 0 ? (
             <div className="rounded-2xl border border-border bg-surface p-8 text-center text-sm text-text-secondary">No lawyer profiles are published yet.</div>
           ) : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {lawyers.map((lawyer) => <LawyerCard key={lawyer.id} lawyer={lawyer} selected={selectedLawyer?.id === lawyer.id} onView={() => setDetailLawyer(lawyer)} onBook={() => handleBook(lawyer)} />)}
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {lawyers.map((lawyer) => (
+                <LawyerCard
+                  key={lawyer.id}
+                  lawyer={lawyer}
+                  selected={selectedLawyer?.id === lawyer.id}
+                  expanded={activeProfileId === lawyer.id}
+                  onToggle={() => openProfile(lawyer)}
+                />
+              ))}
             </div>
+          )}
+
+          {profileLawyer && !loadError && (
+            <LawyerProfilePanel
+              key={profileLawyer.id}
+              lawyer={profileLawyer}
+              headingRef={profileHeadingRef}
+              onClose={() => setActiveProfileId(null)}
+              onBook={() => handleBook(profileLawyer)}
+            />
           )}
         </section>
 
@@ -138,7 +165,7 @@ export default function ConsultationClient({ lawyers, loadError = false }: Consu
               </ul>
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
                 <p className="text-xs text-text-muted">Requests are handled confidentially by the consultation team.</p>
-                <a href="https://www.google.com/maps/search/?api=1&query=Prithvi+Narayan+Campus,+Pokhara,+Kaski,+Nepal" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-2 text-xs font-bold text-accent hover:bg-accent hover:text-white"><Navigation className="h-3.5 w-3.5" aria-hidden="true" />Directions</a>
+                <a href="https://www.google.com/maps/search/?api=1&query=Prithvi+Narayan+Campus,+Pokhara,+Kaski,+Nepal" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-2 text-xs font-bold text-accent hover:bg-accent hover:text-white"><MapPin className="h-3.5 w-3.5" aria-hidden="true" />Directions</a>
               </div>
             </div>
           </div>
@@ -152,51 +179,101 @@ export default function ConsultationClient({ lawyers, loadError = false }: Consu
           </div>
         </section>
       </div>
-
-      {detailLawyer && <LawyerDetails lawyer={detailLawyer} onClose={() => setDetailLawyer(null)} onBook={() => handleBook(detailLawyer)} />}
     </main>
   );
 }
 
-export function LawyerCard({ lawyer, selected = false, onView, onBook }: { lawyer: ConsultationLawyer; selected?: boolean; onView: () => void; onBook: () => void }) {
-  const practices = (lawyer.practiceAreas || lawyer.specialization || '').split(/[,\n]/).map((value) => value.trim()).filter(Boolean);
+/**
+ * Directory card in the visual language of the Team page: a full 4/5 portrait,
+ * essential identity details, and exactly one primary action that expands the
+ * lawyer's profile inline. All contact/biography detail lives in the profile.
+ */
+export function LawyerCard({ lawyer, selected = false, expanded = false, onToggle }: {
+  lawyer: ConsultationLawyer;
+  selected?: boolean;
+  expanded?: boolean;
+  onToggle: () => void;
+}) {
+  const primaryPractice = (lawyer.practiceAreas || lawyer.specialization || '')
+    .split(/[,\n]/).map((value) => value.trim()).filter(Boolean)[0];
   return (
-    <article className={`flex min-w-0 flex-col rounded-2xl border bg-surface p-4 shadow-sm transition-shadow hover:shadow-lg sm:p-5 ${selected ? 'border-accent ring-2 ring-accent/20' : 'border-border'}`}>
-      <div className="flex items-center gap-4">
-        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-surface-alt ring-1 ring-border sm:h-24 sm:w-24">
-          {lawyer.imageUrl ? <Image src={lawyer.imageUrl} alt={`Photo of ${lawyer.name}`} fill sizes="96px" className="object-cover" /> : <div aria-hidden="true" className="flex h-full items-center justify-center text-3xl font-black text-accent">{lawyer.name.charAt(0).toUpperCase()}</div>}
-        </div>
-        <div className="min-w-0">
-          {lawyer.isFeatured && <span className="mb-1 inline-flex rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">Featured</span>}
-          <h3 className="truncate text-lg font-extrabold text-navy dark:text-white">{lawyer.name}</h3>
-          <p className="text-sm font-semibold text-accent">{lawyer.title || 'Advocate'}</p>
+    <article
+      className={`flex min-w-0 flex-col border rounded-2xl bg-surface shadow-sm overflow-hidden transition-[box-shadow,border-color] duration-300 hover:shadow-lg ${
+        selected ? 'border-accent ring-2 ring-accent/20' : expanded ? 'border-accent' : 'border-border'
+      }`}
+    >
+      {/* Framed portrait — white mat and hairline ring, matching the Team page */}
+      <div className="p-3">
+        <div className="relative w-full aspect-[4/5] rounded-lg overflow-hidden ring-1 ring-black/[0.06] dark:ring-white/[0.08] bg-slate-100 dark:bg-zinc-800">
+          {lawyer.imageUrl ? (
+            <Image
+              src={lawyer.imageUrl}
+              alt={`Portrait of ${lawyer.name}, ${lawyer.title || 'Advocate'}`}
+              fill
+              className="object-cover"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            />
+          ) : (
+            <div aria-hidden="true" className="flex h-full w-full items-center justify-center text-5xl font-black text-accent">
+              {lawyer.name.charAt(0).toUpperCase()}
+            </div>
+          )}
+          {lawyer.isFeatured && (
+            <span className="absolute top-3 right-3 rounded-full bg-white/85 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent shadow-sm backdrop-blur dark:bg-zinc-900/85">
+              Featured
+            </span>
+          )}
         </div>
       </div>
-      <div className="mt-4 flex-1 space-y-3">
-        {lawyer.specialization && <p className="text-sm text-text-secondary"><span className="font-bold text-text-primary">Specialization:</span> {lawyer.specialization}</p>}
-        {practices.length > 0 && <div className="flex flex-wrap gap-1.5">{practices.slice(0, 4).map((area) => <span key={area} className="rounded-full border border-border bg-surface-alt px-2.5 py-1 text-xs text-text-secondary">{area}</span>)}</div>}
-        {cityList(lawyer) && <p className="flex items-start gap-2 text-sm text-text-secondary"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden="true" /><span>{cityList(lawyer)}</span></p>}
-      </div>
-      <div className="mt-5 grid grid-cols-2 gap-2 border-t border-border pt-4">
-        <button type="button" onClick={onView} aria-haspopup="dialog" className="rounded-xl border border-border px-3 py-2.5 text-sm font-bold text-text-primary transition-colors hover:border-accent hover:text-accent">View More</button>
-        <button type="button" onClick={onBook} className="rounded-xl bg-navy px-3 py-2.5 text-sm font-bold text-white transition-colors hover:bg-navy-light dark:bg-accent dark:hover:bg-accent-hover">Book Consultation</button>
+
+      <div className="flex flex-1 flex-col px-5 pb-5 pt-2">
+        <h3 className="text-lg font-bold leading-tight text-navy dark:text-white">{lawyer.name}</h3>
+        <p className="text-sm font-semibold text-accent">{lawyer.title || 'Advocate'}</p>
+
+        {primaryPractice && <p className="mt-2 text-sm text-text-secondary">{primaryPractice}</p>}
+        {cityList(lawyer) && (
+          <p className="mt-2 flex items-start gap-1.5 text-sm text-text-secondary">
+            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
+            <span className="line-clamp-2">{cityList(lawyer)}</span>
+          </p>
+        )}
+
+        {/* Single primary action — the collapsed card offers nothing else */}
+        <div className="mt-auto space-y-2 border-t border-border pt-4">
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-expanded={expanded}
+            aria-controls="consult-lawyer-profile"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-navy px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-navy-light dark:bg-accent dark:hover:bg-accent-hover"
+          >
+            {expanded ? (
+              <>
+                <ChevronUp className="h-4 w-4" aria-hidden="true" /> Close Profile
+              </>
+            ) : (
+              <>
+                <ChevronDown className="h-4 w-4" aria-hidden="true" /> View More
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </article>
   );
 }
 
-export function LawyerDetails({ lawyer, onClose, onBook }: { lawyer: ConsultationLawyer; onClose: () => void; onBook: () => void }) {
-  const dialogRef = useRef<HTMLElement>(null);
-  useEffect(() => {
-    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    dialogRef.current?.querySelector<HTMLElement>('button, a[href]')?.focus();
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      previousFocus?.focus();
-    };
-  }, []);
+/**
+ * Expanded profile, rendered inline below the directory grid so it stays
+ * visually connected to the selected card. Portrait + identity on the left,
+ * biography and details in the main column, booking as the primary action.
+ */
+export function LawyerProfilePanel({ lawyer, headingRef, onClose, onBook }: {
+  lawyer: ConsultationLawyer;
+  headingRef?: React.RefObject<HTMLHeadingElement | null>;
+  onClose: () => void;
+  onBook: () => void;
+}) {
   const call = phoneHref(lawyer.phone);
   const whatsapp = whatsappHref(lawyer.whatsappNumber || lawyer.phone, lawyer.name);
   const mapHref = safeExternalHref(lawyer.officeMapUrl) || (lawyer.officeAddress || lawyer.location ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(lawyer.officeAddress || lawyer.location || '')}` : undefined);
@@ -206,57 +283,107 @@ export function LawyerDetails({ lawyer, onClose, onBook }: { lawyer: Consultatio
     [safeExternalHref(lawyer.linkedInUrl), 'LinkedIn', BriefcaseBusiness],
     [safeExternalHref(lawyer.websiteUrl), 'Website', Globe2],
   ] as const;
+  const about = lawyer.bio || lawyer.shortBio;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-6" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <section ref={dialogRef} tabIndex={-1} onKeyDown={(event) => {
-        if (event.key !== 'Tab') return;
-        const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])'));
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
-        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-      }} role="dialog" aria-modal="true" aria-labelledby="lawyer-detail-title" className="max-h-[92vh] w-full max-w-4xl overflow-y-auto rounded-3xl border border-border bg-surface shadow-2xl">
-        <div className="flex justify-end p-3 pb-0"><button type="button" onClick={onClose} aria-label="Close lawyer profile" className="rounded-full p-2 text-text-muted hover:bg-surface-alt hover:text-text-primary"><X className="h-5 w-5" aria-hidden="true" /></button></div>
-        <div className="grid gap-6 p-5 pt-1 sm:grid-cols-[230px_1fr] sm:p-8 sm:pt-2">
-          <div className="relative mx-auto h-56 w-48 overflow-hidden rounded-2xl bg-surface-alt ring-1 ring-border sm:mx-0 sm:h-72 sm:w-full">
-            {lawyer.imageUrl ? <Image src={lawyer.imageUrl} alt={`Photo of ${lawyer.name}`} fill sizes="(min-width: 640px) 230px, 192px" className="object-cover" /> : <div aria-hidden="true" className="flex h-full items-center justify-center text-6xl font-black text-accent">{lawyer.name.charAt(0).toUpperCase()}</div>}
+    <div
+      id="consult-lawyer-profile"
+      role="region"
+      aria-labelledby="lawyer-profile-title"
+      className="overflow-hidden rounded-2xl border border-accent/40 bg-surface shadow-lg"
+    >
+      <div className="flex justify-end p-3 pb-0">
+        <button type="button" onClick={onClose} aria-label="Close lawyer profile" className="rounded-full p-2 text-text-muted hover:bg-surface-alt hover:text-text-primary"><X className="h-5 w-5" aria-hidden="true" /></button>
+      </div>
+      <div className="grid gap-6 px-5 pb-2 pt-1 sm:grid-cols-[240px_1fr] sm:p-6 md:grid-cols-[260px_1fr]">
+        {/* LEFT/TOP: portrait and identity */}
+        <div className="space-y-4">
+          <div className="relative mx-auto w-full max-w-[240px] aspect-[4/5] overflow-hidden rounded-xl bg-surface-alt ring-1 ring-border sm:mx-0 sm:w-full">
+            {lawyer.imageUrl ? (
+              <Image src={lawyer.imageUrl} alt={`Photo of ${lawyer.name}`} fill sizes="260px" className="object-cover" />
+            ) : (
+              <div aria-hidden="true" className="flex h-full items-center justify-center text-6xl font-black text-accent">{lawyer.name.charAt(0).toUpperCase()}</div>
+            )}
           </div>
-          <div className="space-y-5">
-            <header>
-              <p className="text-xs font-bold uppercase tracking-wider text-accent">Lawyer profile</p>
-              <h2 id="lawyer-detail-title" className="mt-1 text-2xl font-black text-navy dark:text-white sm:text-3xl">{lawyer.name}</h2>
-              <p className="font-semibold text-accent">{lawyer.title || 'Advocate'}{lawyer.licenseNumber ? ` · ${lawyer.licenseNumber}` : ''}</p>
-            </header>
+          <div className="space-y-1 text-center sm:text-left">
+            <h3 ref={headingRef} tabIndex={-1} id="lawyer-profile-title" className="text-xl font-black text-navy dark:text-white focus:outline-none">{lawyer.name}</h3>
+            <p className="text-sm font-semibold text-accent">{lawyer.title || 'Advocate'}{lawyer.licenseNumber ? ` · ${lawyer.licenseNumber}` : ''}</p>
+            {lawyer.lawFirm && <p className="text-sm text-text-secondary">{lawyer.lawFirm}</p>}
+            <nav aria-label={`${lawyer.name} contact options`} className="flex flex-wrap justify-center gap-2 pt-1 sm:justify-start">
+              {call && <a href={call} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-2 text-xs font-bold text-text-primary hover:border-accent"><Phone className="h-3.5 w-3.5" aria-hidden="true" />Direct Call</a>}
+              {whatsapp && <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white hover:bg-emerald-700"><MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />WhatsApp</a>}
+              {lawyer.email && <a href={`mailto:${lawyer.email}`} className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-2 text-xs font-bold text-text-primary hover:border-accent"><Mail className="h-3.5 w-3.5" aria-hidden="true" />Email</a>}
+              {mapHref && <a href={mapHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-2 text-xs font-bold text-text-primary hover:border-accent"><MapPin className="h-3.5 w-3.5" aria-hidden="true" />Visit Office</a>}
+            </nav>
+          </div>
+        </div>
 
-            <div className="grid gap-3 text-sm sm:grid-cols-2">
-              {lawyer.specialization && <DetailItem icon={Scale} title="Specialization" text={lawyer.specialization} />}
-              {lawyer.practiceAreas && <DetailItem icon={Scale} title="Practice areas" text={lawyer.practiceAreas} />}
-              {cityList(lawyer) && <DetailItem icon={MapPin} title="Service cities" text={cityList(lawyer)} />}
-              {lawyer.lawFirm && <DetailItem icon={BriefcaseBusiness} title="Law firm" text={lawyer.lawFirm} />}
-              {lawyer.qualifications && <DetailItem icon={GraduationCap} title="Academics" text={lawyer.qualifications} />}
-              {lawyer.achievements && <DetailItem icon={Award} title="Achievements" text={lawyer.achievements} />}
-              {lawyer.experience && <DetailItem icon={ShieldCheck} title="Experience" text={lawyer.experience} />}
-              {lawyer.officeAddress && <DetailItem icon={Building2} title="Office" text={lawyer.officeAddress} />}
-              {lawyer.phone && <DetailItem icon={Phone} title="Phone" text={lawyer.phone} />}
-              {lawyer.email && <div className="flex items-start gap-2.5"><Mail className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden="true" /><div><p className="text-xs font-bold uppercase tracking-wide text-text-muted">Email</p><a href={`mailto:${lawyer.email}`} className="break-all font-medium text-accent underline underline-offset-2">{lawyer.email}</a></div></div>}
-              {lawyer.bio && <div className="sm:col-span-2"><p className="mb-1 text-xs font-bold uppercase tracking-wide text-text-muted">About</p><p className="whitespace-pre-wrap leading-relaxed text-text-secondary">{lawyer.bio}</p></div>}
+        {/* MAIN PROFILE: biography and credentials */}
+        <div className="min-w-0 space-y-5">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-accent">Lawyer profile</p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {(lawyer.practiceAreas || lawyer.specialization || '').split(/[,\n]/).map((value) => value.trim()).filter(Boolean).map((area) => (
+                <span key={area} className="rounded-full border border-border bg-surface-alt px-2.5 py-1 text-xs text-text-secondary">{area}</span>
+              ))}
             </div>
+          </div>
 
-            {socialLinks.some(([href]) => href) && <nav aria-label="Lawyer social profiles" className="flex flex-wrap gap-2">{socialLinks.map(([href, label, Icon]) => href ? <a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={`${lawyer.name} on ${label}`} className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-semibold text-text-secondary hover:border-accent hover:text-accent"><Icon className="h-4 w-4" aria-hidden="true" />{label}</a> : null)}</nav>}
+          {about && (
+            <div>
+              <p className="mb-1 text-xs font-bold uppercase tracking-wide text-text-muted">About</p>
+              <p className="whitespace-pre-wrap leading-relaxed text-text-secondary">{about}</p>
+            </div>
+          )}
+
+          <dl className="grid gap-3 text-sm sm:grid-cols-2">
+            {lawyer.specialization && <DetailItem icon={Scale} title="Specialization" text={lawyer.specialization} />}
+            {lawyer.practiceAreas && <DetailItem icon={Scale} title="Practice areas" text={lawyer.practiceAreas} />}
+            {cityList(lawyer) && <DetailItem icon={MapPin} title="Service cities" text={cityList(lawyer)} />}
+            {lawyer.lawFirm && <DetailItem icon={BriefcaseBusiness} title="Law firm" text={lawyer.lawFirm} />}
+            {lawyer.qualifications && <DetailItem icon={GraduationCap} title="Academic qualifications" text={lawyer.qualifications} />}
+            {lawyer.achievements && <DetailItem icon={Award} title="Achievements" text={lawyer.achievements} />}
+            {lawyer.experience && <DetailItem icon={ShieldCheck} title="Experience" text={lawyer.experience} />}
+            {lawyer.officeAddress && <DetailItem icon={Building2} title="Office address" text={lawyer.officeAddress} />}
+            {lawyer.phone && <DetailItem icon={Phone} title="Phone" text={lawyer.phone} />}
+            {lawyer.email && <div className="flex items-start gap-2.5"><Mail className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden="true" /><div><p className="text-xs font-bold uppercase tracking-wide text-text-muted">Email</p><a href={`mailto:${lawyer.email}`} className="break-all font-medium text-accent underline underline-offset-2">{lawyer.email}</a></div></div>}
+          </dl>
+
+          {socialLinks.some(([href]) => href) && (
+            <nav aria-label="Lawyer social profiles" className="flex flex-wrap gap-2">
+              {socialLinks.map(([href, label, Icon]) => href ? (
+                <a key={label} href={href} target="_blank" rel="noopener noreferrer" aria-label={`${lawyer.name} on ${label}`} className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-semibold text-text-secondary hover:border-accent hover:text-accent">
+                  <Icon className="h-4 w-4" aria-hidden="true" />{label}
+                </a>
+              ) : null)}
+            </nav>
+          )}
+
+          {/* Prominent booking CTA for this specific advocate */}
+          <div className="flex flex-col gap-3 border-t border-border pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-text-muted">Requests are reviewed confidentially by the consultation team.</p>
+            <button
+              type="button"
+              onClick={onBook}
+              className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-accent px-6 py-3.5 text-sm font-extrabold text-white transition-colors hover:bg-accent-hover"
+            >
+              <Scale className="h-4 w-4" aria-hidden="true" /> Book a Consultation
+            </button>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-2 border-t border-border bg-surface-alt p-4 sm:grid-cols-4 sm:p-5">
-          <button type="button" onClick={onBook} className="col-span-2 rounded-xl bg-accent px-3 py-3 text-sm font-extrabold text-white hover:bg-accent-hover sm:col-span-1">Book a Consultation</button>
-          {call ? <a href={call} className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-3 py-3 text-sm font-bold text-text-primary hover:border-accent"><Phone className="h-4 w-4" aria-hidden="true" />Direct Call</a> : <span className="rounded-xl border border-border px-3 py-3 text-center text-xs text-text-muted">Call not listed</span>}
-          {whatsapp ? <a href={whatsapp} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-3 text-sm font-bold text-white hover:bg-emerald-700"><MessageCircle className="h-4 w-4" aria-hidden="true" />WhatsApp</a> : <span className="rounded-xl border border-border px-3 py-3 text-center text-xs text-text-muted">WhatsApp not listed</span>}
-          {mapHref ? <a href={mapHref} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2 rounded-xl border border-border bg-surface px-3 py-3 text-sm font-bold text-text-primary hover:border-accent"><MapPin className="h-4 w-4" aria-hidden="true" />Visit Office</a> : <span className="rounded-xl border border-border px-3 py-3 text-center text-xs text-text-muted">Office not listed</span>}
-        </div>
-      </section>
+      </div>
     </div>
   );
 }
 
 function DetailItem({ icon: Icon, title, text }: { icon: typeof Scale; title: string; text: string }) {
-  return <div className="flex items-start gap-2.5"><Icon className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden="true" /><div><p className="text-xs font-bold uppercase tracking-wide text-text-muted">{title}</p><p className="whitespace-pre-wrap font-medium text-text-primary">{text}</p></div></div>;
+  return (
+    <div className="flex items-start gap-2.5">
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
+      <div>
+        <dt className="text-xs font-bold uppercase tracking-wide text-text-muted">{title}</dt>
+        <dd className="whitespace-pre-wrap font-medium text-text-primary">{text}</dd>
+      </div>
+    </div>
+  );
 }
