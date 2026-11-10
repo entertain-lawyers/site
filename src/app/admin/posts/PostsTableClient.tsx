@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { bulkUpdatePostStatusAction, deletePostAction } from '@/modules/admin/admin-post.actions';
 import { getPublicPostUrl } from '@/lib/post-url';
 import AuthorBioTrigger, { AuthorInfo } from '@/components/author/AuthorBioTrigger';
+import PostActionDropdown from './PostActionDropdown';
 
 export interface AdminPostRow {
   id: string;
@@ -215,7 +215,6 @@ export default function PostsTableClient({
               <th className="px-4 py-4 text-left text-xs font-bold text-text-muted uppercase tracking-wider">Categories</th>
               <th className="px-4 py-4 text-left text-xs font-bold text-text-muted uppercase tracking-wider">Type</th>
               <th className="px-4 py-4 text-left text-xs font-bold text-text-muted uppercase tracking-wider">Date</th>
-              <th className="px-8 py-4 text-right text-xs font-bold text-text-muted uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white dark:bg-zinc-900 divide-y divide-black/5 dark:divide-white/5">
@@ -233,7 +232,19 @@ export default function PostsTableClient({
                     />
                   </td>
                   <td className="px-4 py-5 text-sm font-bold text-navy dark:text-white min-w-[280px]">
-                    <span dangerouslySetInnerHTML={{ __html: post.titleHtml }} />
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <span dangerouslySetInnerHTML={{ __html: post.titleHtml }} />
+                      </div>
+                      <PostActionDropdown
+                        post={post}
+                        role={role}
+                        wpAdminBase={wpAdminBase}
+                        busy={busy}
+                        onUpdateStatus={updateSingleStatus}
+                        onDeleteSingle={handleDeleteSingle}
+                      />
+                    </div>
                   </td>
                   <td className="px-4 py-5 whitespace-nowrap text-sm font-medium text-text-secondary">
                     <AuthorBioTrigger author={post.author || { name: post.authorName }} size="xs" showName lang={post.lang} />
@@ -250,85 +261,11 @@ export default function PostsTableClient({
                     <br />
                     <span className="text-xs">{post.dateValue}</span>
                   </td>
-                  <td className="px-8 py-5 whitespace-nowrap text-right text-sm font-medium">
-                    {(role === 'ADMIN' || role === 'EDITOR') && (
-                      <Link
-                        href={`/admin/posts/${post.id}/edit?lang=${post.lang}`}
-                        className="inline-flex items-center justify-center px-4 py-2 border border-black/5 dark:border-white/5 rounded-lg text-navy dark:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors shadow-sm mr-2"
-                      >
-                        Edit
-                      </Link>
-                    )}
-                    <Link
-                      href={getPublicPostUrl({ id: post.id, type: post.type, lang: post.lang })}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center justify-center px-4 py-2 border border-black/5 dark:border-white/5 rounded-lg text-navy dark:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors shadow-sm"
-                    >
-                      View
-                    </Link>
-                    {post.status !== 'TRASH' && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          updateSingleStatus(
-                            post.id,
-                            post.status === 'PUBLISHED' ? 'DRAFT' : 'PUBLISH',
-                            post.status === 'PUBLISHED'
-                              ? 'Move this post to draft? Visitors will no longer see it until you publish it again.'
-                              : undefined
-                          )
-                        }
-                        disabled={busy}
-                        className={`inline-flex items-center justify-center px-4 py-2 rounded-lg transition-colors shadow-sm ml-2 disabled:opacity-50 font-medium text-sm ${
-                          post.status === 'PUBLISHED'
-                            ? 'border border-black/5 dark:border-white/5 text-navy dark:text-white hover:bg-slate-100 dark:hover:bg-zinc-800'
-                            : 'border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400'
-                        }`}
-                      >
-                        {post.status === 'PUBLISHED' ? 'Move to Draft' : 'Publish'}
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateSingleStatus(
-                          post.id,
-                          post.status === 'TRASH' ? 'PUBLISH' : 'TRASH',
-                          post.status === 'TRASH'
-                            ? undefined
-                            : 'Archive this post? It will be moved to trash and hidden from the public site.'
-                        )
-                      }
-                      disabled={busy}
-                      className="inline-flex items-center justify-center px-4 py-2 border border-black/5 dark:border-white/5 rounded-lg text-navy dark:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors shadow-sm ml-2 disabled:opacity-50 font-medium text-sm"
-                    >
-                      {post.status === 'TRASH' ? 'Restore' : 'Archive'}
-                    </button>
-                    {(role === 'ADMIN' || role === 'EDITOR') && (
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteSingle(post)}
-                        disabled={busy}
-                        className="inline-flex items-center justify-center px-4 py-2 border border-black/5 dark:border-white/5 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors shadow-sm ml-2 disabled:opacity-50 font-medium text-sm"
-                      >
-                        {post.status === 'TRASH' ? 'Delete forever' : 'Delete'}
-                      </button>
-                    )}
-                    <a
-                      href={`${wpAdminBase[post.lang]}/wp-admin/post.php?post=${post.id}&action=edit`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hidden 2xl:inline-flex items-center justify-center px-4 py-2 border border-black/5 dark:border-white/5 rounded-lg text-navy dark:text-white hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors shadow-sm ml-2"
-                    >
-                      WP Editor ↗
-                    </a>
-                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={7} className="px-8 py-16 text-center">
+                <td colSpan={6} className="px-8 py-16 text-center">
                   <div className="flex flex-col items-center gap-3">
                     <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-zinc-800 flex items-center justify-center mb-2">
                       <svg className="w-8 h-8 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
