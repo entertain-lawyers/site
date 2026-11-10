@@ -285,9 +285,9 @@ export default function LawyerProfileView({ lawyer }: LawyerProfileViewProps) {
                 {call && (
                   <a
                     href={call}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-3.5 text-sm font-bold text-text-primary transition-colors hover:border-accent hover:text-accent"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-navy px-4 py-3.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-navy-light dark:bg-navy-light dark:hover:bg-navy"
                   >
-                    <Phone className="h-4 w-4 text-accent" aria-hidden="true" />
+                    <Phone className="h-4 w-4" aria-hidden="true" />
                     Direct Call
                   </a>
                 )}
@@ -297,7 +297,7 @@ export default function LawyerProfileView({ lawyer }: LawyerProfileViewProps) {
                     href={whatsapp}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-emerald-700"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-emerald-700"
                   >
                     <MessageCircle className="h-4 w-4" aria-hidden="true" />
                     Contact on WhatsApp
@@ -309,9 +309,9 @@ export default function LawyerProfileView({ lawyer }: LawyerProfileViewProps) {
                     href={mapHref}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-border bg-surface px-4 py-3.5 text-sm font-bold text-text-primary transition-colors hover:border-accent hover:text-accent"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-800 px-4 py-3.5 text-sm font-bold text-white shadow-md transition-colors hover:bg-slate-900 dark:bg-zinc-700 dark:hover:bg-zinc-600"
                   >
-                    <MapPin className="h-4 w-4 text-accent" aria-hidden="true" />
+                    <MapPin className="h-4 w-4" aria-hidden="true" />
                     Visit Office
                   </a>
                 )}
