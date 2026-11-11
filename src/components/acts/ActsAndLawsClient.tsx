@@ -17,6 +17,8 @@ import {
 } from 'lucide-react';
 import { ACT_CATEGORIES } from '@/modules/acts/act.constants';
 import { searchMatches } from '@/lib/translit-search';
+import { m } from '@/components/motion/primitives';
+import { springSnappy } from '@/lib/motion';
 
 export interface ActItem {
   id: string;
@@ -197,17 +199,26 @@ export default function ActsAndLawsClient({ initialActs }: ActsAndLawsClientProp
             </div>
           </div>
 
-          {/* Quick Category Filter Pills */}
+          {/* Quick Category Filter Pills — active pill slides between buttons
+              (same layoutId animation as the top navbar) */}
           <div className="mt-5 flex items-center justify-center gap-1.5 flex-wrap">
             <button
               type="button"
               onClick={() => handleCategoryChange('ALL')}
-              className={`text-xs px-3 py-1.5 rounded-full font-bold transition-all ${
+              className={`relative isolate text-xs px-3 py-1.5 rounded-full font-bold transition-colors ${
                 selectedCategory === 'ALL'
-                  ? 'bg-accent text-white shadow-sm'
+                  ? 'text-white'
                   : 'bg-white dark:bg-zinc-800 border border-black/5 dark:border-white/10 text-text-secondary hover:text-text-primary'
               }`}
             >
+              {selectedCategory === 'ALL' && (
+                <m.span
+                  layoutId="acts-category-pill"
+                  aria-hidden="true"
+                  className="absolute inset-0 -z-10 rounded-full bg-accent shadow-sm"
+                  transition={springSnappy}
+                />
+              )}
               All
             </button>
             {ACT_CATEGORIES.map((cat) => (
@@ -215,12 +226,20 @@ export default function ActsAndLawsClient({ initialActs }: ActsAndLawsClientProp
                 key={cat.value}
                 type="button"
                 onClick={() => handleCategoryChange(cat.value)}
-                className={`text-xs px-3 py-1.5 rounded-full font-bold transition-all ${
+                className={`relative isolate text-xs px-3 py-1.5 rounded-full font-bold transition-colors ${
                   selectedCategory === cat.value
-                    ? 'bg-accent text-white shadow-sm'
+                    ? 'text-white'
                     : 'bg-white dark:bg-zinc-800 border border-black/5 dark:border-white/10 text-text-secondary hover:text-text-primary'
                 }`}
               >
+                {selectedCategory === cat.value && (
+                  <m.span
+                    layoutId="acts-category-pill"
+                    aria-hidden="true"
+                    className="absolute inset-0 -z-10 rounded-full bg-accent shadow-sm"
+                    transition={springSnappy}
+                  />
+                )}
                 {cat.label}
               </button>
             ))}
