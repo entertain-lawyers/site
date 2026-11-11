@@ -37,11 +37,12 @@
 @layer base {
   :root {
     /* Light Theme — Modern Educational values */
-    --bg-primary: #f8fafc;    --bg-surface: #ffffff;
-    --bg-surface-alt: #f1f5f9;
+    /* Tinted page background so white cards/buttons (bg-surface) keep their shape. */
+    --bg-primary: #eef2f8;    --bg-surface: #ffffff;
+    --bg-surface-alt: #f8fafc;
 
-    --border-color: #e2e8f0;
-    --border-strong: #cbd5e1;
+    --border-color: #cdd6e2;
+    --border-strong: #adbccc;
 
     --text-primary: #0f172a;
     --text-secondary: #334155;
