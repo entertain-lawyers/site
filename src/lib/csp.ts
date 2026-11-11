@@ -55,7 +55,8 @@ export function buildCsp(nonce?: string): string {
     `font-src 'self'`,
     `connect-src 'self'${b2OriginPart} https://va.vercel-scripts.com https://vitals.vercel-insights.com`,
     `worker-src 'self' blob:`,
-    `frame-src https://www.google.com https://maps.google.com https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com`,
+    // 'self' lets the act reader modal embed our same-origin PDF proxy.
+    `frame-src 'self' https://www.google.com https://maps.google.com https://www.youtube.com https://www.youtube-nocookie.com https://player.vimeo.com`,
     `object-src 'none'`,
     `base-uri 'self'`,
     `form-action 'self' https://epay.esewa.com.np https://rc-epay.esewa.com.np`,
