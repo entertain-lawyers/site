@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isFetchableUrl } from '../route';
+import { isFetchableUrl } from '@/lib/url-validation';
 
 describe('act PDF proxy SSRF guard', () => {
   it('allows public http(s) URLs', () => {

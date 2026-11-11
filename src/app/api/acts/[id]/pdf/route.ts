@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { generatePresignedGetUrl } from '@/lib/b2';
+import { isFetchableUrl } from '@/lib/url-validation';
 
 /**
  * Same-origin PDF streamer for the acts reader modal.
@@ -11,21 +12,6 @@ import { generatePresignedGetUrl } from '@/lib/b2';
  * too. This route proxies the document bytes through our own origin so the
  * modal's iframe can always display them.
  */
-
-/** Reject SSRF-looking targets before we fetch server-side. */
-export function isFetchableUrl(url: URL): boolean {
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
-  const host = url.hostname.toLowerCase();
-  if (host === 'localhost' || host.endsWith('.local') || host.endsWith('.internal')) return false;
-  // Bare-IP hosts: only public ranges are allowed.
-  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
-    const [a, b] = host.split('.').map(Number);
-    if (a === 10 || a === 127 || a === 0 || a === 169 && b === 254 || a === 192 && b === 168 || a === 172 && (b >= 16 && b <= 31)) {
-      return false;
-    }
-  }
-  return true;
-}
 
 export async function GET(
   _request: NextRequest,
