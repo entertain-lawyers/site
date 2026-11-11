@@ -138,9 +138,9 @@ export default function ActsAndLawsClient({ initialActs }: ActsAndLawsClientProp
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/60 dark:bg-zinc-950 text-navy dark:text-white pb-20">
+    <div className="min-h-screen bg-background dark:bg-zinc-950 text-navy dark:text-white pb-20">
       {/* Top Hero Banner */}
-      <div className="relative border-b border-border/50 bg-white dark:bg-zinc-900/60 backdrop-blur-md pt-12 pb-10">
+      <div className="relative border-b border-border/50 bg-background dark:bg-zinc-900/60 backdrop-blur-md pt-12 pb-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-accent/10 border border-accent/20 text-accent dark:text-accent-light text-xs font-bold mb-4">
             <Scale className="h-3.5 w-3.5" aria-hidden="true" />
