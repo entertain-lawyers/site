@@ -69,6 +69,9 @@ const QUILL_TOOLBAR_CONTAINER = [
   [{ script: 'super' }, { script: 'sub' }],
   [{ list: 'ordered' }, { list: 'bullet' }],
   [{ indent: '-1' }, { indent: '+1' }],
+  // Individual align buttons (left/center/right/justify); "align" is already
+  // in QUILL_FORMATS for the image tools.
+  [{ align: '' }, { align: 'center' }, { align: 'right' }, { align: 'justify' }],
   ['link', 'image', 'video'],
   [{ color: [] }, { background: [] }],
   ['clean'],
