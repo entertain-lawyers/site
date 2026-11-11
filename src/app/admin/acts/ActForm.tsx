@@ -28,13 +28,15 @@ interface ActFormProps {
 export default function ActForm({ initialData, isEdit = false }: ActFormProps) {
   const router = useRouter();
 
-  const [title, setTitle] = useState(initialData?.title || '');
-  const [titleEn, setTitleEn] = useState(initialData?.titleEn || '');
+  const [title, setTitle] = useState(() => {
+    // Legacy acts store "English (नेपाली)" in title — show English only.
+    const raw = initialData?.title || '';
+    return initialData?.titleEn?.trim() || raw.replace(/\s*\([^()]*[\u0900-\u097F][^()]*\)\s*/gu, '').trim();
+  });
   const [slug, setSlug] = useState(initialData?.slug || '');
   const [category, setCategory] = useState<ActCategoryValue>(
     (initialData?.category as ActCategoryValue) || 'ACTS'
   );
-  const [description, setDescription] = useState(initialData?.description || '');
   const [documentUrl, setDocumentUrl] = useState(initialData?.documentUrl || '');
   const [fileSize, setFileSize] = useState<number | undefined>(initialData?.fileSize || undefined);
   const [publishDate, setPublishDate] = useState(
@@ -57,10 +59,9 @@ export default function ActForm({ initialData, isEdit = false }: ActFormProps) {
         const res = await updateActAction({
           id: initialData.id,
           title,
-          titleEn: titleEn || undefined,
+          titleEn: title,
           slug: slug || undefined,
           category,
-          description: description || undefined,
           documentUrl: documentUrl || undefined,
           fileSize,
           publishDate: publishDate || undefined,
@@ -77,10 +78,9 @@ export default function ActForm({ initialData, isEdit = false }: ActFormProps) {
       } else {
         const res = await createActAction({
           title,
-          titleEn: titleEn || undefined,
+          titleEn: title,
           slug: slug || undefined,
           category,
-          description: description || undefined,
           documentUrl: documentUrl || undefined,
           fileSize,
           publishDate: publishDate || undefined,
@@ -142,22 +142,7 @@ export default function ActForm({ initialData, isEdit = false }: ActFormProps) {
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Constitution of Nepal (नेपालको संविधान)"
-              className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 p-3 text-sm text-navy dark:text-white focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
-            />
-          </div>
-
-          {/* Title in English (Optional) */}
-          <div>
-            <label htmlFor="act-title-en" className="block text-sm font-bold text-navy dark:text-white mb-2">
-              English Name (Optional)
-            </label>
-            <input
-              id="act-title-en"
-              type="text"
-              value={titleEn}
-              onChange={(e) => setTitleEn(e.target.value)}
-              placeholder="e.g. Constitution of Nepal"
+              placeholder="e.g. Arbitration Act, 2055"
               className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 p-3 text-sm text-navy dark:text-white focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
@@ -212,21 +197,6 @@ export default function ActForm({ initialData, isEdit = false }: ActFormProps) {
               onChange={(e) => setSlug(e.target.value)}
               placeholder="e.g. constitution-of-nepal"
               className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 p-3 text-sm text-navy dark:text-white focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent font-mono text-xs"
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label htmlFor="act-desc" className="block text-sm font-bold text-navy dark:text-white mb-2">
-              Summary / Notes (Optional)
-            </label>
-            <textarea
-              id="act-desc"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Short summary or date of promulgation..."
-              className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 p-3 text-sm text-navy dark:text-white focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
 

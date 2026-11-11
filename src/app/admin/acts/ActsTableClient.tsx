@@ -17,6 +17,12 @@ export interface ActRow {
   status: string;
 }
 
+/** English-only display: prefer titleEn, else strip the Devanagari parenthetical. */
+function displayTitle(act: ActRow): string {
+  if (act.titleEn && act.titleEn.trim()) return act.titleEn.trim();
+  return act.title.replace(/\s*\([^()]*[\u0900-\u097F][^()]*\)\s*/gu, '').trim();
+}
+
 export default function ActsTableClient({ acts }: { acts: ActRow[] }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -162,9 +168,9 @@ export default function ActsTableClient({ acts }: { acts: ActRow[] }) {
                 <td className="px-6 py-4">
                   <div className="min-w-[240px]">
                     <p className="text-sm font-bold text-navy dark:text-white leading-snug">
-                      {act.title}
+                      {displayTitle(act)}
                     </p>
-                    {act.titleEn && act.titleEn !== act.title && (
+                    {act.titleEn && act.titleEn.trim() !== displayTitle(act) && (
                       <p className="text-xs text-text-muted mt-0.5">{act.titleEn}</p>
                     )}
                     <p className="text-[11px] font-mono text-text-muted mt-1 opacity-75">
