@@ -115,6 +115,43 @@ describe('editor-clipboard helper', () => {
     });
   });
 
+  describe('MS Word fake lists (mso-list paragraphs)', () => {
+    const WORD_LISTS = `<html xmlns:w="urn:schemas-microsoft-com:office:word"><head><style>
+    @list l0:level1 {mso-level-number-format:decimal;}
+    @list l1:level1 {mso-level-number-format:bullet;}
+    @list l1:level2 {mso-level-number-format:bullet;}
+    </style></head><body>
+    <p class=MsoNormal>Intro paragraph</p>
+    <p class=MsoListParagraph style='margin-left:36.0pt;text-indent:-18.0pt;mso-list:l0 level1 lfo1'><![if !supportLists]><span style='mso-list:Ignore'>1.</span><![endif]>First numbered point</p>
+    <p class=MsoListParagraph style='margin-left:36.0pt;text-indent:-18.0pt;mso-list:l0 level1 lfo1'><![if !supportLists]><span style='mso-list:Ignore'>2.</span><![endif]>Second numbered point</p>
+    <p class=MsoListParagraph style='margin-left:72.0pt;text-indent:-18.0pt;mso-list:l1 level2 lfo2'><![if !supportLists]><span style='mso-list:Ignore'>o</span><![endif]>Nested bullet</p>
+    <p class=MsoListParagraph style='margin-left:36.0pt;text-indent:-18.0pt;mso-list:l1 level1 lfo2'><![if !supportLists]><span style='mso-list:Ignore'>&bull;</span><![endif]>Top bullet</p>
+    <p class=MsoNormal>Trailing paragraph</p>
+    </body></html>`;
+
+    it('converts Word fake lists into real ol/ul with nesting', () => {
+      const res = preparePastedHtml(WORD_LISTS);
+      const compact = res.replace(/\s+/g, '');
+      expect(res).toContain('<ol>');
+      expect(res).toContain('<ul>');
+      // ordered items converted, fake markers removed
+      expect(compact).toContain('<li>Firstnumberedpoint</li>');
+      // nesting: the sub-level list lives inside the parent li
+      expect(compact).toContain('<li>Secondnumberedpoint<ul><li>Nestedbullet</li></ul></li>');
+      // bullet level 1 becomes its own ul
+      expect(compact).toContain('<ul><li>Topbullet</li></ul>');
+      // surrounding paragraphs untouched, mso junk gone
+      expect(compact).toContain('Introparagraph</p>');
+      expect(compact).toContain('Trailingparagraph</p>');
+      expect(res).not.toContain('mso-list');
+    });
+
+    it('leaves HTML without mso-list styles untouched', () => {
+      const html = '<p><b>bold</b></p><ol><li>real list</li></ol>';
+      expect(preparePastedHtml(html)).toContain('<li>real list</li>');
+    });
+  });
+
   describe('insertClipboardContent', () => {
     it('returns false when editor is missing or clipboard data is empty', () => {
       expect(insertClipboardContent(null, {})).toBe(false);

@@ -256,39 +256,44 @@ export default function RichTextEditor({
       // Handle Ctrl+Shift+V / Cmd+Shift+V to preserve rich formatting from clipboard
       const handleKeyDown = async (e: KeyboardEvent) => {
         const isPasteCombo = (e.ctrlKey || e.metaKey) && (e.key === 'v' || e.key === 'V' || e.code === 'KeyV');
-        if (isPasteCombo && e.shiftKey) {
-          e.preventDefault();
-          e.stopPropagation();
+        if (!isPasteCombo || !e.shiftKey) return;
 
-          if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.read === 'function') {
-            try {
-              const items = await navigator.clipboard.read();
-              let html = '';
-              let text = '';
-              for (const item of items) {
-                if (item.types.includes('text/html')) {
-                  const blob = await item.getType('text/html');
-                  html = await blob.text();
-                }
-                if (item.types.includes('text/plain')) {
-                  const blob = await item.getType('text/plain');
-                  text = await blob.text();
-                }
-              }
-              if (html || text) {
-                insertClipboardContent(editor, { html, text });
-                return;
-              }
-            } catch {
-              try {
-                const text = await navigator.clipboard.readText();
-                if (text) {
-                  insertClipboardContent(editor, { text });
-                  return;
-                }
-              } catch {}
+        // Only take over when the async Clipboard API can hand us the HTML.
+        // Firefox has no navigator.clipboard.read; swallowing the event there
+        // would kill the paste entirely — let the native paste event through
+        // instead: handlePasteCapture below preserves rich HTML from it.
+        if (typeof navigator === 'undefined' || !navigator.clipboard || typeof navigator.clipboard.read !== 'function') {
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+
+        try {
+          const items = await navigator.clipboard.read();
+          let html = '';
+          let text = '';
+          for (const item of items) {
+            if (item.types.includes('text/html')) {
+              const blob = await item.getType('text/html');
+              html = await blob.text();
+            }
+            if (item.types.includes('text/plain')) {
+              const blob = await item.getType('text/plain');
+              text = await blob.text();
             }
           }
+          if (html || text) {
+            insertClipboardContent(editor, { html, text });
+            return;
+          }
+        } catch {
+          try {
+            const text = await navigator.clipboard.readText();
+            if (text) {
+              insertClipboardContent(editor, { text });
+              return;
+            }
+          } catch {}
         }
       };
 

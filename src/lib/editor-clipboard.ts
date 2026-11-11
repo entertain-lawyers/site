@@ -1,6 +1,101 @@
 import { sanitizeHtml } from '@/lib/sanitize';
 
 /**
+ * MS Word desktop exports lists as ordinary paragraphs carrying
+ * `mso-list:l0 level1 lfo1` styles plus a fake marker span, not as <ol>/<ul>.
+ * Quill has a built-in Word matcher for this, but it only runs when the HTML
+ * root still has `xmlns:w="...office:word"` — sanitizeHtml removes the <html>
+ * wrapper, so the matcher never fires. Convert to real lists ourselves,
+ * before sanitize runs. Uses the <style> sheet's
+ * `@list lX:levelY {mso-level-number-format:bullet}` rules to tell bullets
+ * from numbers, falling back to the marker text.
+ */
+function convertWordFakeLists(html: string): string {
+  if (!/\bmso-list\s*:/i.test(html)) return html;
+
+  // Sheet rules: key "lId:level" -> bullet?
+  const bulletLevels = new Map<string, boolean>();
+  for (const m of html.matchAll(/@list\s+l(\d+):level(\d+)\s*{([^}]*)}/gi)) {
+    bulletLevels.set(`${m[1]}:${m[2]}`, /mso-level-number-format\s*:\s*bullet/i.test(m[3]));
+  }
+
+  const paragraphRe = /<p(\s[^>]*?)?>([\s\S]*?)<\/p>/gi;
+  const items: Array<{ start: number; end: number; listId: string; level: number; content: string; isContinue: boolean }> = [];
+  for (const m of html.matchAll(paragraphRe)) {
+    const attrs = m[1] || '';
+    const styleMatch = /mso-list\s*:\s*([^;"']*)/i.exec(attrs);
+    if (!styleMatch) continue;
+    const value = styleMatch[1] || '';
+    const idMatch = /\bl(\d+)\b/i.exec(value);
+    if (!idMatch) continue;
+    const levelMatch = /\blevel\s*(\d+)/i.exec(value);
+    const start = m.index;
+    const end = start + m[0].length;
+    // Remove the fake marker span Word puts before each item's text.
+    const content = (m[2] || '').replace(/<span[^>]*mso-list\s*:\s*Ignore[^>]*>[\s\S]*?<\/span>/gi, '');
+    items.push({
+      start,
+      end,
+      listId: idMatch[1],
+      level: levelMatch ? Math.min(Number(levelMatch[1]), 5) : 1,
+      content,
+      isContinue: /continue/i.test(value),
+    });
+  }
+  if (items.length === 0) return html;
+
+  let out = '';
+  let cursor = 0;
+  // Number of currently open <li> elements (lists nest inside the parent li).
+  let liDepth = 0;
+  const open: Array<{ tag: string; listId: string }> = [];
+  const closeLi = () => {
+    if (liDepth > 0) {
+      out += '</li>';
+      liDepth -= 1;
+    }
+  };
+  const closeToDepth = (depth: number) => {
+    while (open.length > depth) {
+      closeLi();
+      out += open.pop()!.tag === 'ol' ? '</ol>' : '</ul>';
+    }
+  };
+
+  for (const item of items) {
+    out += html.slice(cursor, item.start);
+    cursor = item.end;
+
+    const listTag = bulletLevels.get(`${item.listId}:${item.level}`) ? 'ul' : 'ol';
+
+    // Wrapped continuation paragraph of the previous list item: keep it
+    // inside the currently open <li>.
+    if (item.isContinue && liDepth > 0) {
+      out += item.content;
+      continue;
+    }
+
+    if (open.length > item.level) closeToDepth(item.level);
+    if (open.length === item.level && open[open.length - 1]?.listId !== item.listId) {
+      closeToDepth(item.level - 1);
+    }
+    let openedList = false;
+    while (open.length < item.level) {
+      // A nested list opens INSIDE the still-open parent <li>.
+      out += `<${listTag}>`;
+      open.push({ tag: listTag, listId: item.listId });
+      openedList = true;
+    }
+    if (!openedList) closeLi();
+    out += `<li>${item.content}`;
+    liDepth += 1;
+  }
+  closeToDepth(0);
+  out += html.slice(cursor);
+  return out;
+}
+
+/**
  * Normalizes and sanitizes HTML retrieved from the clipboard (Word, Google Docs,
  * external websites, or other rich-text editors) so it can safely be converted
  * into a Quill Delta while preserving rich formatting.
@@ -27,6 +122,12 @@ export function preparePastedHtml(rawHtml: string): string {
   // 3. Normalize Google Docs bold wrapper
   // Google Docs wraps the whole pasted section in <b style="font-weight:normal;" id="docs-internal-guid-...">
   html = html.replace(/<b\s+[^>]*id=["']docs-internal-guid-[^"']*["'][^>]*>([\s\S]*?)<\/b>/gi, '$1');
+
+  // 3b. Convert MS Word's fake lists (mso-list paragraphs) into real <ol>/<ul>.
+  // Must run before sanitize, which strips the mso-list styles Quill's own
+  // Word matcher would need — and the matcher cannot run at all because the
+  // <html xmlns:w> root is removed by sanitize.
+  html = convertWordFakeLists(html);
 
   // 4. Sanitize through the existing safe HTML pipeline (strips scripts, event handlers,
   // dangerous protocols like javascript:, and unsupported css properties).
