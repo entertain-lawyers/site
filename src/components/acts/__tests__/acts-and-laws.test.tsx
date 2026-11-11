@@ -59,12 +59,22 @@ describe('ActsAndLawsClient Component Suite', () => {
     const html = renderToStaticMarkup(<ActsAndLawsClient initialActs={MOCK_ACTS} />);
 
     expect(html).toContain('Constitution of Nepal');
-    expect(html).toContain('Arbitration Act, 2055');
     expect(html).toContain('View');
     expect(html).toContain('Download');
     // Check numbered badges
     expect(html).toContain('1');
     expect(html).toContain('2');
+  });
+
+  it('shows English-only titles without the Nepali name and without descriptions', () => {
+    const html = renderToStaticMarkup(<ActsAndLawsClient initialActs={MOCK_ACTS} />);
+
+    expect(html).toContain('Arbitration Act');
+    expect(html).not.toContain('मध्यस्थता');
+    expect(html).not.toContain('(नेपालको संविधान)');
+    expect(html).toContain('Constitution of Nepal');
+    // Card descriptions are not shown on the listing
+    expect(html).not.toContain('Supreme law of the federal republic');
   });
 
   it('displays empty state gracefully when no acts are provided', () => {

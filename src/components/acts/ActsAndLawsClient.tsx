@@ -95,16 +95,14 @@ export default function ActsAndLawsClient({ initialActs }: ActsAndLawsClientProp
     return filteredActs.slice(start, start + ITEMS_PER_PAGE);
   }, [filteredActs, validCurrentPage]);
 
-  // Split into 2 columns matching the handwritten sketch layout (1, 2, 3 left; 4, 5, 6 right)
+  // Zigzag numbering matching the sketch: 1 left, 2 right, 3 left, 4 right…
   const leftColumnActs: { act: ActItem; index: number }[] = [];
   const rightColumnActs: { act: ActItem; index: number }[] = [];
 
   const startIndex = (validCurrentPage - 1) * ITEMS_PER_PAGE;
   paginatedActs.forEach((act, i) => {
     const itemIndex = startIndex + i + 1;
-    // On 2 columns: first half to left column, second half to right column
-    const half = Math.ceil(paginatedActs.length / 2);
-    if (i < half) {
+    if (itemIndex % 2 === 1) {
       leftColumnActs.push({ act, index: itemIndex });
     } else {
       rightColumnActs.push({ act, index: itemIndex });
@@ -421,6 +419,14 @@ export default function ActsAndLawsClient({ initialActs }: ActsAndLawsClientProp
 }
 
 // Single Act Card matching the sketch notation
+
+/** Show the English-only title: prefer titleEn, else strip a trailing
+ *  Devanagari parenthetical ("Arbitration Act, 2055 (मध्यस्थता ऐन, २०५५)"). */
+function displayTitle(act: ActItem): string {
+  if (act.titleEn && act.titleEn.trim()) return act.titleEn.trim();
+  return act.title.replace(/\s*\([^()]*[\u0900-\u097F][^()]*\)\s*/gu, '').trim();
+}
+
 function ActCard({
   act,
   index,
@@ -445,14 +451,8 @@ function ActCard({
         {/* Title and metadata */}
         <div className="flex-1 min-w-0 pr-1">
           <h2 className="text-sm sm:text-base font-extrabold text-navy dark:text-white leading-snug group-hover:text-accent transition-colors line-clamp-2">
-            {act.title}
+            {displayTitle(act)}
           </h2>
-
-          {act.description && (
-            <p className="mt-1 text-xs text-text-secondary dark:text-zinc-400 line-clamp-2 leading-relaxed">
-              {act.description}
-            </p>
-          )}
 
           <div className="mt-2.5 flex items-center gap-2 flex-wrap">
             <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 dark:bg-zinc-800 text-text-secondary dark:text-zinc-300 border border-black/5 dark:border-white/5">
