@@ -15,6 +15,7 @@ export function hitIcon(category: string): LucideIcon {
   if (c === 'fact' || c === 'personality') return Landmark;
   if (c === 'publication') return BookMarked;
   if (c === 'event') return CalendarDays;
+  if (c === 'act') return Scale;
   return Library;
 }
 

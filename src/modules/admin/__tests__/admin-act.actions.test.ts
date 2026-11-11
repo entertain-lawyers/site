@@ -6,6 +6,7 @@ import {
   createActAction,
   updateActAction,
   deleteActAction,
+  bulkDeleteActsAction,
 } from '../admin-act.actions';
 
 vi.mock('@/lib/auth', () => ({
@@ -120,6 +121,50 @@ describe('Admin Acts & Laws Actions Suite', () => {
 
     const check = await prisma.actLaw.findUnique({ where: { id: created.id } });
     expect(check).toBeNull();
+  });
+
+  it('creates an act with an uploaded (relative) document URL from the media flow', async () => {
+    const res = await createActAction({
+      title: 'Test Uploaded PDF Act',
+      category: 'ACTS',
+      documentUrl: '/api/media/editorial/acts/2026-11-11-test.pdf',
+      status: ContentStatus.PUBLISHED,
+    });
+
+    expect(res.success).toBe(true);
+    if (res.success) {
+      expect(res.data.documentUrl).toBe('/api/media/editorial/acts/2026-11-11-test.pdf');
+      await prisma.actLaw.delete({ where: { id: res.data.id } });
+    }
+  });
+
+  it('rejects a document URL that is neither http(s) nor a / path', async () => {
+    const res = await createActAction({
+      title: 'Test Bad URL Act',
+      category: 'ACTS',
+      documentUrl: 'javascript:alert(1)',
+      status: ContentStatus.PUBLISHED,
+    });
+
+    expect(res.success).toBe(false);
+  });
+
+  it('bulk deletes multiple acts at once', async () => {
+    const a = await prisma.actLaw.create({
+      data: { title: 'Bulk Delete A', slug: `test-bulk-a-${Math.random()}`, category: 'ACTS', status: ContentStatus.PUBLISHED },
+    });
+    const b = await prisma.actLaw.create({
+      data: { title: 'Bulk Delete B', slug: `test-bulk-b-${Math.random()}`, category: 'ACTS', status: ContentStatus.PUBLISHED },
+    });
+
+    const res = await bulkDeleteActsAction({ ids: [a.id, b.id] });
+    expect(res.success).toBe(true);
+    if (res.success) {
+      expect(res.data.count).toBe(2);
+    }
+
+    expect(await prisma.actLaw.findUnique({ where: { id: a.id } })).toBeNull();
+    expect(await prisma.actLaw.findUnique({ where: { id: b.id } })).toBeNull();
   });
 
   it('blocks unauthenticated or non-admin users from creating acts', async () => {

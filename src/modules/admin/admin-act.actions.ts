@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { ContentStatus, Role } from '@prisma/client';
 import { slugify, slugifyWithFallback, withUniqueSlug } from '@/lib/slug';
 import { ACT_CATEGORIES, ActCategoryValue } from '@/modules/acts/act.constants';
+import { isSafeAssetUrl, SAFE_ASSET_URL_MESSAGE } from '@/lib/url-validation';
 
 const categoryValues = ACT_CATEGORIES.map((c) => c.value) as [ActCategoryValue, ...ActCategoryValue[]];
 
@@ -15,7 +16,7 @@ const actBaseSchema = {
   slug: z.string().optional().nullable(),
   category: z.enum(categoryValues),
   description: z.string().max(5000).optional().nullable(),
-  documentUrl: z.string().url('Must be a valid URL').optional().nullable().or(z.literal('')),
+  documentUrl: z.string().refine(isSafeAssetUrl, SAFE_ASSET_URL_MESSAGE).optional().nullable().or(z.literal('')),
   fileSize: z.number().int().nonnegative().optional().nullable(),
   publishDate: z.string().optional().nullable(),
   status: z.nativeEnum(ContentStatus).default(ContentStatus.PUBLISHED),
@@ -126,4 +127,18 @@ export const deleteActAction = createSafeAction(async ({ id }: { id: string }, s
 
   await prisma.actLaw.delete({ where: { id } });
   return { id };
+});
+
+export const bulkDeleteActsAction = createSafeAction(async ({ ids }: { ids: string[] }, session) => {
+  if (session.role !== Role.ADMIN && session.role !== Role.EDITOR) {
+    throw new Error('Unauthorized');
+  }
+
+  const parsed = z.array(z.string().uuid()).min(1).safeParse(ids);
+  if (!parsed.success) {
+    throw new UserFacingError('Invalid act ids');
+  }
+
+  const result = await prisma.actLaw.deleteMany({ where: { id: { in: parsed.data } } });
+  return { count: result.count };
 });

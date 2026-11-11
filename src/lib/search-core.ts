@@ -7,6 +7,7 @@ import {
   WordPressLanguage,
 } from '@/lib/wordpress';
 import { searchMatches, searchScore } from '@/lib/translit-search';
+import { ACT_CATEGORIES } from '@/modules/acts/act.constants';
 import { rateLimit } from '@/lib/rate-limit';
 import { geminiEmbed, isAiEnabled } from '@/lib/ai/gemini';
 import { normalizeSearchQuery } from '@/lib/ai/normalize';
@@ -410,7 +411,7 @@ export async function runSearch(q: string, ip: string): Promise<SearchResponse> 
     return { query: q, total: 0, groups: [], aiUsed: false };
   }
 
-  const [resources, publications, events, teamMembers, wpEn, wpNe] = await Promise.allSettled([
+  const [resources, publications, events, teamMembers, acts, wpEn, wpNe] = await Promise.allSettled([
     // 1. Study materials (Prisma) — translit-matched in memory
     prisma.resource.findMany({
       where: { status: 'PUBLISHED' },
@@ -442,7 +443,13 @@ export async function runSearch(q: string, ip: string): Promise<SearchResponse> 
       select: { id: true, name: true, slug: true, designation: true },
       orderBy: { displayOrder: 'asc' },
     }),
-    // 5. WordPress (both EN and NP sites)
+    // 5. Acts & Laws (title, English title and slug, both scripts)
+    prisma.actLaw.findMany({
+      where: { status: 'PUBLISHED' },
+      select: { id: true, title: true, titleEn: true, slug: true, category: true },
+      orderBy: { title: 'asc' },
+    }),
+    // 6. WordPress (both EN and NP sites)
     searchWordPress('en' as WordPressLanguage, q, 6),
     searchWordPress('ne' as WordPressLanguage, q, 6),
   ]);
@@ -501,6 +508,22 @@ export async function runSearch(q: string, ip: string): Promise<SearchResponse> 
           }))
       : [];
 
+  const actCategoryLabels = new Map<string, string>(ACT_CATEGORIES.map((c) => [c.value, c.label]));
+
+  const actHits: SearchHit[] =
+    acts.status === 'fulfilled'
+      ? acts.value
+          .filter((a) => searchMatches(a.title, q) || (a.titleEn ? searchMatches(a.titleEn, q) : false))
+          .slice(0, 6)
+          .map((a) => ({
+            id: a.id,
+            title: a.titleEn?.trim() || a.title,
+            meta: actCategoryLabels.get(a.category) ?? a.category,
+            url: `/acts-and-laws`,
+            category: 'act',
+          }))
+      : [];
+
   // Static site pages (about, contact, pricing…) benefit from search too.
   const siteHits: SearchHit[] = SITE_KNOWLEDGE.filter(
     (d) => d.refId !== 'site-team-roster' && searchMatches(d.title, q)
@@ -540,7 +563,7 @@ export async function runSearch(q: string, ip: string): Promise<SearchResponse> 
     //    search results are weak — strong result sets skip the LLM pass
     //    (the free-tier chat budget is shared with the chatbot).
     const baseTotal =
-      studyHits.length + publicationHits.length + eventHits.length + teamHits.length + siteHits.length +
+      studyHits.length + publicationHits.length + eventHits.length + teamHits.length + siteHits.length + actHits.length +
       (wpEn.status === 'fulfilled' ? wpEn.value.length : 0) +
       (wpNe.status === 'fulfilled' ? wpNe.value.length : 0);
     const keywords = baseTotal < 3 ? await normalizeSearchQuery(q) : null;
@@ -618,7 +641,7 @@ export async function runSearch(q: string, ip: string): Promise<SearchResponse> 
 
   // ---- Merge AI extras into the base groups (deduped by URL) ---------------
   const seenUrls = new Set<string>();
-  for (const hit of [...studyHits, ...publicationHits, ...eventHits, ...teamHits, ...siteHits, ...(wpEn.status === 'fulfilled' ? wpEn.value : []), ...(wpNe.status === 'fulfilled' ? wpNe.value : [])]) {
+  for (const hit of [...studyHits, ...publicationHits, ...eventHits, ...teamHits, ...siteHits, ...actHits, ...(wpEn.status === 'fulfilled' ? wpEn.value : []), ...(wpNe.status === 'fulfilled' ? wpNe.value : [])]) {
     seenUrls.add(hit.url);
   }
   const dedupe = (hits: SearchHit[]): SearchHit[] =>
@@ -653,6 +676,7 @@ export async function runSearch(q: string, ip: string): Promise<SearchResponse> 
     ...(siteHits.length ? [{ label: 'Entertain Lawyers', items: siteHits }] : []),
     ...(wpMerged.length ? groupWpHits(wpMerged) : []),
     ...(publicationGroup.length ? [{ label: 'Publications', items: publicationGroup }] : []),
+    ...(actHits.length ? [{ label: 'Acts & Laws', items: actHits }] : []),
     ...(eventGroup.length ? [{ label: 'Events', items: eventGroup }] : []),
     ...(aiHits.length ? [{ label: 'AI Matches', items: aiHits }] : []),
   ];

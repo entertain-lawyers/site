@@ -16,6 +16,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { ACT_CATEGORIES } from '@/modules/acts/act.constants';
+import { searchMatches } from '@/lib/translit-search';
 
 export interface ActItem {
   id: string;
@@ -58,13 +59,15 @@ export default function ActsAndLawsClient({ initialActs }: ActsAndLawsClientProp
     }
 
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
+      const q = searchQuery.trim();
+      // Transliteration-aware fuzzy match (same matcher as site-wide search):
+      // typos, roman queries against Devanagari titles and vice versa.
       result = result.filter(
         (act) =>
-          act.title.toLowerCase().includes(q) ||
-          (act.titleEn && act.titleEn.toLowerCase().includes(q)) ||
-          act.slug.toLowerCase().includes(q) ||
-          (act.description && act.description.toLowerCase().includes(q))
+          searchMatches(act.title, q) ||
+          (act.titleEn ? searchMatches(act.titleEn, q) : false) ||
+          searchMatches(act.slug, q) ||
+          (act.description ? searchMatches(act.description, q) : false)
       );
     }
 
@@ -441,10 +444,10 @@ function ActCard({
   onDownload: () => void;
 }) {
   return (
-    <div className="group relative flex flex-col justify-between rounded-2xl border border-border/70 dark:border-white/10 bg-white dark:bg-zinc-900 p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-accent/40 transition-all duration-200">
+    <div className="group relative flex flex-col justify-between rounded-2xl border border-border/70 dark:border-white/10 bg-white dark:bg-zinc-900 p-3 sm:p-3.5 shadow-sm hover:shadow-md hover:border-accent/40 transition-all duration-200">
       <div className="flex items-start gap-3 sm:gap-3.5">
         {/* Index number bubble */}
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-accent/10 dark:bg-accent/15 text-accent dark:text-accent-light font-extrabold text-sm shadow-xs">
+        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent/10 dark:bg-accent/15 text-accent dark:text-accent-light font-extrabold text-xs shadow-xs">
           {index}
         </div>
 
@@ -454,7 +457,7 @@ function ActCard({
             {displayTitle(act)}
           </h2>
 
-          <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+          <div className="mt-1.5 flex items-center gap-2 flex-wrap">
             <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-slate-100 dark:bg-zinc-800 text-text-secondary dark:text-zinc-300 border border-black/5 dark:border-white/5">
               {categoryLabel}
             </span>
@@ -469,7 +472,7 @@ function ActCard({
       </div>
 
       {/* Action Buttons: [View] [Download] matching the sketch */}
-      <div className="mt-4 pt-3.5 border-t border-border/40 dark:border-white/5 flex items-center justify-end gap-2">
+      <div className="mt-3 pt-2.5 border-t border-border/40 dark:border-white/5 flex items-center justify-end gap-2">
         <button
           type="button"
           onClick={onView}
