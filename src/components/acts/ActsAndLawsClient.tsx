@@ -422,7 +422,10 @@ export default function ActsAndLawsClient({ initialActs }: ActsAndLawsClientProp
                     </a>
                   </div>
                   <iframe
-                    src={`${viewingAct.documentUrl}#toolbar=1&navpanes=0`}
+                    // Proxy through our own origin: B2 presigned URLs and most
+                    // gazette sites refuse iframe embedding (X-Frame-Options),
+                    // which showed Chrome's "This content is blocked" page.
+                    src={`/api/acts/${viewingAct.id}/pdf#toolbar=1&navpanes=0`}
                     title={viewingAct.title}
                     className="w-full flex-1 border-none"
                   />
