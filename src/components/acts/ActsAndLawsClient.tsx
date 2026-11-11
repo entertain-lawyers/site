@@ -8,7 +8,6 @@ import {
   Download,
   Filter,
   X,
-  ExternalLink,
   ChevronLeft,
   ChevronRight,
   BookOpen,
@@ -43,7 +42,6 @@ export default function ActsAndLawsClient({ initialActs }: ActsAndLawsClientProp
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [currentPage, setCurrentPage] = useState(1);
-  const [viewingAct, setViewingAct] = useState<ActItem | null>(null);
 
   // Category mapping
   const categoryLabelMap = useMemo(() => {
@@ -133,7 +131,10 @@ export default function ActsAndLawsClient({ initialActs }: ActsAndLawsClientProp
       alert(`The document for "${act.title}" is being prepared and will be uploaded shortly.`);
       return;
     }
-    setViewingAct(act);
+    // Open the PDF itself in a new tab — the browser's native PDF viewer is
+    // reliable everywhere, unlike embedded preview iframes (external gazette
+    // sites and storage providers block framing; CSP/XFO keep fighting it).
+    window.open(`/api/acts/${act.id}/pdf`, '_blank', 'noopener,noreferrer');
   };
 
   return (
@@ -352,93 +353,6 @@ export default function ActsAndLawsClient({ initialActs }: ActsAndLawsClientProp
           </div>
         )}
       </div>
-
-      {/* PDF View Reader Modal */}
-      {viewingAct && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="act-reader-title"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200"
-        >
-          <div className="flex flex-col w-full max-w-5xl h-[88vh] bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-black/10 dark:border-white/10 overflow-hidden">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-black/5 dark:border-white/5 bg-slate-50 dark:bg-zinc-950">
-              <div className="min-w-0 pr-4">
-                <h3 id="act-reader-title" className="text-base font-extrabold text-navy dark:text-white truncate">
-                  {viewingAct.title}
-                </h3>
-                {viewingAct.description && (
-                  <p className="text-xs text-text-muted truncate mt-0.5">{viewingAct.description}</p>
-                )}
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                {viewingAct.documentUrl && (
-                  <>
-                    <a
-                      href={viewingAct.documentUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 text-xs font-bold text-navy dark:text-white hover:border-accent transition-colors"
-                      title="Open in new window"
-                    >
-                      <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span className="hidden sm:inline">Open in Tab</span>
-                    </a>
-                    <button
-                      type="button"
-                      onClick={() => handleDownload(viewingAct)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent text-xs font-bold text-white hover:bg-accent-hover transition-colors shadow-sm"
-                    >
-                      <Download className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span>Download</span>
-                    </button>
-                  </>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setViewingAct(null)}
-                  className="p-2 text-text-muted hover:text-text-primary rounded-xl hover:bg-black/5 dark:hover:bg-white/5"
-                  aria-label="Close reader"
-                >
-                  <X className="h-5 w-5" aria-hidden="true" />
-                </button>
-              </div>
-            </div>
-
-            {/* Embedded PDF Viewer */}
-            <div className="flex-1 w-full bg-zinc-800 relative flex flex-col">
-              {viewingAct.documentUrl ? (
-                <>
-                  <div className="bg-amber-500/10 dark:bg-amber-500/20 border-b border-amber-500/20 px-4 py-2 flex items-center justify-between text-xs text-amber-800 dark:text-amber-200">
-                    <span className="truncate">Official legal document. If preview does not appear, open it in a new tab.</span>
-                    <a
-                      href={viewingAct.documentUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 font-bold underline ml-2 shrink-0 hover:text-amber-950 dark:hover:text-white"
-                    >
-                      Open in new tab <ExternalLink className="h-3 w-3" aria-hidden="true" />
-                    </a>
-                  </div>
-                  <iframe
-                    // Proxy through our own origin: B2 presigned URLs and most
-                    // gazette sites refuse iframe embedding (X-Frame-Options),
-                    // which showed Chrome's "This content is blocked" page.
-                    src={`/api/acts/${viewingAct.id}/pdf#toolbar=1&navpanes=0`}
-                    title={viewingAct.title}
-                    className="w-full flex-1 border-none"
-                  />
-                </>
-              ) : (
-                <div className="flex h-full items-center justify-center text-white/70 text-sm">
-                  PDF document preview unavailable
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
