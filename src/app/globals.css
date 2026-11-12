@@ -265,12 +265,18 @@
   .article-body p {
     margin: 0 0 1.6em;
   }
+  /* Reading page paragraphs get a fuller break so each paragraph reads as
+     its own block instead of one dense wall of text. */
+  .article-body--reading p {
+    margin: 0 0 2.2em;
+  }
   /* Article-detail reading column: the previous site's reading face (Roboto,
      18px desktop / 16px mobile) with justified text so both edges line up.
      Scoped to the reading page — the rest of the site keeps its own font. */
   .article-body--reading {
-    /* Fill the article column: the old site ran ~830px wide (≈91ch). */
-    max-width: 92ch;
+    /* Comfortable reading measure (~74ch at 18px): wider columns make
+       justified text stretch into sparse, uneven lines. */
+    max-width: 76ch;
     margin-inline: auto;
     font-family:
       var(--font-article, Roboto),
@@ -284,6 +290,7 @@
     line-height: 2.25;    /* 36px */
     text-align: justify;
     text-justify: inter-word;
+    text-wrap: pretty;    /* avoids lonely last words and cramped line breaks */
     hyphens: none;
     color: var(--text-primary);
   }
@@ -297,6 +304,11 @@
   .article-body--reading h2 { font-size: 1.75rem; }
   .article-body--reading h3 { font-size: 1.5rem; }
   .article-body--reading :is(h4, h5, h6) { font-size: 1.25rem; }
+  /* Long headings must not inherit the justified body: they would stretch
+     into sparse lines ("1.3   Principle   of   prohibition…"). */
+  .article-body--reading :is(h2, h3, h4, h5, h6) {
+    text-align: left;
+  }
   /* TOC jumps must clear the sticky header. */
   .article-body--reading :is(h2, h3, h4) {
     scroll-margin-top: 6rem;
@@ -483,8 +495,9 @@
      18px desktop / 16px mobile) with justified text so both edges line up.
      Scoped to the reading page — the rest of the site keeps its own font. */
   .article-body--reading {
-    /* Fill the article column: the old site ran ~830px wide (≈91ch). */
-    max-width: 92ch;
+    /* Comfortable reading measure (~74ch at 18px): wider columns make
+       justified text stretch into sparse, uneven lines. */
+    max-width: 76ch;
     margin-inline: auto;
     font-family:
       var(--font-article, Roboto),
@@ -498,6 +511,7 @@
     line-height: 2.25;    /* 36px */
     text-align: justify;
     text-justify: inter-word;
+    text-wrap: pretty;    /* avoids lonely last words and cramped line breaks */
     hyphens: none;
     color: var(--text-primary);
   }
@@ -511,6 +525,11 @@
   .article-body--reading h2 { font-size: 1.75rem; }
   .article-body--reading h3 { font-size: 1.5rem; }
   .article-body--reading :is(h4, h5, h6) { font-size: 1.25rem; }
+  /* Long headings must not inherit the justified body: they would stretch
+     into sparse lines ("1.3   Principle   of   prohibition…"). */
+  .article-body--reading :is(h2, h3, h4, h5, h6) {
+    text-align: left;
+  }
   /* TOC jumps must clear the sticky header. */
   .article-body--reading :is(h2, h3, h4) {
     scroll-margin-top: 6rem;

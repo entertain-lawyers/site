@@ -15,9 +15,13 @@ import { springSmooth } from '@/lib/motion';
  * the document; linked images keep their normal link behaviour. The rest of
  * the body stays server-rendered HTML with the old-site reading typography.
  */
-export default function ArticleBody({ html }: { html: string }) {
+type TocItem = { id: string; text: string; level: number };
+
+export default function ArticleBody({ html, toc = false }: { html: string; toc?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [zoomSrc, setZoomSrc] = useState<string | null>(null);
+  // Sections for the auto table of contents; null = not built yet / not wanted.
+  const [tocItems, setTocItems] = useState<TocItem[] | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -36,6 +40,22 @@ export default function ArticleBody({ html }: { html: string }) {
     return () => container.removeEventListener('click', handleClick);
   }, []);
 
+  // Build the table of contents from the rendered headings. Runs once after
+  // mount: fewer than 3 sections and a contents list is noise, not help.
+  useEffect(() => {
+    if (!toc || tocItems) return;
+    const container = containerRef.current;
+    if (!container) return;
+    const headings = Array.from(container.querySelectorAll<HTMLElement>('h2, h3, h4'));
+    if (headings.length < 3) return;
+    headings.forEach((el, i) => { el.id = `toc-${i}`; });
+    setTocItems(headings.map((el, i) => ({
+      id: `toc-${i}`,
+      text: el.textContent?.trim() || `Section ${i + 1}`,
+      level: Number(el.tagName[1]),
+    })));
+  }, [toc, tocItems]);
+
   useEffect(() => {
     if (!zoomSrc) return;
     const onKeyDown = (event: KeyboardEvent) => {
@@ -52,6 +72,30 @@ export default function ArticleBody({ html }: { html: string }) {
 
   return (
     <>
+      {tocItems && (
+        <nav
+          aria-label="Table of contents"
+          className="mb-10 rounded-2xl border border-border bg-surface px-5 py-5 shadow-soft"
+        >
+          <p className="text-xs font-bold uppercase tracking-wider text-text-muted">Table of Contents</p>
+          <ul className="mt-4 space-y-2 text-sm sm:text-[15px]">
+            {tocItems.map((item) => (
+              <li
+                key={item.id}
+                style={{ paddingLeft: `${(item.level - Math.min(...tocItems.map((t) => t.level))) * 1.25}rem` }}
+              >
+                <a
+                  href={`#${item.id}`}
+                  className="font-medium text-text-secondary transition-colors hover:text-accent"
+                >
+                  {item.text}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
+
       <div
         ref={containerRef}
         id="article-body"
