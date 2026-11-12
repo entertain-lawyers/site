@@ -216,7 +216,7 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
     if (resource.content) {
       return (
         <div className="min-h-dvh bg-background transition-colors duration-300">
-          <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+          <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6 sm:py-16">
             <Link
               href={`/resources/${resourceId}`}
               className="inline-flex items-center gap-2 text-sm font-medium text-text-muted hover:text-accent transition-colors"
@@ -227,11 +227,11 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
               {dict.goBack}
             </Link>
 
-            <h1 className="mt-6 text-3xl font-bold tracking-tight text-navy dark:text-white">
+            <h1 className="mt-8 text-3xl font-bold leading-tight tracking-tight text-navy dark:text-white sm:text-4xl">
               {resource.title}
             </h1>
             {resource.subject?.name && (
-              <p className="mt-2 text-sm text-text-muted">
+              <p className="mt-3 text-[15px] text-text-muted sm:text-base">
                 {resource.subject.name}
                 {resource.subject?.semester?.name
                   ? ` · ${resource.subject.semester.name}`
@@ -249,7 +249,7 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
                 email: displayAuthor?.email || null,
               };
               return (
-                <div className="mt-4 flex items-center gap-2">
+                <div className="mt-5 flex items-center gap-2">
                   <span className="text-xs font-bold text-text-muted uppercase tracking-wider">{dict.author}:</span>
                   <AuthorBioTrigger author={resourceAuthor} size="sm" showName />
                 </div>
@@ -269,8 +269,9 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
             )}
 
             {/* Same sanitized renderer and reading typography as articles, so
-                headings, lists and inserted (resized) images survive. */}
-            <ArticleBody html={resource.content} />
+                headings, lists and inserted (resized) images survive. toc
+                builds the contents list from the body's own headings. */}
+            <ArticleBody html={resource.content} toc />
 
             {/* About Author Section */}
             {(() => {
