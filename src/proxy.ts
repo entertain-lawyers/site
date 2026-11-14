@@ -36,7 +36,7 @@ async function getActiveRedirects(): Promise<RedirectRule[]> {
     console.error("Could not load redirects in middleware.", error);
     // Hold the empty result briefly so a database outage does not turn every
     // page view into a failed middleware query. Only negative results are
-      // cached this way, so valid rules are never served stale.
+    // cached this way, so valid rules are never served stale.
     redirectCache = { rules: [], expiresAt: Date.now() + REDIRECT_CACHE_FAILURE_TTL_MS };
     return [];
   }
@@ -47,7 +47,7 @@ async function getActiveRedirects(): Promise<RedirectRule[]> {
 /*                                                                          */
 /* Every HTML document request receives a freshly generated nonce. Next.js   */
 /* reads the CSP from the forwarded request headers and adds the nonce to    */
-/* its framework scripts; hand-authored inline scripts (theme init,          */
+/* its own framework scripts; hand-authored inline scripts (theme init,      */
 /* JSON-LD) read the same nonce via headers(). Redirect responses only carry */
 /* the response header (their target page generates a fresh request).        */
 /* ------------------------------------------------------------------------ */
@@ -112,7 +112,7 @@ const authMiddleware = auth(async (req) => {
     const role = authUser?.user?.role?.toUpperCase();
     if (role !== "ADMIN" && role !== "EDITOR") {
       return NextResponse.redirect(new URL('/dashboard', nextUrl));
-  }
+    }
   }
 
   // NextResponse.next() on its own does NOT forward modified request headers
@@ -213,6 +213,6 @@ export default async function proxy(req: any, event: any) {
 
 export const config = {
   // Exclude WordPress media paths proxied via rewrites (next.config.ts).
-      // This prevents middleware overhead (CSP, redirects, locale cookie) on image requests.
+  // This prevents middleware overhead (CSP, redirects, locale cookie) on image requests.
   matcher: ["/((?!api|_next/static|_next/image|favicon.ico|wp-content|nepali/wp-content).*)"],
 };

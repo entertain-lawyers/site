@@ -64,8 +64,8 @@ const nextConfig: NextConfig = {
       },
       {
         // The act reader modal embeds this PDF proxy in an iframe on the same
-      // origin; DENY blocks even same-origin framing ("This content is
-      // blocked" in the reader).
+        // origin; DENY blocks even same-origin framing ("This content is
+        // blocked" in the reader).
         source: '/api/acts/:id/pdf',
         headers: [{ key: 'X-Frame-Options', value: 'SAMEORIGIN' }],
       },
