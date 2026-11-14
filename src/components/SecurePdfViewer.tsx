@@ -299,7 +299,7 @@ export default function SecurePdfViewer({ url, watermarkLines }: SecurePdfViewer
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-hidden bg-slate-200 p-2 sm:p-4 dark:bg-zinc-900">
+      <div className="min-h-0 flex-1 overflow-hidden bg-slate-200 p-1.5 sm:p-2.5 dark:bg-zinc-900">
         <div ref={measureRef} className="relative h-full w-full">
           {!ready && !error && (
             <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-surface-alt/60">
@@ -347,12 +347,12 @@ export default function SecurePdfViewer({ url, watermarkLines }: SecurePdfViewer
       </div>
 
       {numPages != null && !error && (
-        <div className="flex flex-wrap items-center justify-center gap-3 px-3 pb-3">
-          <div className="flex items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1.5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-center gap-2 px-3 pb-2 pt-1.5">
+          <div className="flex items-center gap-0.5 rounded-lg border border-border bg-surface px-1.5 py-1 shadow-sm">
             <button
               onClick={() => goTo(1)}
               disabled={atStart}
-              className="rounded px-2 py-1.5 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
+              className="rounded px-1.5 py-1 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
               aria-label="First page"
             >
               First
@@ -360,7 +360,7 @@ export default function SecurePdfViewer({ url, watermarkLines }: SecurePdfViewer
             <button
               onClick={flipPrev}
               disabled={atStart}
-              className="rounded px-2 py-1.5 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
+              className="rounded px-1.5 py-1 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
               aria-label="Previous page"
             >
               ‹ Prev
@@ -371,7 +371,7 @@ export default function SecurePdfViewer({ url, watermarkLines }: SecurePdfViewer
             <button
               onClick={flipNext}
               disabled={atEnd}
-              className="rounded px-2 py-1.5 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
+              className="rounded px-1.5 py-1 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
               aria-label="Next page"
             >
               Next ›
@@ -379,14 +379,14 @@ export default function SecurePdfViewer({ url, watermarkLines }: SecurePdfViewer
             <button
               onClick={() => numPages && goTo(numPages)}
               disabled={atEnd}
-              className="rounded px-2 py-1.5 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
+              className="rounded px-1.5 py-1 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
               aria-label="Last page"
             >
               Last
             </button>
           </div>
           <form
-            className="flex items-center gap-1.5"
+            className="flex items-center gap-1"
             onSubmit={(e) => {
               e.preventDefault();
               const input = e.currentTarget.elements.namedItem("page") as HTMLInputElement;
@@ -399,23 +399,18 @@ export default function SecurePdfViewer({ url, watermarkLines }: SecurePdfViewer
               min={1}
               max={numPages}
               placeholder="Page"
-              className="w-20 rounded-lg border border-border bg-surface px-2 py-1.5 text-xs tabular-nums text-text-primary"
+              className="w-16 rounded-lg border border-border bg-surface px-2 py-1 text-xs tabular-nums text-text-primary"
               aria-label="Go to page"
             />
             <button
               type="submit"
-              className="rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary"
+              className="rounded-lg border border-border bg-surface px-2 py-1 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary"
             >
               Go
             </button>
           </form>
         </div>
       )}
-
-      <div className="pb-4 text-center text-[10px] uppercase tracking-widest text-text-muted">
-        Securely watermarked for:{" "}
-        <span className="font-bold">{watermarkLines[1]}</span>
-      </div>
     </div>
   );
 }

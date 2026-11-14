@@ -423,11 +423,11 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
   return (
     <div className="h-dvh flex flex-col bg-background overflow-hidden transition-colors duration-300">
       {/* Top Header/Breadcrumb */}
-      <div className="h-16 bg-surface border-b border-border flex items-center px-4 shrink-0 shadow-sm z-10 justify-between">
+      <div className="h-11 bg-surface border-b border-border flex items-center px-3 shrink-0 shadow-sm z-10 justify-between">
         <div className="flex items-center text-sm">
           <Link
             href={studyBackUrl}
-            className="text-text-muted hover:text-accent mr-4 transition-colors flex items-center justify-center bg-surface-alt rounded-full w-11 h-11"
+            className="text-text-muted hover:text-accent mr-3 transition-colors flex items-center justify-center bg-surface-alt rounded-full w-8 h-8"
             aria-label="Go back to study materials"
             title={dict.goBack}
           >
@@ -495,43 +495,6 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
         <div className="flex-1 relative bg-surface-alt flex flex-col h-full">
           <div className="flex-1 overflow-hidden relative">
             <SecurePdfViewer url={pdfUrl} watermarkLines={watermarkLines} />
-          </div>
-
-          {/* Bottom Navigation */}
-          <div className="h-16 sm:h-20 bg-surface border-t border-border flex items-center justify-between px-3 sm:px-6 shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.03)] z-10">
-            {prevResource ? (
-              <Link
-                href={`/read/${prevResource.id}`}
-                className="flex items-center gap-3 text-sm text-text-secondary hover:text-accent font-medium transition-colors group"
-              >
-                <div className="w-11 h-11 rounded-full bg-surface-alt flex items-center justify-center border border-transparent group-hover:border-accent/30 group-hover:bg-accent/5 transition-all">
-                  <svg className="w-4 h-4 text-text-muted group-hover:text-accent transition-colors" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 10">
-                    <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5H1m0 0 4 4M1 5l4-4"/>
-                  </svg>
-                </div>
-                <div className="hidden sm:block">
-                  <div className="text-xs text-text-muted font-bold tracking-wider uppercase mb-0.5">{dict.previous}</div>
-                  <div className="truncate max-w-[200px] font-bold group-hover:text-accent transition-colors">{prevResource.title}</div>
-                </div>
-              </Link>
-            ) : <div />}
-
-            {nextResource ? (
-              <Link
-                href={`/read/${nextResource.id}`}
-                className="flex items-center gap-3 text-sm text-text-secondary hover:text-accent font-medium transition-colors group text-right"
-              >
-                <div className="hidden sm:block">
-                  <div className="text-xs text-text-muted font-bold tracking-wider uppercase mb-0.5">{dict.next}</div>
-                  <div className="truncate max-w-[200px] font-bold group-hover:text-accent transition-colors">{nextResource.title}</div>
-                </div>
-                <div className="w-11 h-11 rounded-full bg-surface-alt flex items-center justify-center border border-transparent group-hover:border-accent/30 group-hover:bg-accent/5 transition-all">
-                  <svg className="w-4 h-4 text-text-muted group-hover:text-accent transition-colors" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 10">
-                    <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M1 5h12m0 0L9 1m4 4L9 9"/>
-                  </svg>
-                </div>
-              </Link>
-            ) : <div />}
           </div>
         </div>
       </div>
