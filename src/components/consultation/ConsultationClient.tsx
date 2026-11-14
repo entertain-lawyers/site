@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import {
-  ArrowRight, Building2, Calculator, Clock, Mail, MapPin, Phone, Scale, ShieldCheck, Sparkles,
+  MapPin, Scale, ShieldCheck,
 } from 'lucide-react';
 import type { ConsultationLawyer } from './ConsultationForm';
 import LawyerProfileView from './LawyerProfileView';
@@ -64,97 +64,6 @@ export default function ConsultationClient({ lawyers, loadError = false }: Consu
               ))}
             </div>
           )}
-        </section>
-
-        <section aria-label="Chambers location and consultation resources" className="grid gap-5 lg:grid-cols-[1.3fr_1fr]">
-          <div className="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
-            <iframe
-              title="Entertain Lawyers chambers office map"
-              src="https://www.google.com/maps?q=Prithvi%20Narayan%20Campus%2C%20Pokhara%2C%20Kaski%2C%20Nepal&output=embed"
-              className="h-44 w-full border-0 sm:h-52"
-              loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
-            />
-            <div className="space-y-4 p-5">
-              <h2 className="flex items-center gap-2 text-sm font-extrabold uppercase tracking-wide text-navy dark:text-white">
-                <Building2 className="h-4 w-4 text-accent" aria-hidden="true" />
-                Law Chambers Desk
-              </h2>
-              <ul className="space-y-3 text-sm text-text-secondary">
-                <li className="flex items-start gap-2">
-                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
-                  Prithvi Narayan Law Campus, Pokhara — Kaski, Gandaki Province, Nepal
-                </li>
-                <li className="flex items-center gap-2">
-                  <Phone className="h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
-                  <a href="tel:+9779822010737" className="font-semibold underline underline-offset-4">+977 9822010737</a>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Mail className="h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
-                  <a href="mailto:contact@entertainlawyers.com" className="break-all font-semibold underline underline-offset-4">contact@entertainlawyers.com</a>
-                </li>
-                <li className="flex items-start gap-2">
-                  <Clock className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
-                  <span>Sunday–Friday, 10:00 AM–5:00 PM <span className="text-text-muted">(Closed Saturdays and court holidays)</span></span>
-                </li>
-              </ul>
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
-                <p className="text-xs text-text-muted">Requests are handled confidentially by the consultation team.</p>
-                <a
-                  href="https://www.google.com/maps/search/?api=1&query=Prithvi+Narayan+Campus,+Pokhara,+Kaski,+Nepal"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-2 text-xs font-bold text-accent hover:bg-accent hover:text-white"
-                >
-                  <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
-                  Directions
-                </a>
-              </div>
-            </div>
-          </div>
-
-          {/* Attractive Interactive Legal Tool Card */}
-          <div className="relative flex flex-col justify-between gap-6 overflow-hidden rounded-3xl bg-gradient-to-br from-[#0c192c] via-[#10243e] to-[#1e3250] p-7 text-white shadow-xl ring-1 ring-gold/25 sm:p-8">
-            {/* Subtle background decorative balance watermark */}
-            <div className="pointer-events-none absolute -right-8 -top-8 select-none text-white/[0.04]" aria-hidden="true">
-              <Scale className="h-56 w-56" />
-            </div>
-
-            <div className="relative z-10 space-y-4">
-              <div className="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-xs font-black uppercase tracking-wider text-gold shadow-sm backdrop-blur">
-                <Sparkles className="h-3.5 w-3.5 text-gold" aria-hidden="true" />
-                Interactive Legal Tool
-              </div>
-
-              <div>
-                <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
-                  Court Fee Calculator
-                </h2>
-                <p className="mt-2 text-sm leading-relaxed text-slate-300">
-                  Instantly compute required filing fees for civil suits, property partitions, money recovery, and writ petitions under Nepal&apos;s National Civil Procedure Code 2074.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap gap-2 pt-1 text-[11px] font-bold text-slate-300">
-                <span className="rounded-lg bg-white/10 px-2.5 py-1">Civil Suits</span>
-                <span className="rounded-lg bg-white/10 px-2.5 py-1">Partition Claims</span>
-                <span className="rounded-lg bg-white/10 px-2.5 py-1">Civil Code 2074</span>
-              </div>
-            </div>
-
-            <div className="relative z-10 pt-2">
-              <Link
-                href="/calculator"
-                className="group inline-flex w-full items-center justify-between gap-3 rounded-xl bg-accent px-5 py-3.5 text-sm font-extrabold text-white shadow-lg shadow-accent/25 transition-all hover:bg-accent-hover hover:shadow-accent/40"
-              >
-                <span className="flex items-center gap-2">
-                  <Calculator className="h-4 w-4" aria-hidden="true" />
-                  Open Court Fee Calculator
-                </span>
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
-              </Link>
-            </div>
-          </div>
         </section>
       </div>
     </main>

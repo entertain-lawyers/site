@@ -138,6 +138,13 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
 
   const hasAccess = session?.user?.id ? await canAccessResource(session.user.id, id) : false;
 
+  // Entitled readers go straight to the content — the "Access Granted" card
+  // was an extra click between the resource and its document. Resources with
+  // nothing to read yet keep the detail page (it shows "PDF Coming Soon").
+  if (hasAccess && (resource.documentId || resourceBodyStatus(resource) === 'WRITTEN')) {
+    redirect(`/read/${id}`);
+  }
+
   const allResourcesQuery = await prisma.resource.findMany({
     where: { status: 'PUBLISHED',
       type: resource.type,

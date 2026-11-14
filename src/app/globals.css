@@ -274,9 +274,9 @@
      18px desktop / 16px mobile) with justified text so both edges line up.
      Scoped to the reading page — the rest of the site keeps its own font. */
   .article-body--reading {
-    /* Comfortable reading measure (~74ch at 18px): wider columns make
-       justified text stretch into sparse, uneven lines. */
-    max-width: 76ch;
+    /* Study-friendly measure: wide enough for case-law text and figures on
+       desktop, still a single comfortable column on smaller screens. */
+    max-width: 48rem;
     margin-inline: auto;
     font-family:
       var(--font-article, Roboto),
@@ -495,9 +495,9 @@
      18px desktop / 16px mobile) with justified text so both edges line up.
      Scoped to the reading page — the rest of the site keeps its own font. */
   .article-body--reading {
-    /* Comfortable reading measure (~74ch at 18px): wider columns make
-       justified text stretch into sparse, uneven lines. */
-    max-width: 76ch;
+    /* Study-friendly measure: wide enough for case-law text and figures on
+       desktop, still a single comfortable column on smaller screens. */
+    max-width: 48rem;
     margin-inline: auto;
     font-family:
       var(--font-article, Roboto),

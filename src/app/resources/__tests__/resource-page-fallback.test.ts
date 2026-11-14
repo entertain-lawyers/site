@@ -72,7 +72,9 @@ describe('ResourcePage and ReadResourcePage migration 20261101000000 fallback re
         priceAmount: null,
         currency: 'NPR',
         documentId: null,
-        content: 'Sample text',
+        // Nothing readable yet: the entitled-user redirect must not fire here,
+        // so this fixture stays on the detail page (PDF Coming Soon).
+        content: '',
         subject: { id: 'sub-1', name: 'Law', semester: { name: 'Sem 1' }, semesterId: 'sem-1' },
         unit: null,
       };
