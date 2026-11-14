@@ -256,6 +256,10 @@
    generous rhythm. Not applied anywhere else.
    ========================================================== */
 @layer components {
+  /* Flipbook page edges so white PDF pages read against the gray desk. */
+  .stf__item {
+    box-shadow: 0 1px 10px rgb(0 0 0 / 0.16);
+  }
   .article-body {
     color: var(--text-secondary);
     font-size: 1.125rem; /* 18px */
