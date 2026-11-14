@@ -212,5 +212,7 @@ export default async function proxy(req: any, event: any) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  // Exclude WordPress media paths proxied via rewrites (next.config.ts).
+  // This prevents middleware overhead (CSP, redirects, locale cookie) on image requests.
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|wp-content|nepali/wp-content).*)"],
 };

@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'entertainlawyers.com' },
       { protocol: 'https', hostname: 'www.entertainlawyers.com' },
       { protocol: 'https', hostname: 'secure.gravatar.com' },
+      // CMS media proxied via rewrites (Phase 1: CMS hostname compatibility)
+      { protocol: 'https', hostname: 'cms.entertainlawyers.com', pathname: '/wp-content/uploads/**' },
+      { protocol: 'https', hostname: 'cms.entertainlawyers.com', pathname: '/nepali/wp-content/uploads/**' },
     ],
     minimumCacheTTL: 86400,
   },
@@ -18,6 +21,14 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '25mb',
     },
     optimizePackageImports: ['lucide-react', 'motion', '@measured/puck'],
+  },
+  async rewrites() {
+    return [
+      // Phase 1: Proxy legacy WordPress media paths to CMS host.
+      // Destination is fixed; no user-controlled host. Query strings are forwarded.
+      { source: '/wp-content/:path*', destination: 'https://cms.entertainlawyers.com/wp-content/:path*' },
+      { source: '/nepali/wp-content/:path*', destination: 'https://cms.entertainlawyers.com/nepali/wp-content/:path*' },
+    ];
   },
   async headers() {
     const securityHeaders = [
