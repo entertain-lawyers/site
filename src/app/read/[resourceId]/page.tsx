@@ -4,7 +4,8 @@ import { notFound, redirect } from 'next/navigation';
 import Link from 'next/link';
 import { canAccessResource } from '@/modules/entitlements/entitlement.service';
 import { studyMaterialLoginUrl } from '@/lib/callback-url';
-import { getSecureDocumentUrl } from '@/modules/documents/document.actions';
+import ArticleBody from '@/components/posts/ArticleBody';
+
 import dynamic from 'next/dynamic';
 
 const SecurePdfViewer = dynamic(() => import('@/components/SecurePdfViewer'), {
@@ -18,7 +19,6 @@ const SecurePdfViewer = dynamic(() => import('@/components/SecurePdfViewer'), {
 import StudyOutlineSidebar from '@/components/study/StudyOutlineSidebar';
 import { Metadata } from 'next';
 import { getDictionary } from '@/lib/i18n';
-import ArticleBody from '@/components/posts/ArticleBody';
 import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 
 export async function generateMetadata({ params }: { params: Promise<{ resourceId: string }> }): Promise<Metadata> {
@@ -177,6 +177,15 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
 
   const hasAccess = await canAccessResource(session.user.id, resourceId);
 
+  // Back links go to the study listing: with entitled users now skipping the
+  // resource detail page, linking back there would bounce straight here.
+  const studyBackUrl = resource?.subject
+    ? `/study?${new URLSearchParams({
+        ...(resource.subject.semester ? { semester: resource.subject.semester.id } : {}),
+        subject: resource.subject.id,
+      })}`
+    : '/study';
+
   if (!hasAccess) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 transition-colors duration-300">
@@ -216,9 +225,9 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
     if (resource.content) {
       return (
         <div className="min-h-dvh bg-background transition-colors duration-300">
-          <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6 sm:py-16">
+          <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 sm:py-16">
             <Link
-              href={`/resources/${resourceId}`}
+              href={studyBackUrl}
               className="inline-flex items-center gap-2 text-sm font-medium text-text-muted hover:text-accent transition-colors"
             >
               <svg className="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 10">
@@ -352,23 +361,9 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
     );
   }
 
-  const result = await getSecureDocumentUrl({ resourceId });
-
-  if (!result.success) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 transition-colors duration-300">
-        <div className="bg-surface p-8 rounded-2xl shadow-soft border border-border max-w-md w-full text-center">
-          <p className="text-red-600 mb-6 font-medium">{result.error || dict.failedToLoadDocument}</p>
-          <Link
-            href={`/resources/${resourceId}`}
-            className="inline-flex justify-center items-center px-6 py-3 border border-transparent text-sm font-bold rounded-xl text-white bg-accent hover:bg-accent-hover transition-colors shadow-md hover:-translate-y-0.5"
-          >
-            {dict.goBack}
-          </Link>
-        </div>
-      </div>
-    );
-  }
+  // Same-origin stream: pdf.js fetches this from the browser, so a presigned
+  // B2 URL (bucket CORS + 5-minute expiry) broke every PDF in production.
+  const pdfUrl = `/api/documents/${resourceId}/pdf`;
 
   // Generate dynamic watermark data
   const userIdentifier = session.user.email || 'Entertain Lawyers Member';
@@ -431,9 +426,9 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
       <div className="h-16 bg-surface border-b border-border flex items-center px-4 shrink-0 shadow-sm z-10 justify-between">
         <div className="flex items-center text-sm">
           <Link
-            href={`/resources/${resourceId}`}
+            href={studyBackUrl}
             className="text-text-muted hover:text-accent mr-4 transition-colors flex items-center justify-center bg-surface-alt rounded-full w-11 h-11"
-            aria-label="Go back to resource details"
+            aria-label="Go back to study materials"
             title={dict.goBack}
           >
             <svg className="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 10">
@@ -499,7 +494,7 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
         {/* PDF Viewer Area */}
         <div className="flex-1 relative bg-surface-alt flex flex-col h-full">
           <div className="flex-1 overflow-hidden relative">
-            <SecurePdfViewer url={result.data} watermarkLines={watermarkLines} />
+            <SecurePdfViewer url={pdfUrl} watermarkLines={watermarkLines} />
           </div>
 
           {/* Bottom Navigation */}

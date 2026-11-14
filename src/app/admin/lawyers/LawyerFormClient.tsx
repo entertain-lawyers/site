@@ -438,8 +438,8 @@ export default function LawyerFormClient({ lawyer }: LawyerFormClientProps) {
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1.5">Achievements</label>
-              <textarea rows={4} value={achievements} onChange={(e) => setAchievements(e.target.value)} placeholder="List notable awards and professional achievements" className="w-full px-4 py-2 rounded-xl border border-border bg-background text-text-primary text-sm" />
+              <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1.5">Achievements (comma or newline separated)</label>
+              <textarea rows={4} value={achievements} onChange={(e) => setAchievements(e.target.value)} placeholder="Best Memorial Award, Moot Court winner, …" className="w-full px-4 py-2 rounded-xl border border-border bg-background text-text-primary text-sm" />
             </div>
           </div>
 

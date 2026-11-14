@@ -160,13 +160,16 @@ describe('study material sign-in gate (server-side)', () => {
     expect(textOf(await ReadResourcePage(params(resourceRow.id)))).toContain('SECRET NOTE BODY');
   });
 
-  it('an entitled user gets the signed document URL', async () => {
+  it('an entitled user gets the same-origin secure PDF stream', async () => {
     session = { user: { id: 'u1', email: 'u1@example.test' } };
     findUnique.mockResolvedValue(resourceRow);
     canAccessResource.mockResolvedValue(true);
 
-    await ReadResourcePage(params(resourceRow.id));
+    const tree = await ReadResourcePage(params(resourceRow.id));
 
-    expect(getSecureDocumentUrl).toHaveBeenCalledWith({ resourceId: resourceRow.id });
+    // The presigned B2 URL is gone: pdf.js now streams /api/documents/<id>/pdf
+    // from our own origin (no bucket-CORS dependency, no 5-minute expiry).
+    expect(getSecureDocumentUrl).not.toHaveBeenCalled();
+    expect(textOf(tree)).toContain(`/api/documents/${resourceRow.id}/pdf`);
   });
 });

@@ -253,9 +253,16 @@ export default function LawyerProfileView({ lawyer }: LawyerProfileViewProps) {
                 <h2 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-text-muted">
                   <Award className="h-4 w-4 text-accent" aria-hidden="true" /> Achievements
                 </h2>
-                <p className="pl-6 whitespace-pre-wrap text-base font-medium text-text-primary">
-                  {lawyer.achievements}
-                </p>
+                {/* Bulleted like the Team page: achievements arrive comma or
+                    newline separated from the admin form. */}
+                <ul className="pl-6 space-y-2">
+                  {lawyer.achievements.split(/\r?\n|,/).map(s => s.trim()).filter(Boolean).map((item, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-base font-medium text-text-primary">
+                      <span className="w-1.5 h-1.5 rounded-full bg-accent mt-2.5 shrink-0" aria-hidden="true" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
 
