@@ -44,6 +44,7 @@
     "pdfjs-dist": "^6.3.289",
     "react": "19.2.8",
     "react-dom": "19.2.8",
+    "react-pageflip": "^2.0.3",
     "react-quill-new": "^3.8.3",
     "sanitize-html": "^2.18.1",
     "uuid": "^14.0.2",
