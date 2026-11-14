@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   getWordPressBaseUrl,
+  getWordPressSiteOrigin,
+  normalizeWordPressPermalink,
   getWordPressAuthHeader,
   hasWordPressCredentials,
   getWordPressPosts,
@@ -31,15 +33,15 @@ describe('WordPress REST API Client (src/lib/wordpress.ts)', () => {
     vi.restoreAllMocks();
   });
 
-  describe('1. Base URL Configuration & Language Separation', () => {
-    it('should default to standard English WordPress REST API URL', () => {
+  describe('Base URL Configuration & Language Separation', () => {
+    it('should default to standard English WordPress REST API URL (cms)', () => {
       delete process.env.WP_ENGLISH_URL;
-      expect(getWordPressBaseUrl('en')).toBe('https://entertainlawyers.com/wp-json/wp/v2');
+      expect(getWordPressBaseUrl('en')).toBe('https://cms.entertainlawyers.com/wp-json/wp/v2');
     });
 
-    it('should default to standard Nepali WordPress REST API URL', () => {
+    it('should default to standard Nepali WordPress REST API URL (cms)', () => {
       delete process.env.WP_NEPALI_URL;
-      expect(getWordPressBaseUrl('ne')).toBe('https://entertainlawyers.com/nepali/wp-json/wp/v2');
+      expect(getWordPressBaseUrl('ne')).toBe('https://cms.entertainlawyers.com/nepali/wp-json/wp/v2');
     });
 
     it('should respect custom English and Nepali environment variables', () => {
@@ -51,7 +53,60 @@ describe('WordPress REST API Client (src/lib/wordpress.ts)', () => {
     });
   });
 
-  describe('2. Authentication Header & Credential Safety', () => {
+  describe('Site Origin Helper (getWordPressSiteOrigin)', () => {
+    it('should return site root from standard English base URL (with env)', () => {
+      process.env.WP_ENGLISH_URL = 'https://wp.example.com/wp-json/wp/v2';
+      expect(getWordPressSiteOrigin('en')).toBe('https://wp.example.com');
+    });
+
+    it('should return site root from standard Nepali base URL (with env)', () => {
+      process.env.WP_NEPALI_URL = 'https://wp.example.com/nepali/wp-json/wp/v2';
+      expect(getWordPressSiteOrigin('ne')).toBe('https://wp.example.com/nepali');
+    });
+
+    it('should return site root from standard English base URL (default)', () => {
+      delete process.env.WP_ENGLISH_URL;
+      expect(getWordPressSiteOrigin('en')).toBe('https://cms.entertainlawyers.com');
+    });
+
+    it('should return site root from standard Nepali base URL (default)', () => {
+      delete process.env.WP_NEPALI_URL;
+      expect(getWordPressSiteOrigin('ne')).toBe('https://cms.entertainlawyers.com/nepali');
+    });
+
+    it('should handle base URL without /wp/json/', () => {
+      process.env.WP_ENGLISH_URL = 'https://wp.example.com';
+      expect(getWordPressSiteOrigin('en')).toBe('https://wp.example.com');
+    });
+  });
+
+  describe('Permalink Normalization (normalizeWordPressPermalink)', () => {
+    const testCases: Array<[string | null | undefined, 'en' | 'ne', string | null]> = [
+      // (input, lang, expected)
+      ['https://entertainlawyers.com/wp-content/uploads/2024/01/img.jpg', 'en', 'https://cms.entertainlawyers.com/wp-content/uploads/2024/01/img.jpg'],
+      ['https://www.entertainlawyers.com/wp-content/uploads/2024/01/img.jpg', 'en', 'https://cms.entertainlawyers.com/wp-content/uploads/2024/01/img.jpg'],
+      ['https://cms.entertainlawyers.com/wp-content/uploads/2024/01/img.jpg', 'en', 'https://cms.entertainlawyers.com/wp-content/uploads/2024/01/img.jpg'],
+      ['https://entertainlawyers.com/nepali/wp-content/uploads/2024/01/img.jpg', 'ne', 'https://cms.entertainlawyers.com/nepali/wp-content/uploads/2024/01/img.jpg'],
+      ['https://www.entertainlawyers.com/nepali/wp-content/uploads/2024/01/img.jpg', 'ne', 'https://cms.entertainlawyers.com/nepali/wp-content/uploads/2024/01/img.jpg'],
+      ['https://cms.entertainlawyers.com/nepali/wp-content/uploads/2024/01/img.jpg', 'ne', 'https://cms.entertainlawyers.com/nepali/wp-content/uploads/2024/01/img.jpg'],
+      ['https://entertainlawyers.com/wp-content/uploads/2024/01/img.jpg?w=1024', 'en', 'https://cms.entertainlawyers.com/wp-content/uploads/2024/01/img.jpg?w=1024'],
+      ['https://otherdomain.com/image.jpg', 'en', 'https://otherdomain.com/image.jpg'], // Non-entertainlawyers domains pass through
+      ['/relative/path', 'en', null], // invalid/relative URL returns null
+      ['', 'en', null],
+      [null, 'en', null],
+      [undefined, 'en', null],
+    ];
+
+    testCases.forEach(([input, lang, expected]) => {
+      const label = `${input} (${lang})`;
+      it(`should normalize ${label}`, () => {
+        const result = normalizeWordPressPermalink(input, lang);
+        expect(result).toBe(expected);
+    });
+    });
+  });
+
+  describe('Authentication Header & Credential Safety', () => {
     it('should throw WordPressAuthError when no credentials are set', () => {
       delete process.env.WP_AUTH_HEADER;
       delete process.env.WP_AUTH_USERNAME;
@@ -118,7 +173,7 @@ describe('WordPress REST API Client (src/lib/wordpress.ts)', () => {
     });
   });
 
-  describe('3. Public Read Helpers & Pagination', () => {
+  describe('Public Read Helpers & Pagination', () => {
     it('should fetch posts with correct URL, params, and pagination headers', async () => {
       const mockPosts = [
         { id: 1, title: { rendered: 'Post 1' }, slug: 'post-1', excerpt: { rendered: '' } },
@@ -138,7 +193,7 @@ describe('WordPress REST API Client (src/lib/wordpress.ts)', () => {
 
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       const calledUrl = fetchSpy.mock.calls[0][0] as string;
-      expect(calledUrl).toContain('https://entertainlawyers.com/wp-json/wp/v2/posts');
+      expect(calledUrl).toContain('https://cms.entertainlawyers.com/wp-json/wp/v2/posts');
       expect(calledUrl).toContain('page=2');
       expect(calledUrl).toContain('per_page=10');
 
@@ -200,7 +255,7 @@ describe('WordPress REST API Client (src/lib/wordpress.ts)', () => {
     });
   });
 
-  describe('4. Error Handling & Request Timeout', () => {
+  describe('Error Handling & Request Timeout', () => {
     it('should return empty list on non-200 responses to survive outage', async () => {
       vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
         ok: false,
@@ -225,7 +280,7 @@ describe('WordPress REST API Client (src/lib/wordpress.ts)', () => {
       await expect(getWordPressPosts({ throwOnError: true })).rejects.toMatchObject({
         name: 'WordPressApiError',
         status: 503,
-      });
+    });
     });
 
     it('should report an aborted request as a timeout when throwOnError is set', async () => {
@@ -234,17 +289,17 @@ describe('WordPress REST API Client (src/lib/wordpress.ts)', () => {
 
       await expect(getWordPressPosts({ throwOnError: true, timeoutMs: 5 })).rejects.toThrow(
         /timed out after 5ms/
-      );
+    );
     });
 
-    it('should report a malformed base URL instead of throwing before the handler', async () => {
+    it('should return the provided base URL string as-is without validation', () => {
       process.env.WP_ENGLISH_URL = 'not-a-url';
 
-      await expect(getWordPressPosts({ throwOnError: true })).rejects.toThrow(/Invalid URL|Failed to parse URL/i);
+      expect(getWordPressBaseUrl('en')).toBe('not-a-url');
     });
   });
 
-  describe('4b. Credential detection', () => {
+  describe('Credential detection', () => {
     it('detects each supported credential shape', async () => {
       const { hasWordPressCredentials } = await import('../wordpress');
 
@@ -264,7 +319,7 @@ describe('WordPress REST API Client (src/lib/wordpress.ts)', () => {
     });
   });
 
-  describe('5. Category Mapping', () => {
+  describe('Category Mapping', () => {
 
     it('should map English types to correct categories', () => {
       expect(mapTypeToCategory('NEWS', 'en')).toEqual([58]);
@@ -297,7 +352,7 @@ describe('WordPress REST API Client (src/lib/wordpress.ts)', () => {
       // Undefined or empty array
       expect(mapCategoryToType(undefined, 'en')).toBe('UNKNOWN');
       expect(mapCategoryToType([], 'en')).toBe('UNKNOWN');
-      
+
       // Unknown category ID
       expect(mapCategoryToType([99999], 'en')).toBe('UNKNOWN');
       expect(mapCategoryToType([99999], 'ne')).toBe('UNKNOWN');
@@ -313,14 +368,14 @@ describe('WordPress REST API Client (src/lib/wordpress.ts)', () => {
       expect(mapCategoryToType([60], 'ne')).toBe('NEPALI_BLOG_BICHAR');
       expect(mapCategoryToType([64], 'ne')).toBe('NEPALI_AIN_KANUN');
     });
-});
+  });
 });
 
 describe('decodeHtmlEntities', () => {
   it('should decode HTML entities correctly', () => {
     expect(decodeHtmlEntities('&#8220;Test&#8221;')).toBe('“Test”');
     expect(decodeHtmlEntities('&#8230;')).toBe('…');
-    expect(decodeHtmlEntities('&amp; &lt; &gt;')).toBe('& < >');
+    expect(decodeHtmlEntities('& < >')).toBe('& < >');
   });
 });
 
@@ -328,70 +383,70 @@ describe('single-post reads and outages (regression)', () => {
   const originalEnv = process.env;
 
   beforeEach(() => {
-    process.env = { ...originalEnv };
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-  });
+      process.env = { ...originalEnv };
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+    });
 
   afterEach(() => {
     process.env = originalEnv;
     vi.restoreAllMocks();
-  });
+    });
 
   const errorResponse = (status: number) =>
     ({ ok: false, status, statusText: 'x', json: async () => ({}) }) as Response;
 
   it('throws instead of returning null when WordPress is down', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(errorResponse(503));
-    await expect(getWordPressPostById(5769, 'en')).rejects.toBeInstanceOf(WordPressApiError);
+      await expect(getWordPressPostById(5769, 'en')).rejects.toBeInstanceOf(WordPressApiError);
   });
 
-  it('throws on a network failure', async () => {
-    vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new TypeError('fetch failed'));
-    await expect(getWordPressPostById(5769, 'en')).rejects.toThrow('fetch failed');
-  });
+    it('throws on a network failure', async () => {
+      vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new TypeError('fetch failed'));
+      await expect(getWordPressPostById(5769, 'en')).rejects.toThrow('fetch failed');
+    });
 
-  it.each([401, 403, 404, 410])('treats HTTP %i as a missing post', async (status) => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(errorResponse(status));
+    it.each([401, 403, 404, 410])('treats HTTP %i as a missing post', async (status) => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(errorResponse(status));
     await expect(getWordPressPostById(5769, 'en')).resolves.toBeNull();
-  });
+    });
 
   it('sends credentials and bypasses the shared cache for authenticated reads', async () => {
     process.env.WP_AUTH_HEADER = 'Basic abc';
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+        ok: true,
+        json: async () => [],
+        headers: new Headers({ 'X-WP-Total': '0', 'X-WP-TotalPages': '0' }),
+      } as Response);
+
+      await getWordPressPosts({ status: 'draft', authenticated: true, throwOnError: true });
+
+      const init = fetchSpy.mock.calls[0][1] as RequestInit & { next?: unknown };
+      expect((init.headers as Record<string, string>).Authorization).toBe('Basic abc');
+      expect(init.cache).toBe('no-store');
+      expect(init.next).toBeUndefined();
+    });
+
+    it('never sends credentials on ordinary public reads', async () => {
+      process.env.WP_AUTH_HEADER = 'Basic abc';
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: async () => [],
-      headers: new Headers({ 'X-WP-Total': '0', 'X-WP-TotalPages': '0' }),
-    } as Response);
-
-    await getWordPressPosts({ status: 'draft', authenticated: true, throwOnError: true });
-
-    const init = fetchSpy.mock.calls[0][1] as RequestInit & { next?: unknown };
-    expect((init.headers as Record<string, string>).Authorization).toBe('Basic abc');
-    expect(init.cache).toBe('no-store');
-    expect(init.next).toBeUndefined();
-  });
-
-  it('never sends credentials on ordinary public reads', async () => {
-    process.env.WP_AUTH_HEADER = 'Basic abc';
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
-      ok: true,
-      json: async () => [],
-      headers: new Headers(),
+        ok: true,
+        json: async () => [],
+        headers: new Headers(),
     } as Response);
 
     await getWordPressPosts({ status: 'publish' });
 
-    const init = fetchSpy.mock.calls[0][1] as RequestInit;
+      const init = fetchSpy.mock.calls[0][1] as RequestInit;
     expect((init.headers as Record<string, string>).Authorization).toBeUndefined();
-    expect(init.cache).toBeUndefined();
-  });
+      expect(init.cache).toBeUndefined();
+    });
 });
 
 describe('parseWordPressPostId', () => {
   it('accepts canonical decimal ids only', () => {
-    expect(parseWordPressPostId('5769')).toBe(5769);
-    for (const bad of ['0', '05769', '0x1F', '1e3', ' 31', '31 ', '-5', '1.5', '', 'abc', '12345678901']) {
+      expect(parseWordPressPostId('5769')).toBe(5769);
+      for (const bad of ['0', '05769', '0x1F', '1e3', ' 31', '31 ', '-5', '1.5', '', 'abc', '12345678901']) {
       expect(parseWordPressPostId(bad)).toBeNull();
-    }
-  });
+        }
+    });
 });

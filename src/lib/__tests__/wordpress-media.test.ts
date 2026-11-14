@@ -124,7 +124,7 @@ describe('WordPress media client', () => {
 
     const [url, init] = fetchMock.mock.calls[0];
     const parsed = new URL(url);
-    expect(parsed.origin + parsed.pathname).toBe('https://entertainlawyers.com/nepali/wp-json/wp/v2/media');
+    expect(parsed.origin + parsed.pathname).toBe('https://cms.entertainlawyers.com/nepali/wp-json/wp/v2/media');
     expect(parsed.searchParams.get('media_type')).toBe('image');
     expect(parsed.searchParams.get('search')).toBe('notice');
     expect(parsed.searchParams.get('page')).toBe('2');
@@ -163,13 +163,13 @@ describe('WordPress media client', () => {
     const uploaded = await uploadWordPressMedia({ bytes: PNG, filename: 'court-notice.png', mimeType: 'image/png', title: 'Court notice' }, 'en');
 
     const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe('https://entertainlawyers.com/wp-json/wp/v2/media');
+    expect(url).toBe('https://cms.entertainlawyers.com/wp-json/wp/v2/media');
     expect(init.method).toBe('POST');
     expect(init.headers['Content-Type']).toBe('image/png');
     expect(init.headers['Content-Disposition']).toBe('attachment; filename="court-notice.png"');
     expect(init.headers.Authorization).toBe(expectedAuth);
     expect(init.body).toBe(PNG);
-    expect(fetchMock.mock.calls[1][0]).toBe('https://entertainlawyers.com/wp-json/wp/v2/media/321');
+    expect(fetchMock.mock.calls[1][0]).toBe('https://cms.entertainlawyers.com/wp-json/wp/v2/media/321');
     expect(uploaded.title.rendered).toBe('Court notice');
   });
 

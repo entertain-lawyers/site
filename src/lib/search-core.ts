@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma';
 import {
   getWordPressPosts,
   getWordPressCategories,
-  mapCategoryToType,
+  mapCategoryToType, normalizeWordPressPermalink,
   decodeHtmlEntities,
   WordPressLanguage,
 } from '@/lib/wordpress';
@@ -75,15 +75,8 @@ function wpUrl(type: string, id: number): string {
  * (case laws, subject notes, question papers...). Those live only on the WP
  * site, so linking straight to the canonical URL beats hiding them.
  */
-function absoluteWpUrl(link: string | undefined): string | null {
-  if (!link) return null;
-  try {
-    const url = new URL(link);
-    if (url.hostname === 'entertainlawyers.com') url.hostname = 'www.entertainlawyers.com';
-    return url.toString();
-  } catch {
-    return null;
-  }
+function absoluteWpUrl(link: string | undefined, lang: WordPressLanguage = "en"): string | null {
+  return normalizeWordPressPermalink(link, lang);
 }
 
 /** Strip HTML/entities into plain text for snippets and title matching. */
@@ -313,7 +306,7 @@ async function searchWordPress(
     snippet?: string
   ): { hit: SearchHit; score: number; date: string } | null => {
     // Case Law has no in-app detail route, so it links to its WordPress permalink.
-    const external = type === 'UNKNOWN' || type === 'CASE_LAW' ? absoluteWpUrl(link) : null;
+    const external = type === 'UNKNOWN' || type === 'CASE_LAW' ? absoluteWpUrl(link, lang) : null;
     if ((type === 'UNKNOWN' || type === 'CASE_LAW') && !external) return null;
     return {
       hit: {
