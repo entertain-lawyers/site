@@ -6,3 +6,6 @@
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
+
+/** Shared by the forgot-password server action and its client UI, which must match exactly. */
+export const NO_ACCOUNT_MESSAGE = "No account found with this email address.";

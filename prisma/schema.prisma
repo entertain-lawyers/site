@@ -528,6 +528,8 @@ model VerificationToken {
   expires    DateTime
   // Failed guesses for this code; the code is invalidated after a few.
   attempts   Int      @default(0)
+  // Issue time, used to enforce the resend cooldown between codes.
+  createdAt  DateTime @default(now())
 
   @@unique([identifier, token])
 }

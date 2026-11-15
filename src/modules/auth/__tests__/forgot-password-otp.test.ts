@@ -15,10 +15,11 @@ vi.mock('@/lib/mail', () => ({
   sendPasswordResetOTP: vi.fn().mockResolvedValue(undefined),
 }));
 
-const { mockUser, mockPasswordResetToken } = vi.hoisted(() => ({
+const { mockUser, mockPasswordResetToken, mockVerificationToken } = vi.hoisted(() => ({
   mockUser: {
     findUnique: vi.fn(),
     update: vi.fn(),
+    updateMany: vi.fn(),
     create: vi.fn(),
   },
   mockPasswordResetToken: {
@@ -31,19 +32,22 @@ const { mockUser, mockPasswordResetToken } = vi.hoisted(() => ({
     delete: vi.fn(),
     deleteMany: vi.fn(),
   },
+  mockVerificationToken: {
+    findFirst: vi.fn(),
+    findUnique: vi.fn(),
+    update: vi.fn(),
+    updateMany: vi.fn(),
+    delete: vi.fn(),
+    deleteMany: vi.fn(),
+    create: vi.fn(),
+  },
 }));
 
 vi.mock('@/lib/prisma', () => ({
   prisma: {
     user: mockUser,
     passwordResetToken: mockPasswordResetToken,
-    verificationToken: {
-      findFirst: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-      deleteMany: vi.fn(),
-      create: vi.fn(),
-    },
+    verificationToken: mockVerificationToken,
     $transaction: vi.fn(async (arg: unknown) => {
       if (Array.isArray(arg)) {
         return Promise.all(arg);
@@ -68,9 +72,13 @@ import {
   verifyPasswordResetOtp,
   resetPasswordWithToken,
   resetPassword,
+  register,
+  verifyEmail,
+  resendVerificationEmail,
 } from '../auth.actions';
-import { sendPasswordResetOTP } from '@/lib/mail';
+import { sendPasswordResetOTP, sendVerificationOTP } from '@/lib/mail';
 import { rateLimit } from '@/lib/rate-limit';
+import { NO_ACCOUNT_MESSAGE } from '@/lib/auth-utils';
 
 describe('Production-Ready Email OTP Forgot Password System', () => {
   const testUser = {
@@ -108,7 +116,7 @@ describe('Production-Ready Email OTP Forgot Password System', () => {
       // 1. Verify user was queried with normalized email
       expect(mockUser.findUnique).toHaveBeenCalledWith({
         where: { email: 'advocate@example.com' },
-        select: { id: true, email: true },
+        select: { id: true, email: true, passwordHash: true },
       });
 
       // 2. Verify previous tokens were invalidated
@@ -140,17 +148,34 @@ describe('Production-Ready Email OTP Forgot Password System', () => {
       expect(isMatch).toBe(true);
     });
 
-    it('returns generic response for unknown email without creating token or sending email (anti-enumeration)', async () => {
+    it('explicitly rejects an unregistered email without creating a token or sending email', async () => {
       mockUser.findUnique.mockResolvedValue(null);
 
       const res = await requestPasswordReset({ email: 'nonexistent@example.com' });
 
-      expect(res.success).toBe(true);
-      if (res.success) {
-        expect(res.data.message).toContain('If an account exists');
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toBe(NO_ACCOUNT_MESSAGE);
       }
 
       // Did NOT create a token or send email
+      expect(mockPasswordResetToken.create).not.toHaveBeenCalled();
+      expect(sendPasswordResetOTP).not.toHaveBeenCalled();
+      expect(mockUser.findUnique).toHaveBeenCalledWith({
+        where: { email: 'nonexistent@example.com' },
+        select: { id: true, email: true, passwordHash: true },
+      });
+    });
+
+    it('rejects an OAuth-only account (no local password) with an actionable message and no OTP', async () => {
+      mockUser.findUnique.mockResolvedValue({ id: 'oauth-user', email: 'google@example.com', passwordHash: null });
+
+      const res = await requestPasswordReset({ email: 'google@example.com' });
+
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toMatch(/Google/i);
+      }
       expect(mockPasswordResetToken.create).not.toHaveBeenCalled();
       expect(sendPasswordResetOTP).not.toHaveBeenCalled();
     });
@@ -513,6 +538,216 @@ describe('Production-Ready Email OTP Forgot Password System', () => {
 
       expect(res.success).toBe(true);
       expect(mockUser.update).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('Registration & Email Verification Lifecycle', () => {
+    const regEmail = 'new.user@example.com';
+    const regUser = { id: 'user-reg-1', email: regEmail, passwordHash: '$2b$12$Hash', isEmailVerified: false, emailVerified: null };
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    const registerArgs = {
+      name: 'New User',
+      email: regEmail,
+      password: 'Str0ngPass!23',
+      confirmPassword: 'Str0ngPass!23',
+    };
+
+    it('rejects mismatched confirm password without creating an account', async () => {
+      const res = await register({ ...registerArgs, confirmPassword: 'Different1!23' });
+
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toMatch(/Passwords do not match/i);
+      }
+      expect(mockUser.create).not.toHaveBeenCalled();
+      expect(sendVerificationOTP).not.toHaveBeenCalled();
+    });
+
+    it('creates an unverified account, stores a hashed 5-minute OTP, and sends the verification email', async () => {
+      mockUser.findUnique.mockResolvedValue(null);
+      mockUser.create.mockResolvedValue(regUser);
+      mockVerificationToken.deleteMany.mockResolvedValue({ count: 0 });
+      mockVerificationToken.create.mockResolvedValue({ id: 'vt-1' });
+
+      const res = await register(registerArgs);
+
+      expect(res.success).toBe(true);
+      expect(mockUser.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            email: regEmail,
+            name: 'New User',
+          }),
+        })
+      );
+
+      // Only one verification token exists, previous ones invalidated first
+      expect(mockVerificationToken.deleteMany).toHaveBeenCalledWith({
+        where: { identifier: regEmail, type: 'VERIFY_EMAIL' },
+      });
+      const createData = mockVerificationToken.create.mock.calls[0][0].data;
+      expect(createData.token.startsWith('$2')).toBe(true); // hashed, not plaintext
+      expect(Math.abs(createData.expires.getTime() - (Date.now() + 5 * 60 * 1000))).toBeLessThan(5000);
+
+      // Raw OTP goes to the email only, never in the response
+      const [, sentOtp] = (sendVerificationOTP as any).mock.calls[0];
+      expect(sentOtp).toMatch(/^\d{6}$/);
+      await expect(bcrypt.compare(sentOtp, createData.token)).resolves.toBe(true);
+    });
+
+    it('re-issues a code for an existing unverified account without changing its password', async () => {
+      mockUser.findUnique.mockResolvedValue(regUser);
+      mockVerificationToken.deleteMany.mockResolvedValue({ count: 0 });
+      mockVerificationToken.create.mockResolvedValue({ id: 'vt-2' });
+
+      const res = await register(registerArgs);
+
+      expect(res.success).toBe(true);
+      expect(mockUser.create).not.toHaveBeenCalled();
+      expect(mockVerificationToken.create).toHaveBeenCalledTimes(1);
+      expect(sendVerificationOTP).toHaveBeenCalledTimes(1);
+    });
+
+    it('verifies a correct OTP atomically: single-use token claim then guarded user update', async () => {
+      mockVerificationToken.findFirst.mockResolvedValue({
+        id: 'vt-3',
+        token: await bcrypt.hash('654321', 10),
+        identifier: regEmail,
+        type: 'VERIFY_EMAIL',
+        expires: new Date(Date.now() + 4 * 60 * 1000),
+        attempts: 0,
+      });
+      mockVerificationToken.deleteMany.mockResolvedValue({ count: 1 });
+      mockUser.updateMany.mockResolvedValue({ count: 1 });
+
+      const res = await verifyEmail({ email: regEmail, token: '654321' });
+
+      expect(res.success).toBe(true);
+
+      // Single-use: the claim deletes the row guarded by its id and expiry
+      expect(mockVerificationToken.deleteMany).toHaveBeenCalledWith({
+        where: { id: 'vt-3', expires: expect.objectContaining({ gt: expect.any(Date) }) },
+      });
+      // Unverified → verified only, in one guarded update
+      expect(mockUser.updateMany).toHaveBeenCalledWith({
+        where: { email: regEmail, isEmailVerified: false, emailVerified: null },
+        data: { isEmailVerified: true },
+      });
+      expect(mockUser.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects a wrong OTP and records the failed attempt', async () => {
+      mockVerificationToken.findFirst.mockResolvedValue({
+        id: 'vt-4',
+        token: await bcrypt.hash('111111', 10),
+        identifier: regEmail,
+        type: 'VERIFY_EMAIL',
+        expires: new Date(Date.now() + 4 * 60 * 1000),
+        attempts: 1,
+      });
+      mockVerificationToken.update.mockResolvedValue({});
+
+      const res = await verifyEmail({ email: regEmail, token: '999999' });
+
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toMatch(/Invalid or expired code/i);
+      }
+      expect(mockVerificationToken.update).toHaveBeenCalledWith({
+        where: { id: 'vt-4' },
+        data: { attempts: { increment: 1 } },
+      });
+      expect(mockUser.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('rejects a reused/consumed OTP (claim count 0 means a concurrent verify won)', async () => {
+      mockVerificationToken.findFirst.mockResolvedValue({
+        id: 'vt-5',
+        token: await bcrypt.hash('222222', 10),
+        identifier: regEmail,
+        type: 'VERIFY_EMAIL',
+        expires: new Date(Date.now() + 4 * 60 * 1000),
+        attempts: 0,
+      });
+      mockVerificationToken.deleteMany.mockResolvedValue({ count: 0 });
+
+      const res = await verifyEmail({ email: regEmail, token: '222222' });
+
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toMatch(/request a new code/i);
+      }
+      expect(mockUser.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('rejects an expired OTP without consuming anything', async () => {
+      mockVerificationToken.findFirst.mockResolvedValue(null); // expired rows fail the expires>now filter
+
+      const res = await verifyEmail({ email: regEmail, token: '333333' });
+
+      expect(res.success).toBe(false);
+      expect(mockUser.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('locks out verification after the maximum 5 attempts', async () => {
+      // 4 failed attempts already recorded; this wrong guess is the 5th
+      mockVerificationToken.findFirst.mockResolvedValue({
+        id: 'vt-6',
+        token: await bcrypt.hash('444444', 10),
+        identifier: regEmail,
+        type: 'VERIFY_EMAIL',
+        expires: new Date(Date.now() + 4 * 60 * 1000),
+        attempts: 4, // next failure reaches the limit
+      });
+
+      const res = await verifyEmail({ email: regEmail, token: '000000' });
+
+      expect(res.success).toBe(false);
+      // recordFailedOtpAttempt deletes the token once attempts + 1 >= 5
+      expect(mockVerificationToken.deleteMany).toHaveBeenCalledWith({
+        where: { identifier: regEmail, type: 'VERIFY_EMAIL' },
+      });
+    });
+
+    it('enforces a 60-second resend cooldown', async () => {
+      mockUser.findUnique.mockResolvedValue(regUser);
+      mockVerificationToken.findFirst.mockResolvedValue({ createdAt: new Date(Date.now() - 20 * 1000) });
+
+      const res = await resendVerificationEmail({ email: regEmail });
+
+      expect(res.success).toBe(false);
+      if (!res.success) {
+        expect(res.error).toMatch(/Please wait \d+ seconds before requesting a new code/i);
+      }
+      expect(mockVerificationToken.create).not.toHaveBeenCalled();
+      expect(sendVerificationOTP).not.toHaveBeenCalled();
+    });
+
+    it('resends when the cooldown has passed', async () => {
+      mockUser.findUnique.mockResolvedValue(regUser);
+      mockVerificationToken.findFirst.mockResolvedValue({ createdAt: new Date(Date.now() - 65 * 1000) });
+      mockVerificationToken.deleteMany.mockResolvedValue({ count: 0 });
+      mockVerificationToken.create.mockResolvedValue({ id: 'vt-7' });
+
+      const res = await resendVerificationEmail({ email: regEmail });
+
+      expect(res.success).toBe(true);
+      expect(mockVerificationToken.create).toHaveBeenCalledTimes(1);
+      expect(sendVerificationOTP).toHaveBeenCalledTimes(1);
+    });
+
+    it('responds identically for unknown emails on resend (no enumeration, no email)', async () => {
+      mockUser.findUnique.mockResolvedValue(null);
+
+      const res = await resendVerificationEmail({ email: 'ghost@example.com' });
+
+      expect(res.success).toBe(true);
+      expect(mockVerificationToken.create).not.toHaveBeenCalled();
+      expect(sendVerificationOTP).not.toHaveBeenCalled();
     });
   });
 });

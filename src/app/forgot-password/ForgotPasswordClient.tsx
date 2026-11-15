@@ -3,15 +3,19 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { requestPasswordReset } from '@/modules/auth/auth.actions';
+import { NO_ACCOUNT_MESSAGE } from '@/lib/auth-utils';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Mail, ArrowLeft, Loader2 } from 'lucide-react';
+import { Mail, ArrowLeft, Loader2, UserPlus } from 'lucide-react';
 import { AnimatePresence, Appear, MotionButton } from '@/components/motion/primitives';
 
 export default function ForgotPasswordClient() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
+  // Set when the submitted address is not registered: the form is replaced by
+  // the "no account" state with a Create an Account call to action.
+  const [noAccount, setNoAccount] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -23,11 +27,15 @@ export default function ForgotPasswordClient() {
     }
 
     setError('');
+    setNoAccount(false);
     setLoading(true);
 
     try {
       const res = await requestPasswordReset({ email: trimmedEmail });
       if (!res.success) {
+        if (res.error === NO_ACCOUNT_MESSAGE) {
+          setNoAccount(true);
+        }
         throw new Error(res.error || 'Failed to send verification code. Please try again.');
       }
 
@@ -77,6 +85,28 @@ export default function ForgotPasswordClient() {
                 className="p-4 bg-red-50 border border-red-200 text-red-700 dark:bg-red-950/40 dark:border-red-900/60 dark:text-red-300 text-sm rounded-xl font-medium"
               >
                 {error}
+                {noAccount && (
+                  <div className="mt-4 space-y-2.5">
+                    <Link
+                      href="/login?mode=register"
+                      className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-bold text-white bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent transition-colors"
+                    >
+                      <UserPlus className="w-4 h-4" aria-hidden="true" />
+                      Create an Account
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setError('');
+                        setNoAccount(false);
+                        document.getElementById('email')?.focus();
+                      }}
+                      className="w-full text-sm font-semibold text-text-secondary hover:text-navy dark:hover:text-white transition-colors"
+                    >
+                      Try another email address
+                    </button>
+                  </div>
+                )}
               </div>
             </Appear>
           )}

@@ -65,12 +65,12 @@ describeDb('Authentication & Security Foundation', () => {
 
   describe('1-3. Registration & Passwords', () => {
     it('rejects invalid registration data', async () => {
-      await expect(register({ email: 'not-an-email', password: '123' }))
-        .resolves.toEqual({ success: false, error: 'Invalid email address' });
+      await expect(register({ name: 'Test User', email: 'not-an-email', password: '123', confirmPassword: '123' }))
+        .resolves.toEqual({ success: false, error: 'Please enter a valid email address' });
     });
 
     it('registers with valid credentials', async () => {
-      const res = await register({ email: testEmail, password: testPassword });
+      const res = await register({ name: 'Test User', email: testEmail, password: testPassword, confirmPassword: testPassword });
       expect(res.success).toBe(true);
       if (res.success) {
         // Registration no longer returns the account id: doing so would let an
@@ -91,7 +91,7 @@ describeDb('Authentication & Security Foundation', () => {
     });
 
     it('does not reveal whether an email is already registered', async () => {
-      const res = await register({ email: testEmail, password: testPassword });
+      const res = await register({ name: 'Test User', email: testEmail, password: testPassword, confirmPassword: testPassword });
       expect(res.success).toBe(true);
       if (res.success) {
         expect(res.data.message).toBe('Verification email sent');
@@ -106,7 +106,7 @@ describeDb('Authentication & Security Foundation', () => {
         data: { email, passwordHash: originalHash },
       });
 
-      const res = await register({ email, password: 'AttackerChosen123!' });
+      const res = await register({ name: 'Attacker', email, password: 'AttackerChosen123!', confirmPassword: 'AttackerChosen123!' });
       expect(res.success).toBe(true);
 
       const after = await prisma.user.findUnique({ where: { email }, select: { passwordHash: true } });
