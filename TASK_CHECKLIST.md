@@ -1,29 +1,82 @@
-# Task Checklist: Fix Study Navigation & Back Redirection Bugs
+# Production-Ready Email OTP Forgot Password Implementation Checklist
 
-## Phase 1 — Reproduction & Root Cause Analysis
-- [x] Reproduce the back redirect bug driving browser on production/local
-- [x] Identify root causes in `src/app/read/[resourceId]/page.tsx` (`studyBackUrl` missing `type` and `semester`, empty breadcrumbs `> > >`)
-- [x] Identify root causes in `src/app/resources/[id]/page.tsx` (missing `semester` relation, invalid breadcrumb links `/semesters/undefined`, blank subject header, unscoped next/prev navigation)
+## Phase 1 — Architecture Audit & Security Review
+- [x] Inspect existing authentication, registration, hashing, and session management (`auth.ts`, `auth.config.ts`, `auth.actions.ts`)
+- [x] Inspect existing Prisma schema (`User`, `VerificationToken`, `Session`)
+- [x] Inspect email service abstraction and templates (`src/lib/mail.ts`)
+- [x] Verify routing, proxy rules, and redirect exemptions (`src/proxy.ts`, `src/lib/redirect-rules.ts`)
 
-## Phase 2 — Implementation
-- [x] Fix `src/app/read/[resourceId]/page.tsx`:
-  - [x] Include `semester` in `prisma.resource.findUnique` query and fallback query
-  - [x] Derive `studyBackUrl` using `resource.type`, `semesterId` (direct or via subject), `subjectId`, and `unitId`
-  - [x] Fix breadcrumb rendering in reader: eliminate empty spans/separators, make breadcrumb items clickable links
-  - [x] Only render `StudyOutlineSidebar` when `filteredUnits.length > 0`
-- [x] Fix `src/app/resources/[id]/page.tsx`:
-  - [x] Include `semester` in `prisma.resource.findUnique` query and fallback query
-  - [x] Correctly handle resources with direct `semesterId` (like `OLD_QUESTION`) in breadcrumbs, JSON-LD schema, and headers
-  - [x] Fix Next/Prev resource navigation query to scope by `semesterId` when `subjectId` is null
+## Phase 2 — Database Architecture & Migration
+- [ ] Add `PasswordResetToken` model to `prisma/schema.prisma` with:
+  - `userId` (relation to `User` with Cascade delete)
+  - `hashedOtp` (securely hashed OTP)
+  - `token` (single-use secure reset token for password update, unique & indexed)
+  - `expiresAt` (5-minute TTL for OTP)
+  - `resendAvailableAt` (60-second cooldown timestamp)
+  - `attempts` (attempt counter, max 5)
+  - `verifiedAt` (timestamp when OTP verified)
+  - `consumedAt` (timestamp when password reset completed)
+  - `createdAt` & `updatedAt` timestamps
+- [ ] Create and apply Prisma migration `20261114220000_add_password_reset_otp`
+- [ ] Run `prisma generate` to update Prisma Client types
 
-## Phase 3 — Verification & Testing
-- [x] Add automated unit tests in `src/app/read/__tests__/read-page-navigation.test.ts`
-- [x] Run unit and regression tests (`npx vitest run`) -> 639 tests passing
-- [x] Run TypeScript check (`npx tsc --noEmit`) -> 0 errors
-- [x] Run production build (`npm run build`) -> success
-- [x] Verify fix by driving browser: navigate to Old Questions, click resource, verify clean breadcrumbs without `> > >`, click Go Back, verify redirect back to Old Questions
+## Phase 3 — Backend Actions & Security Protections
+- [ ] Implement `requestPasswordResetOtp({ email })`:
+  - Input validation with Zod
+  - Email normalization
+  - Generic success response for non-existent users (anti-enumeration)
+  - 60-second resend cooldown check
+  - Invalidate any previous unconsumed reset tokens
+  - Generate cryptographically secure 6-digit OTP using `crypto.randomInt`
+  - Hash OTP using bcrypt
+  - Store token in database with 5-minute expiry
+  - Send branded email with OTP
+  - Request rate limiting per IP and per account
+- [ ] Implement `verifyPasswordResetOtp({ email, otp })`:
+  - Input validation with Zod (email, 6-digit string)
+  - Rate limiting & brute-force prevention
+  - Check expiration (5 min)
+  - Check attempt counter (max 5); increment on failure; invalidate on reaching 5
+  - Constant-time comparison using bcrypt
+  - Single-use consumption of OTP
+  - Generate high-entropy 32-byte `resetToken` for password reset phase
+  - Transaction safety
+- [ ] Implement `resetPasswordWithToken({ email, token, newPassword, confirmPassword })`:
+  - Input validation with Zod (min 8 chars, matching passwords, 64-char hex token)
+  - Verify `resetToken` is valid, unconsumed, and not expired
+  - Hash new password with bcrypt (12 salt rounds)
+  - Transaction-safe atomic update: update password, invalidate reset token, set `isEmailVerified: true`
+  - Invalidate existing user sessions (`sessionVersion: { increment: 1 }`)
+- [ ] Polish branded email template in `src/lib/mail.ts`:
+  - Entertain Lawyers branding, clean HTML styling
+  - Clearly visible 6-digit OTP
+  - 5-minute expiration notice
+  - Security warning for unprompted resets
 
-## Phase 4 — Branch & Pull Request
-- [ ] Create git branch
-- [ ] Commit changes with clear message
-- [ ] Open PR without pushing until requested
+## Phase 4 — UI Implementation
+- [ ] Build `/forgot-password`: Enter email, submit to get OTP, validation, generic success
+- [ ] Build `/forgot-password/verify`: 6-digit OTP entry, paste support, 60s cooldown timer, attempt feedback
+- [ ] Build `/reset-password`: New password + confirm password, show/hide toggle, validation
+- [ ] Build Success Confirmation screen: clean confirmation with link & auto-redirect to `/login`
+- [ ] Ensure full mobile responsiveness, accessibility, dark mode consistency, and adherence to Entertain Lawyers styling
+
+## Phase 5 — Comprehensive Testing & Verification
+- [ ] Unit & integration tests for all security requirements:
+  - Successful OTP generation & delivery
+  - Invalid OTP rejection & attempt counter increment
+  - Maximum verification attempts lockout (5 attempts)
+  - Expired OTP rejection (5 minutes)
+  - Single-use replay attack prevention
+  - 60-second cooldown enforcement
+  - Rate limiting on reset requests
+  - Anti-enumeration generic responses
+  - Successful password update & session invalidation (`sessionVersion`)
+  - Password mismatch validation
+  - Invalidation of previous tokens
+- [ ] TypeScript checks (`npx tsc --noEmit`)
+- [ ] Full Vitest suite (`npx vitest run`)
+- [ ] Production build (`npm run build`)
+- [ ] End-to-end browser verification
+
+## Phase 6 — Documentation & Final Report
+- [ ] Document all created/modified files, migrations, env vars, and security features in final report
