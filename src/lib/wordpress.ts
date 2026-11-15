@@ -158,13 +158,57 @@ export interface WordPressAuthor {
 }
 
 /**
+ * Returns the public-facing origin of the WordPress site (site root URL).
+ * Derived from the configured REST API base URL.
+ */
+export function getWordPressSiteOrigin(lang: WordPressLanguage = 'en'): string {
+  const baseUrl = getWordPressBaseUrl(lang);
+  // Remove the REST API path segment to get the site root.
+  // Works for both standard and custom REST API paths as long as they contain /wp-json/.
+  const rootUrl = baseUrl.split('/wp-json/')[0].replace(/\/+$/, '');
+  if (rootUrl) return rootUrl;
+  return lang === 'ne' ? 'https://cms.entertainlawyers.com/nepali' : 'https://cms.entertainlawyers.com';
+}
+
+/**
+ * Normalizes a WordPress permalink to use the configured CMS site origin.
+ * Replaces apex (entertainlawyers.com) or www (www.entertainlawyers.com) hosts
+ * with the configured CMS origin host for the given language.
+ */
+export function normalizeWordPressPermalink(
+  link: string | undefined | null,
+  lang: WordPressLanguage = 'en'
+): string | null {
+  if (!link?.trim()) return null;
+  try {
+    const targetOrigin = getWordPressSiteOrigin(lang);
+    const targetUrl = new URL(targetOrigin);
+    const inputUrl = new URL(link);
+
+    // Replace host if it's an entertainlawyers domain, or if it matches target origin host
+    if (
+      inputUrl.hostname === 'entertainlawyers.com' ||
+      inputUrl.hostname === 'www.entertainlawyers.com' ||
+      inputUrl.hostname === 'cms.entertainlawyers.com'
+    ) {
+      inputUrl.protocol = targetUrl.protocol;
+      inputUrl.hostname = targetUrl.hostname;
+      inputUrl.port = targetUrl.port;
+    }
+    return inputUrl.toString();
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Returns base URL for English or Nepali WordPress REST API
  */
 export function getWordPressBaseUrl(lang: WordPressLanguage = 'en'): string {
   if (lang === 'ne') {
-    return (process.env.WP_NEPALI_URL || 'https://entertainlawyers.com/nepali/wp-json/wp/v2').replace(/\/+$/, '');
+    return (process.env.WP_NEPALI_URL || 'https://cms.entertainlawyers.com/nepali/wp-json/wp/v2').replace(/\/+$/, '');
   }
-  return (process.env.WP_ENGLISH_URL || 'https://entertainlawyers.com/wp-json/wp/v2').replace(/\/+$/, '');
+  return (process.env.WP_ENGLISH_URL || 'https://cms.entertainlawyers.com/wp-json/wp/v2').replace(/\/+$/, '');
 }
 
 const SHARED_AUTH_ENV = {

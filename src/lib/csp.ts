@@ -47,11 +47,22 @@ export function buildCsp(nonce?: string): string {
     ...(nonce ? [`'nonce-${nonce}'`] : []),
   ].join(" ");
 
-  const directives = [
+  const imgSrc = [
+      "'self'",
+      "blob:",
+      "data:",
+      "https://entertainlawyers.com",
+      "https://www.entertainlawyers.com",
+      "https://secure.gravatar.com",
+      "https://cms.entertainlawyers.com",
+      b2OriginPart,
+    ].filter(Boolean).join(" ");
+
+    const directives = [
     `default-src 'self'`,
     `script-src ${scriptSrc}`,
     `style-src 'self' 'unsafe-inline'`,
-    `img-src 'self' blob: data:${b2OriginPart} https://entertainlawyers.com https://www.entertainlawyers.com https://secure.gravatar.com`,
+    `img-src ${imgSrc}`,
     `font-src 'self'`,
     `connect-src 'self'${b2OriginPart} https://va.vercel-scripts.com https://vitals.vercel-insights.com`,
     `worker-src 'self' blob:`,
