@@ -5,7 +5,17 @@ import { UserFacingError } from '@/lib/safe-action';
 // e.g., process.env.SMTP_HOST, process.env.SMTP_USER, etc.
 // For now, if no credentials are provided, we will just log the email to the console.
 
-const isConfigured = !!(process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_USER);
+const isConfigured = !!(process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_USER && process.env.SMTP_PASS);
+
+// Surface partial SMTP configuration: with host/user set but no password the
+// transport would fail at AUTH time with a cryptic error instead of a clear one.
+if (process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_USER && !process.env.SMTP_PASS) {
+  console.error('[mail] SMTP_PASS is missing; outgoing email is disabled.', {
+    hasHost: true,
+    hasPort: true,
+    hasUser: true,
+  });
+}
 
 const transporter = isConfigured
   ? nodemailer.createTransport({
@@ -47,12 +57,20 @@ export async function sendEmail({
   critical?: boolean;
 }) {
   if (isConfigured && transporter) {
-    await transporter.sendMail({
-      from: `"Entertain Lawyers" <${process.env.SMTP_FROM || 'noreply@entertainlawyers.com'}>`,
-      to,
-      subject,
-      html,
-    });
+    try {
+      await transporter.sendMail({
+        from: `"Entertain Lawyers" <${process.env.SMTP_FROM || 'noreply@entertainlawyers.com'}>`,
+        to,
+        subject,
+        html,
+      });
+    } catch (err) {
+      // Log only the failure class (error code/name and subject) — never the
+      // recipient, message body, credentials or SMTP conversation.
+      const code = (err as { code?: string; name?: string })?.code || (err as { name?: string })?.name || 'unknown';
+      console.error('[mail] SMTP send failed.', { code, subject });
+      throw err;
+    }
   } else if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_LOCAL_EMAIL_LOG === 'true') {
     // Development fallback: print the message so local sign-up and password
     // reset flows can be tested without an SMTP server.
