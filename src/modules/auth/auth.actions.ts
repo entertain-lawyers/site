@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { randomInt, randomBytes } from "crypto";
 import { z } from "zod";
-import { normalizeEmail } from "@/lib/auth-utils";
+import { normalizeEmail, NO_ACCOUNT_MESSAGE } from "@/lib/auth-utils";
 import { sendVerificationOTP, sendPasswordResetOTP } from "@/lib/mail";
 import { rateLimit } from "@/lib/rate-limit";
 
@@ -14,7 +14,7 @@ function generateOtp(): string {
   return randomInt(100000, 1000000).toString();
 }
 
-const OTP_TTL_MS = 15 * 60 * 1000; // 15 minutes
+const OTP_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const OTP_MAX_ATTEMPTS = 5;
 
 type OtpType = "VERIFY_EMAIL" | "RESET_PASSWORD";
@@ -22,11 +22,13 @@ type OtpType = "VERIFY_EMAIL" | "RESET_PASSWORD";
 /** Replace any existing code of this type and issue a fresh one. */
 async function issueOtp(identifier: string, type: OtpType): Promise<string> {
   const token = generateOtp();
+  // Only the bcrypt hash is stored; the raw code exists in the email alone.
+  const hashedToken = await bcrypt.hash(token, 10);
   const expires = new Date(Date.now() + OTP_TTL_MS);
 
   await prisma.verificationToken.deleteMany({ where: { identifier, type } });
   await prisma.verificationToken.create({
-    data: { identifier, token, type, expires },
+    data: { identifier, token: hashedToken, type, expires },
   });
 
   return token;
@@ -62,16 +64,23 @@ async function recordFailedOtpAttempt(
   });
 }
 
-const registerSchema = z.object({
-  email: z.string().trim().email(),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-});
+const registerSchema = z
+  .object({
+    name: z.string().trim().min(1, "Please enter your name").max(100),
+    email: z.string().trim().email("Please enter a valid email address"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string().min(8, "Password must be at least 8 characters"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
 
 export const register = createSafeAction(
-  async ({ email, password }: z.infer<typeof registerSchema>) => {
-    const parsed = registerSchema.safeParse({ email, password });
+  async ({ name, email, password, confirmPassword }: z.infer<typeof registerSchema>) => {
+    const parsed = registerSchema.safeParse({ name, email, password, confirmPassword });
     if (!parsed.success) {
-      throw new Error(parsed.error.issues[0]?.message || "Invalid registration data");
+      throw new UserFacingError(parsed.error.issues[0]?.message || "Invalid registration data");
     }
 
     const normalizedEmail = normalizeEmail(parsed.data.email);
@@ -109,6 +118,7 @@ export const register = createSafeAction(
       data: {
         email: normalizedEmail,
         passwordHash,
+        name: parsed.data.name,
       },
       select: { id: true, email: true },
     });
@@ -147,6 +157,22 @@ export const resendVerificationEmail = createSafeAction(
     // Always return the same response: distinguishing "user not found" from
     // "already verified" lets anyone test whether an address is registered.
     if (user && !user.isEmailVerified && !user.emailVerified) {
+      // 60-second cooldown between codes, so a click storm cannot flood the
+      // inbox (and the SMTP relay) with verification emails.
+      const latest = await prisma.verificationToken.findFirst({
+        where: { identifier: normalizedEmail, type: "VERIFY_EMAIL" },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true },
+      });
+
+      if (latest) {
+        const elapsed = Date.now() - latest.createdAt.getTime();
+        if (elapsed < OTP_RESEND_COOLDOWN_MS) {
+          const remainingSeconds = Math.ceil((OTP_RESEND_COOLDOWN_MS - elapsed) / 1000);
+          throw new UserFacingError(`Please wait ${remainingSeconds} seconds before requesting a new code.`);
+        }
+      }
+
       const token = await issueOtp(normalizedEmail, "VERIFY_EMAIL");
       await sendVerificationOTP(normalizedEmail, token);
     }
@@ -169,7 +195,7 @@ export const verifyEmail = createSafeAction(
   async ({ email, token }: z.infer<typeof verifyEmailSchema>) => {
     const parsed = verifyEmailSchema.safeParse({ email, token });
     if (!parsed.success) {
-      throw new Error(parsed.error.issues[0]?.message || "Invalid verification code");
+      throw new UserFacingError(parsed.error.issues[0]?.message || "Invalid verification code");
     }
 
     const normalizedEmail = normalizeEmail(parsed.data.email);
@@ -177,25 +203,36 @@ export const verifyEmail = createSafeAction(
     const verification = await prisma.verificationToken.findFirst({
       where: {
         identifier: normalizedEmail,
-        token: parsed.data.token,
         type: "VERIFY_EMAIL",
         expires: { gt: new Date() }
       }
     });
 
-    if (!verification) {
+    // Codes are stored hashed, so the guess is compared here.
+    if (!verification || !(await bcrypt.compare(parsed.data.token, verification.token))) {
       await recordFailedOtpAttempt(normalizedEmail, "VERIFY_EMAIL");
-      throw new Error("Invalid or expired code");
+      throw new UserFacingError("Invalid or expired code");
     }
 
-    await prisma.user.update({
-      where: { email: normalizedEmail },
-      data: { isEmailVerified: true },
-      select: { id: true },
+    // Atomic single-use claim: only the first concurrent caller deletes the
+    // row, so a code can never verify twice even under parallel requests.
+    const claim = await prisma.verificationToken.deleteMany({
+      where: { id: verification.id, expires: { gt: new Date() } },
     });
 
-    await prisma.verificationToken.delete({
-      where: { id: verification.id }
+    if (claim.count === 0) {
+      throw new UserFacingError("Invalid or expired verification code. Please request a new code.");
+    }
+
+    // Guarded update: an account can only move from unverified to verified,
+    // never the other way and never twice.
+    await prisma.user.updateMany({
+      where: {
+        email: normalizedEmail,
+        isEmailVerified: false,
+        emailVerified: null,
+      },
+      data: { isEmailVerified: true },
     });
 
     return { success: true };
@@ -232,15 +269,23 @@ export const requestPasswordReset = createSafeAction(
 
     const user = await prisma.user.findUnique({
       where: { email: normalizedEmail },
-      select: { id: true, email: true },
+      select: { id: true, email: true, passwordHash: true },
     });
 
     if (!user) {
-      // Generic response to prevent email enumeration
-      return {
-        success: true,
-        message: "If an account exists with this email, a 6-digit code has been sent.",
-      };
+      // Explicit rejection with a path forward (Create an Account), per the
+      // product decision — enumeration trade-off is accepted and the per-email
+      // rate limit above caps probing.
+      throw new UserFacingError(NO_ACCOUNT_MESSAGE);
+    }
+
+    if (!user.passwordHash) {
+      // OAuth-only account: there is no local password to reset, so do not
+      // issue a code that would silently create one from an unauthenticated
+      // request.
+      throw new UserFacingError(
+        "This email address is registered with Google sign-in. Please sign in using the Continue with Google button."
+      );
     }
 
     // Check resend cooldown (60 seconds)
