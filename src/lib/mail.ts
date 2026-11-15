@@ -159,7 +159,7 @@ export function buildPasswordResetEmail(otp: string): { html: string; text: stri
 <body style="margin:0; padding:0; background-color:#f2f3f5;">
   <!-- Preheader: visible in inbox previews only -->
   <div style="display:none; font-size:1px; color:#f2f3f5; line-height:1px; max-height:0; max-width:0; opacity:0; overflow:hidden;">
-    Your Entertain Lawyers verification code is ${safeOtp} — it expires in 5 minutes.
+    Your Entertain Lawyers password reset code expires in 5 minutes.
   </div>
 
   <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f2f3f5;">

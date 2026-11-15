@@ -36,9 +36,10 @@ describe('password reset email', () => {
     const { buildPasswordResetEmail } = await import('@/lib/mail');
     const { html, text } = buildPasswordResetEmail('042915');
 
-    // OTP dynamically inserted (preheader + code block), no leftovers from
-    // the old gradient template
-    expect(html.match(/042915/g)?.length).toBeGreaterThanOrEqual(2);
+    // OTP appears exactly once in the HTML (the code block) — never in the
+    // hidden preheader, which inbox previews can expose
+    expect(html.match(/042915/g)?.length).toBe(1);
+    expect(html).toContain('password reset code expires in 5 minutes');
     expect(text).toContain('042915');
     expect(html).not.toContain('linear-gradient');
 
