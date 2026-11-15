@@ -1,4 +1,5 @@
 import nodemailer from 'nodemailer';
+import { UserFacingError } from '@/lib/safe-action';
 
 // In a real production app, you would use actual SMTP credentials from your .env
 // e.g., process.env.SMTP_HOST, process.env.SMTP_USER, etc.
@@ -52,7 +53,7 @@ export async function sendEmail({
       subject,
       html,
     });
-  } else if (process.env.NODE_ENV !== 'production') {
+  } else if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_LOCAL_EMAIL_LOG === 'true') {
     // Development fallback: print the message so local sign-up and password
     // reset flows can be tested without an SMTP server.
     console.log('\n=================== EMAIL SENT ===================');
@@ -68,7 +69,7 @@ export async function sendEmail({
     if (critical) {
       // Verification/reset cannot work without mail. Returning success here
       // tells the user a code was sent when none was, and locks them out.
-      throw new Error('Email delivery is not configured');
+      throw new UserFacingError('Email delivery is not configured. Please contact the administrator.');
     }
   }
 }
@@ -92,18 +93,45 @@ export async function sendVerificationOTP(email: string, token: string) {
 }
 
 export async function sendPasswordResetOTP(email: string, token: string) {
+  const safeToken = escapeHtml(token);
   await sendEmail({
     to: email,
     critical: true,
-    subject: 'Reset your password - Entertain Lawyers',
+    subject: 'Your Password Reset Code - Entertain Lawyers',
     html: `
-      <div style="font-family: sans-serif; max-w: 600px; margin: 0 auto; padding: 20px; text-align: center;">
-        <h1 style="color: #0d2342;">Reset Your Password</h1>
-        <p>You requested a password reset. Please use the following 6-digit code to reset your password. This code will expire in 15 minutes.</p>
-        <div style="background-color: #f3f4f6; padding: 20px; border-radius: 10px; margin: 20px 0;">
-          <h2 style="font-size: 32px; letter-spacing: 5px; color: #e11d48; margin: 0;">${token}</h2>
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 580px; margin: 0 auto; padding: 32px 24px; background-color: #ffffff; color: #1e293b; border-radius: 16px; border: 1px solid #e2e8f0;">
+        <div style="text-align: center; margin-bottom: 28px;">
+          <h1 style="color: #0d2342; font-size: 24px; font-weight: 800; margin: 0; letter-spacing: -0.5px;">ENTERTAIN LAWYERS</h1>
+          <p style="color: #64748b; font-size: 13px; margin: 4px 0 0; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Legal Education Platform</p>
         </div>
-        <p style="color: #6b7280; font-size: 14px;">If you did not request this, please ignore this email.</p>
+
+        <div style="border-top: 1px solid #f1f5f9; padding-top: 24px;">
+          <h2 style="color: #0f172a; font-size: 20px; font-weight: 700; margin: 0 0 12px;">Password Reset Request</h2>
+          <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">
+            We received a request to reset the password for your Entertain Lawyers account. Use the 6-digit verification code below to proceed with resetting your password:
+          </p>
+
+          <div style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border: 1px solid #cbd5e1; border-radius: 14px; padding: 24px; text-align: center; margin: 24px 0;">
+            <span style="font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 1.5px; display: block; margin-bottom: 8px;">Verification Code</span>
+            <div style="font-size: 38px; font-weight: 800; letter-spacing: 8px; color: #2563eb; font-family: monospace; line-height: 1.2;">
+              ${safeToken}
+            </div>
+            <span style="display: inline-block; margin-top: 10px; font-size: 12px; font-weight: 600; color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; padding: 4px 10px; border-radius: 999px;">
+              ⏱ Expires in 5 minutes • Single-use only
+            </span>
+          </div>
+
+          <div style="background-color: #f8fafc; border-left: 4px solid #f59e0b; padding: 14px 16px; border-radius: 6px; margin: 24px 0;">
+            <p style="color: #475569; font-size: 13px; line-height: 1.5; margin: 0;">
+              <strong>Security Notice:</strong> If you did not request this password reset, please ignore this email or check your account security. Your password will remain unchanged until this code is verified.
+            </p>
+          </div>
+
+          <p style="color: #94a3b8; font-size: 12px; line-height: 1.5; margin: 24px 0 0; text-align: center; border-top: 1px solid #f1f5f9; padding-top: 20px;">
+            &copy; ${new Date().getFullYear()} Entertain Lawyers Pvt. Ltd. All rights reserved.<br />
+            Kathmandu, Nepal • Legal Education & Resources
+          </p>
+        </div>
       </div>
     `,
   });
