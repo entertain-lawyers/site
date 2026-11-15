@@ -31,6 +31,7 @@ export default function LoginPage() {
   const isStudyMaterial = searchParams.get('reason') === STUDY_MATERIAL_LOGIN_REASON;
   const errorParam = searchParams.get('error');
   const codeParam = searchParams.get('code');
+  const resetParam = searchParams.get('reset');
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
@@ -48,7 +49,9 @@ export default function LoginPage() {
       ? 'An error occurred during authentication.'
       : null
   );
-  const [success, setSuccess] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(
+    resetParam === 'success' ? 'Password has been reset successfully. Please sign in with your new password.' : null
+  );
 
   // Someone who is already signed in goes straight to where they were headed.
   // /api/auth/session is validated against the database, so an invalidated

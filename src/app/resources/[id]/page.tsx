@@ -21,6 +21,7 @@ const getCachedResource = cache(async (id: string) => {
     return await prisma.resource.findUnique({
       where: { status: 'PUBLISHED', id },
       include: {
+        semester: true,
         subject: {
           include: {
             semester: true
@@ -51,6 +52,8 @@ const getCachedResource = cache(async (id: string) => {
         status: true,
         type: true,
         subjectId: true,
+        semesterId: true,
+        semester: true,
         unitId: true,
         isPremium: true,
         priceAmount: true,
@@ -74,7 +77,8 @@ const getCachedResource = cache(async (id: string) => {
           authorId: null,
           createdById: null,
           order: 0,
-          semesterId: null,
+          semesterId: fallbackResource.semesterId ?? null,
+          semester: fallbackResource.semester ?? null,
           metaDesc: null,
           metaTitle: null,
           author: null,
@@ -145,11 +149,20 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
     redirect(`/read/${id}`);
   }
 
+  const effectiveSemesterId = resource.semesterId || resource.subject?.semester?.id || resource.subject?.semesterId;
+  const semesterName = resource.semester?.name || resource.subject?.semester?.name;
+
   const allResourcesQuery = await prisma.resource.findMany({
     where: { status: 'PUBLISHED',
       type: resource.type,
-      subjectId: resource.subjectId,
-      ...(resource.unitId ? { unitId: resource.unitId } : {})
+      ...(resource.subjectId
+        ? {
+            subjectId: resource.subjectId,
+            ...(resource.unitId ? { unitId: resource.unitId } : {}),
+          }
+        : effectiveSemesterId
+        ? { semesterId: effectiveSemesterId }
+        : {}),
     },
     orderBy: [
       { order: 'asc' },
@@ -187,41 +200,40 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
       "name": getResourceTypeLabel(resource.type) || 'Study',
       "item": `${siteUrl}/study?type=${resource.type}`
     },
-    {
-      "@type": "ListItem",
-      "position": 3,
-      "name": resource.subject?.semester?.name || dict.semester,
-      "item": `${siteUrl}/semesters/${resource.subject?.semesterId}`
-    },
-    {
-      "@type": "ListItem",
-      "position": 4,
-      "name": resource.subject?.name || dict.subject,
-      "item": `${siteUrl}/study?type=${resource.type}&subject=${resource.subjectId}`
-    }
   ];
-
-  if (resource.unit) {
+  let position = 3;
+  if (semesterName && effectiveSemesterId) {
     breadcrumbElements.push({
       "@type": "ListItem",
-      "position": 5,
-      "name": resource.unit.name,
-      "item": `${siteUrl}/study?type=${resource.type}&subject=${resource.subjectId}&unit=${resource.unitId}`
-    });
-    breadcrumbElements.push({
-      "@type": "ListItem",
-      "position": 6,
-      "name": resource.title,
-      "item": `${siteUrl}/resources/${id}`
-    });
-  } else {
-    breadcrumbElements.push({
-      "@type": "ListItem",
-      "position": 5,
-      "name": resource.title,
-      "item": `${siteUrl}/resources/${id}`
+      "position": position++,
+      "name": semesterName,
+      "item": resource.type === 'OLD_QUESTION'
+        ? `${siteUrl}/study?type=OLD_QUESTION&semester=${effectiveSemesterId}`
+        : `${siteUrl}/semesters/${effectiveSemesterId}`
     });
   }
+  if (resource.subject?.name && resource.subjectId) {
+    breadcrumbElements.push({
+      "@type": "ListItem",
+      "position": position++,
+      "name": resource.subject.name,
+      "item": `${siteUrl}/study?type=${resource.type}${effectiveSemesterId ? `&semester=${effectiveSemesterId}` : ''}&subject=${resource.subjectId}`
+    });
+  }
+  if (resource.unit?.name && resource.unitId) {
+    breadcrumbElements.push({
+      "@type": "ListItem",
+      "position": position++,
+      "name": resource.unit.name,
+      "item": `${siteUrl}/study?type=${resource.type}${effectiveSemesterId ? `&semester=${effectiveSemesterId}` : ''}&subject=${resource.subjectId}&unit=${resource.unitId}`
+    });
+  }
+  breadcrumbElements.push({
+    "@type": "ListItem",
+    "position": position++,
+    "name": resource.title,
+    "item": `${siteUrl}/resources/${id}`
+  });
 
   return (
     <div className="bg-background min-h-screen pb-20">
@@ -256,27 +268,36 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
                 </Link>
               </div>
             </li>
-            <li>
-              <div className="flex items-center">
-                <ChevronRight className="w-3.5 h-3.5 mx-1 text-border-strong" />
-                <Link href={`/semesters/${resource.subject?.semesterId}`} className="hover:text-accent font-medium transition-colors">
-                  {resource.subject?.semester?.name}
-                </Link>
-              </div>
-            </li>
-            <li>
-              <div className="flex items-center">
-                <ChevronRight className="w-3.5 h-3.5 mx-1 text-border-strong" />
-                <Link href={`/study?type=${resource.type}&subject=${resource.subjectId}`} className="hover:text-accent font-medium transition-colors">
-                  {resource.subject?.name}
-                </Link>
-              </div>
-            </li>
-            {resource.unit && (
+            {semesterName && (
               <li>
                 <div className="flex items-center">
                   <ChevronRight className="w-3.5 h-3.5 mx-1 text-border-strong" />
-                  <Link href={`/study?type=${resource.type}&subject=${resource.subjectId}&unit=${resource.unitId}`} className="hover:text-accent font-medium transition-colors">
+                  <Link
+                    href={resource.type === 'OLD_QUESTION' && effectiveSemesterId
+                      ? `/study?type=OLD_QUESTION&semester=${effectiveSemesterId}`
+                      : `/semesters/${effectiveSemesterId}`}
+                    className="hover:text-accent font-medium transition-colors"
+                  >
+                    {semesterName}
+                  </Link>
+                </div>
+              </li>
+            )}
+            {resource.subject?.name && (
+              <li>
+                <div className="flex items-center">
+                  <ChevronRight className="w-3.5 h-3.5 mx-1 text-border-strong" />
+                  <Link href={`/study?type=${resource.type}${effectiveSemesterId ? `&semester=${effectiveSemesterId}` : ''}&subject=${resource.subjectId}`} className="hover:text-accent font-medium transition-colors">
+                    {resource.subject.name}
+                  </Link>
+                </div>
+              </li>
+            )}
+            {resource.unit?.name && (
+              <li>
+                <div className="flex items-center">
+                  <ChevronRight className="w-3.5 h-3.5 mx-1 text-border-strong" />
+                  <Link href={`/study?type=${resource.type}${effectiveSemesterId ? `&semester=${effectiveSemesterId}` : ''}&subject=${resource.subjectId}&unit=${resource.unitId}`} className="hover:text-accent font-medium transition-colors">
                     {resource.unit.name}
                   </Link>
                 </div>
@@ -319,16 +340,18 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
           </h1>
 
           <div className="flex flex-wrap items-center gap-6 text-sm text-text-secondary pb-8 border-b border-border/60">
-            {resource.subject?.semester?.name && (
+            {semesterName && (
               <div className="flex items-center gap-2">
                 <span className="font-bold text-text-muted uppercase tracking-wider">{dict.semester}:</span>
-                <span className="text-navy dark:text-white font-bold">{resource.subject.semester.name}</span>
+                <span className="text-navy dark:text-white font-bold">{semesterName}</span>
               </div>
             )}
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-text-muted uppercase tracking-wider">{dict.subject}:</span>
-              <span className="text-navy dark:text-white font-bold">{resource.subject?.name}</span>
-            </div>
+            {resource.subject?.name && (
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-text-muted uppercase tracking-wider">{dict.subject}:</span>
+                <span className="text-navy dark:text-white font-bold">{resource.subject.name}</span>
+              </div>
+            )}
             {resource.unit && (
               <div className="flex items-center gap-2">
                 <span className="font-bold text-text-muted uppercase tracking-wider">{dict.unit}:</span>
