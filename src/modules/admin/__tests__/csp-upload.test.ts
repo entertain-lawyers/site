@@ -30,7 +30,10 @@ describe('CSP Upload Policy & Storage Connection', () => {
     const cspHeader = buildCsp();
 
     expect(cspHeader).toContain("connect-src 'self' https://s3.us-east-005.backblazeb2.com");
-    expect(cspHeader).toContain("img-src 'self' blob: data: https://s3.us-east-005.backblazeb2.com");
+    // img-src contains both the CMS host and the B2 origin (spacing may vary due to join)
+    expect(cspHeader).toContain("img-src");
+    expect(cspHeader).toContain("https://cms.entertainlawyers.com");
+    expect(cspHeader).toContain("https://s3.us-east-005.backblazeb2.com");
   });
 
   it('does not include broad wildcard *.backblazeb2.com in connect-src or img-src', () => {

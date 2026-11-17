@@ -46,6 +46,7 @@ model User {
   uploadIntents UploadIntent[]
   authoredResources Resource[]        @relation("ResourceAuthor")
   createdResources  Resource[]        @relation("ResourceCreator")
+  passwordResetTokens PasswordResetToken[]
 }
 
 model Account {
@@ -527,6 +528,8 @@ model VerificationToken {
   expires    DateTime
   // Failed guesses for this code; the code is invalidated after a few.
   attempts   Int      @default(0)
+  // Issue time, used to enforce the resend cooldown between codes.
+  createdAt  DateTime @default(now())
 
   @@unique([identifier, token])
 }
@@ -667,4 +670,24 @@ model ActLaw {
   @@index([title])
   @@index([status, createdAt])
 }
+
+model PasswordResetToken {
+  id                String    @id @default(uuid())
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  hashedOtp         String
+  token             String?   @unique
+  expiresAt         DateTime
+  resendAvailableAt DateTime?
+  attempts          Int       @default(0)
+  verifiedAt        DateTime?
+  consumedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
 

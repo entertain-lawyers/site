@@ -53,6 +53,8 @@ const getCachedResource = cache(async (id: string) => {
         status: true,
         type: true,
         subjectId: true,
+        semesterId: true,
+        semester: true,
         unitId: true,
         isPremium: true,
         priceAmount: true,
@@ -61,8 +63,6 @@ const getCachedResource = cache(async (id: string) => {
         content: true,
         featuredImage: true,
         metaTitle: true,
-        semesterId: true,
-        semester: true,
         subject: {
           include: {
             semester: true,
@@ -151,11 +151,20 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
     redirect(`/read/${id}`);
   }
 
+  const effectiveSemesterId = resource.semesterId || resource.subject?.semester?.id || resource.subject?.semesterId;
+  const semesterName = resource.semester?.name || resource.subject?.semester?.name;
+
   const allResourcesQuery = await prisma.resource.findMany({
     where: { status: 'PUBLISHED',
       type: resource.type,
-      subjectId: resource.subjectId,
-      ...(resource.unitId ? { unitId: resource.unitId } : {})
+      ...(resource.subjectId
+        ? {
+            subjectId: resource.subjectId,
+            ...(resource.unitId ? { unitId: resource.unitId } : {}),
+          }
+        : effectiveSemesterId
+        ? { semesterId: effectiveSemesterId }
+        : {}),
     },
     orderBy: [
       { order: 'asc' },
@@ -180,9 +189,6 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
 
   const siteUrl = getSiteUrl();
 
-  const resolvedSemesterName = resource.semester?.name || resource.subject?.semester?.name;
-  const resolvedSemesterId = resource.semesterId || resource.subject?.semesterId;
-
   const breadcrumbElements: Array<{ "@type": string; position: number; name: string; item: string }> = [
     {
       "@type": "ListItem",
@@ -197,37 +203,36 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
       "item": `${siteUrl}/study?type=${resource.type}`
     },
   ];
-
-  if (resolvedSemesterName && resolvedSemesterId) {
+  let position = 3;
+  if (semesterName && effectiveSemesterId) {
     breadcrumbElements.push({
       "@type": "ListItem",
-      "position": breadcrumbElements.length + 1,
-      "name": resolvedSemesterName,
-      "item": `${siteUrl}/semesters/${resolvedSemesterId}`
+      "position": position++,
+      "name": semesterName,
+      "item": resource.type === 'OLD_QUESTION'
+        ? `${siteUrl}/study?type=OLD_QUESTION&semester=${effectiveSemesterId}`
+        : `${siteUrl}/semesters/${effectiveSemesterId}`
     });
   }
-
-  if (resource.subject && resource.subjectId) {
+  if (resource.subject?.name && resource.subjectId) {
     breadcrumbElements.push({
       "@type": "ListItem",
-      "position": breadcrumbElements.length + 1,
-      "name": resource.subject.name || dict.subject,
-      "item": `${siteUrl}/study?type=${resource.type}&subject=${resource.subjectId}`
+      "position": position++,
+      "name": resource.subject.name,
+      "item": `${siteUrl}/study?type=${resource.type}${effectiveSemesterId ? `&semester=${effectiveSemesterId}` : ''}&subject=${resource.subjectId}`
     });
   }
-
-  if (resource.unit && resource.unitId) {
+  if (resource.unit?.name && resource.unitId) {
     breadcrumbElements.push({
       "@type": "ListItem",
-      "position": breadcrumbElements.length + 1,
+      "position": position++,
       "name": resource.unit.name,
-      "item": `${siteUrl}/study?type=${resource.type}&subject=${resource.subjectId}&unit=${resource.unitId}`
+      "item": `${siteUrl}/study?type=${resource.type}${effectiveSemesterId ? `&semester=${effectiveSemesterId}` : ''}&subject=${resource.subjectId}&unit=${resource.unitId}`
     });
   }
-
   breadcrumbElements.push({
     "@type": "ListItem",
-    "position": breadcrumbElements.length + 1,
+    "position": position++,
     "name": resource.title,
     "item": `${siteUrl}/resources/${id}`
   });
@@ -265,37 +270,36 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
                 </Link>
               </div>
             </li>
-            {(resource.semester?.name || resource.subject?.semester?.name) && (
+            {semesterName && (
               <li>
                 <div className="flex items-center">
                   <ChevronRight className="w-3.5 h-3.5 mx-1 text-border-strong" />
                   <Link
-                    href={`/semesters/${resource.semesterId || resource.subject?.semesterId}`}
+                    href={resource.type === 'OLD_QUESTION' && effectiveSemesterId
+                      ? `/study?type=OLD_QUESTION&semester=${effectiveSemesterId}`
+                      : `/semesters/${effectiveSemesterId}`}
                     className="hover:text-accent font-medium transition-colors"
                   >
-                    {resource.semester?.name || resource.subject?.semester?.name}
+                    {semesterName}
                   </Link>
                 </div>
               </li>
             )}
-            {resource.subject && (
+            {resource.subject?.name && (
               <li>
                 <div className="flex items-center">
                   <ChevronRight className="w-3.5 h-3.5 mx-1 text-border-strong" />
-                  <Link
-                    href={`/study?type=${resource.type}&subject=${resource.subjectId}`}
-                    className="hover:text-accent font-medium transition-colors"
-                  >
+                  <Link href={`/study?type=${resource.type}${effectiveSemesterId ? `&semester=${effectiveSemesterId}` : ''}&subject=${resource.subjectId}`} className="hover:text-accent font-medium transition-colors">
                     {resource.subject.name}
                   </Link>
                 </div>
               </li>
             )}
-            {resource.unit && (
+            {resource.unit?.name && (
               <li>
                 <div className="flex items-center">
                   <ChevronRight className="w-3.5 h-3.5 mx-1 text-border-strong" />
-                  <Link href={`/study?type=${resource.type}&subject=${resource.subjectId}&unit=${resource.unitId}`} className="hover:text-accent font-medium transition-colors">
+                  <Link href={`/study?type=${resource.type}${effectiveSemesterId ? `&semester=${effectiveSemesterId}` : ''}&subject=${resource.subjectId}&unit=${resource.unitId}`} className="hover:text-accent font-medium transition-colors">
                     {resource.unit.name}
                   </Link>
                 </div>
@@ -341,12 +345,10 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
           </h1>
 
           <div className="flex flex-wrap items-center gap-6 text-sm text-text-secondary pb-8 border-b border-border/60">
-            {(resource.semester?.name || resource.subject?.semester?.name) && (
+            {semesterName && (
               <div className="flex items-center gap-2">
                 <span className="font-bold text-text-muted uppercase tracking-wider">{dict.semester}:</span>
-                <span className="text-navy dark:text-white font-bold">
-                  {resource.semester?.name || resource.subject?.semester?.name}
-                </span>
+                <span className="text-navy dark:text-white font-bold">{semesterName}</span>
               </div>
             )}
             {resource.subject?.name && (

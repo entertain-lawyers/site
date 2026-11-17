@@ -459,10 +459,12 @@ describe('End-to-End Content Placement Verification: Semester -> Subject -> Unit
       expect(items[2].name).toBe('Fourth Semester');
       expect(items[2].item).toBe(`https://entertainlawyers.com/semesters/${SEMESTER_4_ID}`);
       expect(items[3].name).toBe('Family Law');
-      expect(items[3].item).toBe(`https://entertainlawyers.com/study?type=CASE_LAW&subject=${FAMILY_LAW_SUBJECT_ID}`);
+      expect(items[3].item).toBe(
+        `https://entertainlawyers.com/study?type=CASE_LAW&semester=${SEMESTER_4_ID}&subject=${FAMILY_LAW_SUBJECT_ID}`
+      );
       expect(items[4].name).toBe('Unit 1: Prescribed Cases');
       expect(items[4].item).toBe(
-        `https://entertainlawyers.com/study?type=CASE_LAW&subject=${FAMILY_LAW_SUBJECT_ID}&unit=${PRESCRIBED_CASES_UNIT_ID}`
+        `https://entertainlawyers.com/study?type=CASE_LAW&semester=${SEMESTER_4_ID}&subject=${FAMILY_LAW_SUBJECT_ID}&unit=${PRESCRIBED_CASES_UNIT_ID}`
       );
       expect(items[5].name).toBe('Supreme Court Family Law Precedent #42');
       expect(items[5].item).toBe(`https://entertainlawyers.com/resources/${E2E_RESOURCE_ID}`);
@@ -521,7 +523,7 @@ describe('End-to-End Content Placement Verification: Semester -> Subject -> Unit
       expect(items[0].name).toBe('Home');
       expect(items[1].name).toBe('Old Questions');
       expect(items[2].name).toBe('Fourth Semester');
-      expect(items[2].item).toBe(`https://entertainlawyers.com/semesters/${SEMESTER_4_ID}`);
+      expect(items[2].item).toBe(`https://entertainlawyers.com/study?type=OLD_QUESTION&semester=${SEMESTER_4_ID}`);
       expect(items[3].name).toBe('2080 BALLB 4th Semester Old Questions');
 
       // Verify no broken undefined links exist

@@ -30,3 +30,87 @@ describe('consultation emails', () => {
     expect(body).toContain('&lt;img src=x onerror=alert(1)&gt;');
   });
 });
+
+describe('password reset email', () => {
+  it('builds branded HTML and a plain-text alternative carrying the OTP', async () => {
+    const { buildPasswordResetEmail } = await import('@/lib/mail');
+    const { html, text } = buildPasswordResetEmail('042915');
+
+    // OTP appears exactly once in the HTML (the code block) — never in the
+    // hidden preheader, which inbox previews can expose
+    expect(html.match(/042915/g)?.length).toBe(1);
+    expect(html).toContain('password reset code expires in 5 minutes');
+    expect(text).toContain('042915');
+    expect(html).not.toContain('linear-gradient');
+
+    // Official production wordmark, HTTPS, meaningful alt text
+    expect(html).toContain('https://www.entertainlawyers.com/wordmark_white.png');
+    expect(html).toContain('alt="Entertain Lawyers"');
+
+    // Required content
+    expect(html).toContain('Reset your password');
+    expect(html).toContain('5 minutes');
+    expect(html).toContain("Didn't request this?");
+    expect(text).toContain('Verification Code: 042915');
+    expect(text).toContain('expires in 5 minutes');
+
+    // Table-based, inline-styled, no web fonts or scripts
+    expect(html).toContain('role="presentation"');
+    expect(html).not.toMatch(/<script|@import|fonts\.googleapis/);
+  });
+
+  it('renders six digits with spacing and survives a very long recipient', async () => {
+    const logs: string[] = [];
+    vi.spyOn(console, 'log').mockImplementation((line: unknown) => {
+      logs.push(String(line));
+    });
+    const { sendPasswordResetOTP } = await import('@/lib/mail');
+
+    const longEmail = `${'x'.repeat(60)}+tag@mailing-list.subdomain.example-lawyers-offices.com`;
+    await sendPasswordResetOTP(longEmail, '770123');
+
+    const body = logs.join('\n');
+    expect(body).toContain(`TO: ${longEmail}`);
+    expect(body).toContain('770123');
+  });
+});
+
+describe('email verification email', () => {
+  it('builds branded HTML and a plain-text alternative carrying the OTP', async () => {
+    const { buildVerifyEmailEmail } = await import('@/lib/mail');
+    const { html, text } = buildVerifyEmailEmail('550211');
+
+    // OTP appears exactly once in the HTML — never in the hidden preheader
+    expect(html.match(/550211/g)?.length).toBe(1);
+    expect(html).toContain('verification code expires in 5 minutes');
+    expect(text).toContain('550211');
+    expect(html).not.toContain('linear-gradient');
+
+    // Official production wordmark
+    expect(html).toContain('https://www.entertainlawyers.com/wordmark_white.png');
+    expect(html).toContain('alt="Entertain Lawyers"');
+
+    // Purpose-specific content, distinct from the password-reset email
+    expect(html).toContain('Verify your email address');
+    expect(html).toContain('Email Verification Code');
+    expect(html).toContain('5 minutes');
+    expect(html).toContain("Didn't create an account?");
+    expect(text).toContain('Email Verification Code: 550211');
+    expect(text).toContain('expires in 5 minutes');
+
+    // Table-based, inline-styled, no web fonts or scripts
+    expect(html).toContain('role="presentation"');
+    expect(html).not.toMatch(/<script|@import|fonts\.googleapis/);
+  });
+
+  it('is clearly distinguishable from the password-reset email', async () => {
+    const { buildPasswordResetEmail, buildVerifyEmailEmail } = await import('@/lib/mail');
+    const reset = buildPasswordResetEmail('042915');
+    const verify = buildVerifyEmailEmail('042915');
+
+    expect(verify.html).not.toContain('Reset your password');
+    expect(reset.html).not.toContain('Verify your email address');
+    expect(verify.html).toContain('verification code expires in 5 minutes');
+    expect(reset.html).toContain('password reset code expires in 5 minutes');
+  });
+});

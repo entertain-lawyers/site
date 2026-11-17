@@ -3,87 +3,134 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { requestPasswordReset } from '@/modules/auth/auth.actions';
+import { NO_ACCOUNT_MESSAGE } from '@/lib/auth-utils';
 import Link from 'next/link';
+import Image from 'next/image';
+import { Mail, ArrowLeft, Loader2, UserPlus } from 'lucide-react';
 import { AnimatePresence, Appear, MotionButton } from '@/components/motion/primitives';
 
 export default function ForgotPasswordClient() {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
+  // Set when the submitted address is not registered: the form is replaced by
+  // the "no account" state with a Create an Account call to action.
+  const [noAccount, setNoAccount] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setError('Please enter your email address.');
+      return;
+    }
+
     setError('');
+    setNoAccount(false);
     setLoading(true);
 
     try {
-      const res = await requestPasswordReset({ email });
+      const res = await requestPasswordReset({ email: trimmedEmail });
       if (!res.success) {
-        throw new Error(res.error);
+        if (res.error === NO_ACCOUNT_MESSAGE) {
+          setNoAccount(true);
+        }
+        throw new Error(res.error || 'Failed to send verification code. Please try again.');
       }
-      setSuccess(true);
-      setTimeout(() => {
-        router.push(`/reset-password?email=${encodeURIComponent(email)}`);
-      }, 2000);
-    } catch (err: any) {
-      setError(err.message || 'An error occurred. Please try again.');
+
+      // Store in session storage as fallback for the verify page
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('reset_email', trimmedEmail);
+      }
+
+      router.push(`/forgot-password/verify?email=${encodeURIComponent(trimmedEmail)}`);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'An error occurred. Please try again.';
+      setError(message);
     } finally {
       setLoading(false);
     }
   };
 
-  if (success) {
-    return (
-      <div className="text-center">
-        <div className="w-16 h-16 bg-blue-100 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-          </svg>
-        </div>
-        <h2 className="text-2xl font-bold text-navy dark:text-white mb-2">Check your email</h2>
-        <p className="text-text-secondary">If an account exists, we've sent a 6-digit code. Redirecting...</p>
-      </div>
-    );
-  }
-
   return (
     <>
       <div className="text-center relative z-10 mb-8">
-        <h2 className="text-3xl font-extrabold text-navy dark:text-white tracking-tight">
+        <Link href="/" className="inline-block group mb-6">
+          <div className="relative w-[180px] h-14 mx-auto overflow-hidden transition-transform duration-300 group-hover:scale-[1.02]">
+            <Image
+              src="/logo.jpg"
+              alt="Entertain Lawyers"
+              fill
+              className="object-contain"
+              priority
+            />
+          </div>
+          <span className="sr-only">Entertain Lawyers</span>
+        </Link>
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-navy dark:text-white tracking-tight">
           Forgot Password
-        </h2>
-        <p className="mt-3 text-sm text-text-secondary">
-          Enter your email to receive a reset code
+        </h1>
+        <p className="mt-2 text-sm text-text-secondary max-w-sm mx-auto leading-relaxed">
+          Enter your registered email address and we&apos;ll send you a 6-digit verification code.
         </p>
       </div>
 
-      <form className="mt-8 space-y-6 relative z-10" onSubmit={handleSubmit}>
+      <form className="space-y-6 relative z-10" onSubmit={handleSubmit}>
         <AnimatePresence initial={false}>
-        {error && (
-          <Appear key="error">
-          <div className="bg-red-50/80 dark:bg-red-900/20 text-red-600 p-4 rounded-2xl text-sm font-medium border border-red-100 dark:border-red-900/30 backdrop-blur-sm">
-            {error}
-          </div>
-          </Appear>
-        )}
+          {error && (
+            <Appear key="error">
+              <div
+                role="alert"
+                className="p-4 bg-red-50 border border-red-200 text-red-700 dark:bg-red-950/40 dark:border-red-900/60 dark:text-red-300 text-sm rounded-xl font-medium"
+              >
+                {error}
+                {noAccount && (
+                  <div className="mt-4 space-y-2.5">
+                    <Link
+                      href="/login?mode=register"
+                      className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-bold text-white bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent transition-colors"
+                    >
+                      <UserPlus className="w-4 h-4" aria-hidden="true" />
+                      Create an Account
+                    </Link>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setError('');
+                        setNoAccount(false);
+                        document.getElementById('email')?.focus();
+                      }}
+                      className="w-full text-sm font-semibold text-text-secondary hover:text-navy dark:hover:text-white transition-colors"
+                    >
+                      Try another email address
+                    </button>
+                  </div>
+                )}
+              </div>
+            </Appear>
+          )}
         </AnimatePresence>
 
-        <div className="space-y-5">
-          <div>
-            <label htmlFor="email" className="block text-sm font-bold text-navy dark:text-white mb-2">
-              Email Address
-            </label>
+        <div>
+          <label htmlFor="email" className="block text-sm font-semibold text-text-secondary mb-1.5">
+            Email Address
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-text-muted">
+              <Mail className="w-5 h-5" aria-hidden="true" />
+            </div>
             <input
               id="email"
               name="email"
               type="email"
+              autoComplete="email"
               required
+              autoFocus
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="appearance-none block w-full px-4 py-3.5 border border-black/10 dark:border-white/10 rounded-2xl shadow-sm placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent focus:border-transparent transition-all bg-slate-50 dark:bg-zinc-950 text-navy dark:text-white sm:text-sm font-medium"
-              placeholder="you@example.com"
+              className="appearance-none block w-full pl-11 pr-4 py-3 bg-surface-alt border border-border rounded-xl text-navy dark:text-white placeholder-text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 focus-visible:border-accent transition-colors text-base sm:text-sm font-medium"
+              placeholder="name@example.com"
             />
           </div>
         </div>
@@ -92,15 +139,26 @@ export default function ForgotPasswordClient() {
           <MotionButton
             type="submit"
             disabled={loading}
-            className="group relative w-full flex justify-center py-3.5 px-4 border border-transparent rounded-2xl text-sm font-bold text-white bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent transition-[background-color,border-color,color,box-shadow,opacity] duration-300 shadow-[0_0_15px_rgba(var(--color-accent),0.4)] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center py-3.5 px-4 rounded-xl text-sm font-bold text-white bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent transition-[background-color,border-color,color,box-shadow,opacity] duration-300 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Sending...' : 'Send Reset Code'}
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Sending Code...
+              </>
+            ) : (
+              'Send Verification Code'
+            )}
           </MotionButton>
         </div>
 
-        <div className="text-center mt-4">
-          <Link href="/login" className="text-sm font-bold text-accent hover:text-accent-hover">
-            Back to login
+        <div className="text-center pt-2">
+          <Link
+            href="/login"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-accent hover:text-accent-hover transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Sign In
           </Link>
         </div>
       </form>

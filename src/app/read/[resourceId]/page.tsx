@@ -56,6 +56,7 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
           include: {
             document: true;
             unit: true;
+            semester: true;
             author: { select: { name: true; image: true; bio: true; role: true; website: true; email: true } };
             createdBy: { select: { name: true; image: true; bio: true; role: true; website: true; email: true } };
             subject: {
@@ -83,6 +84,7 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
       include: {
         document: true,
         unit: true,
+        semester: true,
         author: { select: { name: true, image: true, bio: true, role: true, website: true, email: true } },
         createdBy: { select: { name: true, image: true, bio: true, role: true, website: true, email: true } },
         subject: {
@@ -126,6 +128,8 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
         status: true,
         type: true,
         subjectId: true,
+        semesterId: true,
+        semester: true,
         unitId: true,
         documentId: true,
         document: true,
@@ -161,7 +165,8 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
           authorId: null,
           createdById: null,
           order: 0,
-          semesterId: null,
+          semesterId: fallbackResource.semesterId ?? null,
+          semester: fallbackResource.semester ?? null,
           metaDesc: null,
           metaTitle: fallbackResource.metaTitle ?? null,
           isPremium: false,
@@ -181,11 +186,23 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
 
   // Back links go to the study listing: with entitled users now skipping the
   // resource detail page, linking back there would bounce straight here.
-  const studyBackUrl = resource?.subject
-    ? `/study?${new URLSearchParams({
-        ...(resource.subject.semester ? { semester: resource.subject.semester.id } : {}),
-        subject: resource.subject.id,
-      })}`
+  const effectiveSemesterId = resource.semesterId || resource.subject?.semester?.id || resource.subject?.semesterId;
+  const semesterName = resource.semester?.name || resource.subject?.semester?.name;
+  const studyBackParams = new URLSearchParams();
+  if (resource.type) {
+    studyBackParams.set('type', resource.type);
+  }
+  if (effectiveSemesterId) {
+    studyBackParams.set('semester', effectiveSemesterId);
+  }
+  if (resource.subjectId) {
+    studyBackParams.set('subject', resource.subjectId);
+  }
+  if (resource.unitId) {
+    studyBackParams.set('unit', resource.unitId);
+  }
+  const studyBackUrl = studyBackParams.toString()
+    ? `/study?${studyBackParams.toString()}`
     : '/study';
 
   if (!hasAccess) {
@@ -247,12 +264,11 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
             <h1 className="mt-4 text-3xl font-bold leading-tight tracking-tight text-navy dark:text-white sm:text-4xl">
               {resource.title}
             </h1>
-            {resource.subject?.name && (
+            {(resource.subject?.name || semesterName) && (
               <p className="mt-3 text-[15px] text-text-muted sm:text-base">
-                {resource.subject.name}
-                {resource.subject?.semester?.name
-                  ? ` · ${resource.subject.semester.name}`
-                  : ''}
+                {resource.subject?.name}
+                {resource.subject?.name && semesterName ? ' · ' : ''}
+                {!resource.subject?.name && semesterName ? semesterName : (resource.subject?.name ? semesterName || '' : '')}
               </p>
             )}
             {(() => {
@@ -359,7 +375,7 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
             {dict.pdfNotAvailableDesc}
           </p>
           <Link
-            href={`/resources/${resourceId}`}
+            href={studyBackUrl}
             className="w-full inline-flex justify-center items-center px-4 py-3 border border-transparent text-sm font-bold rounded-xl text-white bg-accent hover:bg-accent-hover transition-colors shadow-md hover:-translate-y-0.5"
           >
             {dict.goBack}
@@ -396,8 +412,6 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
     `Session: ${sessionHash}`
   ];
 
-
-
   const getResourceTypeLabel = (type: string) => {
     switch (type) {
       case 'LAW_NOTE': return dict.catLawNotes;
@@ -428,26 +442,54 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
             </svg>
           </Link>
           <div className="flex items-center text-text-muted hidden md:flex font-medium">
-            <span>{getResourceTypeLabel(resource.type)}</span>
+            <Link
+              href={`/study?type=${resource.type}`}
+              className="hover:text-accent transition-colors"
+            >
+              {getResourceTypeLabel(resource.type)}
+            </Link>
             {resource.type === 'CASE_LAW' && (
               <span className="ml-2">
                 <CaseCategoryBadge category={resource.metaTitle} size="sm" />
               </span>
             )}
-            <svg className="w-3.5 h-3.5 text-border-strong mx-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
-              <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 9 4-4-4-4"/>
-            </svg>
-            <span>{resource.subject?.semester?.name}</span>
-            <svg className="w-3.5 h-3.5 text-border-strong mx-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
-              <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 9 4-4-4-4"/>
-            </svg>
-            <span>{resource.subject?.name}</span>
-            {resource.unit && (
+            {semesterName && (
               <>
                 <svg className="w-3.5 h-3.5 text-border-strong mx-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
                   <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 9 4-4-4-4"/>
                 </svg>
-                <span>{resource.unit.name}</span>
+                <Link
+                  href={effectiveSemesterId ? `/study?type=${resource.type}&semester=${effectiveSemesterId}` : `/study?type=${resource.type}`}
+                  className="hover:text-accent transition-colors"
+                >
+                  {semesterName}
+                </Link>
+              </>
+            )}
+            {resource.subject?.name && (
+              <>
+                <svg className="w-3.5 h-3.5 text-border-strong mx-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+                  <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 9 4-4-4-4"/>
+                </svg>
+                <Link
+                  href={`/study?type=${resource.type}${effectiveSemesterId ? `&semester=${effectiveSemesterId}` : ''}&subject=${resource.subjectId}`}
+                  className="hover:text-accent transition-colors"
+                >
+                  {resource.subject.name}
+                </Link>
+              </>
+            )}
+            {resource.unit?.name && (
+              <>
+                <svg className="w-3.5 h-3.5 text-border-strong mx-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+                  <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 9 4-4-4-4"/>
+                </svg>
+                <Link
+                  href={`/study?type=${resource.type}${effectiveSemesterId ? `&semester=${effectiveSemesterId}` : ''}&subject=${resource.subjectId}&unit=${resource.unitId}`}
+                  className="hover:text-accent transition-colors"
+                >
+                  {resource.unit.name}
+                </Link>
               </>
             )}
             <svg className="w-3.5 h-3.5 text-border-strong mx-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
@@ -482,11 +524,13 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
         {/* Sidebar */}
-        <StudyOutlineSidebar
-          units={filteredUnits}
-          currentResourceId={resource.id}
-          currentUnitId={resource.unitId}
-        />
+        {filteredUnits.length > 0 && (
+          <StudyOutlineSidebar
+            units={filteredUnits}
+            currentResourceId={resource.id}
+            currentUnitId={resource.unitId}
+          />
+        )}
 
         {/* PDF Viewer Area */}
         <div className="flex-1 relative bg-surface-alt flex flex-col h-full">
