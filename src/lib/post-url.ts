@@ -14,17 +14,24 @@ export function getPublicPostUrl({
   if (lang === 'ne' || type?.startsWith('NEPALI_')) {
     return `/nepali/post/${id}`;
   }
+  // If a Prisma resource UUID is supplied, it lives under /resources
+  const isPrismaUuid =
+    typeof id === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  if (isPrismaUuid) {
+    return `/resources/${id}`;
+  }
+
   switch (type) {
     case 'BLOG':
     case 'OPINION':
+    case 'CASE_LAW':
       return `/blogs/${id}`;
     case 'NEWS':
       return `/news/${id}`;
     case 'FACT':
     case 'PERSONALITY':
       return `/historical-facts/${id}`;
-    case 'CASE_LAW':
-      return `/resources/${id}`;
     default:
       return `/news/${id}`;
   }

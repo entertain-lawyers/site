@@ -9,6 +9,7 @@ import { serializeJsonLd, getSiteUrl } from '@/lib/seo';
 import { getScriptNonce } from '@/lib/csp';
 import { Reveal } from '@/components/motion/primitives';
 import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
+import CaseCategoryBadge from '@/components/study/CaseCategoryBadge';
 import { ResourceType } from '@prisma/client';
 
 export const revalidate = 60;
@@ -81,6 +82,7 @@ export default async function SemesterPage({ params, searchParams }: PageProps) 
                     id: true,
                     title: true,
                     type: true,
+                    metaTitle: true,
                     isPremium: true,
                     unitId: true,
                     author: { select: { name: true, image: true, bio: true, role: true, website: true, email: true } },
@@ -99,6 +101,7 @@ export default async function SemesterPage({ params, searchParams }: PageProps) 
                 id: true,
                 title: true,
                 type: true,
+                metaTitle: true,
                 isPremium: true,
                 unitId: true,
                 author: { select: { name: true, image: true, bio: true, role: true, website: true, email: true } },
@@ -121,6 +124,7 @@ export default async function SemesterPage({ params, searchParams }: PageProps) 
         id: true,
         title: true,
         type: true,
+        metaTitle: true,
         isPremium: true,
         unitId: true,
         author: { select: { name: true, image: true, bio: true, role: true, website: true, email: true } },
@@ -355,9 +359,14 @@ export default async function SemesterPage({ params, searchParams }: PageProps) 
                                       >
                                         <div>
                                           <div className="flex items-start justify-between mb-3 gap-2">
-                                            <span className={`text-xs font-bold px-2.5 py-1 rounded-md border tracking-wide ${TYPE_COLORS[resource.type] || TYPE_COLORS.OTHER}`}>
-                                              {TYPE_LABELS[resource.type] || 'Other'}
-                                            </span>
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                              <span className={`text-xs font-bold px-2.5 py-1 rounded-md border tracking-wide ${TYPE_COLORS[resource.type] || TYPE_COLORS.OTHER}`}>
+                                                {TYPE_LABELS[resource.type] || 'Other'}
+                                              </span>
+                                              {resource.type === 'CASE_LAW' && (
+                                                <CaseCategoryBadge category={resource.metaTitle} size="sm" />
+                                              )}
+                                            </div>
                                             {resource.isPremium && (
                                               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-gold/10 text-gold-dark border border-gold/20 uppercase tracking-wider">
                                                 <Lock className="w-3 h-3" />
@@ -412,10 +421,15 @@ export default async function SemesterPage({ params, searchParams }: PageProps) 
                                       className="group relative flex flex-col justify-between h-full p-4 border border-border rounded-xl hover:border-accent hover:bg-surface-alt transition-all"
                                     >
                                       <div>
-                                        <div className="flex items-start justify-between mb-3 gap-2">
-                                          <span className={`text-xs font-bold px-2.5 py-1 rounded-md border tracking-wide ${TYPE_COLORS[resource.type] || TYPE_COLORS.OTHER}`}>
-                                            {TYPE_LABELS[resource.type] || 'Other'}
-                                          </span>
+                                        <div className="flex items-start justify-between mb-3 gap-2 flex-wrap">
+                                          <div className="flex items-center gap-1.5 flex-wrap">
+                                            <span className={`text-xs font-bold px-2.5 py-1 rounded-md border tracking-wide ${TYPE_COLORS[resource.type] || TYPE_COLORS.OTHER}`}>
+                                              {TYPE_LABELS[resource.type] || 'Other'}
+                                            </span>
+                                            {resource.type === 'CASE_LAW' && (
+                                              <CaseCategoryBadge category={resource.metaTitle} size="sm" />
+                                            )}
+                                          </div>
                                           {resource.isPremium && (
                                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-gold/10 text-gold-dark border border-gold/20 uppercase tracking-wider">
                                               <Lock className="w-3 h-3" />

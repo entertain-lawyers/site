@@ -10,7 +10,14 @@ export async function getPublishedNewsPost(segment: string) {
   if (!wpId) return null;
 
   const wpPost = await getWordPressPostById(wpId, 'en');
-  if (!wpPost || wpPost.status !== 'publish' || mapCategoryToType(wpPost.categories, 'en') !== 'NEWS') {
+  if (!wpPost || wpPost.status !== 'publish') {
+    return null;
+  }
+
+  const isNews = Boolean(
+    wpPost.categories?.includes(58) || mapCategoryToType(wpPost.categories, 'en') === 'NEWS'
+  );
+  if (!isNews) {
     return null;
   }
 

@@ -20,6 +20,7 @@ import StudyOutlineSidebar from '@/components/study/StudyOutlineSidebar';
 import { Metadata } from 'next';
 import { getDictionary } from '@/lib/i18n';
 import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
+import CaseCategoryBadge from '@/components/study/CaseCategoryBadge';
 
 export async function generateMetadata({ params }: { params: Promise<{ resourceId: string }> }): Promise<Metadata> {
   const { resourceId } = await params;
@@ -130,6 +131,7 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
         document: true,
         content: true,
         featuredImage: true,
+        metaTitle: true,
         unit: true,
         subject: {
           include: {
@@ -161,7 +163,7 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
           order: 0,
           semesterId: null,
           metaDesc: null,
-          metaTitle: null,
+          metaTitle: fallbackResource.metaTitle ?? null,
           isPremium: false,
           priceAmount: null,
           currency: 'NPR',
@@ -236,7 +238,13 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
               {dict.goBack}
             </Link>
 
-            <h1 className="mt-8 text-3xl font-bold leading-tight tracking-tight text-navy dark:text-white sm:text-4xl">
+            {resource.type === 'CASE_LAW' && (
+              <div className="mt-6 mb-2">
+                <CaseCategoryBadge category={resource.metaTitle} size="md" />
+              </div>
+            )}
+
+            <h1 className="mt-4 text-3xl font-bold leading-tight tracking-tight text-navy dark:text-white sm:text-4xl">
               {resource.title}
             </h1>
             {resource.subject?.name && (
@@ -388,23 +396,7 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
     `Session: ${sessionHash}`
   ];
 
-  // Navigation logic
-  const allResourcesQuery = await prisma.resource.findMany({
-    where: { status: 'PUBLISHED',
-      type: resource.type,
-      subjectId: resource.subjectId,
-      ...(resource.unitId ? { unitId: resource.unitId } : {})
-    },
-    orderBy: [
-      { order: 'asc' },
-      { title: 'asc' }
-    ],
-    select: { id: true, title: true }
-  });
 
-  const currentIndex = allResourcesQuery.findIndex(r => r.id === resource.id);
-  const prevResource = currentIndex > 0 ? allResourcesQuery[currentIndex - 1] : null;
-  const nextResource = currentIndex < allResourcesQuery.length - 1 ? allResourcesQuery[currentIndex + 1] : null;
 
   const getResourceTypeLabel = (type: string) => {
     switch (type) {
@@ -437,6 +429,11 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
           </Link>
           <div className="flex items-center text-text-muted hidden md:flex font-medium">
             <span>{getResourceTypeLabel(resource.type)}</span>
+            {resource.type === 'CASE_LAW' && (
+              <span className="ml-2">
+                <CaseCategoryBadge category={resource.metaTitle} size="sm" />
+              </span>
+            )}
             <svg className="w-3.5 h-3.5 text-border-strong mx-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
               <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 9 4-4-4-4"/>
             </svg>

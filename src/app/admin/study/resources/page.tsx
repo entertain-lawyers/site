@@ -8,6 +8,8 @@ import { ContentStatus, ResourceType, Prisma } from '@prisma/client';
 import { resourceBodyStatus } from '@/lib/resource-status';
 import { Search, X } from 'lucide-react';
 import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
+import CaseCategoryBadge from '@/components/study/CaseCategoryBadge';
+import { parseCaseCategory } from '@/lib/case-category';
 
 export const metadata: Metadata = {
   title: 'Manage Resources - Admin',
@@ -28,7 +30,7 @@ const formatDate = (value: Date | string) =>
 export default async function AdminResourcesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; type?: string; q?: string; semester?: string; subject?: string; page?: string }>;
+  searchParams: Promise<{ status?: string; type?: string; q?: string; semester?: string; subject?: string; page?: string; caseCategory?: string }>;
 }) {
   const session = await auth();
 
@@ -36,7 +38,7 @@ export default async function AdminResourcesPage({
     redirect('/');
   }
 
-  const { status: statusParam, type: typeParam, q: qParam, semester: semesterParam, subject: subjectParam, page: pageParam } = await searchParams;
+  const { status: statusParam, type: typeParam, q: qParam, semester: semesterParam, subject: subjectParam, page: pageParam, caseCategory: caseCategoryParam } = await searchParams;
   const isAdmin = session.user.role === 'ADMIN';
 
   // Optional type filter. Editors may not manage law notes/case laws, so any
@@ -47,11 +49,13 @@ export default async function AdminResourcesPage({
     redirect('/admin/study/resources');
   }
   const isCaseLaw = requestedType === ResourceType.CASE_LAW;
+  const parsedCaseCategory = parseCaseCategory(caseCategoryParam);
 
   // Query filter inputs (kept as plain strings for href building).
   const q = (qParam ?? '').trim().slice(0, 100);
   const semesterFilter = semesterParam ?? '';
   const subjectFilter = subjectParam ?? '';
+  const caseCategoryFilter = parsedCaseCategory ?? '';
   const page = Math.max(1, Number.parseInt(pageParam ?? '', 10) || 1);
 
   const baseTypeFilter: Prisma.ResourceWhereInput = requestedType
@@ -83,8 +87,16 @@ export default async function AdminResourcesPage({
     : undefined;
 
   const metadataWhere: Prisma.ResourceWhereInput = {
-    ...(semesterFilter ? { semesterId: semesterFilter } : {}),
+    ...(semesterFilter
+      ? {
+          OR: [
+            { semesterId: semesterFilter },
+            { subject: { is: { semesterId: semesterFilter } } },
+          ],
+        }
+      : {}),
     ...(subjectFilter ? { subjectId: subjectFilter } : {}),
+    ...(caseCategoryFilter ? { metaTitle: caseCategoryFilter } : {}),
   };
 
   const whereClause: Prisma.ResourceWhereInput = { AND: [baseTypeFilter, ...(searchWhere ? [searchWhere] : []), metadataWhere] };
@@ -165,6 +177,7 @@ export default async function AdminResourcesPage({
         content: true,
         documentId: true,
         document: true,
+        metaTitle: true,
         subject: {
           include: {
             semester: true,
@@ -195,6 +208,7 @@ export default async function AdminResourcesPage({
       q: q || undefined,
       semester: semesterFilter || undefined,
       subject: subjectFilter || undefined,
+      caseCategory: caseCategoryFilter || undefined,
       page: currentPage > 1 ? String(currentPage) : undefined,
       ...overrides,
     };
@@ -205,8 +219,8 @@ export default async function AdminResourcesPage({
     return qs ? `/admin/study/resources?${qs}` : '/admin/study/resources';
   };
 
-  const clearFiltersHref = buildHref({ q: undefined, semester: undefined, subject: undefined, page: undefined });
-  const filtersActive = Boolean(q || semesterFilter || subjectFilter);
+  const clearFiltersHref = buildHref({ q: undefined, semester: undefined, subject: undefined, caseCategory: undefined, page: undefined });
+  const filtersActive = Boolean(q || semesterFilter || subjectFilter || caseCategoryFilter);
 
   return (
     <div className="min-h-screen bg-transparent py-10 max-w-[1400px] mx-auto">
@@ -226,7 +240,11 @@ export default async function AdminResourcesPage({
           </div>
           <div className="flex-shrink-0">
             <Link
-              href={isCaseLaw ? '/admin/study/resources/new?type=CASE_LAW' : '/admin/study/resources/new'}
+              href={
+                isCaseLaw
+                  ? `/admin/study/resources/new?type=CASE_LAW${caseCategoryFilter ? `&caseCategory=${caseCategoryFilter}` : ''}`
+                  : '/admin/study/resources/new'
+              }
               className="inline-flex items-center justify-center px-6 py-2.5 border border-transparent shadow-[0_4px_14px_0_rgba(var(--color-accent),0.39)] text-sm font-bold rounded-xl text-white bg-accent hover:bg-accent/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent transition-all duration-300 hover:-translate-y-0.5"
             >
               <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -265,7 +283,11 @@ export default async function AdminResourcesPage({
         <form
           method="get"
           action="/admin/study/resources"
-          className="mb-6 grid grid-cols-1 gap-3 rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-zinc-900 p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]"
+          className={`mb-6 grid grid-cols-1 gap-3 rounded-2xl border border-black/5 dark:border-white/10 bg-white dark:bg-zinc-900 p-4 shadow-sm sm:grid-cols-2 ${
+            isCaseLaw
+              ? 'lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]'
+              : 'lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]'
+          }`}
         >
           {activeTab.key !== 'all' && <input type="hidden" name="status" value={activeTab.key} />}
           {typeParam && <input type="hidden" name="type" value={typeParam} />}
@@ -310,6 +332,21 @@ export default async function AdminResourcesPage({
               ))}
             </select>
           </div>
+          {isCaseLaw && (
+            <div>
+              <label htmlFor="filter-case-category" className="sr-only">Filter by case classification</label>
+              <select
+                id="filter-case-category"
+                name="caseCategory"
+                defaultValue={caseCategoryFilter}
+                className="w-full rounded-xl border border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 px-3 py-2.5 text-sm text-navy dark:text-white font-medium"
+              >
+                <option value="">All Case Types</option>
+                <option value="NEW_CASE">New Case</option>
+                <option value="OLD_CASE">Old Case</option>
+              </select>
+            </div>
+          )}
           <div className="flex items-center gap-2">
             <button
               type="submit"
@@ -351,7 +388,12 @@ export default async function AdminResourcesPage({
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0 flex-1">
                               <div className="text-sm font-bold text-navy dark:text-white line-clamp-2 max-w-xs">{resource.title}</div>
-                              <div className="text-xs text-text-muted font-mono mt-1" title={resource.id}>ID: {resource.id.split('-')[0]}...</div>
+                              <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                <span className="text-xs text-text-muted font-mono" title={resource.id}>ID: {resource.id.split('-')[0]}...</span>
+                                {resource.type === ResourceType.CASE_LAW && (
+                                  <CaseCategoryBadge category={resource.metaTitle} size="sm" />
+                                )}
+                              </div>
                               {(() => {
                                 const authorUser = resource.author || resource.createdBy;
                                 if (!authorUser) return null;
@@ -386,7 +428,11 @@ export default async function AdminResourcesPage({
                           <div className="text-xs text-text-secondary mt-0.5">{resource.subject?.semester?.name}</div>
                         </td>
                         <td className="px-8 py-5 whitespace-nowrap">
-                          <span className={`px-3 py-1 inline-flex text-xs font-bold rounded-full border mb-1 ${
+                          <div className="flex flex-col gap-1 items-start">
+                            {resource.type === ResourceType.CASE_LAW && (
+                              <CaseCategoryBadge category={resource.metaTitle} size="sm" />
+                            )}
+                            <span className={`px-3 py-1 inline-flex text-xs font-bold rounded-full border mb-1 ${
                             resource.isPremium
                               ? 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:border-purple-800'
                               : 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800'
@@ -398,6 +444,7 @@ export default async function AdminResourcesPage({
                               {resource.currency} {(resource.priceAmount / 100).toFixed(2)}
                             </div>
                           )}
+                          </div>
                         </td>
                         <td className="px-8 py-5 whitespace-nowrap">
                           {resourceBodyStatus(resource) === 'UPLOADED' ? (

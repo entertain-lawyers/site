@@ -15,12 +15,14 @@ import { resourceBodyStatus } from '@/lib/resource-status';
 import { cache } from 'react';
 import { BookOpen, FileText, Lock, ChevronLeft, ChevronRight, LockOpen } from 'lucide-react';
 import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
+import CaseCategoryBadge from '@/components/study/CaseCategoryBadge';
 
 const getCachedResource = cache(async (id: string) => {
   try {
     return await prisma.resource.findUnique({
       where: { status: 'PUBLISHED', id },
       include: {
+        semester: true,
         subject: {
           include: {
             semester: true
@@ -58,6 +60,9 @@ const getCachedResource = cache(async (id: string) => {
         documentId: true,
         content: true,
         featuredImage: true,
+        metaTitle: true,
+        semesterId: true,
+        semester: true,
         subject: {
           include: {
             semester: true,
@@ -74,9 +79,10 @@ const getCachedResource = cache(async (id: string) => {
           authorId: null,
           createdById: null,
           order: 0,
-          semesterId: null,
+          semesterId: fallbackResource.semesterId ?? null,
+          semester: fallbackResource.semester ?? null,
           metaDesc: null,
-          metaTitle: null,
+          metaTitle: fallbackResource.metaTitle ?? null,
           author: null,
           createdBy: null,
         } as any)
@@ -174,7 +180,10 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
 
   const siteUrl = getSiteUrl();
 
-  const breadcrumbElements = [
+  const resolvedSemesterName = resource.semester?.name || resource.subject?.semester?.name;
+  const resolvedSemesterId = resource.semesterId || resource.subject?.semesterId;
+
+  const breadcrumbElements: Array<{ "@type": string; position: number; name: string; item: string }> = [
     {
       "@type": "ListItem",
       "position": 1,
@@ -187,41 +196,41 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
       "name": getResourceTypeLabel(resource.type) || 'Study',
       "item": `${siteUrl}/study?type=${resource.type}`
     },
-    {
-      "@type": "ListItem",
-      "position": 3,
-      "name": resource.subject?.semester?.name || dict.semester,
-      "item": `${siteUrl}/semesters/${resource.subject?.semesterId}`
-    },
-    {
-      "@type": "ListItem",
-      "position": 4,
-      "name": resource.subject?.name || dict.subject,
-      "item": `${siteUrl}/study?type=${resource.type}&subject=${resource.subjectId}`
-    }
   ];
 
-  if (resource.unit) {
+  if (resolvedSemesterName && resolvedSemesterId) {
     breadcrumbElements.push({
       "@type": "ListItem",
-      "position": 5,
+      "position": breadcrumbElements.length + 1,
+      "name": resolvedSemesterName,
+      "item": `${siteUrl}/semesters/${resolvedSemesterId}`
+    });
+  }
+
+  if (resource.subject && resource.subjectId) {
+    breadcrumbElements.push({
+      "@type": "ListItem",
+      "position": breadcrumbElements.length + 1,
+      "name": resource.subject.name || dict.subject,
+      "item": `${siteUrl}/study?type=${resource.type}&subject=${resource.subjectId}`
+    });
+  }
+
+  if (resource.unit && resource.unitId) {
+    breadcrumbElements.push({
+      "@type": "ListItem",
+      "position": breadcrumbElements.length + 1,
       "name": resource.unit.name,
       "item": `${siteUrl}/study?type=${resource.type}&subject=${resource.subjectId}&unit=${resource.unitId}`
     });
-    breadcrumbElements.push({
-      "@type": "ListItem",
-      "position": 6,
-      "name": resource.title,
-      "item": `${siteUrl}/resources/${id}`
-    });
-  } else {
-    breadcrumbElements.push({
-      "@type": "ListItem",
-      "position": 5,
-      "name": resource.title,
-      "item": `${siteUrl}/resources/${id}`
-    });
   }
+
+  breadcrumbElements.push({
+    "@type": "ListItem",
+    "position": breadcrumbElements.length + 1,
+    "name": resource.title,
+    "item": `${siteUrl}/resources/${id}`
+  });
 
   return (
     <div className="bg-background min-h-screen pb-20">
@@ -256,22 +265,32 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
                 </Link>
               </div>
             </li>
-            <li>
-              <div className="flex items-center">
-                <ChevronRight className="w-3.5 h-3.5 mx-1 text-border-strong" />
-                <Link href={`/semesters/${resource.subject?.semesterId}`} className="hover:text-accent font-medium transition-colors">
-                  {resource.subject?.semester?.name}
-                </Link>
-              </div>
-            </li>
-            <li>
-              <div className="flex items-center">
-                <ChevronRight className="w-3.5 h-3.5 mx-1 text-border-strong" />
-                <Link href={`/study?type=${resource.type}&subject=${resource.subjectId}`} className="hover:text-accent font-medium transition-colors">
-                  {resource.subject?.name}
-                </Link>
-              </div>
-            </li>
+            {(resource.semester?.name || resource.subject?.semester?.name) && (
+              <li>
+                <div className="flex items-center">
+                  <ChevronRight className="w-3.5 h-3.5 mx-1 text-border-strong" />
+                  <Link
+                    href={`/semesters/${resource.semesterId || resource.subject?.semesterId}`}
+                    className="hover:text-accent font-medium transition-colors"
+                  >
+                    {resource.semester?.name || resource.subject?.semester?.name}
+                  </Link>
+                </div>
+              </li>
+            )}
+            {resource.subject && (
+              <li>
+                <div className="flex items-center">
+                  <ChevronRight className="w-3.5 h-3.5 mx-1 text-border-strong" />
+                  <Link
+                    href={`/study?type=${resource.type}&subject=${resource.subjectId}`}
+                    className="hover:text-accent font-medium transition-colors"
+                  >
+                    {resource.subject.name}
+                  </Link>
+                </div>
+              </li>
+            )}
             {resource.unit && (
               <li>
                 <div className="flex items-center">
@@ -312,6 +331,9 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
               <FileText className="w-3.5 h-3.5" />
               {getResourceTypeLabel(resource.type)}
             </span>
+            {resource.type === 'CASE_LAW' && (
+              <CaseCategoryBadge category={resource.metaTitle} size="md" />
+            )}
           </div>
 
           <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-navy dark:text-white mb-6 leading-tight tracking-tight break-words">
@@ -319,16 +341,20 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
           </h1>
 
           <div className="flex flex-wrap items-center gap-6 text-sm text-text-secondary pb-8 border-b border-border/60">
-            {resource.subject?.semester?.name && (
+            {(resource.semester?.name || resource.subject?.semester?.name) && (
               <div className="flex items-center gap-2">
                 <span className="font-bold text-text-muted uppercase tracking-wider">{dict.semester}:</span>
-                <span className="text-navy dark:text-white font-bold">{resource.subject.semester.name}</span>
+                <span className="text-navy dark:text-white font-bold">
+                  {resource.semester?.name || resource.subject?.semester?.name}
+                </span>
               </div>
             )}
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-text-muted uppercase tracking-wider">{dict.subject}:</span>
-              <span className="text-navy dark:text-white font-bold">{resource.subject?.name}</span>
-            </div>
+            {resource.subject?.name && (
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-text-muted uppercase tracking-wider">{dict.subject}:</span>
+                <span className="text-navy dark:text-white font-bold">{resource.subject.name}</span>
+              </div>
+            )}
             {resource.unit && (
               <div className="flex items-center gap-2">
                 <span className="font-bold text-text-muted uppercase tracking-wider">{dict.unit}:</span>

@@ -109,6 +109,7 @@ export default function EditPostClient({
   const handlePreview = () => {
     const selectedAuthorObj = authors.find((a) => a.id === selectedAuthorId) || null;
     writePostPreviewDraft({
+      contentType: 'POST',
       title: title || 'Untitled Draft',
       content: editorHtmlToArticleHtml(content),
       type: POST_TYPE_LABELS[type] || type,

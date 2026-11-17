@@ -117,6 +117,7 @@ export default function NewPostClient({
     // their Nepali labels; English types show NEWS/BLOG/…).
     const selectedAuthorObj = authors.find((a) => a.id === selectedAuthorId) || null;
     writePostPreviewDraft({
+      contentType: 'POST',
       title: title || 'Untitled Draft',
       content: editorHtmlToArticleHtml(content),
       type: POST_TYPE_LABELS[type] || type,
