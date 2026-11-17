@@ -418,7 +418,8 @@ describe('Public Post URLs resolution (View Post)', () => {
     expect(getPublicPostUrl({ id: 125, type: 'NEWS', lang: 'en' })).toBe('/news/125');
     expect(getPublicPostUrl({ id: 126, type: 'FACT', lang: 'en' })).toBe('/historical-facts/126');
     expect(getPublicPostUrl({ id: 127, type: 'PERSONALITY', lang: 'en' })).toBe('/historical-facts/127');
-    expect(getPublicPostUrl({ id: 128, type: 'CASE_LAW', lang: 'en' })).toBe('/resources/128');
+    expect(getPublicPostUrl({ id: 128, type: 'CASE_LAW', lang: 'en' })).toBe('/blogs/128');
+    expect(getPublicPostUrl({ id: 'c042cca2-dacd-56df-a87e-0aa39a0babec', type: 'CASE_LAW', lang: 'en' })).toBe('/resources/c042cca2-dacd-56df-a87e-0aa39a0babec');
   });
 
   it('resolves correct URLs for Nepali posts', () => {

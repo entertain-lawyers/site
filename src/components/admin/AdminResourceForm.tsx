@@ -4,13 +4,14 @@ import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Archive, CheckCircle2, ChevronLeft, ChevronRight, CircleDot, ExternalLink, Eye, FileText, Loader2,
-  RotateCcw, TriangleAlert,
+  Archive, CheckCircle2, ChevronLeft, ChevronRight, CircleDot, ExternalLink, Eye, FileText, History, Loader2,
+  RotateCcw, Sparkles, TriangleAlert,
 } from 'lucide-react';
 import { ResourceType, ContentStatus } from '@prisma/client';
 import { createResourceAction, deleteResourceAction, updateResourceAction } from '@/modules/admin/admin-resource.actions';
 import { editorHtmlToArticleHtml } from '@/lib/editor-html';
 import { confirmDocumentUpload, initiateDocumentUpload } from '@/modules/admin/admin-document.actions';
+import { CaseCategory, parseCaseCategory } from '@/lib/case-category';
 import dynamic from 'next/dynamic';
 
 const RichTextEditor = dynamic(() => import('@/components/editor/RichTextEditor'), {
@@ -51,6 +52,8 @@ export type EditableResource = {
   hasDocument: boolean;
   featuredImage?: string | null;
   featuredImageId?: number | null;
+  caseCategory?: CaseCategory | null;
+  metaTitle?: string | null;
 };
 
 import { getInitialResourceAuthorId, getSubmittedResourceAuthorId } from './resource-form-author';
@@ -82,6 +85,7 @@ export function AdminResourceForm({
   defaultAuthorId = '',
   resource,
   initialType,
+  initialCaseCategory,
   uploadBlockedReason = null,
 }: {
   semesters: SemesterOption[];
@@ -93,6 +97,7 @@ export function AdminResourceForm({
   defaultAuthorId?: string;
   resource?: EditableResource;
   initialType?: ResourceType;
+  initialCaseCategory?: CaseCategory;
   uploadBlockedReason?: string | null;
 }) {
   const router = useRouter();
@@ -115,6 +120,11 @@ export function AdminResourceForm({
   const [subjectId, setSubjectId] = useState(resource?.subjectId ?? '');
   // Editors cannot create law notes/case laws, so start on a type they can use.
   const [resourceType, setResourceType] = useState<ResourceType>(initialTypeState);
+  const [caseCategory, setCaseCategory] = useState<CaseCategory | null>(() => {
+    if (resource?.caseCategory) return resource.caseCategory;
+    if (resource?.metaTitle) return parseCaseCategory(resource.metaTitle);
+    return initialCaseCategory ?? (initialTypeState === ResourceType.CASE_LAW ? 'NEW_CASE' : null);
+  });
   const [unitId, setUnitId] = useState(resource?.unitId ?? '');
   const [isPremium, setIsPremium] = useState(resource?.isPremium ?? false);
   const [priceAmount, setPriceAmount] = useState(
@@ -181,9 +191,9 @@ export function AdminResourceForm({
   const [isDragging, setIsDragging] = useState(false);
   const [content, setContent] = useState(resource?.content ?? '');
 
-  // Filter subjects by selected semester
+  // Filter subjects by selected semester; show all subjects when no semester is selected
   const filteredSubjects = useMemo(
-    () => (semesterId ? subjects.filter((s) => s.semesterId === semesterId) : []),
+    () => (semesterId ? subjects.filter((s) => s.semesterId === semesterId) : subjects),
     [subjects, semesterId]
   );
 
@@ -201,6 +211,7 @@ export function AdminResourceForm({
   const snapshot = () => JSON.stringify({
     title,
     resourceType,
+    caseCategory,
     semesterId,
     subjectId,
     unitId,
@@ -244,9 +255,11 @@ export function AdminResourceForm({
   const selectedAuthor = authors.find((a) => a.id === authorUserId);
   const handlePreview = () => {
     writePostPreviewDraft({
+      contentType: 'RESOURCE',
       title: title || 'Untitled Resource',
       content: editorHtmlToArticleHtml(content),
       type: RESOURCE_TYPES.find((t) => t.value === resourceType)?.label || 'Resource',
+      caseCategory: resourceType === 'CASE_LAW' ? caseCategory : null,
       featuredImage: featuredImage?.url ?? null,
       author: selectedAuthor
         ? {
@@ -331,11 +344,12 @@ export function AdminResourceForm({
           title,
           description,
           subjectId: resourceType === ResourceType.OLD_QUESTION ? undefined : subjectId,
-          semesterId: resourceType === ResourceType.OLD_QUESTION ? semesterId : undefined,
+          semesterId: semesterId ? semesterId : null,
           isPremium,
           priceAmount: isPremium ? parseFloat(priceAmount) * 100 : undefined,
           type: resourceType,
-          unitId: (resourceType === ResourceType.OLD_QUESTION ? undefined : unitId) || undefined,
+          unitId: resourceType === ResourceType.OLD_QUESTION ? null : (unitId ? unitId : null),
+          caseCategory: resourceType === ResourceType.CASE_LAW ? (caseCategory || 'NEW_CASE') : null,
           content: uploadMode === 'NOTE' ? editorHtmlToArticleHtml(content) : undefined,
           status: status as ContentStatus,
           authorUserId: submittedAuthorUserId,
@@ -409,11 +423,12 @@ export function AdminResourceForm({
         title,
         description,
         subjectId: resourceType === ResourceType.OLD_QUESTION ? undefined : subjectId,
-        semesterId: resourceType === ResourceType.OLD_QUESTION ? semesterId : undefined,
+        semesterId: semesterId || undefined,
         isPremium,
         priceAmount: isPremium ? parseFloat(priceAmount) * 100 : undefined,
         type: resourceType,
         unitId: (resourceType === ResourceType.OLD_QUESTION ? undefined : unitId) || undefined,
+        caseCategory: resourceType === ResourceType.CASE_LAW ? (caseCategory || 'NEW_CASE') : null,
         // Quill writes one <p> per line; store real paragraphs, as /read renders them.
         content: uploadMode === 'NOTE' ? editorHtmlToArticleHtml(content) : undefined,
         status,
@@ -543,13 +558,20 @@ export function AdminResourceForm({
         id="resource-semester"
         value={semesterId}
         onChange={e => {
-          setSemesterId(e.target.value);
-          setSubjectId('');
-          setUnitId('');
+          const newSemesterId = e.target.value;
+          setSemesterId(newSemesterId);
+          // If a selected subject belongs to another semester, clear subject and unit
+          if (newSemesterId && subjectId) {
+            const currentSub = subjects.find(s => s.id === subjectId);
+            if (currentSub && currentSub.semesterId !== newSemesterId) {
+              setSubjectId('');
+              setUnitId('');
+            }
+          }
         }}
         className={selectClass}
       >
-        <option value="">Select Semester</option>
+        <option value="">Select Semester (or infer from Subject)</option>
         {semesters.map(s => (
           <option key={s.id} value={s.id}>{s.name}</option>
         ))}
@@ -564,10 +586,17 @@ export function AdminResourceForm({
         id="resource-subject"
         value={subjectId}
         onChange={e => {
-          setSubjectId(e.target.value);
+          const newSubjectId = e.target.value;
+          setSubjectId(newSubjectId);
           setUnitId('');
+          // Automatically infer and sync semesterId from the selected subject
+          if (newSubjectId) {
+            const currentSub = subjects.find(s => s.id === newSubjectId);
+            if (currentSub && (!semesterId || semesterId !== currentSub.semesterId)) {
+              setSemesterId(currentSub.semesterId);
+            }
+          }
         }}
-        disabled={!semesterId}
         className={selectClass}
       >
         <option value="">Select Subject</option>
@@ -597,19 +626,68 @@ export function AdminResourceForm({
   );
 
   const typeField = (
-    <div>
-      <label htmlFor="resource-type" className="block text-sm font-bold text-navy dark:text-white mb-2">Resource Type</label>
-      <select
-        id="resource-type"
-        value={resourceType}
-        onChange={e => setResourceType(e.target.value as ResourceType)}
-        className={selectClass}
-      >
-        {availableTypes.map(type => (
-          <option key={type.value} value={type.value}>{type.label}</option>
-        ))}
-      </select>
-      <p className="mt-2 text-xs text-text-secondary">Old Question resources are filed by semester; other types are filed by subject.</p>
+    <div className="space-y-4">
+      <div>
+        <label htmlFor="resource-type" className="block text-sm font-bold text-navy dark:text-white mb-2">Resource Type</label>
+        <select
+          id="resource-type"
+          value={resourceType}
+          onChange={e => {
+            const nextType = e.target.value as ResourceType;
+            setResourceType(nextType);
+            if (nextType === ResourceType.CASE_LAW && !caseCategory) {
+              setCaseCategory('NEW_CASE');
+            }
+          }}
+          className={selectClass}
+        >
+          {availableTypes.map(type => (
+            <option key={type.value} value={type.value}>{type.label}</option>
+          ))}
+        </select>
+        <p className="mt-2 text-xs text-text-secondary">Old Question resources are filed by semester; other types are filed by subject.</p>
+      </div>
+
+      {resourceType === ResourceType.CASE_LAW && (
+        <div className="pt-2 border-t border-black/5 dark:border-white/5">
+          <label className="block text-sm font-bold text-navy dark:text-white mb-2">
+            Case Classification <span className="text-accent">*</span>
+          </label>
+          <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Case Classification">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={caseCategory === 'NEW_CASE'}
+              onClick={() => setCaseCategory('NEW_CASE')}
+              className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-bold transition-all ${
+                caseCategory === 'NEW_CASE'
+                  ? 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 ring-2 ring-emerald-500/20 shadow-xs'
+                  : 'border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 text-text-secondary hover:text-navy dark:hover:text-white'
+              }`}
+            >
+              <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span>New Case</span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={caseCategory === 'OLD_CASE'}
+              onClick={() => setCaseCategory('OLD_CASE')}
+              className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-bold transition-all ${
+                caseCategory === 'OLD_CASE'
+                  ? 'border-amber-500 bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 ring-2 ring-amber-500/20 shadow-xs'
+                  : 'border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 text-text-secondary hover:text-navy dark:hover:text-white'
+              }`}
+            >
+              <History className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              <span>Old Case</span>
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-text-secondary">
+            Distinguishes New Cases from Old Cases inside Prescribed Cases.
+          </p>
+        </div>
+      )}
     </div>
   );
 

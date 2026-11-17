@@ -30,6 +30,7 @@ export default async function EditResourcePage({ params }: { params: Promise<{ i
     authorId?: string | null;
     featuredImage?: string | null;
     featuredImageId?: number | null;
+    metaTitle?: string | null;
     document?: { id: string } | null;
     subject?: { semesterId: string | null } | null;
   } | null = null;
@@ -60,6 +61,7 @@ export default async function EditResourcePage({ params }: { params: Promise<{ i
         title: true,
         content: true,
         metaDesc: true,
+        metaTitle: true,
         semesterId: true,
         subjectId: true,
         unitId: true,
@@ -90,6 +92,8 @@ export default async function EditResourcePage({ params }: { params: Promise<{ i
     redirect('/admin/study/resources');
   }
 
+  const { parseCaseCategory } = await import('@/lib/case-category');
+
   return (
     <div data-resource-page-shell className="admin-editor-page w-full min-h-screen flex flex-col">
       <div data-resource-form-card className="bg-white dark:bg-zinc-900 shadow-sm border-b border-gray-200 dark:border-white/10 flex-1 flex flex-col">
@@ -111,6 +115,8 @@ export default async function EditResourcePage({ params }: { params: Promise<{ i
             title: resource.title,
             content: resource.content,
             description: resource.metaDesc,
+            metaTitle: resource.metaTitle,
+            caseCategory: parseCaseCategory(resource.metaTitle),
             semesterId: resource.semesterId ?? resource.subject?.semesterId ?? null,
             subjectId: resource.subjectId,
             unitId: resource.unitId,

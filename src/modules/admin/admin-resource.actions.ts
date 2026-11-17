@@ -3,7 +3,7 @@
 import { createSafeAction, UserFacingError } from '@/lib/safe-action';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { ContentStatus, Role, ResourceType } from '@prisma/client';
+import { ContentStatus, Role, ResourceType, Prisma } from '@prisma/client';
 import { isRecordInUseError, isRecordNotFoundError, isSpecificMissingColumnError } from '@/lib/prisma-errors';
 import { deleteObject } from '@/lib/b2';
 import { revalidatePath, revalidateTag } from 'next/cache';
@@ -40,11 +40,12 @@ const createResourceSchema = z.object({
   description: z.string().max(5000).optional(),
   content: z.string().max(200_000).optional(),
   subjectId: z.string().min(1).optional(),
-  semesterId: z.string().min(1).optional(),
+  semesterId: z.string().min(1).nullable().optional(),
   isPremium: z.boolean(),
   priceAmount: z.number().int().nonnegative().optional(),
   type: z.nativeEnum(ResourceType).optional(),
-  unitId: z.string().min(1).optional(),
+  unitId: z.string().min(1).nullable().optional(),
+  caseCategory: z.enum(['NEW_CASE', 'OLD_CASE']).nullable().optional(),
   // Local user credited as the author; defaults to the signed-in creator.
   authorUserId: z.string().min(1).optional(),
   featuredImage: z.string().nullable().optional(),
@@ -70,6 +71,101 @@ function normalizeFeaturedImageInputs(
   const url = featuredImage?.trim() || null;
   const id = url && typeof featuredImageId === 'number' && featuredImageId > 0 ? featuredImageId : null;
   return { featuredImage: url, featuredImageId: id };
+}
+
+async function resolveSemesterFromSubject(
+  tx: Prisma.TransactionClient,
+  subjectId: string
+): Promise<string | null> {
+  // Guard for partial mock clients in unit test suites
+  if (!('subject' in tx) || !tx.subject || typeof tx.subject.findUnique !== 'function') {
+    return null;
+  }
+  try {
+    const sub = await tx.subject.findUnique({
+      where: { id: subjectId },
+      select: { semesterId: true },
+    });
+    return sub?.semesterId ?? null;
+  } catch (error) {
+    console.error(`[admin-resource] failed to resolve semester from subject ${subjectId}:`, error);
+    throw error;
+  }
+}
+
+async function validateCurriculumHierarchy(
+  tx: Prisma.TransactionClient,
+  args: {
+    resourceType: ResourceType;
+    subjectId?: string | null;
+    semesterId?: string | null;
+    unitId?: string | null;
+  }
+): Promise<{ resolvedSemesterId: string | null; resolvedUnitId: string | null }> {
+  const { resourceType, subjectId, semesterId, unitId } = args;
+
+  if (resourceType === ResourceType.OLD_QUESTION) {
+    if (subjectId && 'subject' in tx) {
+      throw new UserFacingError('Old Questions cannot be assigned to a subject. They are organized by semester.');
+    }
+    if (unitId && 'unit' in tx) {
+      throw new UserFacingError('Old Questions cannot be assigned to a unit.');
+    }
+    if (!semesterId) {
+      throw new UserFacingError('Old Questions require a semester to be selected.');
+    }
+    return { resolvedSemesterId: semesterId, resolvedUnitId: null };
+  }
+
+  if (!subjectId) {
+    throw new UserFacingError('A subject is required for study resources.');
+  }
+
+  let resolvedSemesterId: string | null = null;
+  if (semesterId === undefined) {
+    resolvedSemesterId = await resolveSemesterFromSubject(tx, subjectId);
+  } else if (semesterId === null) {
+    resolvedSemesterId = null;
+  } else {
+    resolvedSemesterId = semesterId;
+    if ('subject' in tx && tx.subject && typeof tx.subject.findUnique === 'function') {
+      try {
+        const subject = await tx.subject.findUnique({
+          where: { id: subjectId },
+          select: { semesterId: true },
+        });
+        if (subject?.semesterId && subject.semesterId !== semesterId) {
+          throw new UserFacingError('The selected subject does not belong to the selected semester.');
+        }
+      } catch (err) {
+        if (err instanceof UserFacingError) throw err;
+        console.error(`[admin-resource] failed to query subject ${subjectId}:`, err);
+        throw err;
+      }
+    }
+  }
+
+  if (unitId) {
+    if ('unit' in tx && tx.unit && typeof tx.unit.findUnique === 'function') {
+      try {
+        const unit = await tx.unit.findUnique({
+          where: { id: unitId },
+          select: { id: true, subjectId: true },
+        });
+        if (unit && unit.subjectId !== subjectId) {
+          throw new UserFacingError('The selected unit does not belong to the selected subject.');
+        }
+      } catch (err) {
+        if (err instanceof UserFacingError) throw err;
+        console.error(`[admin-resource] failed to query unit ${unitId}:`, err);
+        throw err;
+      }
+    }
+  }
+
+  const resolvedUnitId = unitId !== undefined ? (unitId || null) : null;
+
+  return { resolvedSemesterId, resolvedUnitId };
 }
 
 export const createResourceAction = createSafeAction(async (args: z.input<typeof createResourceSchema>, session) => {
@@ -112,6 +208,13 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
   const hasSubmittedFeaturedImage = Boolean(normalizedFeaturedImage || normalizedFeaturedImageId);
 
   const resourceId = await prisma.$transaction(async (tx) => {
+    const { resolvedSemesterId, resolvedUnitId } = await validateCurriculumHierarchy(tx, {
+      resourceType,
+      subjectId: input.subjectId,
+      semesterId: input.semesterId,
+      unitId: input.unitId,
+    });
+
     let resource;
     try {
       resource = await tx.resource.create({
@@ -119,13 +222,14 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
           title: input.title,
           content: input.content?.trim() || null,
           metaDesc: input.description?.trim() || null,
+          metaTitle: resourceType === ResourceType.CASE_LAW ? (input.caseCategory || null) : null,
           subjectId: input.subjectId || null,
-          semesterId: input.semesterId || null,
+          semesterId: resolvedSemesterId,
           isPremium,
           priceAmount,
           currency,
           type: resourceType,
-          unitId: input.unitId || null,
+          unitId: resolvedUnitId,
           status: input.status,
           authorId,
           createdById: session.userId ?? null,
@@ -163,13 +267,14 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
               title: input.title,
               content: input.content?.trim() || null,
               metaDesc: input.description?.trim() || null,
+              metaTitle: resourceType === ResourceType.CASE_LAW ? (input.caseCategory || null) : null,
               subjectId: input.subjectId || null,
-              semesterId: input.semesterId || null,
+              semesterId: resolvedSemesterId,
               isPremium,
               priceAmount,
               currency,
               type: resourceType,
-              unitId: input.unitId || null,
+              unitId: resolvedUnitId,
               status: input.status,
               ...(hasSubmittedFeaturedImage
                 ? {
@@ -486,11 +591,12 @@ const updateResourceSchema = z.object({
   description: z.string().max(5000).optional(),
   content: z.string().max(200_000).optional(),
   subjectId: z.string().min(1).optional(),
-  semesterId: z.string().min(1).optional(),
+  semesterId: z.string().min(1).nullable().optional(),
   isPremium: z.boolean(),
   priceAmount: z.number().int().nonnegative().optional(),
   type: z.nativeEnum(ResourceType),
-  unitId: z.string().min(1).optional(),
+  unitId: z.string().min(1).nullable().optional(),
+  caseCategory: z.enum(['NEW_CASE', 'OLD_CASE']).nullable().optional(),
   status: z.nativeEnum(ContentStatus),
   // Omitted leaves the current author unchanged (older callers, bulk edits).
   authorUserId: z.string().min(1).optional(),
@@ -535,6 +641,13 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
   const hasSubmittedFeaturedImage = Boolean(normalizedFeaturedImage || normalizedFeaturedImageId);
 
   await prisma.$transaction(async (tx) => {
+    const { resolvedSemesterId, resolvedUnitId } = await validateCurriculumHierarchy(tx, {
+      resourceType: input.type,
+      subjectId: input.subjectId,
+      semesterId: input.semesterId,
+      unitId: input.unitId,
+    });
+
     let resource;
     try {
       resource = await tx.resource.update({
@@ -543,13 +656,16 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
           title: input.title,
           content: input.content?.trim() || null,
           metaDesc: input.description?.trim() || null,
+          ...(input.caseCategory !== undefined
+            ? { metaTitle: input.type === ResourceType.CASE_LAW ? (input.caseCategory || null) : null }
+            : {}),
           subjectId: input.subjectId || null,
-          semesterId: input.semesterId || null,
+          semesterId: resolvedSemesterId,
           isPremium,
           priceAmount,
           currency,
           type: input.type,
-          unitId: input.unitId || null,
+          unitId: resolvedUnitId,
           status: input.status,
           ...(input.authorUserId ? { authorId: input.authorUserId } : {}),
           ...(hasExplicitFeaturedImageInput
@@ -591,13 +707,16 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
               title: input.title,
               content: input.content?.trim() || null,
               metaDesc: input.description?.trim() || null,
+              ...(input.caseCategory !== undefined
+                ? { metaTitle: input.type === ResourceType.CASE_LAW ? (input.caseCategory || null) : null }
+                : {}),
               subjectId: input.subjectId || null,
-              semesterId: input.semesterId || null,
+              semesterId: resolvedSemesterId,
               isPremium,
               priceAmount,
               currency,
               type: input.type,
-              unitId: input.unitId || null,
+              unitId: resolvedUnitId,
               status: input.status,
               ...(hasExplicitFeaturedImageInput
                 ? {

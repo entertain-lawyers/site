@@ -26,7 +26,7 @@ export function getSiteUrl(): string {
  * to OPINION, so checking for BLOG alone made /blogs link to its own 404s.
  */
 export function isBlogRouteType(type: string): boolean {
-  return type === 'BLOG' || type === 'OPINION';
+  return type === 'BLOG' || type === 'OPINION' || type === 'CASE_LAW';
 }
 
 /**

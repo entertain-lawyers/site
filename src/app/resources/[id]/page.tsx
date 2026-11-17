@@ -15,6 +15,7 @@ import { resourceBodyStatus } from '@/lib/resource-status';
 import { cache } from 'react';
 import { BookOpen, FileText, Lock, ChevronLeft, ChevronRight, LockOpen } from 'lucide-react';
 import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
+import CaseCategoryBadge from '@/components/study/CaseCategoryBadge';
 
 const getCachedResource = cache(async (id: string) => {
   try {
@@ -61,6 +62,7 @@ const getCachedResource = cache(async (id: string) => {
         documentId: true,
         content: true,
         featuredImage: true,
+        metaTitle: true,
         subject: {
           include: {
             semester: true,
@@ -80,7 +82,7 @@ const getCachedResource = cache(async (id: string) => {
           semesterId: fallbackResource.semesterId ?? null,
           semester: fallbackResource.semester ?? null,
           metaDesc: null,
-          metaTitle: null,
+          metaTitle: fallbackResource.metaTitle ?? null,
           author: null,
           createdBy: null,
         } as any)
@@ -187,7 +189,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
 
   const siteUrl = getSiteUrl();
 
-  const breadcrumbElements = [
+  const breadcrumbElements: Array<{ "@type": string; position: number; name: string; item: string }> = [
     {
       "@type": "ListItem",
       "position": 1,
@@ -333,6 +335,9 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
               <FileText className="w-3.5 h-3.5" />
               {getResourceTypeLabel(resource.type)}
             </span>
+            {resource.type === 'CASE_LAW' && (
+              <CaseCategoryBadge category={resource.metaTitle} size="md" />
+            )}
           </div>
 
           <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold text-navy dark:text-white mb-6 leading-tight tracking-tight break-words">

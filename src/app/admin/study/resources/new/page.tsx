@@ -6,10 +6,12 @@ import { AdminResourceForm } from '@/components/admin/AdminResourceForm';
 import { listLocalAuthorsWithStatus } from '@/lib/content-authors';
 import { getWordPressWriteBlock } from '@/lib/wordpress';
 
+import { parseCaseCategory } from '@/lib/case-category';
+
 export default async function NewResourcePage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string }>;
+  searchParams: Promise<{ type?: string; caseCategory?: string }>;
 }) {
   const session = await auth();
 
@@ -17,8 +19,9 @@ export default async function NewResourcePage({
     redirect('/');
   }
 
-  const { type } = await searchParams;
+  const { type, caseCategory } = await searchParams;
   const isCaseLaw = type === ResourceType.CASE_LAW;
+  const initialCaseCategory = parseCaseCategory(caseCategory);
 
   if (isCaseLaw && session.user.role !== 'ADMIN') {
     redirect('/admin/study/resources');
@@ -51,6 +54,7 @@ export default async function NewResourcePage({
           authorMappingAvailable={authorMappingAvailable}
           defaultAuthorId={session.user.id}
           initialType={isCaseLaw ? ResourceType.CASE_LAW : undefined}
+          initialCaseCategory={initialCaseCategory ?? undefined}
           uploadBlockedReason={getWordPressWriteBlock('en')}
         />
       </div>

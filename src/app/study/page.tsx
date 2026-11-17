@@ -15,6 +15,15 @@ import { searchMatches } from '@/lib/translit-search';
 import { Reveal } from '@/components/motion/primitives';
 import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 
+import { auth } from '@/lib/auth';
+import { canAccessResource, requiresSignIn } from '@/modules/entitlements/entitlement.service';
+import { studyMaterialLoginUrl } from '@/lib/callback-url';
+import PrescribedCaseSelector from '@/components/study/PrescribedCaseSelector';
+import UnitDirectContentView, { UnitResourceData } from '@/components/study/UnitDirectContentView';
+import CaseCategoryBadge from '@/components/study/CaseCategoryBadge';
+import { parseCaseCategory, isPrescribedCasesUnit, getCaseCategory } from '@/lib/case-category';
+import { ArrowLeft } from 'lucide-react';
+
 export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
   const params = await searchParams;
   const type = params.type;
@@ -52,6 +61,7 @@ type SearchParams = Promise<{
   unit?: string;
   type?: string;
   q?: string;
+  caseCategory?: string;
 }>;
 
 const getCachedSemesters = unstable_cache(
@@ -107,8 +117,13 @@ const getCachedResourceList = unstable_cache(
     // Arbitrary query strings must not become a Prisma enum filter: only real
     // resource types are honoured, exactly like the pre-cache behaviour.
     const resourceType = Object.values(ResourceType).find((t) => t === rawType);
+
+    const isVirtualPrescribedCases = unitId?.startsWith('virtual-unit-cases');
+    const isVirtualUnit = unitId?.startsWith('virtual-unit-');
+
     return prisma.resource.findMany({
-      where: { status: 'PUBLISHED',
+      where: {
+        status: 'PUBLISHED',
         ...(semesterId && {
           OR: [
             { semesterId },
@@ -116,7 +131,24 @@ const getCachedResourceList = unstable_cache(
           ],
         }),
         ...(subjectId && { subjectId }),
-        ...(unitId && { unitId }),
+        ...(unitId && {
+          ...(isVirtualPrescribedCases
+            ? {
+                OR: [
+                  { unitId },
+                  { unit: { name: { contains: 'Cases', mode: 'insensitive' } } },
+                  { type: ResourceType.CASE_LAW },
+                ],
+              }
+            : isVirtualUnit
+              ? {
+                  OR: [
+                    { unitId },
+                    { unit: { name: { contains: `Unit ${unitId.replace('virtual-unit-', '')}`, mode: 'insensitive' } } },
+                  ],
+                }
+              : { unitId }),
+        }),
         ...(resourceType && { type: resourceType }),
         // NOTE: text search is applied post-fetch via searchMatches() below so
         // roman-lipi queries can match Devanagari titles (and vice versa).
@@ -127,11 +159,26 @@ const getCachedResourceList = unstable_cache(
         type: true,
         isPremium: true,
         priceAmount: true,
+        currency: true,
+        content: true,
+        documentId: true,
+        document: {
+          select: {
+            id: true,
+            fileSize: true,
+            mimeType: true,
+          },
+        },
+        metaTitle: true,
         order: true,
         featuredImage: true,
-        semester: { select: { name: true } },
-        subject: { select: { name: true, semester: { select: { name: true } } } },
-        unit: { select: { name: true } },
+        updatedAt: true,
+        semesterId: true,
+        subjectId: true,
+        unitId: true,
+        semester: { select: { id: true, name: true } },
+        subject: { select: { id: true, name: true, semester: { select: { id: true, name: true } } } },
+        unit: { select: { id: true, name: true, title: true } },
         author: { select: { name: true, image: true, bio: true, role: true, website: true, email: true } },
         createdBy: { select: { name: true, image: true, bio: true, role: true, website: true, email: true } },
       },
@@ -142,7 +189,7 @@ const getCachedResourceList = unstable_cache(
       ],
     });
   },
-  ['study-resources-listing'],
+  ['study-resources-listing-v3'],
   { revalidate: 3600, tags: [RESOURCES_CACHE_TAG] }
 );
 
@@ -261,6 +308,46 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
     }
   }
 
+  const parsedCaseCategory = parseCaseCategory(searchParams.caseCategory);
+  const session = await auth();
+  const selectedSubject = subjects.find(s => s.id === selectedSubjectId);
+  const selectedUnit = units.find(u => u.id === selectedUnitId);
+  const isPrescribed = Boolean(
+    selectedUnitId && (isPrescribedCasesUnit(selectedUnit) || isPrescribedCasesUnit(selectedUnitId))
+  );
+
+  const prescribedCases = isPrescribed
+    ? resources.filter((r) => r.type === ResourceType.CASE_LAW || isPrescribedCasesUnit(r.unit))
+    : [];
+  const newCases = prescribedCases.filter((r) => getCaseCategory(r) === 'NEW_CASE');
+  const oldCases = prescribedCases.filter((r) => getCaseCategory(r) === 'OLD_CASE');
+
+  const unitResourcesWithAccess: UnitResourceData[] = selectedUnitId && !isPrescribed
+    ? await Promise.all(
+        resources.map(async (resource) => {
+          const canAccess = session?.user?.id
+            ? await canAccessResource(session.user.id, resource.id)
+            : !resource.isPremium && !requiresSignIn(resource.type);
+
+          return {
+            id: resource.id,
+            title: resource.title,
+            type: resource.type,
+            isPremium: resource.isPremium,
+            priceAmount: resource.priceAmount,
+            currency: resource.currency || 'NPR',
+            content: resource.content,
+            documentId: resource.documentId,
+            document: resource.document,
+            author: resource.author,
+            createdBy: resource.createdBy,
+            updatedAt: resource.updatedAt,
+            canAccess,
+          };
+        })
+      )
+    : [];
+
   let pageTitle = dict.studyMaterialsTitle;
   let pageDesc = dict.studyMaterialsDesc || "Explore our comprehensive collection of academic resources tailored for law students.";
 
@@ -358,131 +445,276 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
         )}
 
         <div>
-          {/* If the user is browsing normally, force them to drill down to at least a subject or unit before showing resource results, UNLESS they searched */}
-          {(
-            selectedType === 'CASE_LAW'
-              ? false
-              : selectedType === 'OLD_QUESTION'
-                ? (!selectedSemesterId && !searchQuery)
-                : (!selectedUnitId && !searchQuery)
-          ) ? null : resources.length === 0 ? (
-            <div className="bg-surface border border-border rounded-2xl p-8 sm:p-16 text-center shadow-soft flex flex-col items-center justify-center">
-              <div className="w-16 h-16 bg-surface border border-border rounded-full flex items-center justify-center mb-6 text-text-muted shadow-sm">
-                {selectedType === 'CASE_LAW' ? <Scale className="w-8 h-8" /> : <Library className="w-8 h-8" />}
+          {/* 1. If an ordinary unit is selected, render UnitDirectContentView directly */}
+          {selectedUnitId && !isPrescribed ? (
+            <UnitDirectContentView
+              unitName={selectedUnit?.name || 'Unit'}
+              unitTitle={selectedUnit?.title}
+              subjectName={selectedSubject?.name}
+              semesterName={currentSemester?.name}
+              resources={unitResourcesWithAccess}
+              isAuthenticated={Boolean(session?.user)}
+              loginUrl={studyMaterialLoginUrl(
+                `/study?semester=${selectedSemesterId}&subject=${selectedSubjectId}&unit=${selectedUnitId}`
+              )}
+            />
+          ) : selectedUnitId && isPrescribed && !parsedCaseCategory ? (
+            /* 2. If Prescribed Cases unit is selected without category, render New Case / Old Case selector */
+            <PrescribedCaseSelector
+              semesterId={selectedSemesterId!}
+              subjectId={selectedSubjectId!}
+              unitId={selectedUnitId!}
+              subjectName={selectedSubject?.name}
+              semesterName={currentSemester?.name}
+              newCasesCount={newCases.length}
+              oldCasesCount={oldCases.length}
+            />
+          ) : selectedUnitId && isPrescribed && parsedCaseCategory ? (
+            /* 3. If Prescribed Cases unit is selected with category, render filtered cases */
+            <div>
+              <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border pb-4">
+                <Link
+                  href={`/study?semester=${selectedSemesterId}&subject=${selectedSubjectId}&unit=${selectedUnitId}`}
+                  className="inline-flex items-center gap-2 text-sm font-bold text-accent hover:underline group"
+                >
+                  <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                  <span>← Back to Case Selection</span>
+                </Link>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-text-muted uppercase tracking-wider">Classification:</span>
+                  <CaseCategoryBadge category={parsedCaseCategory} size="md" />
+                </div>
               </div>
-              <h3 className="text-xl font-bold text-navy dark:text-white mb-2 tracking-tight">
-                {selectedType === 'CASE_LAW' ? "No cases found" : dict.noResourcesFound}
-              </h3>
-              <p className="text-text-secondary max-w-md mx-auto">
-                {selectedType === 'CASE_LAW' ? "Check back later for case updates." : (dict.tryAdjustingFilters || "Try adjusting your filters to find what you're looking for.")}
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {resources.map((resource, i) => {
-                const Icon = iconMap[resource.type] || Library;
-                const authorUser = resource.author ?? resource.createdBy;
-                const resourceAuthor = {
-                  name: authorUser?.name || 'Entertain Lawyers',
-                  image: authorUser?.image || null,
-                  bio: authorUser?.bio || 'Entertain Lawyers provides comprehensive law notes, old questions, case laws, and study resources for law students and legal practitioners in Nepal.',
-                  role: authorUser?.role ? (authorUser.role === 'ADMIN' ? 'Administrator' : authorUser.role === 'EDITOR' ? 'Editor' : 'Contributor') : 'Editorial Team',
-                  website: authorUser?.website || null,
-                  email: authorUser?.email || null,
-                };
+
+              {(() => {
+                const displayedCases = parsedCaseCategory === 'NEW_CASE' ? newCases : oldCases;
+                if (displayedCases.length === 0) {
+                  return (
+                    <div className="bg-surface border border-border rounded-2xl p-8 sm:p-16 text-center shadow-soft flex flex-col items-center justify-center">
+                      <div className="w-16 h-16 bg-surface border border-border rounded-full flex items-center justify-center mb-6 text-text-muted shadow-sm">
+                        <Scale className="w-8 h-8" />
+                      </div>
+                      <h3 className="text-xl font-bold text-navy dark:text-white mb-2 tracking-tight">
+                        No {parsedCaseCategory === 'NEW_CASE' ? 'New Cases' : 'Old Cases'} Found
+                      </h3>
+                      <p className="text-text-secondary max-w-md mx-auto mb-6 text-sm leading-relaxed">
+                        There are no {parsedCaseCategory === 'NEW_CASE' ? 'newly prescribed landmark' : 'historical'} cases published for {selectedSubject?.name || 'this subject'} yet.
+                      </p>
+                      <Link
+                        href={`/study?semester=${selectedSemesterId}&subject=${selectedSubjectId}&unit=${selectedUnitId}`}
+                        className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-accent text-white font-bold text-sm hover:bg-accent/90 transition-colors shadow-sm"
+                      >
+                        Return to Case Selection
+                      </Link>
+                    </div>
+                  );
+                }
 
                 return (
-                  <Reveal key={resource.id} index={i} perRow={3} lift className="h-full">
-                  <div
-                    className="group relative flex flex-col bg-surface border border-border rounded-2xl hover:border-accent hover:shadow-[0_8px_30px_rgba(var(--color-accent),0.12)] transition-[box-shadow,border-color,background-color] duration-300 p-6 h-full overflow-hidden"
-                  >
-                    {/* Top Accent Bar */}
-                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent/40 to-accent/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {displayedCases.map((resource, i) => {
+                      const authorUser = resource.author ?? resource.createdBy;
+                      const resourceAuthor = {
+                        name: authorUser?.name || 'Entertain Lawyers',
+                        image: authorUser?.image || null,
+                        bio: authorUser?.bio || 'Precedent judgments and case law analysis.',
+                        role: authorUser?.role || 'Legal Contributor',
+                        website: authorUser?.website || null,
+                        email: authorUser?.email || null,
+                      };
 
-                    {/* Featured Image Thumbnail */}
-                    {resource.featuredImage && (
-                      <div className="-mt-6 -mx-6 mb-5 h-44 overflow-hidden relative border-b border-border bg-slate-100 dark:bg-zinc-800">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={resource.featuredImage}
-                          alt={resource.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                      </div>
-                    )}
+                      return (
+                        <Reveal key={resource.id} index={i} perRow={3} lift className="h-full">
+                          <div className="group relative flex flex-col bg-surface border border-border rounded-2xl hover:border-accent hover:shadow-[0_8px_30px_rgba(var(--color-accent),0.12)] transition-[box-shadow,border-color,background-color] duration-300 p-6 h-full overflow-hidden">
+                            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent/40 to-accent/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
-                    <div className="flex items-start justify-between mb-5 gap-2 flex-wrap relative z-10">
-                      {!selectedType && (
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold tracking-wider uppercase border ${RESOURCE_TYPE_COLORS[resource.type]}`}>
-                          <Icon className="w-3.5 h-3.5" />
-                          {RESOURCE_TYPE_LABELS[resource.type] || 'Other'}
-                        </span>
-                      )}
-                      {resource.isPremium ? (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-gold/10 text-gold-dark border border-gold/30 tracking-wider uppercase">
-                          <Lock className="w-3 h-3" />
-                          {dict.premium} (Rs. {(resource.priceAmount || 0) / 100})
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-bold bg-green-50 text-green-700 border border-green-200 tracking-wider uppercase">
-                          {dict.free}
-                        </span>
-                      )}
-                    </div>
+                            <div className="flex items-start justify-between mb-4 gap-2 flex-wrap relative z-10">
+                              <CaseCategoryBadge category={resource.metaTitle || parsedCaseCategory} size="sm" />
+                              {resource.isPremium ? (
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-gold/10 text-gold-dark border border-gold/30 tracking-wider uppercase">
+                                  <Lock className="w-3 h-3" />
+                                  {dict.premium} (Rs. {(resource.priceAmount || 0) / 100})
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-bold bg-green-50 text-green-700 border border-green-200 tracking-wider uppercase">
+                                  {dict.free}
+                                </span>
+                              )}
+                            </div>
 
-                    <h3 className="text-lg font-bold text-navy dark:text-white group-hover:text-accent transition-colors mb-4 line-clamp-2 leading-tight">
-                      <Link href={`/resources/${resource.id}`} className="focus:outline-none">
-                        <span className="absolute inset-0" aria-hidden="true" />
-                        {resource.title}
-                      </Link>
-                    </h3>
+                            <h3 className="text-lg font-bold text-navy dark:text-white group-hover:text-accent transition-colors mb-4 line-clamp-2 leading-tight">
+                              <Link href={`/resources/${resource.id}`} className="focus:outline-none">
+                                <span className="absolute inset-0" aria-hidden="true" />
+                                {resource.title}
+                              </Link>
+                            </h3>
 
-                    <div className="mt-auto space-y-2 mb-6">
-                      {resource.subject?.semester?.name ? (
-                        <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
-                          <BookOpen className="w-4 h-4 mt-0.5 flex-shrink-0 text-text-muted" />
-                          <span className="line-clamp-1">{resource.subject.semester.name}</span>
-                        </div>
-                      ) : resource.semester?.name ? (
-                        <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
-                          <BookOpen className="w-4 h-4 mt-0.5 flex-shrink-0 text-text-muted" />
-                          <span className="line-clamp-1">{resource.semester.name}</span>
-                        </div>
-                      ) : null}
+                            <div className="mt-auto space-y-2 mb-6">
+                              {resource.subject?.semester?.name && (
+                                <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
+                                  <BookOpen className="w-4 h-4 mt-0.5 flex-shrink-0 text-text-muted" />
+                                  <span className="line-clamp-1">{resource.subject.semester.name}</span>
+                                </div>
+                              )}
+                              {resource.subject && (
+                                <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
+                                  <div className="w-4 h-4 flex-shrink-0 ml-0.5 border-l-2 border-b-2 border-border rounded-bl-md" />
+                                  <span className="line-clamp-1">{resource.subject.name}</span>
+                                </div>
+                              )}
+                              <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
+                                <div className="w-4 h-4 flex-shrink-0 ml-0.5 border-l-2 border-b-2 border-border rounded-bl-md" />
+                                <span className="line-clamp-1">{selectedUnit?.name || 'Prescribed Cases'}</span>
+                              </div>
+                            </div>
 
-                      {resource.subject && (
-                        <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
-                          {resource.subject?.semester?.name ? (
-                            <div className="w-4 h-4 flex-shrink-0 ml-0.5 border-l-2 border-b-2 border-border rounded-bl-md" />
-                          ) : (
-                            <BookOpen className="w-4 h-4 mt-0.5 flex-shrink-0 text-text-muted" />
-                          )}
-                          <span className="line-clamp-1">{resource.subject.name}</span>
-                        </div>
-                      )}
-
-                      {resource.unit && (
-                        <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
-                          <div className="w-4 h-4 flex-shrink-0 ml-0.5 border-l-2 border-b-2 border-border rounded-bl-md" />
-                          <span className="line-clamp-1">{resource.unit.name}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="mt-auto pt-5 border-t border-border flex justify-between items-center group-hover:border-accent/30 transition-colors">
-                      <AuthorBioTrigger author={resourceAuthor} size="xs" showName />
-                      <div className="flex items-center gap-1 text-sm font-bold text-accent">
-                        <span>
-                          {resource.type === 'LAW_NOTE' ? 'Read Note' : resource.type === 'CASE_LAW' ? 'Read Case' : resource.type === 'OLD_QUESTION' ? 'View Question' : dict.readMore}
-                        </span>
-                        <ArrowRight className="w-4 h-4 text-accent opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
-                      </div>
-                    </div>
+                            <div className="mt-auto pt-5 border-t border-border flex justify-between items-center group-hover:border-accent/30 transition-colors">
+                              <AuthorBioTrigger author={resourceAuthor} size="xs" showName />
+                              <div className="flex items-center gap-1 text-sm font-bold text-accent">
+                                <span>Read Case</span>
+                                <ArrowRight className="w-4 h-4 text-accent opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
+                              </div>
+                            </div>
+                          </div>
+                        </Reveal>
+                      );
+                    })}
                   </div>
-                  </Reveal>
                 );
-              })}
+              })()}
             </div>
+          ) : (
+            /* 4. Normal drilling or global search results */
+            (
+              selectedType === 'CASE_LAW'
+                ? false
+                : selectedType === 'OLD_QUESTION'
+                  ? (!selectedSemesterId && !searchQuery)
+                  : (!selectedUnitId && !searchQuery)
+            ) ? null : resources.length === 0 ? (
+              <div className="bg-surface border border-border rounded-2xl p-8 sm:p-16 text-center shadow-soft flex flex-col items-center justify-center">
+                <div className="w-16 h-16 bg-surface border border-border rounded-full flex items-center justify-center mb-6 text-text-muted shadow-sm">
+                  {selectedType === 'CASE_LAW' ? <Scale className="w-8 h-8" /> : <Library className="w-8 h-8" />}
+                </div>
+                <h3 className="text-xl font-bold text-navy dark:text-white mb-2 tracking-tight">
+                  {selectedType === 'CASE_LAW' ? "No cases found" : dict.noResourcesFound}
+                </h3>
+                <p className="text-text-secondary max-w-md mx-auto">
+                  {selectedType === 'CASE_LAW' ? "Check back later for case updates." : (dict.tryAdjustingFilters || "Try adjusting your filters to find what you're looking for.")}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {resources.map((resource, i) => {
+                  const Icon = iconMap[resource.type] || Library;
+                  const authorUser = resource.author ?? resource.createdBy;
+                  const resourceAuthor = {
+                    name: authorUser?.name || 'Entertain Lawyers',
+                    image: authorUser?.image || null,
+                    bio: authorUser?.bio || 'Entertain Lawyers provides comprehensive law notes, old questions, case laws, and study resources for law students and legal practitioners in Nepal.',
+                    role: authorUser?.role ? (authorUser.role === 'ADMIN' ? 'Administrator' : authorUser.role === 'EDITOR' ? 'Editor' : 'Contributor') : 'Editorial Team',
+                    website: authorUser?.website || null,
+                    email: authorUser?.email || null,
+                  };
+
+                  return (
+                    <Reveal key={resource.id} index={i} perRow={3} lift className="h-full">
+                    <div
+                      className="group relative flex flex-col bg-surface border border-border rounded-2xl hover:border-accent hover:shadow-[0_8px_30px_rgba(var(--color-accent),0.12)] transition-[box-shadow,border-color,background-color] duration-300 p-6 h-full overflow-hidden"
+                    >
+                      {/* Top Accent Bar */}
+                      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent/40 to-accent/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                      {/* Featured Image Thumbnail */}
+                      {resource.featuredImage && (
+                        <div className="-mt-6 -mx-6 mb-5 h-44 overflow-hidden relative border-b border-border bg-slate-100 dark:bg-zinc-800">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={resource.featuredImage}
+                            alt={resource.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                          />
+                        </div>
+                      )}
+
+                      <div className="flex items-start justify-between mb-5 gap-2 flex-wrap relative z-10">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {!selectedType && (
+                            <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold tracking-wider uppercase border ${RESOURCE_TYPE_COLORS[resource.type]}`}>
+                              <Icon className="w-3.5 h-3.5" />
+                              {RESOURCE_TYPE_LABELS[resource.type] || 'Other'}
+                            </span>
+                          )}
+                          {resource.type === 'CASE_LAW' && (
+                            <CaseCategoryBadge category={resource.metaTitle} size="sm" />
+                          )}
+                        </div>
+                        {resource.isPremium ? (
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-gold/10 text-gold-dark border border-gold/30 tracking-wider uppercase">
+                            <Lock className="w-3 h-3" />
+                            {dict.premium} (Rs. {(resource.priceAmount || 0) / 100})
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-bold bg-green-50 text-green-700 border border-green-200 tracking-wider uppercase">
+                            {dict.free}
+                          </span>
+                        )}
+                      </div>
+
+                      <h3 className="text-lg font-bold text-navy dark:text-white group-hover:text-accent transition-colors mb-4 line-clamp-2 leading-tight">
+                        <Link href={`/resources/${resource.id}`} className="focus:outline-none">
+                          <span className="absolute inset-0" aria-hidden="true" />
+                          {resource.title}
+                        </Link>
+                      </h3>
+
+                      <div className="mt-auto space-y-2 mb-6">
+                        {resource.subject?.semester?.name ? (
+                          <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
+                            <BookOpen className="w-4 h-4 mt-0.5 flex-shrink-0 text-text-muted" />
+                            <span className="line-clamp-1">{resource.subject.semester.name}</span>
+                          </div>
+                        ) : resource.semester?.name ? (
+                          <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
+                            <BookOpen className="w-4 h-4 mt-0.5 flex-shrink-0 text-text-muted" />
+                            <span className="line-clamp-1">{resource.semester.name}</span>
+                          </div>
+                        ) : null}
+
+                        {resource.subject && (
+                          <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
+                            {resource.subject?.semester?.name ? (
+                              <div className="w-4 h-4 flex-shrink-0 ml-0.5 border-l-2 border-b-2 border-border rounded-bl-md" />
+                            ) : (
+                              <BookOpen className="w-4 h-4 mt-0.5 flex-shrink-0 text-text-muted" />
+                            )}
+                            <span className="line-clamp-1">{resource.subject.name}</span>
+                          </div>
+                        )}
+
+                        {resource.unit && (
+                          <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
+                            <div className="w-4 h-4 flex-shrink-0 ml-0.5 border-l-2 border-b-2 border-border rounded-bl-md" />
+                            <span className="line-clamp-1">{resource.unit.name}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="mt-auto pt-5 border-t border-border flex justify-between items-center group-hover:border-accent/30 transition-colors">
+                        <AuthorBioTrigger author={resourceAuthor} size="xs" showName />
+                        <div className="flex items-center gap-1 text-sm font-bold text-accent">
+                          <span>
+                            {resource.type === 'LAW_NOTE' ? 'Read Note' : resource.type === 'CASE_LAW' ? 'Read Case' : resource.type === 'OLD_QUESTION' ? 'View Question' : dict.readMore}
+                          </span>
+                          <ArrowRight className="w-4 h-4 text-accent opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
+                        </div>
+                      </div>
+                    </div>
+                    </Reveal>
+                  );
+                })}
+              </div>
+            )
           )}
         </div>
         </>
