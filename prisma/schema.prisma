@@ -412,6 +412,21 @@ model HomepageConfig {
   updatedAt        DateTime @updatedAt
 }
 
+model Announcement {
+  id         String    @id @default(uuid())
+  title      String
+  message    String    @db.Text
+  isActive   Boolean   @default(true)
+  startDate  DateTime?
+  expiryDate DateTime?
+  linkText   String?
+  linkUrl    String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([isActive, startDate, expiryDate])
+}
+
 model Publication {
   id          String        @id @default(uuid())
   title       String

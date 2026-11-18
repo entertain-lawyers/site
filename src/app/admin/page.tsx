@@ -7,6 +7,7 @@ import { PROTECTION_ACTION_PREFIX, PROTECTION_LABELS, protectionSince } from '@/
 import { PAGE_VIEW_ACTION, resolvePostTitles, friendlyPageLabel } from '@/lib/analytics';
 import { getWordPressPosts } from '@/lib/wordpress';
 import { Lift, Reveal } from '@/components/motion/primitives';
+import { getLatestAnnouncement, getAnnouncementStatus, type AnnouncementRecord, type AnnouncementStatus } from '@/lib/announcements';
 
 export const metadata: Metadata = {
   title: 'Admin Dashboard',
@@ -116,8 +117,18 @@ export default async function AdminDashboardPage() {
   let userCount = 0;
   let activeSubCount = 0;
   let totalRevenue = 0;
-  let recentTransactions: any[] = [];
   let redirectCount = 0;
+  let recentTransactions: Array<{
+    id: string;
+    type: string;
+    provider: string;
+    currency: string;
+    amount: number;
+    createdAt: Date;
+    user: { id: string; email: string };
+  }> = [];
+  let latestAnnouncement: AnnouncementRecord | null = null;
+  let announcementStatus: AnnouncementStatus = 'inactive';
 
   if (isAdmin) {
     const [
@@ -126,7 +137,8 @@ export default async function AdminDashboardPage() {
       asc,
       completedTx,
       recentTx,
-      redirects
+      redirects,
+      announcement
     ] = await Promise.all([
       prisma.resource.count(),
       prisma.user.count({ where: { role: 'USER' } }),
@@ -141,7 +153,8 @@ export default async function AdminDashboardPage() {
         orderBy: { createdAt: 'desc' },
         take: 5
       }),
-      prisma.redirect.count()
+      prisma.redirect.count(),
+      getLatestAnnouncement()
     ]);
     resourceCount = rc;
     userCount = uc;
@@ -149,6 +162,10 @@ export default async function AdminDashboardPage() {
     totalRevenue = completedTx._sum.amount ? completedTx._sum.amount / 100 : 0;
     recentTransactions = recentTx;
     redirectCount = redirects;
+    latestAnnouncement = announcement;
+    if (announcement) {
+      announcementStatus = getAnnouncementStatus(announcement);
+    }
   }
 
   return (
@@ -353,7 +370,7 @@ export default async function AdminDashboardPage() {
                 {redirectCount} redirect{redirectCount === 1 ? '' : 's'}
               </span>
             </div>
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <Lift className="h-full">
                 <Link
                   href="/admin/settings"
@@ -372,6 +389,41 @@ export default async function AdminDashboardPage() {
                   <p className="text-sm font-bold text-navy dark:text-white">Homepage</p>
                   <p className="mt-1 text-xs font-medium text-text-secondary">Hero copy, call-to-action and banner</p>
                   <span className="mt-3 inline-block text-xs font-bold text-accent">Open &rarr;</span>
+                </Link>
+              </Lift>
+              <Lift className="h-full">
+                <Link
+                  href="/admin/announcements"
+                  className="group block h-full rounded-xl border border-black/5 p-5 transition-[border-color,box-shadow] hover:border-accent hover:shadow-md dark:border-white/10"
+                >
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-bold text-navy dark:text-white">Announcements</p>
+                    {announcementStatus === 'active' && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Active
+                      </span>
+                    )}
+                    {announcementStatus === 'scheduled' && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-bold text-blue-600 dark:text-blue-400">
+                        Scheduled
+                      </span>
+                    )}
+                    {announcementStatus === 'expired' && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                        Expired
+                      </span>
+                    )}
+                    {announcementStatus === 'inactive' && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-zinc-500/10 px-2 py-0.5 text-[10px] font-bold text-zinc-500 dark:text-zinc-400">
+                        Disabled
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs font-medium text-text-secondary truncate">
+                    {latestAnnouncement ? latestAnnouncement.title : 'Homepage popup notice'}
+                  </p>
+                  <span className="mt-3 inline-block text-xs font-bold text-accent">Manage &rarr;</span>
                 </Link>
               </Lift>
               <Lift className="h-full">
