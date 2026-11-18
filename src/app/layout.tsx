@@ -48,17 +48,13 @@ const notoDevanagari = Noto_Sans_Devanagari({
   display: 'swap',
 });
 
+// Defined once at module scope rather than re-created on every render.
 const getCachedSemesters = unstable_cache(
   async () => {
-    try {
-      return await prisma.semester.findMany({
-        orderBy: { order: 'asc' },
-        select: { id: true, name: true }
-      });
-    } catch (error) {
-      console.warn('Could not load semesters for navbar; falling back to empty list.', error);
-      return [];
-    }
+    return prisma.semester.findMany({
+      orderBy: { order: 'asc' },
+      select: { id: true, name: true }
+    });
   },
   ['layout-semesters'],
   // Tagged so semester edits in the admin show in the navbar immediately.

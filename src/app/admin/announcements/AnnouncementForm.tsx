@@ -11,6 +11,7 @@ import {
   RotateCcw,
   Clock,
   AlertTriangle,
+  Plus,
 } from 'lucide-react';
 import {
   saveAnnouncementAction,
@@ -88,6 +89,20 @@ export default function AnnouncementForm({ initial, history = [] }: Announcement
     setForm((current) => ({ ...current, [key]: value }));
   }
 
+  function handleCreateNew() {
+    setSaved(false);
+    setId('');
+    setForm({
+      title: '',
+      message: '',
+      isActive: true,
+      startDate: '',
+      expiryDate: '',
+      linkText: '',
+      linkUrl: '',
+    });
+  }
+
   function handleRestoreInitial() {
     setSaved(false);
     setForm((current) => ({
@@ -123,14 +138,16 @@ export default function AnnouncementForm({ initial, history = [] }: Announcement
     expiryDate: form.expiryDate ? new Date(form.expiryDate).toISOString() : null,
   });
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent, forceNew = false) {
     e.preventDefault();
     setLoading(true);
     setError('');
     setSaved(false);
 
+    const effectiveId = forceNew ? undefined : id || undefined;
     const payload = {
-      id: id || undefined,
+      id: effectiveId,
+      mode: forceNew || !effectiveId ? ('create' as const) : ('update' as const),
       title: form.title.trim(),
       message: form.message.trim(),
       isActive: form.isActive,
@@ -226,7 +243,17 @@ export default function AnnouncementForm({ initial, history = [] }: Announcement
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleCreateNew}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-accent/10 dark:bg-accent/20 px-4 py-2 text-xs font-bold text-accent hover:bg-accent/20 transition"
+              title="Start a fresh announcement with blank fields"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Create New Announcement
+            </button>
+
             <button
               type="button"
               onClick={() => setPreviewModalOpen(!previewModalOpen)}
@@ -452,15 +479,47 @@ export default function AnnouncementForm({ initial, history = [] }: Announcement
         </section>
 
         {/* Submit Actions */}
-        <div className="flex items-center justify-end gap-3">
-          <MotionButton
-            type="submit"
-            disabled={loading}
-            className="inline-flex items-center gap-2 rounded-xl bg-accent px-7 py-3.5 text-sm font-bold text-white shadow-sm transition hover:bg-accent-hover disabled:opacity-60 cursor-pointer"
-          >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            {loading ? 'Publishing…' : 'Save & Publish Announcement'}
-          </MotionButton>
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
+          <div className="text-xs font-medium text-text-muted">
+            {id && id !== 'initial-website-update' ? (
+              <span className="inline-flex items-center gap-1.5 font-bold text-navy dark:text-white">
+                Editing Announcement: <span className="font-mono text-[11px] text-text-secondary">{id.slice(0, 8)}…</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 font-bold text-accent">
+                <Plus className="h-3.5 w-3.5" />
+                Creating New Announcement
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3">
+            {id && id !== 'initial-website-update' ? (
+              <button
+                type="button"
+                disabled={loading}
+                onClick={(e) => handleSubmit(e, true)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-black/10 dark:border-white/10 px-5 py-3 text-xs font-bold text-navy dark:text-white hover:bg-black/5 dark:hover:bg-white/5 transition disabled:opacity-60 cursor-pointer"
+                title="Save as a brand new announcement record instead of overwriting this one"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Save as New Announcement
+              </button>
+            ) : null}
+
+            <MotionButton
+              type="submit"
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-xl bg-accent px-7 py-3.5 text-sm font-bold text-white shadow-sm transition hover:bg-accent-hover disabled:opacity-60 cursor-pointer"
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {loading
+                ? 'Publishing…'
+                : id && id !== 'initial-website-update'
+                ? 'Update Announcement'
+                : 'Publish New Announcement'}
+            </MotionButton>
+          </div>
         </div>
 
         {/* History / Previous Announcements */}

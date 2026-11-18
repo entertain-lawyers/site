@@ -1,12 +1,29 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import {
   isAnnouncementActive,
   getAnnouncementStatus,
   serializeAnnouncement,
+  getActiveAnnouncement,
+  getLatestAnnouncement,
   DEFAULT_ANNOUNCEMENT,
   INITIAL_ANNOUNCEMENT_TITLE,
   INITIAL_ANNOUNCEMENT_MESSAGE,
 } from '../announcements';
+
+vi.mock('@/lib/prisma', () => ({
+  prisma: {
+    announcement: {
+      findFirst: vi.fn(),
+      count: vi.fn(),
+    },
+  },
+}));
+
+vi.mock('next/cache', () => ({
+  unstable_cache: vi.fn((fn) => fn),
+}));
 
 describe('Announcements helper functions', () => {
   const baseAnnouncement = {
@@ -18,6 +35,10 @@ describe('Announcements helper functions', () => {
   };
 
   const now = new Date('2026-11-18T12:00:00Z');
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
   describe('isAnnouncementActive', () => {
     it('returns true when active with no dates', () => {
@@ -60,36 +81,36 @@ describe('Announcements helper functions', () => {
     it('handles future expiry date (still active)', () => {
       const futureExpiry = {
         ...baseAnnouncement,
-        expiryDate: '2026-11-20T00:00:00Z',
+        expiryDate: '2026-11-19T00:00:00Z',
       };
       expect(isAnnouncementActive(futureExpiry, now)).toBe(true);
     });
 
-    it('handles valid time window [start, expiry] with now inside', () => {
-      const inWindow = {
+    it('handles active within both start and expiry window', () => {
+      const withinWindow = {
         ...baseAnnouncement,
-        startDate: '2026-11-15T00:00:00Z',
-        expiryDate: '2026-11-20T00:00:00Z',
+        startDate: '2026-11-17T00:00:00Z',
+        expiryDate: '2026-11-19T00:00:00Z',
       };
-      expect(isAnnouncementActive(inWindow, now)).toBe(true);
+      expect(isAnnouncementActive(withinWindow, now)).toBe(true);
     });
 
-    it('handles valid time window with now before start', () => {
-      const beforeWindow = {
-        ...baseAnnouncement,
-        startDate: '2026-11-20T00:00:00Z',
-        expiryDate: '2026-11-25T00:00:00Z',
-      };
-      expect(isAnnouncementActive(beforeWindow, now)).toBe(false);
-    });
-
-    it('handles valid time window with now after expiry', () => {
+    it('handles expired within range where now is after expiry', () => {
       const afterWindow = {
         ...baseAnnouncement,
         startDate: '2026-11-10T00:00:00Z',
         expiryDate: '2026-11-15T00:00:00Z',
       };
       expect(isAnnouncementActive(afterWindow, now)).toBe(false);
+    });
+
+    it('handles scheduled within range where now is before start', () => {
+      const beforeWindow = {
+        ...baseAnnouncement,
+        startDate: '2026-11-20T00:00:00Z',
+        expiryDate: '2026-11-25T00:00:00Z',
+      };
+      expect(isAnnouncementActive(beforeWindow, now)).toBe(false);
     });
   });
 
@@ -112,6 +133,101 @@ describe('Announcements helper functions', () => {
 
     it('identifies active', () => {
       expect(getAnnouncementStatus(baseAnnouncement, now)).toBe('active');
+    });
+  });
+
+  describe('getActiveAnnouncement Database Retrieval', () => {
+    it('retrieves active announcement respecting date boundaries and ordering', async () => {
+      const activeRecord = {
+        id: 'active-1',
+        title: 'Current Notice',
+        message: 'Active announcement content',
+        isActive: true,
+        startDate: null,
+        expiryDate: null,
+        linkText: null,
+        linkUrl: null,
+        createdAt: new Date('2026-11-18T00:00:00Z'),
+        updatedAt: new Date('2026-11-18T01:00:00Z'),
+      };
+
+      vi.mocked(prisma.announcement.findFirst).mockResolvedValue(activeRecord);
+
+      const result = await getActiveAnnouncement();
+      expect(result).not.toBeNull();
+      expect(result?.id).toBe('active-1');
+      expect(result?.title).toBe('Current Notice');
+
+      expect(prisma.announcement.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            isActive: true,
+          }),
+          orderBy: { updatedAt: 'desc' },
+        })
+      );
+    });
+
+    it('returns null when no active announcement matches and table has past records', async () => {
+      vi.mocked(prisma.announcement.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.announcement.count).mockResolvedValue(3);
+
+      const result = await getActiveAnnouncement();
+      expect(result).toBeNull();
+    });
+
+    it('falls back to DEFAULT_ANNOUNCEMENT when table has 0 records', async () => {
+      vi.mocked(prisma.announcement.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.announcement.count).mockResolvedValue(0);
+
+      const result = await getActiveAnnouncement();
+      expect(result).not.toBeNull();
+      expect(result?.id).toBe('initial-website-update');
+      expect(result?.title).toBe("We're Updating Our Website!");
+    });
+
+    it('falls back to DEFAULT_ANNOUNCEMENT when table is unmigrated (P2021 error)', async () => {
+      const missingTableErr = new Prisma.PrismaClientKnownRequestError(
+        'Table does not exist',
+        { code: 'P2021', clientVersion: '6.0.0' }
+      );
+      vi.mocked(prisma.announcement.findFirst).mockRejectedValue(missingTableErr);
+
+      const result = await getActiveAnnouncement();
+      expect(result).not.toBeNull();
+      expect(result?.id).toBe('initial-website-update');
+    });
+
+    it('returns null when database has a connection or runtime error (fails closed)', async () => {
+      const dbErr = new Error('Database connection pool exhausted');
+      vi.mocked(prisma.announcement.findFirst).mockRejectedValue(dbErr);
+
+      const result = await getActiveAnnouncement();
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('getLatestAnnouncement Database Retrieval', () => {
+    it('retrieves latest updated announcement regardless of isActive', async () => {
+      const record = {
+        id: 'latest-1',
+        title: 'Draft Announcement',
+        message: 'Draft content',
+        isActive: false,
+        startDate: null,
+        expiryDate: null,
+        linkText: null,
+        linkUrl: null,
+        createdAt: new Date('2026-11-18T00:00:00Z'),
+        updatedAt: new Date('2026-11-18T05:00:00Z'),
+      };
+
+      vi.mocked(prisma.announcement.findFirst).mockResolvedValue(record);
+
+      const res = await getLatestAnnouncement();
+      expect(res).not.toBeNull();
+      expect(res?.id).toBe('latest-1');
+      expect(res?.isActive).toBe(false);
     });
   });
 

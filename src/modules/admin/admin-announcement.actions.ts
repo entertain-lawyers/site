@@ -7,14 +7,17 @@ import { Role } from '@prisma/client';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { ANNOUNCEMENT_CACHE_TAG } from '@/lib/cache-tags';
 import { serializeAnnouncement, type AnnouncementRecord } from '@/lib/announcements';
+import { isSafeAssetUrl, SAFE_ASSET_URL_MESSAGE } from '@/lib/url-validation';
+import { isMissingTableError } from '@/lib/prisma-errors';
+import { auth } from '@/lib/auth';
 
 const optionalText = (max: number) =>
   z.string().trim().max(max).optional().or(z.literal(''));
 
 const optionalLink = (max = 1000) =>
   optionalText(max).refine(
-    (value) => !value || value.startsWith('/') || /^https?:\/\//i.test(value),
-    'Link must start with / or http(s)://'
+    (value) => !value || isSafeAssetUrl(value),
+    SAFE_ASSET_URL_MESSAGE
   );
 
 const optionalDateTime = z
@@ -31,6 +34,7 @@ const optionalDateTime = z
 const announcementSchema = z
   .object({
     id: z.string().optional().or(z.literal('')),
+    mode: z.enum(['create', 'update']).optional(),
     title: z.string().trim().min(1, 'Title is required').max(150, 'Title cannot exceed 150 characters'),
     message: z.string().trim().min(1, 'Message is required').max(3000, 'Message cannot exceed 3000 characters'),
     isActive: z.boolean().default(true),
@@ -108,8 +112,10 @@ export const saveAnnouncementAction = createSafeAction(
     };
 
     let isCreate = false;
+    const shouldCreate =
+      input.mode === 'create' || !input.id || input.id === 'initial-website-update';
 
-    if (input.id && input.id !== 'initial-website-update') {
+    if (!shouldCreate && input.id) {
       // Target existing announcement by ID
       const existing = await prisma.announcement.findUnique({
         where: { id: input.id },
@@ -122,27 +128,16 @@ export const saveAnnouncementAction = createSafeAction(
         });
       } else {
         targetAnnouncement = await prisma.announcement.create({
-          data: { id: input.id, ...data },
+          data,
         });
         isCreate = true;
       }
     } else {
-      // Find latest or create a new announcement
-      const latest = await prisma.announcement.findFirst({
-        orderBy: { updatedAt: 'desc' },
+      // Create a new announcement record to preserve history
+      targetAnnouncement = await prisma.announcement.create({
+        data,
       });
-
-      if (latest) {
-        targetAnnouncement = await prisma.announcement.update({
-          where: { id: latest.id },
-          data,
-        });
-      } else {
-        targetAnnouncement = await prisma.announcement.create({
-          data,
-        });
-        isCreate = true;
-      }
+      isCreate = true;
     }
 
     // Write audit log
@@ -213,15 +208,24 @@ export const toggleAnnouncementActiveAction = createSafeAction(
 
 /**
  * Fetches recent announcements for the admin view.
+ * Protected with server-side administrator authorization.
  */
 export async function getAnnouncementHistory(): Promise<AnnouncementRecord[]> {
+  const session = await auth();
+  if (!session?.user?.id || session.user.role !== Role.ADMIN) {
+    throw new UserFacingError('Unauthorized: Only administrators can view announcement history.');
+  }
+
   try {
     const list = await prisma.announcement.findMany({
       orderBy: { updatedAt: 'desc' },
-      take: 10,
+      take: 20,
     });
     return list.map(serializeAnnouncement);
   } catch (error) {
+    if (isMissingTableError(error)) {
+      return [];
+    }
     console.warn('Could not load announcement history from database', error);
     return [];
   }

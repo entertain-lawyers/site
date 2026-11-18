@@ -117,16 +117,43 @@ export function serializeAnnouncement(row: {
   };
 }
 
-const fetchLatestAnnouncement = unstable_cache(
+/**
+ * Cached fetcher for the currently active announcement to display on the homepage.
+ * Queries database with filters on isActive and valid date ranges.
+ * If multiple announcements match, deterministically picks the latest updated one.
+ */
+const fetchActiveAnnouncement = unstable_cache(
   async (): Promise<AnnouncementRecord | null> => {
     try {
+      const now = new Date();
+      // Composite index @@index([isActive, startDate, expiryDate]) satisfies this query efficiently
       const row = await prisma.announcement.findFirst({
+        where: {
+          isActive: true,
+          OR: [
+            { startDate: null },
+            { startDate: { lte: now } },
+          ],
+          AND: [
+            {
+              OR: [
+                { expiryDate: null },
+                { expiryDate: { gte: now } },
+              ],
+            },
+          ],
+        },
+        // Deterministic: latest updated active announcement wins
         orderBy: { updatedAt: 'desc' },
       });
 
       if (!row) {
-        // No announcement row yet in database: provide initial fallback announcement
-        return DEFAULT_ANNOUNCEMENT;
+        // Fall back to default initial announcement only if the table has 0 rows
+        const count = await prisma.announcement.count();
+        if (count === 0) {
+          return DEFAULT_ANNOUNCEMENT;
+        }
+        return null;
       }
 
       return serializeAnnouncement(row);
@@ -135,11 +162,38 @@ const fetchLatestAnnouncement = unstable_cache(
         // Table hasn't been migrated yet (e.g. preview deployment or new clone)
         return DEFAULT_ANNOUNCEMENT;
       }
-      console.warn('Could not load announcement from database; using default announcement.', error);
-      return DEFAULT_ANNOUNCEMENT;
+      console.warn('Could not load active announcement from database; returning null.', error);
+      return null;
     }
   },
   ['global-active-announcement'],
+  { revalidate: 3600, tags: [ANNOUNCEMENT_CACHE_TAG] }
+);
+
+/**
+ * Cached fetcher for the latest announcement record (regardless of status) for admin management.
+ */
+const fetchLatestAnnouncement = unstable_cache(
+  async (): Promise<AnnouncementRecord | null> => {
+    try {
+      const row = await prisma.announcement.findFirst({
+        orderBy: { updatedAt: 'desc' },
+      });
+
+      if (!row) {
+        return DEFAULT_ANNOUNCEMENT;
+      }
+
+      return serializeAnnouncement(row);
+    } catch (error) {
+      if (isMissingTableError(error)) {
+        return DEFAULT_ANNOUNCEMENT;
+      }
+      console.warn('Could not load latest announcement from database; returning null.', error);
+      return null;
+    }
+  },
+  ['global-latest-announcement'],
   { revalidate: 3600, tags: [ANNOUNCEMENT_CACHE_TAG] }
 );
 
@@ -153,9 +207,8 @@ export const getLatestAnnouncement = cache(async (): Promise<AnnouncementRecord 
 
 /**
  * Returns the currently active announcement to display on the homepage, or null if inactive/expired/scheduled.
+ * Request-memoized via React cache().
  */
 export const getActiveAnnouncement = cache(async (): Promise<AnnouncementRecord | null> => {
-  const latest = await getLatestAnnouncement();
-  if (!latest) return null;
-  return isAnnouncementActive(latest) ? latest : null;
+  return fetchActiveAnnouncement();
 });
