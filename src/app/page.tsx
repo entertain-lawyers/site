@@ -2,7 +2,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { getHomepageConfig } from '@/lib/site-settings';
+import { getActiveAnnouncement } from '@/lib/announcements';
 import { Press } from '@/components/motion/primitives';
+import AnnouncementModal from '@/components/home/AnnouncementModal';
 
 const HomeSearchBar = dynamic(() => import('@/components/home/HomeSearchBar'), {
   loading: () => <div className="h-12 w-full bg-surface-alt animate-pulse rounded-full"></div>
@@ -21,11 +23,16 @@ export const metadata = {
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const config = await getHomepageConfig();
+  const [config, activeAnnouncement] = await Promise.all([
+    getHomepageConfig(),
+    getActiveAnnouncement(),
+  ]);
   const showCta = Boolean(config.heroCtaText && config.heroCtaLink);
 
   return (
     <div className="w-full bg-background min-h-screen pb-12 sm:pb-16 lg:pb-20 relative overflow-hidden">
+      {/* Homepage Announcement Popup */}
+      <AnnouncementModal announcement={activeAnnouncement} />
 
       {/* Optional announcement banner (hidden by default) */}
       {config.announcementText ? (

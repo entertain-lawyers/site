@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { LayoutDashboard, FileText, Database, Users, Settings, LogOut, Globe, History, Menu, X, MessageSquare, Brain, LayoutTemplate, Images, BookOpen, ShieldCheck, Home, ArrowRightLeft, Scale, Scroll } from 'lucide-react';
+import { LayoutDashboard, FileText, Database, Users, Settings, LogOut, Globe, History, Menu, X, MessageSquare, Brain, LayoutTemplate, Images, BookOpen, ShieldCheck, Home, ArrowRightLeft, Scale, Scroll, Megaphone } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { AnimatePresence, Backdrop, m } from '@/components/motion/primitives';
 import { springSnappy } from '@/lib/motion';
@@ -76,6 +76,7 @@ export default function AdminSidebar({
     { name: 'Units', href: '/admin/study/units', icon: Database, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Site Settings', href: '/admin/settings', icon: Settings, roles: ['ADMIN'] },
     { name: 'Homepage', href: '/admin/homepage', icon: Home, roles: ['ADMIN'] },
+    { name: 'Announcements', href: '/admin/announcements', icon: Megaphone, roles: ['ADMIN'] },
     { name: 'Redirects', href: '/admin/redirects', icon: ArrowRightLeft, roles: ['ADMIN'] },
     { name: 'Users & Roles', href: '/admin/users', icon: Users, roles: ['ADMIN'] },
     { name: 'Protection Center', href: '/admin/protection', icon: ShieldCheck, roles: ['ADMIN'] },
@@ -90,7 +91,7 @@ export default function AdminSidebar({
     { label: 'Requests', names: ['Consultations', 'Consult Lawyers'] },
     { label: 'Resources', names: ['Resources', 'Case Laws', 'Semesters', 'Subjects', 'Units'] },
     { label: 'Publishing', names: ['Posts', 'Acts & Laws', 'Visual Pages', 'Events', 'FAQs', 'Gallery', 'Publications', 'Team'] },
-    { label: 'Site Control', names: ['Site Settings', 'Homepage', 'Redirects'] },
+    { label: 'Site Control', names: ['Site Settings', 'Homepage', 'Announcements', 'Redirects'] },
     { label: 'System', names: ['Users & Roles', 'Protection Center', 'Audit Logs', 'AI Index'] },
   ];
 

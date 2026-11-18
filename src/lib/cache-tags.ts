@@ -13,3 +13,6 @@ export const RESOURCES_CACHE_TAG = 'resources';
 /** Cache tag for the /study subject listings (cached per semester for 1h). */
 export const SUBJECTS_CACHE_TAG = 'subjects';
 
+/** Cache tag for the homepage popup announcement. */
+export const ANNOUNCEMENT_CACHE_TAG = 'announcement';
+
