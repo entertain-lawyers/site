@@ -362,13 +362,100 @@ describe('WordPress REST API Client (src/lib/wordpress.ts)', () => {
       expect(mapCategoryToType([58], 'en')).toBe('NEWS');
       expect(mapCategoryToType([61], 'en')).toBe('BLOG');
       expect(mapCategoryToType([60], 'en')).toBe('OPINION');
+      expect(mapCategoryToType([78], 'en')).toBe('FACT');
+      expect(mapCategoryToType([81], 'en')).toBe('PERSONALITY');
       expect(mapCategoryToType([113], 'en')).toBe('CASE_LAW');
       expect(mapCategoryToType([58], 'ne')).toBe('NEPALI_SAMANYA_SAMACHAR');
       expect(mapCategoryToType([68], 'ne')).toBe('NEPALI_ADALAT_SAMACHAR');
       expect(mapCategoryToType([60], 'ne')).toBe('NEPALI_BLOG_BICHAR');
       expect(mapCategoryToType([64], 'ne')).toBe('NEPALI_AIN_KANUN');
+      expect(mapCategoryToType([57], 'ne')).toBe('NEPALI_NAJIRHARU');
+      expect(mapCategoryToType([79], 'ne')).toBe('NEPALI_NAJIRHARU');
     });
-});
+
+    it('should map all Case Law child and precedent categories to CASE_LAW', () => {
+      // Specialized case law sub-disciplines
+      const caseLawChildCategories = [
+        114, // Criminal Law-II
+        115, // Criminal Law-I
+        116, // Procedural Law-I
+        117, // Procedural Law-II
+        122, // Family Law
+        123, // Contract Law-I
+        125, // Property Law (case-law)
+        127, // Environmental Law
+        128, // Juvenile Delinquency
+        129, // Criminology and Penology
+        135, // Contract Law-II
+        137, // Intellectual Property Law
+        138, // Evidence Law
+        139, // Law of Banking and Negotiable Instruments
+        142, // Labour Law
+        143, // Election Law
+        144, // Taxation Law
+        145, // Company Law and Governance
+        146, // Socio Economic Crime
+        147, // Interpretation of Law
+        148, // Social Work and Social Welfare Law
+        149, // Corporate Law and Management
+        150, // Fiscal Law
+        151, // Gender and Inclusive Justice
+      ];
+
+      for (const catId of caseLawChildCategories) {
+        expect(mapCategoryToType([catId], 'en')).toBe('CASE_LAW');
+      }
+
+      // Precedents hierarchy
+      expect(mapCategoryToType([79], 'en')).toBe('CASE_LAW');
+      expect(mapCategoryToType([104], 'en')).toBe('CASE_LAW'); // Civil Precedent
+      expect(mapCategoryToType([105], 'en')).toBe('CASE_LAW'); // Criminal Precedent
+      expect(mapCategoryToType([106], 'en')).toBe('CASE_LAW'); // Writs Precedent
+    });
+
+    it('should map Notes, Question Papers, and auxiliary educational categories to BLOG', () => {
+      // Notes root and child categories
+      const notesCategories = [121, 118, 119, 120, 124, 152, 153, 154];
+      for (const catId of notesCategories) {
+        expect(mapCategoryToType([catId], 'en')).toBe('BLOG');
+      }
+
+      // Question Paper and Others
+      expect(mapCategoryToType([126], 'en')).toBe('BLOG');
+      expect(mapCategoryToType([1], 'en')).toBe('BLOG');
+    });
+
+    it('should map auxiliary News categories to NEWS', () => {
+      expect(mapCategoryToType([66], 'en')).toBe('NEWS'); // International
+      expect(mapCategoryToType([65], 'en')).toBe('NEWS'); // Current Affairs
+      expect(mapCategoryToType([63], 'en')).toBe('NEWS'); // Highlight
+    });
+
+    it('should strictly respect category precedence when multiple categories are present', () => {
+      // OPINION (60) takes top precedence
+      expect(mapCategoryToType([60, 61], 'en')).toBe('OPINION');
+      expect(mapCategoryToType([60, 113], 'en')).toBe('OPINION');
+      expect(mapCategoryToType([60, 106, 1], 'en')).toBe('OPINION');
+
+      // Primary BLOG (61) takes precedence over Case Law, Notes, and News
+      expect(mapCategoryToType([61, 113], 'en')).toBe('BLOG');
+      expect(mapCategoryToType([61, 122], 'en')).toBe('BLOG');
+      expect(mapCategoryToType([61, 58], 'en')).toBe('BLOG');
+
+      // FACT (78) & PERSONALITY (81) take precedence over Case Law and News
+      expect(mapCategoryToType([78, 113], 'en')).toBe('FACT');
+      expect(mapCategoryToType([81, 58], 'en')).toBe('PERSONALITY');
+
+      // CASE_LAW takes precedence over secondary notes and news
+      expect(mapCategoryToType([122, 58], 'en')).toBe('CASE_LAW');
+      expect(mapCategoryToType([106, 1], 'en')).toBe('CASE_LAW');
+      expect(mapCategoryToType([145, 126], 'en')).toBe('CASE_LAW');
+
+      // Secondary BLOG notes take precedence over NEWS
+      expect(mapCategoryToType([126, 58], 'en')).toBe('BLOG');
+      expect(mapCategoryToType([1, 58], 'en')).toBe('BLOG');
+    });
+  });
 });
 
 describe('decodeHtmlEntities', () => {

@@ -932,6 +932,80 @@ const EN_WP_CATEGORIES = {
   CASE_LAW: 113,
 };
 
+/**
+ * Complete list of English WordPress category IDs representing Case Laws & Judicial Precedents:
+ * - 113: Case Law (root parent)
+ * - 114–117, 122, 123, 125, 127–129, 135, 137–139, 142–151: Specialized Case Law sub-disciplines
+ * - 79: Precedent (root parent)
+ * - 104 (Civil Precedent), 105 (Criminal Precedent), 106 (Writs Precedent)
+ */
+export const EN_CASE_LAW_CATEGORY_IDS = [
+  113, // Case Law (root)
+  114, // Criminal Law-II
+  115, // Criminal Law-I
+  116, // Procedural Law-I
+  117, // Procedural Law-II
+  122, // Family Law
+  123, // Contract Law-I
+  125, // Property Law (case-law)
+  127, // Environmental Law
+  128, // Juvenile Delinquency
+  129, // Criminology and Penology
+  135, // Contract Law-II
+  137, // Intellectual Property Law
+  138, // Evidence Law
+  139, // Law of Banking and Negotiable Instruments
+  142, // Labour Law
+  143, // Election Law
+  144, // Taxation Law
+  145, // Company Law and Governance
+  146, // Socio Economic Crime
+  147, // Interpretation of Law
+  148, // Social Work and Social Welfare Law
+  149, // Corporate Law and Management
+  150, // Fiscal Law
+  151, // Gender and Inclusive Justice
+  79,  // Precedent (root)
+  104, // Civil Precedent
+  105, // Criminal Precedent
+  106, // Writs Precedent
+] as const;
+
+/**
+ * Category IDs classified under English Blogs, Notes, Question Papers and General Articles:
+ * - 61: Blog (root)
+ * - 121: Notes (root), 118, 119, 120, 124, 152, 153, 154 (Notes children)
+ * - 126: Question Paper
+ * - 1: Others
+ */
+export const EN_BLOG_CATEGORY_IDS = [
+  61,  // Blog (root)
+  121, // Notes (root)
+  118, // Criminal Law Notes-I
+  119, // Criminal Law Notes-II
+  120, // Public International Law-II
+  124, // Property Law Notes
+  152, // 9th Semester Criminal Moot Court
+  153, // 8th Semester Civil Moot Court Complete File
+  154, // 8th Semester Clinical Law-II (Conveyancing)
+  126, // Question Paper
+  1,   // Others
+] as const;
+
+/**
+ * Category IDs classified under English News:
+ * - 58: News (root)
+ * - 66: International
+ * - 65: Current Affairs
+ * - 63: Highlight
+ */
+export const EN_NEWS_CATEGORY_IDS = [
+  58, // News (root)
+  66, // International
+  65, // Current Affairs
+  63, // Highlight
+] as const;
+
 const NE_WP_CATEGORIES = {
   NEPALI_SAMANYA_SAMACHAR: 58,
   NEPALI_ADALAT_SAMACHAR: 56,
@@ -959,8 +1033,8 @@ export function mapCategoryToType(categories: number[] | undefined, lang: 'en' |
   if (lang === 'ne') {
     // Court news: अदालत (56), उच्च अदालत (68), सर्वोच्च अदालत (55), जिल्ला अदालत (69)
     if (categories.includes(56) || categories.includes(68) || categories.includes(55) || categories.includes(69)) return 'NEPALI_ADALAT_SAMACHAR';
-    // Precedents: नजिर (57)
-    if (categories.includes(57)) return 'NEPALI_NAJIRHARU';
+    // Precedents: नजिर (57), मुद्दा (79)
+    if (categories.includes(57) || categories.includes(79)) return 'NEPALI_NAJIRHARU';
     // Acts/Laws: ऐन/कानुन (64)
     if (categories.includes(64)) return 'NEPALI_AIN_KANUN';
     // Blog & Opinion: ब्लग (61), विचार (60)
@@ -969,11 +1043,21 @@ export function mapCategoryToType(categories: number[] | undefined, lang: 'en' |
     if (categories.includes(58) || categories.includes(65) || categories.includes(63) || categories.includes(66) || categories.includes(1)) return 'NEPALI_SAMANYA_SAMACHAR';
     return 'UNKNOWN';
   }
+
+  // English taxonomy precedence:
+  // 1. Opinion pieces take precedence (e.g. tagged as both Blog and Opinion)
   if (categories.includes(60)) return 'OPINION';
+  // 2. Primary Blog (61)
   if (categories.includes(61)) return 'BLOG';
+  // 3. Historical Facts & Personalities
   if (categories.includes(78)) return 'FACT';
   if (categories.includes(81)) return 'PERSONALITY';
-  if (categories.includes(113)) return 'CASE_LAW';
-  if (categories.includes(58)) return 'NEWS';
+  // 4. Case Laws and Judicial Precedents (including child categories)
+  if (categories.some((c) => (EN_CASE_LAW_CATEGORY_IDS as readonly number[]).includes(c))) return 'CASE_LAW';
+  // 5. Notes, Moot Courts, Question Papers, and General Articles
+  if (categories.some((c) => (EN_BLOG_CATEGORY_IDS as readonly number[]).includes(c))) return 'BLOG';
+  // 6. News, International, Current Affairs, Highlights
+  if (categories.some((c) => (EN_NEWS_CATEGORY_IDS as readonly number[]).includes(c))) return 'NEWS';
+
   return 'UNKNOWN';
 }
