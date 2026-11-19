@@ -424,6 +424,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
                   <Link
                     href={`/read/${resource.id}`}
                     className="w-full sm:w-auto inline-flex items-center justify-center px-10 py-4 text-sm font-bold rounded-xl text-white bg-accent hover:bg-accent-hover transition-all shadow-[0_4px_15px_rgba(var(--color-accent),0.3)] hover:shadow-[0_6px_20px_rgba(var(--color-accent),0.4)] hover:-translate-y-0.5 group mb-6"
+                    {...(resource.type === 'OLD_QUESTION' ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                   >
                     <BookOpen className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform" />
                     {dict.readDocument}

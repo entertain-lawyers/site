@@ -84,10 +84,10 @@ export default async function EditResourcePage({ params }: { params: Promise<{ i
 
   if (!resource) notFound();
 
-  // Mirror the resource list: editors cannot maintain law notes or case laws.
+  // Mirror the resource list: editors cannot maintain law notes.
   if (
     session.user.role === 'EDITOR' &&
-    (resource.type === ResourceType.LAW_NOTE || resource.type === ResourceType.CASE_LAW)
+    resource.type === ResourceType.LAW_NOTE
   ) {
     redirect('/admin/study/resources');
   }

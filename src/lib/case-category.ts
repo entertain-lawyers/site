@@ -21,14 +21,57 @@ export const CASE_CATEGORIES = {
   },
 } as const;
 
+export type CaseLawCategory = 'CIVIL' | 'CRIMINAL' | 'WRIT';
+
+export const CASE_LAW_CATEGORY_VALUES = ['CIVIL', 'CRIMINAL', 'WRIT'] as const;
+
+export const CASE_LAW_CATEGORIES = {
+  CIVIL: {
+    key: 'CIVIL' as CaseLawCategory,
+    label: 'Civil Cases',
+    shortLabel: 'Civil',
+    description: 'Civil law precedents, contracts, property, family, and tort judgments.',
+    badgeClass:
+      'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800/40',
+  },
+  CRIMINAL: {
+    key: 'CRIMINAL' as CaseLawCategory,
+    label: 'Criminal Cases',
+    shortLabel: 'Criminal',
+    description: 'Criminal law precedents, penal judgments, and criminal jurisprudence.',
+    badgeClass:
+      'bg-red-100 text-red-800 border-red-200 dark:bg-red-950/60 dark:text-red-300 dark:border-red-800/40',
+  },
+  WRIT: {
+    key: 'WRIT' as CaseLawCategory,
+    label: 'Writ Cases',
+    shortLabel: 'Writ',
+    description: 'Constitutional writ petitions, habeas corpus, mandamus, certiorari, and fundamental rights.',
+    badgeClass:
+      'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950/60 dark:text-purple-300 dark:border-purple-800/40',
+  },
+} as const;
+
 /**
  * Normalizes an arbitrary string into a strict CaseCategory or null.
  */
 export function parseCaseCategory(val?: string | null): CaseCategory | null {
   if (!val) return null;
   const normalized = val.trim().toUpperCase().replace(/[-\s]/g, '_');
-  if (normalized === 'NEW_CASE' || normalized === 'NEW') return 'NEW_CASE';
-  if (normalized === 'OLD_CASE' || normalized === 'OLD') return 'OLD_CASE';
+  if (normalized.includes('NEW_CASE') || normalized === 'NEW') return 'NEW_CASE';
+  if (normalized.includes('OLD_CASE') || normalized === 'OLD') return 'OLD_CASE';
+  return null;
+}
+
+/**
+ * Normalizes an arbitrary string into a strict CaseLawCategory or null.
+ */
+export function parseCaseLawCategory(val?: string | null): CaseLawCategory | null {
+  if (!val) return null;
+  const upper = val.trim().toUpperCase();
+  if (upper.includes('CIVIL')) return 'CIVIL';
+  if (upper.includes('CRIMINAL')) return 'CRIMINAL';
+  if (upper.includes('WRIT')) return 'WRIT';
   return null;
 }
 
@@ -42,7 +85,16 @@ export function formatCaseCategory(cat?: string | null): string | null {
 }
 
 /**
- * Extracts the case category from a resource object (checks metaTitle and caseCategory fields).
+ * Formats a CaseLawCategory into human-readable text.
+ */
+export function formatCaseLawCategory(cat?: string | null): string | null {
+  const parsed = parseCaseLawCategory(cat);
+  if (!parsed) return null;
+  return CASE_LAW_CATEGORIES[parsed].label;
+}
+
+/**
+ * Extracts the case category (New Case / Old Case) from a resource object.
  */
 export function getCaseCategory(resource?: {
   metaTitle?: string | null;
@@ -58,6 +110,42 @@ export function getCaseCategory(resource?: {
     const parsed = parseCaseCategory(resource.metaTitle);
     if (parsed) return parsed;
   }
+  return null;
+}
+
+/**
+ * Extracts the case law classification (Civil / Criminal / Writ) from a resource object.
+ */
+export function getCaseLawCategory(resource?: {
+  metaTitle?: string | null;
+  caseCategory?: string | null;
+  type?: string | null;
+} | null): CaseLawCategory | null {
+  if (!resource) return null;
+  if (resource.metaTitle) {
+    const parsed = parseCaseLawCategory(resource.metaTitle);
+    if (parsed) return parsed;
+  }
+  if (resource.caseCategory) {
+    const parsed = parseCaseLawCategory(resource.caseCategory);
+    if (parsed) return parsed;
+  }
+  return null;
+}
+
+/**
+ * Encodes both classifications into a single backward-compatible metaTitle string.
+ */
+export function encodeCaseClassification(opts: {
+  caseLawCategory?: CaseLawCategory | null;
+  caseCategory?: CaseCategory | null;
+}): string | null {
+  const { caseLawCategory, caseCategory } = opts;
+  if (caseLawCategory && caseCategory) {
+    return `${caseLawCategory}:${caseCategory}`;
+  }
+  if (caseLawCategory) return caseLawCategory;
+  if (caseCategory) return caseCategory;
   return null;
 }
 

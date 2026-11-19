@@ -10,6 +10,7 @@ import { getScriptNonce } from '@/lib/csp';
 import { Reveal } from '@/components/motion/primitives';
 import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 import CaseCategoryBadge from '@/components/study/CaseCategoryBadge';
+import CaseLawCategoryBadge from '@/components/study/CaseLawCategoryBadge';
 import { ResourceType } from '@prisma/client';
 
 export const revalidate = 60;
@@ -281,7 +282,11 @@ export default async function SemesterPage({ params, searchParams }: PageProps) 
                               )}
                             </div>
                             <h4 className="text-[15px] font-semibold text-text-primary group-hover:text-accent transition-colors leading-snug">
-                              <Link href={`/resources/${resource.id}`} className="focus:outline-none">
+                              <Link
+                                href={`/resources/${resource.id}`}
+                                className="focus:outline-none"
+                                {...(resource.type === 'OLD_QUESTION' ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                              >
                                 <span className="absolute inset-0" aria-hidden="true" />
                                 {resource.title}
                               </Link>
@@ -364,7 +369,10 @@ export default async function SemesterPage({ params, searchParams }: PageProps) 
                                                 {TYPE_LABELS[resource.type] || 'Other'}
                                               </span>
                                               {resource.type === 'CASE_LAW' && (
-                                                <CaseCategoryBadge category={resource.metaTitle} size="sm" />
+                                                <>
+                                                  <CaseCategoryBadge category={resource.metaTitle} size="sm" />
+                                                  <CaseLawCategoryBadge category={resource.metaTitle} size="sm" />
+                                                </>
                                               )}
                                             </div>
                                             {resource.isPremium && (
@@ -375,7 +383,11 @@ export default async function SemesterPage({ params, searchParams }: PageProps) 
                                             )}
                                           </div>
                                           <h4 className="text-[15px] font-semibold text-text-primary group-hover:text-accent transition-colors leading-snug">
-                                            <Link href={`/resources/${resource.id}`} className="focus:outline-none">
+                                            <Link
+                                              href={`/resources/${resource.id}`}
+                                              className="focus:outline-none"
+                                              {...(resource.type === 'OLD_QUESTION' ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                                            >
                                               <span className="absolute inset-0" aria-hidden="true" />
                                               {resource.title}
                                             </Link>
@@ -427,7 +439,10 @@ export default async function SemesterPage({ params, searchParams }: PageProps) 
                                               {TYPE_LABELS[resource.type] || 'Other'}
                                             </span>
                                             {resource.type === 'CASE_LAW' && (
-                                              <CaseCategoryBadge category={resource.metaTitle} size="sm" />
+                                              <>
+                                                <CaseCategoryBadge category={resource.metaTitle} size="sm" />
+                                                <CaseLawCategoryBadge category={resource.metaTitle} size="sm" />
+                                              </>
                                             )}
                                           </div>
                                           {resource.isPremium && (
@@ -438,7 +453,11 @@ export default async function SemesterPage({ params, searchParams }: PageProps) 
                                           )}
                                         </div>
                                         <h4 className="text-[15px] font-semibold text-text-primary group-hover:text-accent transition-colors leading-snug">
-                                          <Link href={`/resources/${resource.id}`} className="focus:outline-none">
+                                          <Link
+                                            href={`/resources/${resource.id}`}
+                                            className="focus:outline-none"
+                                            {...(resource.type === 'OLD_QUESTION' ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                                          >
                                             <span className="absolute inset-0" aria-hidden="true" />
                                             {resource.title}
                                           </Link>
@@ -463,11 +482,20 @@ export default async function SemesterPage({ params, searchParams }: PageProps) 
                               <Link 
                                 href={`/resources/${resource.id}`}
                                 className="group flex flex-col justify-between h-full p-4 border border-border rounded-xl hover:border-accent hover:bg-surface-alt transition-all"
+                                {...(resource.type === 'OLD_QUESTION' ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                               >
-                                <div className="flex items-start justify-between mb-3 gap-2">
-                                  <span className={`text-xs font-bold px-2.5 py-1 rounded-md border tracking-wide ${TYPE_COLORS[resource.type] || TYPE_COLORS.OTHER}`}>
-                                    {TYPE_LABELS[resource.type] || 'Other'}
-                                  </span>
+                                <div className="flex items-start justify-between mb-3 gap-2 flex-wrap">
+                                  <div className="flex items-center gap-1.5 flex-wrap">
+                                    <span className={`text-xs font-bold px-2.5 py-1 rounded-md border tracking-wide ${TYPE_COLORS[resource.type] || TYPE_COLORS.OTHER}`}>
+                                      {TYPE_LABELS[resource.type] || 'Other'}
+                                    </span>
+                                    {resource.type === 'CASE_LAW' && (
+                                      <>
+                                        <CaseCategoryBadge category={resource.metaTitle} size="sm" />
+                                        <CaseLawCategoryBadge category={resource.metaTitle} size="sm" />
+                                      </>
+                                    )}
+                                  </div>
                                   {resource.isPremium && (
                                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold bg-gold/10 text-gold-dark border border-gold/20 uppercase tracking-wider">
                                       <Lock className="w-3 h-3" />

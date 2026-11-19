@@ -70,7 +70,7 @@ export default function AdminSidebar({
     { name: 'Publications', href: '/admin/publications', icon: BookOpen, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Team', href: '/admin/team', icon: Users, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Resources', href: '/admin/study/resources', icon: FileText, roles: ['ADMIN', 'EDITOR'] },
-    { name: 'Case Laws', href: '/admin/study/resources?type=CASE_LAW', icon: Scale, roles: ['ADMIN'] },
+    { name: 'Case Laws', href: '/admin/study/resources?type=CASE_LAW', icon: Scale, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Semesters', href: '/admin/study/semesters', icon: Database, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Subjects', href: '/admin/study/subjects', icon: Database, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Units', href: '/admin/study/units', icon: Database, roles: ['ADMIN', 'EDITOR'] },

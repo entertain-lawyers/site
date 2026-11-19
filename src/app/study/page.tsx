@@ -18,11 +18,11 @@ import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 import { auth } from '@/lib/auth';
 import { canAccessResource, requiresSignIn } from '@/modules/entitlements/entitlement.service';
 import { studyMaterialLoginUrl } from '@/lib/callback-url';
-import PrescribedCaseSelector from '@/components/study/PrescribedCaseSelector';
+import PrescribedCasesView, { PrescribedCaseItem } from '@/components/study/PrescribedCasesView';
 import UnitDirectContentView, { UnitResourceData } from '@/components/study/UnitDirectContentView';
 import CaseCategoryBadge from '@/components/study/CaseCategoryBadge';
-import { parseCaseCategory, isPrescribedCasesUnit, getCaseCategory } from '@/lib/case-category';
-import { ArrowLeft } from 'lucide-react';
+import CaseLawCategoryBadge from '@/components/study/CaseLawCategoryBadge';
+import { parseCaseCategory, isPrescribedCasesUnit, getCaseLawCategory } from '@/lib/case-category';
 
 export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
   const params = await searchParams;
@@ -62,6 +62,7 @@ type SearchParams = Promise<{
   type?: string;
   q?: string;
   caseCategory?: string;
+  caseLaw?: string;
 }>;
 
 const getCachedSemesters = unstable_cache(
@@ -190,7 +191,7 @@ const getCachedResourceList = unstable_cache(
     });
   },
   ['study-resources-listing-v3'],
-  { revalidate: 3600, tags: [RESOURCES_CACHE_TAG] }
+  { revalidate: 60, tags: [RESOURCES_CACHE_TAG] }
 );
 
 export default async function StudyPage(props: { searchParams: SearchParams }) {
@@ -229,11 +230,27 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
     }),
   ]);
 
-  // 2b. Transliteration-aware search: roman-lipi input matches Devanagari
-  // titles (and Devanagari input matches roman titles) with fuzzy tolerance.
-  const resources = searchQuery
-    ? rawAllResources.filter((r) => searchMatches(r.title, searchQuery))
-    : rawAllResources;
+  // 2b. Transliteration-aware search & Case Law classification filtering
+  const caseLawQuery = (searchParams.caseLaw || (selectedType === 'CASE_LAW' ? searchQuery : undefined))?.toLowerCase().trim();
+
+  const isCaseLawCategoryMatch = (r: (typeof rawAllResources)[number], catKeyword?: string) => {
+    if (!catKeyword) return true;
+    const cat = getCaseLawCategory(r);
+    if (catKeyword === 'civil') return cat === 'CIVIL' || searchMatches(r.title, 'civil');
+    if (catKeyword === 'criminal') return cat === 'CRIMINAL' || searchMatches(r.title, 'criminal');
+    if (catKeyword === 'writ' || catKeyword === 'writs') return cat === 'WRIT' || searchMatches(r.title, 'writ');
+    return searchMatches(r.title, catKeyword);
+  };
+
+  const resources = rawAllResources.filter((r) => {
+    if (selectedType === 'CASE_LAW' && caseLawQuery) {
+      return isCaseLawCategoryMatch(r, caseLawQuery);
+    }
+    if (searchQuery) {
+      return searchMatches(r.title, searchQuery);
+    }
+    return true;
+  });
 
   // 3. Merge syllabus configuration & filter to authoritative curriculum in exact 1..N order
   const currentSemester = semesters.find(s => s.id === selectedSemesterId);
@@ -251,15 +268,37 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
   }> = [];
 
   if (currentSemesterConfig) {
+    const usedDbIds = new Set<string>();
+
     // Law Notes: filter strictly to authoritative subjects in exact 1..N client order (excluding legacy subjects)
     subjects = currentSemesterConfig.subjects.map(authSub => {
       const authNorm = normalizeSubjectName(authSub.name);
-      const dbMatch = rawSubjects.find(s =>
-        s.name === authSub.name ||
-        normalizeSubjectName(s.name) === authNorm ||
-        normalizeSubjectName(s.name).startsWith(authNorm) ||
-        authNorm.startsWith(normalizeSubjectName(s.name))
-      );
+      
+      // 1. Exact match (case-insensitive)
+      let dbMatch = rawSubjects.find(s => !usedDbIds.has(s.id) && s.name.toLowerCase() === authSub.name.toLowerCase());
+      
+      // 2. Normalized alphanumeric match
+      if (!dbMatch) {
+        dbMatch = rawSubjects.find(s => !usedDbIds.has(s.id) && normalizeSubjectName(s.name) === authNorm);
+      }
+      
+      // 3. Normalized prefix / contains match
+      if (!dbMatch) {
+        dbMatch = rawSubjects.find(s => {
+          if (usedDbIds.has(s.id)) return false;
+          const sNorm = normalizeSubjectName(s.name);
+          return sNorm.startsWith(authNorm) || authNorm.startsWith(sNorm) || sNorm.includes(authNorm) || authNorm.includes(sNorm);
+        });
+      }
+
+      // 4. Order match fallback
+      if (!dbMatch) {
+        dbMatch = rawSubjects.find(s => !usedDbIds.has(s.id) && s.order === authSub.order);
+      }
+
+      if (dbMatch) {
+        usedDbIds.add(dbMatch.id);
+      }
 
       return {
         id: dbMatch?.id || `auth-${currentSemesterConfig.order}-${authSub.order}`,
@@ -272,6 +311,17 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
         hasPrescribedCases: authSub.hasPrescribedCases
       };
     });
+
+    // Append any database subjects that weren't mapped to authoritative config
+    for (const rawSub of rawSubjects) {
+      if (!usedDbIds.has(rawSub.id)) {
+        subjects.push({
+          id: rawSub.id,
+          name: rawSub.name,
+          order: rawSub.order ?? 99,
+        });
+      }
+    }
   } else {
     // Fallback if semester not in config
     subjects = rawSubjects.map(sub => ({
@@ -317,10 +367,42 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
   );
 
   const prescribedCases = isPrescribed
-    ? resources.filter((r) => r.type === ResourceType.CASE_LAW || isPrescribedCasesUnit(r.unit))
+    ? resources.filter((r) => {
+        if (r.type !== ResourceType.CASE_LAW && !isPrescribedCasesUnit(r.unit)) {
+          return false;
+        }
+        if (r.unitId && r.unitId !== selectedUnitId && !isPrescribedCasesUnit(r.unit)) {
+          return false;
+        }
+        return true;
+      })
     : [];
-  const newCases = prescribedCases.filter((r) => getCaseCategory(r) === 'NEW_CASE');
-  const oldCases = prescribedCases.filter((r) => getCaseCategory(r) === 'OLD_CASE');
+
+  const prescribedCasesWithAccess: PrescribedCaseItem[] = isPrescribed
+    ? await Promise.all(
+        prescribedCases.map(async (resource) => {
+          const canAccess = session?.user?.id
+            ? await canAccessResource(session.user.id, resource.id)
+            : !resource.isPremium && !requiresSignIn(resource.type);
+
+          return {
+            id: resource.id,
+            title: resource.title,
+            content: resource.content,
+            metaTitle: resource.metaTitle,
+            metaDesc: resource.subject?.name ? `${resource.subject.name} • Case Law` : undefined,
+            documentId: resource.documentId,
+            document: resource.document,
+            isPremium: resource.isPremium,
+            priceAmount: resource.priceAmount,
+            currency: resource.currency || 'NPR',
+            author: resource.author,
+            createdBy: resource.createdBy,
+            canAccess,
+          };
+        })
+      )
+    : [];
 
   const unitResourcesWithAccess: UnitResourceData[] = selectedUnitId && !isPrescribed
     ? await Promise.all(
@@ -458,139 +540,24 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
                 `/study?semester=${selectedSemesterId}&subject=${selectedSubjectId}&unit=${selectedUnitId}`
               )}
             />
-          ) : selectedUnitId && isPrescribed && !parsedCaseCategory ? (
-            /* 2. If Prescribed Cases unit is selected without category, render New Case / Old Case selector */
-            <PrescribedCaseSelector
-              semesterId={selectedSemesterId!}
-              subjectId={selectedSubjectId!}
-              unitId={selectedUnitId!}
+          ) : selectedUnitId && isPrescribed ? (
+            /* 2. Prescribed Cases Unit Selected -> Render PrescribedCasesView directly */
+            <PrescribedCasesView
+              cases={prescribedCasesWithAccess}
+              unitName={selectedUnit?.name || 'Prescribed Cases'}
+              unitTitle={selectedUnit?.title}
               subjectName={selectedSubject?.name}
               semesterName={currentSemester?.name}
-              newCasesCount={newCases.length}
-              oldCasesCount={oldCases.length}
+              initialCategory={parsedCaseCategory}
             />
-          ) : selectedUnitId && isPrescribed && parsedCaseCategory ? (
-            /* 3. If Prescribed Cases unit is selected with category, render filtered cases */
-            <div>
-              <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border pb-4">
-                <Link
-                  href={`/study?semester=${selectedSemesterId}&subject=${selectedSubjectId}&unit=${selectedUnitId}`}
-                  className="inline-flex items-center gap-2 text-sm font-bold text-accent hover:underline group"
-                >
-                  <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                  <span>← Back to Case Selection</span>
-                </Link>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-text-muted uppercase tracking-wider">Classification:</span>
-                  <CaseCategoryBadge category={parsedCaseCategory} size="md" />
-                </div>
-              </div>
-
-              {(() => {
-                const displayedCases = parsedCaseCategory === 'NEW_CASE' ? newCases : oldCases;
-                if (displayedCases.length === 0) {
-                  return (
-                    <div className="bg-surface border border-border rounded-2xl p-8 sm:p-16 text-center shadow-soft flex flex-col items-center justify-center">
-                      <div className="w-16 h-16 bg-surface border border-border rounded-full flex items-center justify-center mb-6 text-text-muted shadow-sm">
-                        <Scale className="w-8 h-8" />
-                      </div>
-                      <h3 className="text-xl font-bold text-navy dark:text-white mb-2 tracking-tight">
-                        No {parsedCaseCategory === 'NEW_CASE' ? 'New Cases' : 'Old Cases'} Found
-                      </h3>
-                      <p className="text-text-secondary max-w-md mx-auto mb-6 text-sm leading-relaxed">
-                        There are no {parsedCaseCategory === 'NEW_CASE' ? 'newly prescribed landmark' : 'historical'} cases published for {selectedSubject?.name || 'this subject'} yet.
-                      </p>
-                      <Link
-                        href={`/study?semester=${selectedSemesterId}&subject=${selectedSubjectId}&unit=${selectedUnitId}`}
-                        className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-accent text-white font-bold text-sm hover:bg-accent/90 transition-colors shadow-sm"
-                      >
-                        Return to Case Selection
-                      </Link>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {displayedCases.map((resource, i) => {
-                      const authorUser = resource.author ?? resource.createdBy;
-                      const resourceAuthor = {
-                        name: authorUser?.name || 'Entertain Lawyers',
-                        image: authorUser?.image || null,
-                        bio: authorUser?.bio || 'Precedent judgments and case law analysis.',
-                        role: authorUser?.role || 'Legal Contributor',
-                        website: authorUser?.website || null,
-                        email: authorUser?.email || null,
-                      };
-
-                      return (
-                        <Reveal key={resource.id} index={i} perRow={3} lift className="h-full">
-                          <div className="group relative flex flex-col bg-surface border border-border rounded-2xl hover:border-accent hover:shadow-[0_8px_30px_rgba(var(--color-accent),0.12)] transition-[box-shadow,border-color,background-color] duration-300 p-6 h-full overflow-hidden">
-                            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent/40 to-accent/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-
-                            <div className="flex items-start justify-between mb-4 gap-2 flex-wrap relative z-10">
-                              <CaseCategoryBadge category={resource.metaTitle || parsedCaseCategory} size="sm" />
-                              {resource.isPremium ? (
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold bg-gold/10 text-gold-dark border border-gold/30 tracking-wider uppercase">
-                                  <Lock className="w-3 h-3" />
-                                  {dict.premium} (Rs. {(resource.priceAmount || 0) / 100})
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center px-3 py-1.5 rounded-md text-xs font-bold bg-green-50 text-green-700 border border-green-200 tracking-wider uppercase">
-                                  {dict.free}
-                                </span>
-                              )}
-                            </div>
-
-                            <h3 className="text-lg font-bold text-navy dark:text-white group-hover:text-accent transition-colors mb-4 line-clamp-2 leading-tight">
-                              <Link href={`/resources/${resource.id}`} className="focus:outline-none">
-                                <span className="absolute inset-0" aria-hidden="true" />
-                                {resource.title}
-                              </Link>
-                            </h3>
-
-                            <div className="mt-auto space-y-2 mb-6">
-                              {resource.subject?.semester?.name && (
-                                <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
-                                  <BookOpen className="w-4 h-4 mt-0.5 flex-shrink-0 text-text-muted" />
-                                  <span className="line-clamp-1">{resource.subject.semester.name}</span>
-                                </div>
-                              )}
-                              {resource.subject && (
-                                <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
-                                  <div className="w-4 h-4 flex-shrink-0 ml-0.5 border-l-2 border-b-2 border-border rounded-bl-md" />
-                                  <span className="line-clamp-1">{resource.subject.name}</span>
-                                </div>
-                              )}
-                              <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
-                                <div className="w-4 h-4 flex-shrink-0 ml-0.5 border-l-2 border-b-2 border-border rounded-bl-md" />
-                                <span className="line-clamp-1">{selectedUnit?.name || 'Prescribed Cases'}</span>
-                              </div>
-                            </div>
-
-                            <div className="mt-auto pt-5 border-t border-border flex justify-between items-center group-hover:border-accent/30 transition-colors">
-                              <AuthorBioTrigger author={resourceAuthor} size="xs" showName />
-                              <div className="flex items-center gap-1 text-sm font-bold text-accent">
-                                <span>Read Case</span>
-                                <ArrowRight className="w-4 h-4 text-accent opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
-                              </div>
-                            </div>
-                          </div>
-                        </Reveal>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-            </div>
           ) : (
-            /* 4. Normal drilling or global search results */
+            /* 3. Normal drilling or global search results */
             (
               selectedType === 'CASE_LAW'
                 ? false
                 : selectedType === 'OLD_QUESTION'
                   ? (!selectedSemesterId && !searchQuery)
-                  : (!selectedUnitId && !searchQuery)
+                  : (!selectedSubjectId && !searchQuery)
             ) ? null : resources.length === 0 ? (
               <div className="bg-surface border border-border rounded-2xl p-8 sm:p-16 text-center shadow-soft flex flex-col items-center justify-center">
                 <div className="w-16 h-16 bg-surface border border-border rounded-full flex items-center justify-center mb-6 text-text-muted shadow-sm">
@@ -646,7 +613,12 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
                             </span>
                           )}
                           {resource.type === 'CASE_LAW' && (
-                            <CaseCategoryBadge category={resource.metaTitle} size="sm" />
+                            <>
+                              <CaseCategoryBadge category={resource.metaTitle} size="sm" />
+                              {getCaseLawCategory(resource) && (
+                                <CaseLawCategoryBadge category={getCaseLawCategory(resource)!} size="sm" />
+                              )}
+                            </>
                           )}
                         </div>
                         {resource.isPremium ? (
@@ -662,7 +634,11 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
                       </div>
 
                       <h3 className="text-lg font-bold text-navy dark:text-white group-hover:text-accent transition-colors mb-4 line-clamp-2 leading-tight">
-                        <Link href={`/resources/${resource.id}`} className="focus:outline-none">
+                        <Link
+                          href={`/resources/${resource.id}`}
+                          className="focus:outline-none"
+                          {...(resource.type === 'OLD_QUESTION' ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                        >
                           <span className="absolute inset-0" aria-hidden="true" />
                           {resource.title}
                         </Link>

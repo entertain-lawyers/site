@@ -2,7 +2,7 @@ import { SubjectCard } from '@/components/study/SubjectCard';
 import { Scale, Landmark } from 'lucide-react';
 import { Lift } from '@/components/motion/primitives';
 
-function PrisonerIcon(props: any) {
+function PrisonerIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -37,21 +37,21 @@ export default function CaseLawLanding() {
       id: 'civil',
       title: 'CIVIL CASES',
       subtitle: '',
-      href: '/study?type=CASE_LAW&q=civil',
+      href: '/study?type=CASE_LAW&caseLaw=civil&q=civil',
       icon: Scale,
     },
     {
       id: 'criminal',
       title: 'CRIMINAL CASES',
       subtitle: '',
-      href: '/study?type=CASE_LAW&q=criminal',
+      href: '/study?type=CASE_LAW&caseLaw=criminal&q=criminal',
       icon: PrisonerIcon,
     },
     {
       id: 'writs',
       title: 'WRITS',
       subtitle: '',
-      href: '/study?type=CASE_LAW&q=writ',
+      href: '/study?type=CASE_LAW&caseLaw=writ&q=writ',
       icon: Landmark,
     }
   ];

@@ -4,14 +4,20 @@ import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Archive, CheckCircle2, ChevronLeft, ChevronRight, CircleDot, ExternalLink, Eye, FileText, History, Loader2,
-  RotateCcw, Sparkles, TriangleAlert,
+  Archive, CheckCircle2, ChevronLeft, ChevronRight, CircleDot, ExternalLink, Eye, FileText, History, Landmark, Loader2,
+  RotateCcw, Scale, ShieldAlert, Sparkles, TriangleAlert,
 } from 'lucide-react';
 import { ResourceType, ContentStatus } from '@prisma/client';
 import { createResourceAction, deleteResourceAction, updateResourceAction } from '@/modules/admin/admin-resource.actions';
 import { editorHtmlToArticleHtml } from '@/lib/editor-html';
 import { confirmDocumentUpload, initiateDocumentUpload } from '@/modules/admin/admin-document.actions';
-import { CaseCategory, parseCaseCategory } from '@/lib/case-category';
+import {
+  CaseCategory,
+  parseCaseCategory,
+  CaseLawCategory,
+  parseCaseLawCategory,
+  isPrescribedCasesUnit,
+} from '@/lib/case-category';
 import dynamic from 'next/dynamic';
 
 const RichTextEditor = dynamic(() => import('@/components/editor/RichTextEditor'), {
@@ -53,6 +59,7 @@ export type EditableResource = {
   featuredImage?: string | null;
   featuredImageId?: number | null;
   caseCategory?: CaseCategory | null;
+  caseLawCategory?: CaseLawCategory | null;
   metaTitle?: string | null;
 };
 
@@ -110,7 +117,7 @@ export function AdminResourceForm({
 
   const availableTypes = canManageLawTypes
     ? RESOURCE_TYPES
-    : RESOURCE_TYPES.filter((type) => type.value !== ResourceType.LAW_NOTE && type.value !== ResourceType.CASE_LAW);
+    : RESOURCE_TYPES.filter((type) => type.value !== ResourceType.LAW_NOTE);
 
   // Editing an existing resource loads its values; creating starts blank or with initialType.
   const initialTypeState = initialType ?? resource?.type ?? availableTypes[0].value;
@@ -118,12 +125,17 @@ export function AdminResourceForm({
   const [description] = useState(resource?.description ?? '');
   const [semesterId, setSemesterId] = useState(resource?.semesterId ?? '');
   const [subjectId, setSubjectId] = useState(resource?.subjectId ?? '');
-  // Editors cannot create law notes/case laws, so start on a type they can use.
+  // Editors can create case laws, old questions, and other study materials; law notes remain admin-only.
   const [resourceType, setResourceType] = useState<ResourceType>(initialTypeState);
+  const [caseLawCategory, setCaseLawCategory] = useState<CaseLawCategory | null>(() => {
+    if (resource?.caseLawCategory) return resource.caseLawCategory;
+    if (resource?.metaTitle) return parseCaseLawCategory(resource.metaTitle);
+    return null;
+  });
   const [caseCategory, setCaseCategory] = useState<CaseCategory | null>(() => {
     if (resource?.caseCategory) return resource.caseCategory;
     if (resource?.metaTitle) return parseCaseCategory(resource.metaTitle);
-    return initialCaseCategory ?? (initialTypeState === ResourceType.CASE_LAW ? 'NEW_CASE' : null);
+    return initialCaseCategory ?? null;
   });
   const [unitId, setUnitId] = useState(resource?.unitId ?? '');
   const [isPremium, setIsPremium] = useState(resource?.isPremium ?? false);
@@ -212,6 +224,7 @@ export function AdminResourceForm({
     title,
     resourceType,
     caseCategory,
+    caseLawCategory,
     semesterId,
     subjectId,
     unitId,
@@ -320,6 +333,17 @@ export function AdminResourceForm({
       return;
     }
 
+    const selectedUnitObj = units.find((u) => u.id === unitId);
+    const isPrescribedUnit = isPrescribedCasesUnit(selectedUnitObj);
+    if (isPrescribedUnit && status === 'PUBLISHED' && !caseCategory) {
+      showValidationError('Please select a Case Category (New Case or Old Case) before publishing.');
+      return;
+    }
+    if (resourceType === ResourceType.CASE_LAW && status === 'PUBLISHED' && !caseCategory && !caseLawCategory) {
+      showValidationError('Please select a Case Category or Case Law Classification before publishing.');
+      return;
+    }
+
     setLoading(true);
     setSavingAs(status);
     setError('');
@@ -349,7 +373,8 @@ export function AdminResourceForm({
           priceAmount: isPremium ? parseFloat(priceAmount) * 100 : undefined,
           type: resourceType,
           unitId: resourceType === ResourceType.OLD_QUESTION ? null : (unitId ? unitId : null),
-          caseCategory: resourceType === ResourceType.CASE_LAW ? (caseCategory || 'NEW_CASE') : null,
+          caseCategory: (resourceType === ResourceType.CASE_LAW || isPrescribedUnit) ? caseCategory : null,
+          caseLawCategory: resourceType === ResourceType.CASE_LAW ? caseLawCategory : null,
           content: uploadMode === 'NOTE' ? editorHtmlToArticleHtml(content) : undefined,
           status: status as ContentStatus,
           authorUserId: submittedAuthorUserId,
@@ -428,7 +453,8 @@ export function AdminResourceForm({
         priceAmount: isPremium ? parseFloat(priceAmount) * 100 : undefined,
         type: resourceType,
         unitId: (resourceType === ResourceType.OLD_QUESTION ? undefined : unitId) || undefined,
-        caseCategory: resourceType === ResourceType.CASE_LAW ? (caseCategory || 'NEW_CASE') : null,
+        caseCategory: (resourceType === ResourceType.CASE_LAW || isPrescribedUnit) ? caseCategory : null,
+        caseLawCategory: resourceType === ResourceType.CASE_LAW ? caseLawCategory : null,
         // Quill writes one <p> per line; store real paragraphs, as /read renders them.
         content: uploadMode === 'NOTE' ? editorHtmlToArticleHtml(content) : undefined,
         status,
@@ -613,7 +639,14 @@ export function AdminResourceForm({
       <select
         id="resource-unit"
         value={unitId}
-        onChange={e => setUnitId(e.target.value)}
+        onChange={e => {
+          const newUnitId = e.target.value;
+          setUnitId(newUnitId);
+          const unitObj = units.find(u => u.id === newUnitId);
+          if (isPrescribedCasesUnit(unitObj)) {
+            setResourceType(ResourceType.CASE_LAW);
+          }
+        }}
         disabled={!subjectId}
         className={selectClass}
       >
@@ -635,9 +668,6 @@ export function AdminResourceForm({
           onChange={e => {
             const nextType = e.target.value as ResourceType;
             setResourceType(nextType);
-            if (nextType === ResourceType.CASE_LAW && !caseCategory) {
-              setCaseCategory('NEW_CASE');
-            }
           }}
           className={selectClass}
         >
@@ -649,11 +679,66 @@ export function AdminResourceForm({
       </div>
 
       {resourceType === ResourceType.CASE_LAW && (
-        <div className="pt-2 border-t border-black/5 dark:border-white/5">
+        <div className="pt-2 border-t border-black/5 dark:border-white/5" data-testid="case-law-category-section">
           <label className="block text-sm font-bold text-navy dark:text-white mb-2">
-            Case Classification <span className="text-accent">*</span>
+            Case Law Classification <span className="text-accent">*</span>
           </label>
-          <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Case Classification">
+          <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Case Law Classification">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={caseLawCategory === 'CIVIL'}
+              onClick={() => setCaseLawCategory(prev => prev === 'CIVIL' ? null : 'CIVIL')}
+              className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs sm:text-sm font-bold transition-all ${
+                caseLawCategory === 'CIVIL'
+                  ? 'border-blue-500 bg-blue-50 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 ring-2 ring-blue-500/20 shadow-xs'
+                  : 'border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 text-text-secondary hover:text-navy dark:hover:text-white'
+              }`}
+            >
+              <Scale className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+              <span>Civil Cases</span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={caseLawCategory === 'CRIMINAL'}
+              onClick={() => setCaseLawCategory(prev => prev === 'CRIMINAL' ? null : 'CRIMINAL')}
+              className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs sm:text-sm font-bold transition-all ${
+                caseLawCategory === 'CRIMINAL'
+                  ? 'border-rose-500 bg-rose-50 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300 ring-2 ring-rose-500/20 shadow-xs'
+                  : 'border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 text-text-secondary hover:text-navy dark:hover:text-white'
+              }`}
+            >
+              <ShieldAlert className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+              <span>Criminal Cases</span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={caseLawCategory === 'WRIT'}
+              onClick={() => setCaseLawCategory(prev => prev === 'WRIT' ? null : 'WRIT')}
+              className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs sm:text-sm font-bold transition-all ${
+                caseLawCategory === 'WRIT'
+                  ? 'border-purple-500 bg-purple-50 text-purple-800 dark:bg-purple-950/50 dark:text-purple-300 ring-2 ring-purple-500/20 shadow-xs'
+                  : 'border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 text-text-secondary hover:text-navy dark:hover:text-white'
+              }`}
+            >
+              <Landmark className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
+              <span>Writ Cases</span>
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-text-secondary">
+            Select Civil, Criminal, or Writ to classify this case under the public Case Laws taxonomy.
+          </p>
+        </div>
+      )}
+
+      {(resourceType === ResourceType.CASE_LAW || isPrescribedCasesUnit(units.find(u => u.id === unitId))) && (
+        <div className="pt-2 border-t border-black/5 dark:border-white/5" data-testid="case-category-section">
+          <label className="block text-sm font-bold text-navy dark:text-white mb-2">
+            Case Category <span className="text-accent">*</span>
+          </label>
+          <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Case Category">
             <button
               type="button"
               role="radio"
@@ -684,7 +769,7 @@ export function AdminResourceForm({
             </button>
           </div>
           <p className="mt-2 text-xs text-text-secondary">
-            Distinguishes New Cases from Old Cases inside Prescribed Cases.
+            Select whether this judgment is a New Case or Old Case for this syllabus.
           </p>
         </div>
       )}
