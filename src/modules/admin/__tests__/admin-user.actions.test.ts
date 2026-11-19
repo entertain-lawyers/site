@@ -57,6 +57,17 @@ vi.mock('@/lib/prisma', () => ({
         return null;
       }),
       findMany: vi.fn(async () => mockUsers),
+      findFirst: vi.fn(async ({ where }: { where?: any }) => {
+        return (
+          mockUsers.find((u) => {
+            if (where?.id?.not && u.id === where.id.not) return false;
+            if (where?.wpAuthorIdEn && u.wpAuthorIdEn === where.wpAuthorIdEn) return true;
+            if (where?.wpAuthorIdNe && u.wpAuthorIdNe === where.wpAuthorIdNe) return true;
+            if (where?.email && u.email === where.email) return true;
+            return false;
+          }) ?? null
+        );
+      }),
       count: vi.fn(async ({ where }: { where?: any }) => {
         let list = mockUsers;
         if (where?.role) {
@@ -100,11 +111,12 @@ vi.mock('@/lib/prisma', () => ({
             clientVersion: '6.0.0',
           });
         }
-        if (data.email) user.email = data.email;
-        if (data.role) user.role = data.role;
-        if (data.passwordHash) user.passwordHash = data.passwordHash;
-        if (data.sessionVersion?.increment) {
-          user.sessionVersion = (user.sessionVersion || 0) + data.sessionVersion.increment;
+        for (const [key, val] of Object.entries(data)) {
+          if (key === 'sessionVersion' && typeof val === 'object' && val && 'increment' in val) {
+            user.sessionVersion = (user.sessionVersion || 0) + (val as any).increment;
+          } else {
+            (user as any)[key] = val;
+          }
         }
         return user;
       }),
