@@ -6,8 +6,7 @@ import * as pdfjsLib from "pdfjs-dist";
 import type { PDFDocumentProxy } from "pdfjs-dist";
 import { BookOpen, FileText, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 
-// Serve the worker from our own origin. The previous cdnjs URL was blocked by
-// the Content-Security-Policy, so the reader failed for every paid document.
+// Serve the worker from our own origin.
 if (typeof window !== "undefined") {
   pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 }
@@ -21,19 +20,14 @@ interface SecurePdfViewerProps {
   initialNumPages?: number;
 }
 
-// Internal canvas resolution per page: crisp enough for reading, small enough
-// that the window of painted pages stays affordable. Pages outside the window
-// are dropped again.
-const TARGET_RENDER_W = 1000;
-// Pages painted either side of the current spread.
-const RENDER_WINDOW = 2;
-// Below this single-page width a two-page spread is unreadable → single page.
-const MIN_SPREAD_PAGE_W = 300;
+const TARGET_RENDER_W = 1200;
+const PRELOAD_WINDOW = 4;
+const MIN_SPREAD_PAGE_W = 320;
 
 interface FlipApi {
-  flipNext(): void;
-  flipPrev(): void;
-  flip(page: number): void;
+  flipNext(corner?: "top" | "bottom"): void;
+  flipPrev(corner?: "top" | "bottom"): void;
+  flip(page: number, corner?: "top" | "bottom"): void;
   turnToPage(page: number): void;
 }
 
@@ -42,21 +36,20 @@ async function paintPage(
   pageNumber: number,
   canvas: HTMLCanvasElement,
   watermarkLines: string[],
-) {
+): Promise<string | undefined> {
   const pdfPage = await doc.getPage(pageNumber);
   const base = pdfPage.getViewport({ scale: 1 });
   const viewport = pdfPage.getViewport({ scale: TARGET_RENDER_W / base.width });
   canvas.width = viewport.width;
   canvas.height = viewport.height;
   const ctx = canvas.getContext("2d");
-  if (!ctx) return;
+  if (!ctx) return undefined;
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await pdfPage.render({ canvasContext: ctx, viewport } as any).promise;
 
-  // Entitlement watermark burned into the pixels, so saved page images carry
-  // it too. Sized relative to the canvas (was tuned for ~890px wide pages).
+  // Entitlement watermark burned into the canvas pixels
   ctx.font = `bold ${Math.round(canvas.width * 0.022)}px Arial`;
   ctx.fillStyle = "rgba(150, 150, 150, 0.25)";
   ctx.textAlign = "center";
@@ -75,7 +68,53 @@ async function paintPage(
   }
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   canvas.dataset.rendered = "1";
+
+  try {
+    return canvas.toDataURL("image/webp", 0.92);
+  } catch {
+    return undefined;
+  }
 }
+
+interface BookPageProps {
+  pageNumber: number;
+  width: number;
+  height: number;
+  imageSrc?: string;
+  onCanvasMount: (el: HTMLCanvasElement | null) => void;
+}
+
+const BookPage = React.forwardRef<HTMLDivElement, BookPageProps>(
+  ({ pageNumber, width, height, imageSrc, onCanvasMount }, ref) => {
+    return (
+      <div
+        ref={ref}
+        data-density="soft"
+        style={{ width, height }}
+        className="relative bg-white overflow-hidden shadow-md select-none"
+      >
+        <canvas
+          ref={onCanvasMount}
+          className="block w-full h-full"
+          style={{ width, height }}
+        />
+        {imageSrc && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={imageSrc}
+            alt={`Page ${pageNumber}`}
+            className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
+            draggable={false}
+          />
+        )}
+        <div className="absolute bottom-2 right-2 text-[10px] font-semibold text-slate-400 select-none bg-white/70 px-1 py-0.5 rounded">
+          {pageNumber}
+        </div>
+      </div>
+    );
+  }
+);
+BookPage.displayName = "BookPage";
 
 export default function SecurePdfViewer({
   url,
@@ -85,28 +124,33 @@ export default function SecurePdfViewer({
 }: SecurePdfViewerProps) {
   const [mode, setMode] = useState<PdfViewerMode>(initialMode);
   const [zoom, setZoom] = useState(1.0);
-  const singleCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
   const measureRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
+
   const pdfRef = useRef<PDFDocumentProxy | null>(null);
   const taskRef = useRef<ReturnType<typeof pdfjsLib.getDocument> | null>(null);
-  const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
-  // react-pageflip exposes its API only through the imperative ref.
+
+  // Cached rendered page images (data URLs) to preserve page content during react-pageflip cloning
+  const [pageImages, setPageImages] = useState<{ [index: number]: string }>({});
+
+  // Canvas refs
+  const bookCanvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
+  const singleCanvasRefs = useRef<(HTMLCanvasElement | null)[]>([]);
+  const singlePageRowRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const singleScrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // react-pageflip imperative ref
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const bookRef = useRef<any>(null);
 
-  // Page painting is decoupled from effects: react-pageflip renders its
-  // children one commit late, so canvases register themselves via ref
-  // callbacks and a queue paints them nearest-to-current-page first.
   const pageRef = useRef(0);
-  const pendingRef = useRef<Set<number>>(new Set());
-  const paintingRef = useRef(false);
   const watermarkRef = useRef(watermarkLines);
+  const isScrollingRef = useRef(false);
 
   const [aspect, setAspect] = useState<number | null>(null);
   const [numPages, setNumPages] = useState<number | null>(initialNumPages ?? null);
-  const [page, setPage] = useState(0); // 0-based first page of the spread / current page
+  const [page, setPage] = useState(0); // 0-based index
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -114,45 +158,103 @@ export default function SecurePdfViewer({
     watermarkRef.current = watermarkLines;
   }, [watermarkLines]);
 
-  const drain = useCallback(async () => {
-    if (paintingRef.current) return;
-    paintingRef.current = true;
+  // Painting queue
+  const pendingBookRef = useRef<Set<number>>(new Set());
+  const paintingBookRef = useRef(false);
+  const pendingSingleRef = useRef<Set<number>>(new Set());
+  const paintingSingleRef = useRef(false);
+
+  const drainBook = useCallback(async () => {
+    if (paintingBookRef.current) return;
+    paintingBookRef.current = true;
     try {
-      while (pendingRef.current.size > 0) {
+      while (pendingBookRef.current.size > 0) {
         const doc = pdfRef.current;
         if (!doc) {
-          pendingRef.current.clear();
+          pendingBookRef.current.clear();
           break;
         }
         const cur = pageRef.current;
         let best = -1;
-        pendingRef.current.forEach((i) => {
+        pendingBookRef.current.forEach((i) => {
           if (best < 0 || Math.abs(i - cur) < Math.abs(best - cur)) best = i;
         });
-        pendingRef.current.delete(best);
-        const canvas = canvasRefs.current[best];
-        if (!canvas || canvas.dataset.rendered === "1") continue;
+        pendingBookRef.current.delete(best);
+        const canvas = bookCanvasRefs.current[best];
+        if (!canvas) continue;
+        if (canvas.dataset.rendered === "1") {
+          if (best === pageRef.current) setReady(true);
+          continue;
+        }
         try {
-          await paintPage(doc, best + 1, canvas, watermarkRef.current);
+          const dataUrl = await paintPage(doc, best + 1, canvas, watermarkRef.current);
+          if (dataUrl) {
+            setPageImages((prev) => (prev[best] ? prev : { ...prev, [best]: dataUrl }));
+          }
           if (best === pageRef.current) setReady(true);
         } catch {
-          // Leave the page blank; it repaints next time its window opens.
+          // ignore paint errors
         }
       }
     } finally {
-      paintingRef.current = false;
+      paintingBookRef.current = false;
     }
   }, []);
 
-  const schedulePaint = useCallback(
+  const scheduleBookPaint = useCallback(
     (i: number) => {
-      pendingRef.current.add(i);
-      void drain();
+      pendingBookRef.current.add(i);
+      void drainBook();
     },
-    [drain],
+    [drainBook],
   );
 
-  // Measure the available area so the book always fits without scrolling.
+  const drainSingle = useCallback(async () => {
+    if (paintingSingleRef.current) return;
+    paintingSingleRef.current = true;
+    try {
+      while (pendingSingleRef.current.size > 0) {
+        const doc = pdfRef.current;
+        if (!doc) {
+          pendingSingleRef.current.clear();
+          break;
+        }
+        const cur = pageRef.current;
+        let best = -1;
+        pendingSingleRef.current.forEach((i) => {
+          if (best < 0 || Math.abs(i - cur) < Math.abs(best - cur)) best = i;
+        });
+        pendingSingleRef.current.delete(best);
+        const canvas = singleCanvasRefs.current[best];
+        if (!canvas) continue;
+        if (canvas.dataset.rendered === "1") {
+          if (best === pageRef.current) setReady(true);
+          continue;
+        }
+        try {
+          const dataUrl = await paintPage(doc, best + 1, canvas, watermarkRef.current);
+          if (dataUrl) {
+            setPageImages((prev) => (prev[best] ? prev : { ...prev, [best]: dataUrl }));
+          }
+          if (best === pageRef.current) setReady(true);
+        } catch {
+          // ignore paint errors
+        }
+      }
+    } finally {
+      paintingSingleRef.current = false;
+    }
+  }, []);
+
+  const scheduleSinglePaint = useCallback(
+    (i: number) => {
+      pendingSingleRef.current.add(i);
+      void drainSingle();
+    },
+    [drainSingle],
+  );
+
+  // Measure container area
   useEffect(() => {
     const el = measureRef.current;
     if (!el) return;
@@ -165,7 +267,7 @@ export default function SecurePdfViewer({
         setBox((prev) =>
           Math.abs(prev.w - w) > 2 || Math.abs(prev.h - h) > 2 ? { w, h } : prev,
         );
-      }, 120);
+      }, 100);
     });
     ro.observe(el);
     return () => {
@@ -174,6 +276,7 @@ export default function SecurePdfViewer({
     };
   }, []);
 
+  // Load PDF document
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -192,8 +295,11 @@ export default function SecurePdfViewer({
           return;
         }
         pdfRef.current = doc;
-        canvasRefs.current = new Array(doc.numPages).fill(null);
-        pendingRef.current.clear();
+        bookCanvasRefs.current = new Array(doc.numPages).fill(null);
+        singleCanvasRefs.current = new Array(doc.numPages).fill(null);
+        singlePageRowRefs.current = new Array(doc.numPages).fill(null);
+        pendingBookRef.current.clear();
+        pendingSingleRef.current.clear();
         pageRef.current = 0;
         setNumPages(doc.numPages);
         setAspect(v.height / v.width);
@@ -214,57 +320,96 @@ export default function SecurePdfViewer({
     };
   }, [url]);
 
-  // Single Page Mode renderer
-  useEffect(() => {
-    if (mode !== "single" || !pdfRef.current || numPages == null) return;
-    let cancelled = false;
-    const doc = pdfRef.current;
-    const canvas = singleCanvasRef.current;
-    if (!canvas) return;
-
-    (async () => {
-      try {
-        await paintPage(doc, page + 1, canvas, watermarkRef.current);
-        if (!cancelled) setReady(true);
-      } catch {
-        // Leave canvas empty on paint failure
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [mode, page, numPages]);
-
-  // Single-page size that fits both directions; two-page spread when there is
-  // room, single page on narrow screens (the WordPress flipbook behavior).
+  // Book mode page geometry calculation
   const geom = useMemo(() => {
     if (!aspect || box.w < 60 || box.h < 60) return null;
-    let pageW = Math.min(box.w / 2, box.h / aspect);
+    let pageW = Math.min(box.w / 2 - 16, (box.h - 16) / aspect);
     let portrait = false;
-    if (pageW < MIN_SPREAD_PAGE_W) {
+    if (pageW < MIN_SPREAD_PAGE_W || box.w < 720) {
       portrait = true;
-      pageW = Math.min(box.w, box.h / aspect);
+      pageW = Math.min(box.w - 24, (box.h - 20) / aspect);
     }
-    return { pageW: Math.floor(pageW), pageH: Math.floor(pageW * aspect), portrait };
+    pageW = Math.max(180, Math.floor(pageW));
+    return { pageW, pageH: Math.floor(pageW * aspect), portrait };
   }, [aspect, box]);
 
-  // Queue the pages around the current spread; drop the ones far away (Book Mode).
+  // Single page base width calculation
+  const singleBaseWidth = useMemo(() => {
+    if (!box.w) return 720;
+    const avail = box.w - (box.w < 640 ? 24 : 48);
+    return Math.min(Math.max(avail, 280), 900);
+  }, [box.w]);
+
+  // Preload pages around current spread in Book Mode
   useEffect(() => {
-    if (mode !== "book") return;
-    const span = geom ? (geom.portrait ? 1 : 2) : 1;
-    if (!geom || !numPages || !aspect) return;
-    const from = Math.max(0, page - RENDER_WINDOW);
-    const to = Math.min(numPages, page + span + RENDER_WINDOW);
-    for (let i = from; i < to; i++) schedulePaint(i);
-    canvasRefs.current.forEach((canvas, i) => {
-      if (canvas && canvas.dataset.rendered === "1" && (i < from - 2 || i >= to + 2)) {
-        canvas.width = 32;
-        canvas.height = Math.round(32 * aspect);
-        delete canvas.dataset.rendered;
-      }
+    if (mode !== "book" || !numPages) return;
+    const from = Math.max(0, page - PRELOAD_WINDOW);
+    const to = Math.min(numPages, page + PRELOAD_WINDOW + 2);
+    for (let i = from; i < to; i++) {
+      scheduleBookPaint(i);
+    }
+  }, [mode, page, numPages, scheduleBookPaint]);
+
+  // Preload pages around current page in Single Page Mode
+  useEffect(() => {
+    if (mode !== "single" || !numPages) return;
+    const from = Math.max(0, page - PRELOAD_WINDOW);
+    const to = Math.min(numPages, page + PRELOAD_WINDOW + 2);
+    for (let i = from; i < to; i++) {
+      scheduleSinglePaint(i);
+    }
+  }, [mode, page, numPages, scheduleSinglePaint]);
+
+  // IntersectionObserver for Single Page Mode scrolling
+  useEffect(() => {
+    if (mode !== "single" || !numPages) return;
+    const container = singleScrollContainerRef.current;
+    if (!container) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (isScrollingRef.current) return;
+        let bestIndex = -1;
+        let maxRatio = 0;
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && entry.intersectionRatio > maxRatio) {
+            maxRatio = entry.intersectionRatio;
+            const idx = Number(entry.target.getAttribute("data-page-index"));
+            if (!isNaN(idx)) bestIndex = idx;
+          }
+        });
+        if (bestIndex >= 0 && bestIndex !== pageRef.current) {
+          pageRef.current = bestIndex;
+          setPage(bestIndex);
+        }
+      },
+      {
+        root: container,
+        threshold: [0.1, 0.3, 0.5, 0.7],
+      },
+    );
+
+    singlePageRowRefs.current.forEach((el) => {
+      if (el) observer.observe(el);
     });
-  }, [mode, page, geom, numPages, aspect, schedulePaint]);
+
+    return () => observer.disconnect();
+  }, [mode, numPages]);
+
+  // Scroll to page when switching to Single Page Mode
+  useEffect(() => {
+    if (mode === "single") {
+      const el = singlePageRowRefs.current[page];
+      if (el) {
+        isScrollingRef.current = true;
+        el.scrollIntoView({ behavior: "auto", block: "start" });
+        setTimeout(() => {
+          isScrollingRef.current = false;
+        }, 150);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode]);
 
   const flipApi = useCallback((): FlipApi | undefined => bookRef.current?.pageFlip(), []);
 
@@ -273,8 +418,18 @@ export default function SecurePdfViewer({
     const target = Math.min(Math.max(1, n), numPages) - 1;
     pageRef.current = target;
     setPage(target);
+
     if (mode === "book") {
       flipApi()?.flip(target);
+    } else {
+      const row = singlePageRowRefs.current[target];
+      if (row) {
+        isScrollingRef.current = true;
+        row.scrollIntoView({ behavior: "smooth", block: "start" });
+        setTimeout(() => {
+          isScrollingRef.current = false;
+        }, 500);
+      }
     }
   };
 
@@ -284,11 +439,10 @@ export default function SecurePdfViewer({
       flipApi()?.flipNext();
     } else {
       if (page + 1 < numPages) {
-        const next = page + 1;
-        pageRef.current = next;
-        setPage(next);
+        goTo(page + 2);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flipApi, mode, numPages, page]);
 
   const flipPrev = useCallback(() => {
@@ -297,18 +451,17 @@ export default function SecurePdfViewer({
       flipApi()?.flipPrev();
     } else {
       if (page > 0) {
-        const prev = page - 1;
-        pageRef.current = prev;
-        setPage(prev);
+        goTo(page);
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flipApi, mode, numPages, page]);
 
   const handleZoomIn = () => setZoom((z) => Math.min(2.5, +(z + 0.25).toFixed(2)));
   const handleZoomOut = () => setZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)));
   const handleResetZoom = () => setZoom(1.0);
 
-  // Keyboard navigation & zoom shortcuts
+  // Keyboard navigation
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
@@ -334,24 +487,23 @@ export default function SecurePdfViewer({
     return () => window.removeEventListener("keydown", onKey);
   }, [flipNext, flipPrev]);
 
-  const pages = useMemo(() => {
+  // Book pages elements
+  const bookPages = useMemo(() => {
     if (!geom || !numPages) return null;
     return Array.from({ length: numPages }, (_, i) => (
-      <div
+      <BookPage
         key={i}
-        style={{ width: geom.pageW, height: geom.pageH }}
-        className="overflow-hidden bg-white"
-      >
-        <canvas
-          ref={(el) => {
-            canvasRefs.current[i] = el;
-            if (el && mode === "book") schedulePaint(i);
-          }}
-          className="block h-full w-full"
-        />
-      </div>
+        pageNumber={i + 1}
+        width={geom.pageW}
+        height={geom.pageH}
+        imageSrc={pageImages[i]}
+        onCanvasMount={(el) => {
+          bookCanvasRefs.current[i] = el;
+          if (el && mode === "book") scheduleBookPaint(i);
+        }}
+      />
     ));
-  }, [geom, numPages, mode, schedulePaint]);
+  }, [geom, numPages, pageImages, mode, scheduleBookPaint]);
 
   const onFlip = (e: { data: number | { page: number } | undefined }) => {
     const p = typeof e.data === "number" ? e.data : (e.data?.page ?? 0);
@@ -360,7 +512,12 @@ export default function SecurePdfViewer({
   };
 
   const atStart = page <= 0;
-  const atEnd = !!numPages && (mode === "single" ? page + 1 >= numPages : page + (geom?.portrait ? 1 : 2) >= numPages);
+  const atEnd =
+    !!numPages &&
+    (mode === "single"
+      ? page + 1 >= numPages
+      : page + (geom?.portrait ? 1 : 2) >= numPages);
+
 
   const spreadLabel = numPages
     ? mode === "single"
@@ -381,9 +538,9 @@ export default function SecurePdfViewer({
       )}
 
       <div className="min-h-0 flex-1 overflow-hidden bg-slate-200 p-1.5 sm:p-2.5 dark:bg-zinc-900">
-        <div ref={measureRef} className="relative h-full w-full flex items-center justify-center overflow-auto">
+        <div ref={measureRef} className="relative h-full w-full flex items-center justify-center overflow-hidden">
           {!ready && !error && (
-            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-surface-alt/60">
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-surface-alt/70 backdrop-blur-xs">
               <div className="h-14 w-14 animate-spin rounded-full border-4 border-border border-t-accent" />
               <p className="text-xs font-bold uppercase tracking-wider text-text-muted">
                 Preparing pages…
@@ -392,36 +549,66 @@ export default function SecurePdfViewer({
           )}
 
           {mode === "single" ? (
-            <div className="h-full w-full overflow-auto flex items-center justify-center p-2 sm:p-4">
-              <div
-                style={{
-                  transform: `scale(${zoom})`,
-                  transformOrigin: "center center",
-                  transition: "transform 0.15s ease-out",
-                }}
-                className="flex items-center justify-center max-w-full max-h-full"
-              >
-                <canvas
-                  ref={singleCanvasRef}
-                  className="max-h-[80vh] max-w-full rounded shadow-xl border border-black/10 dark:border-white/10 bg-white"
-                />
-              </div>
+            <div
+              ref={singleScrollContainerRef}
+              className="h-full w-full overflow-y-auto overflow-x-auto p-3 sm:p-6 flex flex-col items-center gap-4 sm:gap-6 bg-slate-200 dark:bg-zinc-900 scroll-smooth"
+              tabIndex={0}
+            >
+              {Array.from({ length: numPages || 0 }, (_, i) => {
+                const pageW = Math.max(280, Math.round(singleBaseWidth * zoom));
+                const pageH = Math.round(pageW * (aspect || 1.414));
+                return (
+                  <div
+                    key={i}
+                    ref={(el) => {
+                      singlePageRowRefs.current[i] = el;
+                    }}
+                    data-page-index={i}
+                    style={{
+                      width: pageW,
+                      height: pageH,
+                      minWidth: pageW,
+                      minHeight: pageH,
+                    }}
+                    className="relative flex-shrink-0 bg-white shadow-xl rounded-sm border border-slate-300 dark:border-zinc-700 overflow-hidden"
+                  >
+                    <canvas
+                      ref={(el) => {
+                        singleCanvasRefs.current[i] = el;
+                        if (el && mode === "single") scheduleSinglePaint(i);
+                      }}
+                      className="block w-full h-full"
+                    />
+                    {pageImages[i] && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={pageImages[i]}
+                        alt={`Page ${i + 1}`}
+                        className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
+                        draggable={false}
+                      />
+                    )}
+                    <div className="absolute bottom-2 right-2 text-[10px] font-semibold text-slate-400 select-none bg-white/80 px-1.5 py-0.5 rounded shadow-xs">
+                      Page {i + 1}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : (
-            geom && pages && numPages && (
+            geom && bookPages && numPages && (
               <div
                 style={{
                   transform: `scale(${zoom})`,
                   transformOrigin: "center center",
                   transition: "transform 0.15s ease-out",
                 }}
-                className="h-full w-full flex items-center justify-center"
+                className="h-full w-full flex items-center justify-center overflow-hidden"
               >
                 <HTMLFlipBook
-                  key={`${geom.pageW}x${geom.pageH}x${geom.portrait}`}
                   ref={bookRef}
                   className="h-full w-full"
-                  style={{}}
+                  style={{ margin: "0 auto" }}
                   width={geom.pageW}
                   height={geom.pageH}
                   size="fixed"
@@ -430,22 +617,22 @@ export default function SecurePdfViewer({
                   minHeight={geom.pageH}
                   maxHeight={geom.pageH}
                   startPage={Math.min(page, numPages - 1)}
-                  usePortrait
+                  usePortrait={geom.portrait}
                   showCover={false}
-                  drawShadow
-                  maxShadowOpacity={0.45}
-                  flippingTime={650}
-                  useMouseEvents
-                  swipeDistance={25}
-                  showPageCorners
-                  mobileScrollSupport
+                  drawShadow={true}
+                  maxShadowOpacity={0.35}
+                  flippingTime={600}
+                  useMouseEvents={true}
+                  swipeDistance={30}
+                  showPageCorners={true}
+                  mobileScrollSupport={false}
                   clickEventForward={false}
                   disableFlipByClick={false}
                   startZIndex={1}
                   autoSize={false}
                   onFlip={onFlip}
                 >
-                  {pages}
+                  {bookPages}
                 </HTMLFlipBook>
               </div>
             )
@@ -463,7 +650,6 @@ export default function SecurePdfViewer({
               aria-selected={mode === "book"}
               onClick={() => {
                 setMode("book");
-                setReady(false);
               }}
               className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-bold transition-all ${
                 mode === "book"
@@ -480,7 +666,6 @@ export default function SecurePdfViewer({
               aria-selected={mode === "single"}
               onClick={() => {
                 setMode("single");
-                setReady(false);
               }}
               className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-bold transition-all ${
                 mode === "single"

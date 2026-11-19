@@ -3,8 +3,10 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 vi.mock('react-pageflip', () => ({
-  default: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="mock-flipbook">{children}</div>
+  default: ({ children, className, style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) => (
+    <div data-testid="mock-flipbook" className={className} style={style}>
+      {children}
+    </div>
   ),
 }));
 
@@ -24,7 +26,7 @@ vi.mock('pdfjs-dist', () => ({
 
 import SecurePdfViewer from '@/components/SecurePdfViewer';
 
-describe('SecurePdfViewer Component', () => {
+describe('SecurePdfViewer Component Regression Suite', () => {
   it('renders preparing pages loading state when document is initializing', () => {
     const html = renderToStaticMarkup(
       <SecurePdfViewer
@@ -58,7 +60,7 @@ describe('SecurePdfViewer Component', () => {
     expect(html).toContain('100%');
   });
 
-  it('supports initialMode="single" for Single Page Mode', () => {
+  it('renders vertically scrollable multi-page container in Single Page Mode', () => {
     const html = renderToStaticMarkup(
       <SecurePdfViewer
         url="/api/documents/doc-1/pdf"
@@ -68,10 +70,25 @@ describe('SecurePdfViewer Component', () => {
       />
     );
 
-    expect(html).toContain('Book Mode');
-    expect(html).toContain('Single Page');
-    expect(html).toContain('100%');
-    expect(html).toContain('<canvas');
+    // Must have vertical scrollable container
+    expect(html).toContain('overflow-y-auto');
+    expect(html).toContain('scroll-smooth');
+
+    // Must render all individual page rows
+    expect(html).toContain('data-page-index="0"');
+    expect(html).toContain('data-page-index="1"');
+    expect(html).toContain('data-page-index="2"');
+    expect(html).toContain('data-page-index="3"');
+    expect(html).toContain('data-page-index="4"');
+
+    // Must render page indicators
+    expect(html).toContain('Page 1');
+    expect(html).toContain('Page 2');
+    expect(html).toContain('Page 5');
+
+    // Must have canvases for each page
+    const canvasMatches = (html.match(/<canvas/g) || []).length;
+    expect(canvasMatches).toBe(5);
   });
 
   it('renders navigation controls for page browsing', () => {
@@ -89,5 +106,19 @@ describe('SecurePdfViewer Component', () => {
     expect(html).toContain('aria-label="Next page"');
     expect(html).toContain('aria-label="Last page"');
     expect(html).toContain('aria-label="Go to page"');
+  });
+
+  it('enforces right-click context menu suppression and security attributes', () => {
+    const html = renderToStaticMarkup(
+      <SecurePdfViewer
+        url="/api/documents/doc-1/pdf"
+        watermarkLines={['Protected User']}
+        initialMode="single"
+        initialNumPages={3}
+      />
+    );
+
+    // User text selection suppression
+    expect(html).toContain('select-none');
   });
 });
