@@ -9,14 +9,23 @@ import { deleteObject } from '@/lib/b2';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { resolveLocalAuthor } from '@/lib/content-authors';
 import { RESOURCES_CACHE_TAG } from '@/lib/cache-tags';
+import {
+  encodeCaseClassification,
+  parseCaseCategory,
+  parseCaseLawCategory,
+} from '@/lib/case-category';
 
-function revalidateResourceCache(id?: string) {
+function revalidateResourceCache(id?: string, semesterId?: string | null) {
   try {
     revalidateTag(RESOURCES_CACHE_TAG, { expire: 0 });
   } catch {}
   revalidatePath('/resources');
   revalidatePath('/study');
   revalidatePath('/admin/study/resources');
+  revalidatePath('/semesters');
+  if (semesterId) {
+    revalidatePath(`/semesters/${semesterId}`);
+  }
   if (id) {
     revalidatePath(`/resources/${id}`);
     revalidatePath(`/read/${id}`);
@@ -46,6 +55,7 @@ const createResourceSchema = z.object({
   type: z.nativeEnum(ResourceType).optional(),
   unitId: z.string().min(1).nullable().optional(),
   caseCategory: z.enum(['NEW_CASE', 'OLD_CASE']).nullable().optional(),
+  caseLawCategory: z.enum(['CIVIL', 'CRIMINAL', 'WRIT']).nullable().optional(),
   // Local user credited as the author; defaults to the signed-in creator.
   authorUserId: z.string().min(1).optional(),
   featuredImage: z.string().nullable().optional(),
@@ -193,7 +203,8 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
     session.role === Role.EDITOR &&
     resourceType === ResourceType.CASE_LAW &&
     input.status === ContentStatus.PUBLISHED &&
-    !input.caseCategory
+    !input.caseCategory &&
+    !input.caseLawCategory
   ) {
     throw new UserFacingError('Please select a Case Category (New Case or Old Case) before publishing.');
   }
@@ -216,6 +227,7 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
     normalizeFeaturedImageInputs(input.featuredImage, input.featuredImageId);
   const hasSubmittedFeaturedImage = Boolean(normalizedFeaturedImage || normalizedFeaturedImageId);
 
+  let finalSemesterId: string | null = null;
   const resourceId = await prisma.$transaction(async (tx) => {
     const { resolvedSemesterId, resolvedUnitId } = await validateCurriculumHierarchy(tx, {
       resourceType,
@@ -223,6 +235,14 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
       semesterId: input.semesterId,
       unitId: input.unitId,
     });
+    finalSemesterId = resolvedSemesterId;
+
+    const computedMetaTitle = resourceType === ResourceType.CASE_LAW
+      ? encodeCaseClassification({
+          caseLawCategory: input.caseLawCategory,
+          caseCategory: input.caseCategory,
+        })
+      : null;
 
     let resource;
     try {
@@ -231,7 +251,7 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
           title: input.title,
           content: input.content?.trim() || null,
           metaDesc: input.description?.trim() || null,
-          metaTitle: resourceType === ResourceType.CASE_LAW ? (input.caseCategory || null) : null,
+          metaTitle: computedMetaTitle,
           subjectId: input.subjectId || null,
           semesterId: resolvedSemesterId,
           isPremium,
@@ -276,7 +296,7 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
               title: input.title,
               content: input.content?.trim() || null,
               metaDesc: input.description?.trim() || null,
-              metaTitle: resourceType === ResourceType.CASE_LAW ? (input.caseCategory || null) : null,
+              metaTitle: computedMetaTitle,
               subjectId: input.subjectId || null,
               semesterId: resolvedSemesterId,
               isPremium,
@@ -311,6 +331,7 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
               title: input.title,
               content: input.content?.trim() || null,
               metaDesc: input.description?.trim() || null,
+              metaTitle: computedMetaTitle,
               subjectId: input.subjectId || null,
               semesterId: input.semesterId || null,
               isPremium,
@@ -330,6 +351,7 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
             title: input.title,
             content: input.content?.trim() || null,
             metaDesc: input.description?.trim() || null,
+            metaTitle: computedMetaTitle,
             subjectId: input.subjectId || null,
             semesterId: input.semesterId || null,
             isPremium,
@@ -367,7 +389,7 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
     return resource.id;
   });
 
-  revalidateResourceCache(resourceId);
+  revalidateResourceCache(resourceId, finalSemesterId);
   return { resourceId, url: `/resources/${resourceId}` };
 });
 
@@ -489,7 +511,7 @@ export const deleteResourceAction = createSafeAction(async (args: z.infer<typeof
     }
   }
 
-  revalidateResourceCache(id);
+  revalidateResourceCache(id, resource.semesterId);
 
   return { success: true, filesRemoved, filesFailed };
 });
@@ -518,7 +540,7 @@ export const setResourceArchivedAction = createSafeAction(async (args: z.infer<t
     resource = await prisma.resource.update({
       where: { id },
       data: { status: archived ? ContentStatus.ARCHIVED : ContentStatus.PUBLISHED },
-      select: { id: true, title: true, status: true },
+      select: { id: true, title: true, status: true, semesterId: true },
     });
   } catch (error) {
     if (isRecordNotFoundError(error)) throw new Error('Resource not found');
@@ -537,7 +559,7 @@ export const setResourceArchivedAction = createSafeAction(async (args: z.infer<t
     });
   }
 
-  revalidateResourceCache(id);
+  revalidateResourceCache(id, resource.semesterId);
   return { status: resource.status };
 });
 
@@ -560,7 +582,7 @@ export const setResourcePublishedAction = createSafeAction(async (args: z.infer<
   }
   const { id, published } = parsed.data;
 
-  const existing = await prisma.resource.findUnique({ where: { id }, select: { status: true, type: true, metaTitle: true } });
+  const existing = await prisma.resource.findUnique({ where: { id }, select: { status: true, type: true, metaTitle: true, semesterId: true } });
   if (!existing) throw new Error('Resource not found');
   if (existing.status === ContentStatus.ARCHIVED) {
     throw new UserFacingError('This resource is archived. Restore it before changing its draft status.');
@@ -573,7 +595,7 @@ export const setResourcePublishedAction = createSafeAction(async (args: z.infer<
   }
 
   if (session.role === Role.EDITOR && published && existing.type === ResourceType.CASE_LAW && !existing.metaTitle) {
-    throw new UserFacingError('Please select a Case Category (New Case or Old Case) before publishing this case law.');
+    throw new UserFacingError('Please select a Case Category or Case Law Classification before publishing this case law.');
   }
 
   const resource = await prisma.resource.update({
@@ -594,7 +616,7 @@ export const setResourcePublishedAction = createSafeAction(async (args: z.infer<
     });
   }
 
-  revalidateResourceCache(id);
+  revalidateResourceCache(id, existing.semesterId);
   return { status: resource.status };
 });
 
@@ -610,6 +632,7 @@ const updateResourceSchema = z.object({
   type: z.nativeEnum(ResourceType),
   unitId: z.string().min(1).nullable().optional(),
   caseCategory: z.enum(['NEW_CASE', 'OLD_CASE']).nullable().optional(),
+  caseLawCategory: z.enum(['CIVIL', 'CRIMINAL', 'WRIT']).nullable().optional(),
   status: z.nativeEnum(ContentStatus),
   // Omitted leaves the current author unchanged (older callers, bulk edits).
   authorUserId: z.string().min(1).optional(),
@@ -647,7 +670,7 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
     input.type === ResourceType.CASE_LAW &&
     input.status === ContentStatus.PUBLISHED
   ) {
-    if (!input.caseCategory) {
+    if (!input.caseCategory && !input.caseLawCategory) {
       const existing = await prisma.resource.findUnique({
         where: { id: input.id },
         select: { metaTitle: true },
@@ -672,6 +695,7 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
     normalizeFeaturedImageInputs(input.featuredImage, input.featuredImageId);
   const hasSubmittedFeaturedImage = Boolean(normalizedFeaturedImage || normalizedFeaturedImageId);
 
+  let finalSemesterId: string | null = null;
   await prisma.$transaction(async (tx) => {
     const { resolvedSemesterId, resolvedUnitId } = await validateCurriculumHierarchy(tx, {
       resourceType: input.type,
@@ -679,6 +703,31 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
       semesterId: input.semesterId,
       unitId: input.unitId,
     });
+    finalSemesterId = resolvedSemesterId;
+
+    let computedMetaTitle: string | null | undefined = undefined;
+    if (input.type === ResourceType.CASE_LAW) {
+      if (input.caseCategory !== undefined || input.caseLawCategory !== undefined) {
+        const existing = await tx.resource.findUnique({
+          where: { id: input.id },
+          select: { metaTitle: true },
+        });
+        const currentCaseLaw = input.caseLawCategory !== undefined
+          ? input.caseLawCategory
+          : parseCaseLawCategory(existing?.metaTitle);
+        const currentCaseCat = input.caseCategory !== undefined
+          ? input.caseCategory
+          : parseCaseCategory(existing?.metaTitle);
+        computedMetaTitle = encodeCaseClassification({
+          caseLawCategory: currentCaseLaw,
+          caseCategory: currentCaseCat,
+        });
+      }
+    } else {
+      if (input.caseCategory !== undefined || input.caseLawCategory !== undefined) {
+        computedMetaTitle = null;
+      }
+    }
 
     let resource;
     try {
@@ -688,9 +737,7 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
           title: input.title,
           content: input.content?.trim() || null,
           metaDesc: input.description?.trim() || null,
-          ...(input.caseCategory !== undefined
-            ? { metaTitle: input.type === ResourceType.CASE_LAW ? (input.caseCategory || null) : null }
-            : {}),
+          ...(computedMetaTitle !== undefined ? { metaTitle: computedMetaTitle } : {}),
           subjectId: input.subjectId || null,
           semesterId: resolvedSemesterId,
           isPremium,
@@ -739,9 +786,7 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
               title: input.title,
               content: input.content?.trim() || null,
               metaDesc: input.description?.trim() || null,
-              ...(input.caseCategory !== undefined
-                ? { metaTitle: input.type === ResourceType.CASE_LAW ? (input.caseCategory || null) : null }
-                : {}),
+              ...(computedMetaTitle !== undefined ? { metaTitle: computedMetaTitle } : {}),
               subjectId: input.subjectId || null,
               semesterId: resolvedSemesterId,
               isPremium,
@@ -831,6 +876,6 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
     }
   });
 
-  revalidateResourceCache(input.id);
+  revalidateResourceCache(input.id, finalSemesterId);
   return { success: true, url: `/resources/${input.id}` };
 });

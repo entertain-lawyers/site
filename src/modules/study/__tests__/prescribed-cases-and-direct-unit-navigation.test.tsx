@@ -234,7 +234,7 @@ describe('Prescribed Cases & Direct Unit Navigation Verification', () => {
   });
 
   describe('2. Prescribed Cases: Study → Semester → Subject → Prescribed Cases → New Case / Old Case', () => {
-    it('shows New Case and Old Case options FIRST when Prescribed Cases unit is selected without category', async () => {
+    it('displays all prescribed cases by default without requiring New Case or Old Case selection first', async () => {
       // Mock New Cases and Old Cases for Prescribed Cases unit
       mockPrisma.resource.findMany.mockResolvedValue([
         {
@@ -280,20 +280,18 @@ describe('Prescribed Cases & Direct Unit Navigation Verification', () => {
 
       const html = renderToStaticMarkup(page);
 
-      // Verify that the New Case and Old Case options appear FIRST
-      expect(html).toContain('Select Case Classification');
-      expect(html).toContain('New Case');
-      expect(html).toContain('Recent landmark judgments and newly prescribed precedents for this syllabus');
-      expect(html).toContain('Old Case');
-      expect(html).toContain('Established precedents and historical landmark judgments prescribed for this subject');
-      expect(html).toContain('data-testid="prescribed-case-option-new"');
-      expect(html).toContain('data-testid="prescribed-case-option-old"');
-      expect(html).toContain('1 Case Available'); // 1 new case count
-      expect(html).toContain('1 Case Available'); // 1 old case count
+      // Verify that the redesign displays all applicable cases by default (no 2-card barrier)
+      expect(html).not.toContain('Select Case Classification');
+      expect(html).toContain('Prescribed Cases');
+      expect(html).toContain('All Cases');
+      expect(html).toContain('New Cases');
+      expect(html).toContain('Old Cases');
 
-      // Ensure case cards are NOT yet displayed before choosing a classification
-      expect(html).not.toContain('Rita Khadka v. Government of Nepal');
-      expect(html).not.toContain('Annapurna v. State');
+      // Both New and Old cases are rendered immediately by default
+      expect(html).toContain('Rita Khadka v. Government of Nepal');
+      expect(html).toContain('Annapurna v. State');
+      expect(html).toContain('data-case-category="NEW_CASE"');
+      expect(html).toContain('data-case-category="OLD_CASE"');
     });
 
     it('renders ONLY New Cases when caseCategory=NEW_CASE is selected in URL', async () => {
@@ -343,9 +341,7 @@ describe('Prescribed Cases & Direct Unit Navigation Verification', () => {
 
       // Verify New Case is rendered with its badge
       expect(html).toContain('Rita Khadka v. Government of Nepal');
-      expect(html).toContain('New Case');
       expect(html).toContain('data-case-category="NEW_CASE"');
-      expect(html).toContain('← Back to Case Selection');
 
       // Verify Old Case is NOT rendered
       expect(html).not.toContain('Annapurna v. State');
@@ -398,9 +394,7 @@ describe('Prescribed Cases & Direct Unit Navigation Verification', () => {
 
       // Verify Old Case is rendered with its badge
       expect(html).toContain('Annapurna v. State');
-      expect(html).toContain('Old Case');
       expect(html).toContain('data-case-category="OLD_CASE"');
-      expect(html).toContain('← Back to Case Selection');
 
       // Verify New Case is NOT rendered
       expect(html).not.toContain('Rita Khadka v. Government of Nepal');
@@ -432,9 +426,9 @@ describe('Prescribed Cases & Direct Unit Navigation Verification', () => {
 
       const html = renderToStaticMarkup(page);
 
-      expect(html).toContain('No Old Cases Found');
-      expect(html).toContain('There are no historical cases published for Family Law yet');
-      expect(html).toContain('Return to Case Selection');
+      expect(html).toContain('No prescribed cases found');
+      expect(html).toContain('There are no cases published in this category yet.');
+      expect(html).toContain('Reset Filters');
     });
 
     it('ensures cases from another subject or semester never leak into the current results', async () => {

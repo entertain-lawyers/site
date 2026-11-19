@@ -1,10 +1,9 @@
 'use client';
 
-import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { SubjectCard } from '@/components/study/SubjectCard';
 import { HomeSemesterCard } from '@/components/home/HomeSemesterCard';
-import { BookOpen, Layers, Scale, Sparkles, History, ArrowRight } from 'lucide-react';
+import { BookOpen, Layers, Scale } from 'lucide-react';
 import { Reveal } from '@/components/motion/primitives';
 import { isPrescribedCasesUnit } from '@/lib/case-category';
 
@@ -44,7 +43,6 @@ export default function StudyCardNavigator({
   selectedSemesterId,
   selectedSubjectId,
   selectedUnitId,
-  selectedCaseCategory,
 }: StudyCardNavigatorProps) {
   const searchParams = useSearchParams();
 
@@ -141,133 +139,7 @@ export default function StudyCardNavigator({
     );
   }
 
-  // LEVEL 4 (Special Case): Prescribed Cases Unit Selected
-  const selectedUnit = units.find((u) => u.id === selectedUnitId);
-  const isCasesUnit = selectedUnit && isPrescribedCasesUnit(selectedUnit);
-
-  if (selectedUnitId && isCasesUnit) {
-    // LEVEL 4A: Prescribed Cases selected without a caseCategory -> Show New Case & Old Case options first!
-    if (!selectedCaseCategory) {
-      return (
-        <div className="mb-12" data-testid="prescribed-cases-options">
-          <div className="mb-6">
-            <h2 className="text-xl font-bold text-navy dark:text-white tracking-tight uppercase flex items-center gap-2">
-              <Scale className="w-5 h-5 text-accent" />
-              <span>Prescribed Cases — Select Classification</span>
-            </h2>
-            <p className="text-sm text-text-secondary mt-1">
-              Select New Case or Old Case to study landmark judgments prescribed for this subject.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            {/* New Case Card */}
-            <Reveal index={0} perRow={2} lift className="h-full">
-              <Link
-                href={buildHref('caseCategory', 'NEW_CASE')}
-                data-testid="select-new-case"
-                className="group relative flex flex-col p-8 bg-surface border-2 border-emerald-500/30 hover:border-emerald-500 rounded-2xl hover:shadow-[0_8px_30px_rgba(16,185,129,0.18)] transition-all duration-300 h-full"
-              >
-                <div className="w-14 h-14 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                  <Sparkles className="w-7 h-7" />
-                </div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-2xl font-extrabold text-navy dark:text-white group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                    New Case
-                  </h3>
-                  <span className="text-xs font-bold px-3 py-1 bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 rounded-full border border-emerald-200 dark:border-emerald-800/50">
-                    {selectedUnit.newCaseCount ?? 0} Cases
-                  </span>
-                </div>
-                <p className="text-sm text-text-secondary leading-relaxed mb-6">
-                  Recent landmark judgments and newly prescribed precedents for this syllabus.
-                </p>
-                <div className="mt-auto flex items-center gap-2 text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                  <span>Open New Cases</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </Link>
-            </Reveal>
-
-            {/* Old Case Card */}
-            <Reveal index={1} perRow={2} lift className="h-full">
-              <Link
-                href={buildHref('caseCategory', 'OLD_CASE')}
-                data-testid="select-old-case"
-                className="group relative flex flex-col p-8 bg-surface border-2 border-amber-500/30 hover:border-amber-500 rounded-2xl hover:shadow-[0_8px_30px_rgba(245,158,11,0.18)] transition-all duration-300 h-full"
-              >
-                <div className="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                  <History className="w-7 h-7" />
-                </div>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-2xl font-extrabold text-navy dark:text-white group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
-                    Old Case
-                  </h3>
-                  <span className="text-xs font-bold px-3 py-1 bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 rounded-full border border-amber-200 dark:border-amber-800/50">
-                    {selectedUnit.oldCaseCount ?? 0} Cases
-                  </span>
-                </div>
-                <p className="text-sm text-text-secondary leading-relaxed mb-6">
-                  Established precedents and historical landmark judgments prescribed for this subject.
-                </p>
-                <div className="mt-auto flex items-center gap-2 text-sm font-bold text-amber-600 dark:text-amber-400">
-                  <span>Open Old Cases</span>
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </div>
-              </Link>
-            </Reveal>
-          </div>
-        </div>
-      );
-    }
-
-    // LEVEL 4B: Case Category already selected -> Render active toggle header above cards
-    return (
-      <div className="mb-8" data-testid="prescribed-cases-category-switcher">
-        <div className="flex flex-wrap items-center justify-between gap-4 p-4 bg-surface border border-border rounded-2xl shadow-soft">
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
-              <Scale className="w-3.5 h-3.5" />
-              Category:
-            </span>
-            <div className="inline-flex p-1 bg-surface-alt rounded-xl border border-border">
-              <Link
-                href={buildHref('caseCategory', 'NEW_CASE')}
-                className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
-                  selectedCaseCategory === 'NEW_CASE'
-                    ? 'bg-emerald-600 text-white shadow-xs'
-                    : 'text-text-secondary hover:text-navy dark:hover:text-white'
-                }`}
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>New Case ({selectedUnit.newCaseCount ?? 0})</span>
-              </Link>
-              <Link
-                href={buildHref('caseCategory', 'OLD_CASE')}
-                className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
-                  selectedCaseCategory === 'OLD_CASE'
-                    ? 'bg-amber-600 text-white shadow-xs'
-                    : 'text-text-secondary hover:text-navy dark:hover:text-white'
-                }`}
-              >
-                <History className="w-3.5 h-3.5" />
-                <span>Old Case ({selectedUnit.oldCaseCount ?? 0})</span>
-              </Link>
-            </div>
-          </div>
-
-          <Link
-            href={buildHref('caseCategory', '')}
-            className="text-xs font-semibold text-text-muted hover:text-accent transition-colors"
-          >
-            ← View All Options
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  // If an ordinary unit is selected, StudyCardNavigator renders nothing (resources render below)
+  // When a unit is selected (ordinary unit or prescribed cases), content renders below
   if (selectedUnitId) return null;
 
   // LEVEL 3: Select Unit (Unit cards with Direct Navigation)

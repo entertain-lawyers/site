@@ -134,6 +134,7 @@ export default function UnitDirectContentView({
                 href={`/read/${activeResource.id}`}
                 className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-accent text-white hover:bg-accent/90 text-xs font-bold shadow-sm transition-all duration-200 hover:-translate-y-0.5"
                 title="Open fullscreen reader"
+                {...(activeResource.type === 'OLD_QUESTION' ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
               >
                 <span>Fullscreen Reader</span>
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -244,6 +245,7 @@ export default function UnitDirectContentView({
             <Link
               href={`/read/${activeResource.id}`}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-accent text-white font-bold text-sm hover:bg-accent/90 transition-all shadow-md hover:-translate-y-0.5"
+              {...(activeResource.type === 'OLD_QUESTION' ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
             >
               <BookOpen className="w-4 h-4" />
               <span>Read Document Now</span>
