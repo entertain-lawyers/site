@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Role } from '@prisma/client';
 import { createUserAction, deleteUserAction } from '@/modules/admin/admin-user.actions';
+import { getActionErrorMessage } from '@/lib/client-action-utils';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useEscapeKey } from '@/hooks/use-escape-key';
@@ -94,7 +95,7 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
       setIsModalOpen(false);
       router.refresh();
     } catch (err) {
-      setError((err as Error).message || 'An error occurred');
+      setError(getActionErrorMessage(err, 'An error occurred'));
     } finally {
       setLoading(false);
     }
@@ -113,7 +114,7 @@ export default function UsersClient({ initialUsers, currentUserId }: { initialUs
       setUsers((prev) => prev.filter((u) => u.id !== id));
       router.refresh();
     } catch (err) {
-      alert((err as Error).message || 'Failed to delete user');
+      alert(getActionErrorMessage(err, 'Failed to delete user'));
     }
   };
 
