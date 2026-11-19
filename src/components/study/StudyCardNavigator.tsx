@@ -22,6 +22,7 @@ export interface UnitOption extends SelectorOption {
   title?: string | null;
   resourceCount?: number;
   singleResourceId?: string | null;
+  singleResourceTitle?: string | null;
   newCaseCount?: number;
   oldCaseCount?: number;
 }
@@ -167,7 +168,7 @@ export default function StudyCardNavigator({
             // DIRECT UNIT NAVIGATION: single resource opens directly!
             icon = BookOpen;
             href = `/resources/${u.singleResourceId}`;
-            subtitle = u.title || 'Read Note';
+            subtitle = u.singleResourceTitle || u.title || 'Read Note';
           } else if (u.resourceCount && u.resourceCount > 1) {
             icon = Layers;
             href = buildHref('unit', u.id);

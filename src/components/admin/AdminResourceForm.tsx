@@ -137,6 +137,11 @@ export function AdminResourceForm({
     if (resource?.metaTitle) return parseCaseCategory(resource.metaTitle);
     return initialCaseCategory ?? null;
   });
+  const [alsoPublishInCaseLaws, setAlsoPublishInCaseLaws] = useState<boolean>(() => {
+    if (resource?.caseLawCategory) return true;
+    if (resource?.metaTitle && parseCaseLawCategory(resource.metaTitle)) return true;
+    return false;
+  });
   const [unitId, setUnitId] = useState(resource?.unitId ?? '');
   const [isPremium, setIsPremium] = useState(resource?.isPremium ?? false);
   const [priceAmount, setPriceAmount] = useState(
@@ -224,7 +229,8 @@ export function AdminResourceForm({
     title,
     resourceType,
     caseCategory,
-    caseLawCategory,
+    caseLawCategory: alsoPublishInCaseLaws ? caseLawCategory : null,
+    alsoPublishInCaseLaws,
     semesterId,
     subjectId,
     unitId,
@@ -335,12 +341,14 @@ export function AdminResourceForm({
 
     const selectedUnitObj = units.find((u) => u.id === unitId);
     const isPrescribedUnit = isPrescribedCasesUnit(selectedUnitObj);
-    if (isPrescribedUnit && status === 'PUBLISHED' && !caseCategory) {
+    const isCase = resourceType === ResourceType.CASE_LAW || isPrescribedUnit;
+
+    if (isCase && status === 'PUBLISHED' && !caseCategory) {
       showValidationError('Please select a Case Category (New Case or Old Case) before publishing.');
       return;
     }
-    if (resourceType === ResourceType.CASE_LAW && status === 'PUBLISHED' && !caseCategory && !caseLawCategory) {
-      showValidationError('Please select a Case Category or Case Law Classification before publishing.');
+    if (isCase && alsoPublishInCaseLaws && status === 'PUBLISHED' && !caseLawCategory) {
+      showValidationError('Please select a Case Law Classification (Civil, Criminal, or Writ) when "Also publish in Case Laws" is enabled.');
       return;
     }
 
@@ -373,8 +381,8 @@ export function AdminResourceForm({
           priceAmount: isPremium ? parseFloat(priceAmount) * 100 : undefined,
           type: resourceType,
           unitId: resourceType === ResourceType.OLD_QUESTION ? null : (unitId ? unitId : null),
-          caseCategory: (resourceType === ResourceType.CASE_LAW || isPrescribedUnit) ? caseCategory : null,
-          caseLawCategory: resourceType === ResourceType.CASE_LAW ? caseLawCategory : null,
+          caseCategory: isCase ? caseCategory : null,
+          caseLawCategory: isCase && alsoPublishInCaseLaws ? caseLawCategory : null,
           content: uploadMode === 'NOTE' ? editorHtmlToArticleHtml(content) : undefined,
           status: status as ContentStatus,
           authorUserId: submittedAuthorUserId,
@@ -453,8 +461,8 @@ export function AdminResourceForm({
         priceAmount: isPremium ? parseFloat(priceAmount) * 100 : undefined,
         type: resourceType,
         unitId: (resourceType === ResourceType.OLD_QUESTION ? undefined : unitId) || undefined,
-        caseCategory: (resourceType === ResourceType.CASE_LAW || isPrescribedUnit) ? caseCategory : null,
-        caseLawCategory: resourceType === ResourceType.CASE_LAW ? caseLawCategory : null,
+        caseCategory: isCase ? caseCategory : null,
+        caseLawCategory: isCase && alsoPublishInCaseLaws ? caseLawCategory : null,
         // Quill writes one <p> per line; store real paragraphs, as /read renders them.
         content: uploadMode === 'NOTE' ? editorHtmlToArticleHtml(content) : undefined,
         status,
@@ -658,6 +666,8 @@ export function AdminResourceForm({
     </div>
   );
 
+  const isCase = resourceType === ResourceType.CASE_LAW || isPrescribedCasesUnit(units.find(u => u.id === unitId));
+
   const typeField = (
     <div className="space-y-4">
       <div>
@@ -678,99 +688,130 @@ export function AdminResourceForm({
         <p className="mt-2 text-xs text-text-secondary">Old Question resources are filed by semester; other types are filed by subject.</p>
       </div>
 
-      {resourceType === ResourceType.CASE_LAW && (
-        <div className="pt-2 border-t border-black/5 dark:border-white/5" data-testid="case-law-category-section">
-          <label className="block text-sm font-bold text-navy dark:text-white mb-2">
-            Case Law Classification <span className="text-accent">*</span>
-          </label>
-          <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Case Law Classification">
-            <button
-              type="button"
-              role="radio"
-              aria-checked={caseLawCategory === 'CIVIL'}
-              onClick={() => setCaseLawCategory(prev => prev === 'CIVIL' ? null : 'CIVIL')}
-              className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs sm:text-sm font-bold transition-all ${
-                caseLawCategory === 'CIVIL'
-                  ? 'border-blue-500 bg-blue-50 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 ring-2 ring-blue-500/20 shadow-xs'
-                  : 'border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 text-text-secondary hover:text-navy dark:hover:text-white'
-              }`}
-            >
-              <Scale className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
-              <span>Civil Cases</span>
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={caseLawCategory === 'CRIMINAL'}
-              onClick={() => setCaseLawCategory(prev => prev === 'CRIMINAL' ? null : 'CRIMINAL')}
-              className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs sm:text-sm font-bold transition-all ${
-                caseLawCategory === 'CRIMINAL'
-                  ? 'border-rose-500 bg-rose-50 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300 ring-2 ring-rose-500/20 shadow-xs'
-                  : 'border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 text-text-secondary hover:text-navy dark:hover:text-white'
-              }`}
-            >
-              <ShieldAlert className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
-              <span>Criminal Cases</span>
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={caseLawCategory === 'WRIT'}
-              onClick={() => setCaseLawCategory(prev => prev === 'WRIT' ? null : 'WRIT')}
-              className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs sm:text-sm font-bold transition-all ${
-                caseLawCategory === 'WRIT'
-                  ? 'border-purple-500 bg-purple-50 text-purple-800 dark:bg-purple-950/50 dark:text-purple-300 ring-2 ring-purple-500/20 shadow-xs'
-                  : 'border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 text-text-secondary hover:text-navy dark:hover:text-white'
-              }`}
-            >
-              <Landmark className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
-              <span>Writ Cases</span>
-            </button>
+      {isCase && (
+        <div className="space-y-4 pt-2 border-t border-black/5 dark:border-white/5">
+          {/* 1. Case Category (New Case / Old Case) */}
+          <div data-testid="case-category-section">
+            <label className="block text-sm font-bold text-navy dark:text-white mb-2">
+              Case Category <span className="text-accent">*</span>
+            </label>
+            <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Case Category">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={caseCategory === 'NEW_CASE'}
+                onClick={() => setCaseCategory('NEW_CASE')}
+                className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-bold transition-all ${
+                  caseCategory === 'NEW_CASE'
+                    ? 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 ring-2 ring-emerald-500/20 shadow-xs'
+                    : 'border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 text-text-secondary hover:text-navy dark:hover:text-white'
+                }`}
+              >
+                <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>New Case</span>
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={caseCategory === 'OLD_CASE'}
+                onClick={() => setCaseCategory('OLD_CASE')}
+                className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-bold transition-all ${
+                  caseCategory === 'OLD_CASE'
+                    ? 'border-amber-500 bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 ring-2 ring-amber-500/20 shadow-xs'
+                    : 'border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 text-text-secondary hover:text-navy dark:hover:text-white'
+                }`}
+              >
+                <History className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <span>Old Case</span>
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-text-secondary">
+              Select whether this judgment is a New Case or Old Case for this syllabus.
+            </p>
           </div>
-          <p className="mt-2 text-xs text-text-secondary">
-            Select Civil, Criminal, or Writ to classify this case under the public Case Laws taxonomy.
-          </p>
-        </div>
-      )}
 
-      {(resourceType === ResourceType.CASE_LAW || isPrescribedCasesUnit(units.find(u => u.id === unitId))) && (
-        <div className="pt-2 border-t border-black/5 dark:border-white/5" data-testid="case-category-section">
-          <label className="block text-sm font-bold text-navy dark:text-white mb-2">
-            Case Category <span className="text-accent">*</span>
-          </label>
-          <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Case Category">
-            <button
-              type="button"
-              role="radio"
-              aria-checked={caseCategory === 'NEW_CASE'}
-              onClick={() => setCaseCategory('NEW_CASE')}
-              className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-bold transition-all ${
-                caseCategory === 'NEW_CASE'
-                  ? 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 ring-2 ring-emerald-500/20 shadow-xs'
-                  : 'border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 text-text-secondary hover:text-navy dark:hover:text-white'
-              }`}
-            >
-              <Sparkles className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              <span>New Case</span>
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={caseCategory === 'OLD_CASE'}
-              onClick={() => setCaseCategory('OLD_CASE')}
-              className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-bold transition-all ${
-                caseCategory === 'OLD_CASE'
-                  ? 'border-amber-500 bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 ring-2 ring-amber-500/20 shadow-xs'
-                  : 'border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 text-text-secondary hover:text-navy dark:hover:text-white'
-              }`}
-            >
-              <History className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-              <span>Old Case</span>
-            </button>
+          {/* 2. Optional "Also publish in Case Laws?" setting (Default OFF) */}
+          <div className="pt-3 border-t border-black/5 dark:border-white/5" data-testid="also-publish-case-law-section">
+            <div className="flex items-start gap-3">
+              <input
+                id="alsoPublishInCaseLaws"
+                type="checkbox"
+                checked={alsoPublishInCaseLaws}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setAlsoPublishInCaseLaws(checked);
+                  if (!checked) {
+                    setCaseLawCategory(null);
+                  }
+                }}
+                className="mt-1 h-4 w-4 rounded border-black/20 text-accent focus:ring-accent"
+              />
+              <div>
+                <label htmlFor="alsoPublishInCaseLaws" className="text-sm font-bold text-navy dark:text-white cursor-pointer select-none">
+                  Also publish in Case Laws?
+                </label>
+                <p className="text-xs text-text-secondary mt-0.5">
+                  Publish this resource under the public Case Laws directory in addition to its curriculum syllabus. (Default: Off)
+                </p>
+              </div>
+            </div>
+
+            {/* 3. Conditional Case Law Classification (Civil, Criminal, Writ) */}
+            {alsoPublishInCaseLaws && (
+              <div className="mt-3 pl-7 space-y-2" data-testid="case-law-category-section">
+                <label className="block text-xs font-bold text-navy dark:text-white uppercase tracking-wider">
+                  Case Law Classification <span className="text-accent">*</span>
+                </label>
+                <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Case Law Classification">
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={caseLawCategory === 'CIVIL'}
+                    onClick={() => setCaseLawCategory('CIVIL')}
+                    className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs sm:text-sm font-bold transition-all ${
+                      caseLawCategory === 'CIVIL'
+                        ? 'border-blue-500 bg-blue-50 text-blue-800 dark:bg-blue-950/50 dark:text-blue-300 ring-2 ring-blue-500/20 shadow-xs'
+                        : 'border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 text-text-secondary hover:text-navy dark:hover:text-white'
+                    }`}
+                  >
+                    <Scale className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                    <span>Civil Cases</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={caseLawCategory === 'CRIMINAL'}
+                    onClick={() => setCaseLawCategory('CRIMINAL')}
+                    className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs sm:text-sm font-bold transition-all ${
+                      caseLawCategory === 'CRIMINAL'
+                        ? 'border-rose-500 bg-rose-50 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300 ring-2 ring-rose-500/20 shadow-xs'
+                        : 'border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 text-text-secondary hover:text-navy dark:hover:text-white'
+                    }`}
+                  >
+                    <ShieldAlert className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+                    <span>Criminal Cases</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={caseLawCategory === 'WRIT'}
+                    onClick={() => setCaseLawCategory('WRIT')}
+                    className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border text-xs sm:text-sm font-bold transition-all ${
+                      caseLawCategory === 'WRIT'
+                        ? 'border-purple-500 bg-purple-50 text-purple-800 dark:bg-purple-950/50 dark:text-purple-300 ring-2 ring-purple-500/20 shadow-xs'
+                        : 'border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 text-text-secondary hover:text-navy dark:hover:text-white'
+                    }`}
+                  >
+                    <Landmark className="w-4 h-4 text-purple-600 dark:text-purple-400 shrink-0" />
+                    <span>Writ Cases</span>
+                  </button>
+                </div>
+                <p className="text-xs text-text-secondary">
+                  Select Civil, Criminal, or Writ to classify this case under the public Case Laws taxonomy.
+                </p>
+              </div>
+            )}
           </div>
-          <p className="mt-2 text-xs text-text-secondary">
-            Select whether this judgment is a New Case or Old Case for this syllabus.
-          </p>
         </div>
       )}
     </div>

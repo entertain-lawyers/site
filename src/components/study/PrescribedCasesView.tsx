@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Search,
@@ -14,7 +14,12 @@ import {
   LockOpen,
 } from 'lucide-react';
 import { searchMatches } from '@/lib/translit-search';
-import { getCaseCategory, getCaseLawCategory } from '@/lib/case-category';
+import {
+  getCaseCategory,
+  getCaseLawCategory,
+  formatCaseCategory,
+  formatCaseLawCategory,
+} from '@/lib/case-category';
 import CaseCategoryBadge from '@/components/study/CaseCategoryBadge';
 import CaseLawCategoryBadge from '@/components/study/CaseLawCategoryBadge';
 import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
@@ -81,6 +86,14 @@ export default function PrescribedCasesView({
     return 'ALL';
   });
 
+  useEffect(() => {
+    if (initialCategory === 'NEW_CASE' || initialCategory === 'OLD_CASE') {
+      setFilter(initialCategory);
+    } else if (!initialCategory) {
+      setFilter('ALL');
+    }
+  }, [initialCategory]);
+
   // Counts for filter pills
   const newCasesCount = useMemo(
     () => cases.filter((c) => getCaseCategory(c) === 'NEW_CASE').length,
@@ -104,18 +117,24 @@ export default function PrescribedCasesView({
       }
       // 'ALL' includes all cases, including unclassified legacy cases
 
-      // 2. Search query matching
+      // 2. Search query matching across title, case number, summary, and categories
       if (searchQuery.trim()) {
         const q = searchQuery.trim();
         const matchesTitle = searchMatches(item.title, q);
         const matchesDesc = item.metaDesc ? searchMatches(item.metaDesc, q) : false;
         const matchesContent = item.content
-          ? searchMatches(item.content.substring(0, 500), q)
+          ? searchMatches(item.content.substring(0, 1000), q)
           : false;
         const lawCat = getCaseLawCategory(item);
-        const matchesLawCat = lawCat ? searchMatches(lawCat, q) : false;
+        const matchesLawCat = lawCat
+          ? searchMatches(lawCat, q) || searchMatches(formatCaseLawCategory(lawCat) || '', q)
+          : false;
+        const caseCat = getCaseCategory(item);
+        const matchesCaseCat = caseCat
+          ? searchMatches(caseCat, q) || searchMatches(formatCaseCategory(caseCat) || '', q)
+          : false;
 
-        if (!matchesTitle && !matchesDesc && !matchesContent && !matchesLawCat) {
+        if (!matchesTitle && !matchesDesc && !matchesContent && !matchesLawCat && !matchesCaseCat) {
           return false;
         }
       }

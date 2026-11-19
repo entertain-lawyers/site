@@ -22,7 +22,7 @@ import PrescribedCasesView, { PrescribedCaseItem } from '@/components/study/Pres
 import UnitDirectContentView, { UnitResourceData } from '@/components/study/UnitDirectContentView';
 import CaseCategoryBadge from '@/components/study/CaseCategoryBadge';
 import CaseLawCategoryBadge from '@/components/study/CaseLawCategoryBadge';
-import { parseCaseCategory, isPrescribedCasesUnit, getCaseLawCategory } from '@/lib/case-category';
+import { parseCaseCategory, isPrescribedCasesUnit, getCaseCategory, getCaseLawCategory } from '@/lib/case-category';
 
 export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
   const params = await searchParams;
@@ -98,6 +98,34 @@ const getCachedUnits = unstable_cache(
   }),
   ['study-units'],
   { revalidate: 3600, tags: [RESOURCES_CACHE_TAG] }
+);
+
+const getCachedSubjectResources = unstable_cache(
+  async (subjectId: string) => prisma.resource.findMany({
+    where: {
+      subjectId,
+      status: 'PUBLISHED',
+    },
+    select: {
+      id: true,
+      title: true,
+      type: true,
+      metaTitle: true,
+      unitId: true,
+      unit: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+    orderBy: [
+      { order: 'asc' },
+      { title: 'asc' },
+    ],
+  }),
+  ['study-subject-resources-summary-v2'],
+  { revalidate: 60, tags: [RESOURCES_CACHE_TAG] }
 );
 
 /**
@@ -218,7 +246,7 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
   // 1. Fetch reference data for selectors and resources in parallel
 
   // 2. Fetch in parallel
-  const [semesters, rawSubjects, rawUnits, rawAllResources] = await Promise.all([
+  const [semesters, rawSubjects, rawUnits, rawAllResources, rawSubjectResources] = await Promise.all([
     getCachedSemesters(),
     selectedSemesterId ? getCachedSubjects(selectedSemesterId) : Promise.resolve([]),
     selectedSubjectId ? getCachedUnits(selectedSubjectId) : Promise.resolve([]),
@@ -228,6 +256,7 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
       unitId: selectedUnitId,
       type: selectedType,
     }),
+    selectedSubjectId ? getCachedSubjectResources(selectedSubjectId) : Promise.resolve([]),
   ]);
 
   // 2b. Transliteration-aware search & Case Law classification filtering
@@ -247,7 +276,10 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
       return isCaseLawCategoryMatch(r, caseLawQuery);
     }
     if (searchQuery) {
-      return searchMatches(r.title, searchQuery);
+      if (searchMatches(r.title, searchQuery)) return true;
+      if (r.metaTitle && searchMatches(r.metaTitle, searchQuery)) return true;
+      if (r.content && searchMatches(r.content.substring(0, 1000), searchQuery)) return true;
+      return false;
     }
     return true;
   });
@@ -331,14 +363,34 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
     }));
   }
 
-  const units = [...rawUnits];
+  const units: Array<{
+    id: string;
+    name: string;
+    title: string | null;
+    resourceCount?: number;
+    singleResourceId?: string | null;
+    singleResourceTitle?: string | null;
+    newCaseCount?: number;
+    oldCaseCount?: number;
+  }> = rawUnits.map(u => ({
+    id: u.id,
+    name: u.name,
+    title: u.title,
+  }));
+
   if (selectedSubjectId) {
     const currentSub = subjects.find(s => s.id === selectedSubjectId);
     if (currentSub?.unitStart && currentSub?.unitEnd) {
-      const existingNames = new Set(units.map(u => u.name.toLowerCase().replace(/[^a-z0-9]/g, '')));
+      const existingUnitNums = new Set<number>();
+      for (const u of units) {
+        const numMatch = u.name.match(/\d+/);
+        if (numMatch) {
+          existingUnitNums.add(parseInt(numMatch[0], 10));
+        }
+      }
+
       for (let i = currentSub.unitStart; i <= currentSub.unitEnd; i++) {
-        const expectedName = `unit${i}`;
-        if (!existingNames.has(expectedName)) {
+        if (!existingUnitNums.has(i)) {
           units.push({ id: `virtual-unit-${i}`, name: `Unit ${i}`, title: null });
         }
       }
@@ -351,9 +403,52 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
     }
 
     if (currentSub?.hasPrescribedCases) {
-      const existingCases = units.find(u => u.name.toLowerCase().includes('cases'));
+      const existingCases = units.find(u => isPrescribedCasesUnit(u));
       if (!existingCases) {
         units.push({ id: `virtual-unit-cases`, name: 'Prescribed Cases', title: null });
+      }
+    }
+
+    // Populate resource counts and direct navigation IDs for every unit
+    for (const u of units) {
+      const isCase = isPrescribedCasesUnit(u);
+      if (isCase) {
+        const cases = rawSubjectResources.filter(
+          r => r.type === ResourceType.CASE_LAW || isPrescribedCasesUnit(r.unit) || r.unitId === u.id
+        );
+        u.resourceCount = cases.length;
+        u.newCaseCount = cases.filter(c => getCaseCategory(c) === 'NEW_CASE').length;
+        u.oldCaseCount = cases.filter(c => getCaseCategory(c) === 'OLD_CASE').length;
+      } else {
+        const unitNumMatch = u.name.match(/\d+/);
+        const unitNum = unitNumMatch ? parseInt(unitNumMatch[0], 10) : null;
+
+        const matchingResources = rawSubjectResources.filter(r => {
+          if (r.type === ResourceType.CASE_LAW) return false;
+          // 1. Direct unitId match
+          if (r.unitId === u.id) return true;
+          // 2. Resource's assigned DB unit matches by ID or name
+          if (r.unit?.id === u.id) return true;
+          if (r.unit?.name && u.name && r.unit.name.toLowerCase().trim() === u.name.toLowerCase().trim()) return true;
+          // 3. Virtual unit matching by unit number
+          if (u.id.startsWith('virtual-unit-') && unitNum !== null) {
+            if (r.unitId === `virtual-unit-${unitNum}`) return true;
+            if (r.unit?.name) {
+              const rNumMatch = r.unit.name.match(/\d+/);
+              if (rNumMatch && parseInt(rNumMatch[0], 10) === unitNum) return true;
+            }
+          }
+          return false;
+        });
+
+        u.resourceCount = matchingResources.length;
+        if (matchingResources.length === 1) {
+          u.singleResourceId = matchingResources[0].id;
+          u.singleResourceTitle = matchingResources[0].title;
+        } else {
+          u.singleResourceId = null;
+          u.singleResourceTitle = null;
+        }
       }
     }
   }

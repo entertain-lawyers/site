@@ -13,6 +13,7 @@ import {
   encodeCaseClassification,
   parseCaseCategory,
   parseCaseLawCategory,
+  isPrescribedCasesUnit,
 } from '@/lib/case-category';
 
 function revalidateResourceCache(id?: string, semesterId?: string | null) {
@@ -237,7 +238,7 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
     });
     finalSemesterId = resolvedSemesterId;
 
-    const computedMetaTitle = resourceType === ResourceType.CASE_LAW
+    const computedMetaTitle = (resourceType === ResourceType.CASE_LAW || Boolean(resolvedUnitId && isPrescribedCasesUnit(resolvedUnitId)))
       ? encodeCaseClassification({
           caseLawCategory: input.caseLawCategory,
           caseCategory: input.caseCategory,
@@ -706,7 +707,7 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
     finalSemesterId = resolvedSemesterId;
 
     let computedMetaTitle: string | null | undefined = undefined;
-    if (input.type === ResourceType.CASE_LAW) {
+    if (input.type === ResourceType.CASE_LAW || Boolean(resolvedUnitId && isPrescribedCasesUnit(resolvedUnitId))) {
       if (input.caseCategory !== undefined || input.caseLawCategory !== undefined) {
         const existing = await tx.resource.findUnique({
           where: { id: input.id },

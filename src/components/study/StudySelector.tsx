@@ -15,6 +15,7 @@ export interface UnitOption extends SelectorOption {
   title?: string | null;
   resourceCount?: number;
   singleResourceId?: string | null;
+  singleResourceTitle?: string | null;
   newCaseCount?: number;
   oldCaseCount?: number;
 }
