@@ -204,7 +204,7 @@ export default function StudySelector({
                 }`}
               >
                 <Sparkles className="w-3 h-3" />
-                <span>New Case</span>
+                <span>New Syllabus</span>
               </button>
               <button
                 type="button"
@@ -216,7 +216,7 @@ export default function StudySelector({
                 }`}
               >
                 <History className="w-3 h-3" />
-                <span>Old Case</span>
+                <span>Old Syllabus</span>
               </button>
               <button
                 type="button"
@@ -228,7 +228,7 @@ export default function StudySelector({
                 }`}
               >
                 <BookmarkCheck className="w-3 h-3" />
-                <span>Both Cases</span>
+                <span>Both Syllabus</span>
               </button>
             </div>
           </div>
