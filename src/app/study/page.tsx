@@ -178,7 +178,27 @@ const getCachedResourceList = unstable_cache(
                 }
               : { unitId }),
         }),
-        ...(resourceType && { type: resourceType }),
+        ...(resourceType === ResourceType.CASE_LAW
+          ? {
+              OR: [
+                { type: ResourceType.CASE_LAW },
+                {
+                  AND: [
+                    { type: ResourceType.LAW_NOTE },
+                    {
+                      OR: [
+                        { metaTitle: { contains: 'CIVIL' } },
+                        { metaTitle: { contains: 'CRIMINAL' } },
+                        { metaTitle: { contains: 'WRIT' } },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            }
+          : resourceType
+            ? { type: resourceType }
+            : {}),
         // NOTE: text search is applied post-fetch via searchMatches() below so
         // roman-lipi queries can match Devanagari titles (and vice versa).
       },
@@ -414,7 +434,7 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
       const isCase = isPrescribedCasesUnit(u);
       if (isCase) {
         const cases = rawSubjectResources.filter(
-          r => r.type === ResourceType.CASE_LAW || isPrescribedCasesUnit(r.unit) || r.unitId === u.id
+          r => r.type === ResourceType.CASE_LAW || isPrescribedCasesUnit(r.unit) || r.unitId === u.id || Boolean(getCaseLawCategory(r))
         );
         u.resourceCount = cases.length;
         u.newCaseCount = cases.filter(c => {
@@ -469,10 +489,21 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
 
   const prescribedCases = isPrescribed
     ? resources.filter((r) => {
-        if (r.type !== ResourceType.CASE_LAW && !isPrescribedCasesUnit(r.unit)) {
+        if (
+          r.type !== ResourceType.CASE_LAW &&
+          !isPrescribedCasesUnit(r.unit) &&
+          !getCaseLawCategory(r) &&
+          !getCaseCategory(r)
+        ) {
           return false;
         }
-        if (r.unitId && r.unitId !== selectedUnitId && !isPrescribedCasesUnit(r.unit)) {
+        if (
+          r.unitId &&
+          r.unitId !== selectedUnitId &&
+          !isPrescribedCasesUnit(r.unit) &&
+          !getCaseLawCategory(r) &&
+          !getCaseCategory(r)
+        ) {
           return false;
         }
         return true;
@@ -658,7 +689,7 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
                 ? false
                 : selectedType === 'OLD_QUESTION'
                   ? (!selectedSemesterId && !searchQuery)
-                  : (!selectedSubjectId && !searchQuery)
+                  : (units.length > 0 ? (!selectedUnitId && !searchQuery) : (!selectedSubjectId && !searchQuery))
             ) ? null : resources.length === 0 ? (
               <div className="bg-surface border border-border rounded-2xl p-8 sm:p-16 text-center shadow-soft flex flex-col items-center justify-center">
                 <div className="w-16 h-16 bg-surface border border-border rounded-full flex items-center justify-center mb-6 text-text-muted shadow-sm">
@@ -713,7 +744,7 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
                               {RESOURCE_TYPE_LABELS[resource.type] || 'Other'}
                             </span>
                           )}
-                          {resource.type === 'CASE_LAW' && (
+                          {(resource.type === 'CASE_LAW' || Boolean(getCaseLawCategory(resource))) && (
                             <>
                               <CaseCategoryBadge category={resource.metaTitle} size="sm" />
                               {getCaseLawCategory(resource) && (

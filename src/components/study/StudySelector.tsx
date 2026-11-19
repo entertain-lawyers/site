@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback } from 'react';
 import CustomSelect from './CustomSelect';
 import { isPrescribedCasesUnit } from '@/lib/case-category';
-import { Sparkles, History, Scale } from 'lucide-react';
+import { Sparkles, History, Scale, BookmarkCheck } from 'lucide-react';
 
 interface SelectorOption {
   id: string;
@@ -204,7 +204,7 @@ export default function StudySelector({
                 }`}
               >
                 <Sparkles className="w-3 h-3" />
-                <span>New Case</span>
+                <span>New Syllabus</span>
               </button>
               <button
                 type="button"
@@ -216,7 +216,19 @@ export default function StudySelector({
                 }`}
               >
                 <History className="w-3 h-3" />
-                <span>Old Case</span>
+                <span>Old Syllabus</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => updateParams('caseCategory', 'BOTH_CASES')}
+                className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1 transition-all ${
+                  selectedCaseCategory === 'BOTH_CASES'
+                    ? 'bg-indigo-600 text-white shadow-2xs font-bold'
+                    : 'text-text-secondary hover:text-indigo-600'
+                }`}
+              >
+                <BookmarkCheck className="w-3 h-3" />
+                <span>Both Syllabus</span>
               </button>
             </div>
           </div>

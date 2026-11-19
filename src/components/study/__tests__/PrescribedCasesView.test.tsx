@@ -75,10 +75,13 @@ describe('PrescribedCasesView Component', () => {
     expect(html).toContain('4th Semester');
     expect(html).toContain('Total: <strong class="text-navy dark:text-white">3</strong> Cases');
 
-    // Filter pills with counts
+    // Filter pills and dropdown options with counts
     expect(html).toContain('All Cases (3)');
-    expect(html).toContain('New Cases (1)');
-    expect(html).toContain('Old Cases (1)');
+    expect(html).toContain('New Syllabus (1)');
+    expect(html).toContain('Old Syllabus (1)');
+    expect(html).toContain('Short list: All');
+    expect(html).toContain('New Syllabus</option>');
+    expect(html).toContain('Old Syllabus</option>');
 
     // All 3 cases are rendered
     expect(html).toContain('Rita Khadka v. Government of Nepal (2080)');
