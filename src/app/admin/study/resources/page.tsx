@@ -9,7 +9,8 @@ import { resourceBodyStatus } from '@/lib/resource-status';
 import { Search, X } from 'lucide-react';
 import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 import CaseCategoryBadge from '@/components/study/CaseCategoryBadge';
-import { parseCaseCategory } from '@/lib/case-category';
+import CaseLawCategoryBadge from '@/components/study/CaseLawCategoryBadge';
+import { parseCaseCategory, getCaseLawCategory } from '@/lib/case-category';
 
 export const metadata: Metadata = {
   title: 'Manage Resources - Admin',
@@ -100,7 +101,10 @@ export default async function AdminResourcesPage({
       ? {
           OR: [
             { metaTitle: caseCategoryFilter },
-            { metaTitle: caseCategoryFilter === 'NEW_CASE' ? 'NEW' : 'OLD' },
+            { metaTitle: { contains: caseCategoryFilter } },
+            ...(caseCategoryFilter === 'NEW_CASE' ? [{ metaTitle: 'NEW' }] : []),
+            ...(caseCategoryFilter === 'OLD_CASE' ? [{ metaTitle: 'OLD' }] : []),
+            ...(caseCategoryFilter === 'BOTH_CASES' ? [{ metaTitle: 'BOTH' }] : []),
           ],
         }
       : {}),
@@ -351,6 +355,7 @@ export default async function AdminResourcesPage({
                 <option value="">All Case Types</option>
                 <option value="NEW_CASE">New Case</option>
                 <option value="OLD_CASE">Old Case</option>
+                <option value="BOTH_CASES">Both Cases</option>
               </select>
             </div>
           )}
@@ -398,7 +403,12 @@ export default async function AdminResourcesPage({
                               <div className="flex flex-wrap items-center gap-1.5 mt-1">
                                 <span className="text-xs text-text-muted font-mono" title={resource.id}>ID: {resource.id.split('-')[0]}...</span>
                                 {resource.type === ResourceType.CASE_LAW && (
-                                  <CaseCategoryBadge category={resource.metaTitle} size="sm" />
+                                  <>
+                                    <CaseCategoryBadge category={resource.metaTitle} size="sm" />
+                                    {getCaseLawCategory(resource) && (
+                                      <CaseLawCategoryBadge category={getCaseLawCategory(resource)!} size="sm" />
+                                    )}
+                                  </>
                                 )}
                               </div>
                               {(() => {
@@ -437,7 +447,12 @@ export default async function AdminResourcesPage({
                         <td className="px-8 py-5 whitespace-nowrap">
                           <div className="flex flex-col gap-1 items-start">
                             {resource.type === ResourceType.CASE_LAW && (
-                              <CaseCategoryBadge category={resource.metaTitle} size="sm" />
+                              <>
+                                <CaseCategoryBadge category={resource.metaTitle} size="sm" />
+                                {getCaseLawCategory(resource) && (
+                                  <CaseLawCategoryBadge category={getCaseLawCategory(resource)!} size="sm" />
+                                )}
+                              </>
                             )}
                             <span className={`px-3 py-1 inline-flex text-xs font-bold rounded-full border mb-1 ${
                             resource.isPremium

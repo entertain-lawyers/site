@@ -13,6 +13,7 @@ import {
   encodeCaseClassification,
   parseCaseCategory,
   parseCaseLawCategory,
+  isPrescribedCasesUnit,
 } from '@/lib/case-category';
 
 function revalidateResourceCache(id?: string, semesterId?: string | null) {
@@ -54,7 +55,7 @@ const createResourceSchema = z.object({
   priceAmount: z.number().int().nonnegative().optional(),
   type: z.nativeEnum(ResourceType).optional(),
   unitId: z.string().min(1).nullable().optional(),
-  caseCategory: z.enum(['NEW_CASE', 'OLD_CASE']).nullable().optional(),
+  caseCategory: z.enum(['NEW_CASE', 'OLD_CASE', 'BOTH_CASES']).nullable().optional(),
   caseLawCategory: z.enum(['CIVIL', 'CRIMINAL', 'WRIT']).nullable().optional(),
   // Local user credited as the author; defaults to the signed-in creator.
   authorUserId: z.string().min(1).optional(),
@@ -237,7 +238,7 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
     });
     finalSemesterId = resolvedSemesterId;
 
-    const computedMetaTitle = resourceType === ResourceType.CASE_LAW
+    const computedMetaTitle = (resourceType === ResourceType.CASE_LAW || Boolean(resolvedUnitId && isPrescribedCasesUnit(resolvedUnitId)))
       ? encodeCaseClassification({
           caseLawCategory: input.caseLawCategory,
           caseCategory: input.caseCategory,
@@ -631,7 +632,7 @@ const updateResourceSchema = z.object({
   priceAmount: z.number().int().nonnegative().optional(),
   type: z.nativeEnum(ResourceType),
   unitId: z.string().min(1).nullable().optional(),
-  caseCategory: z.enum(['NEW_CASE', 'OLD_CASE']).nullable().optional(),
+  caseCategory: z.enum(['NEW_CASE', 'OLD_CASE', 'BOTH_CASES']).nullable().optional(),
   caseLawCategory: z.enum(['CIVIL', 'CRIMINAL', 'WRIT']).nullable().optional(),
   status: z.nativeEnum(ContentStatus),
   // Omitted leaves the current author unchanged (older callers, bulk edits).
@@ -706,7 +707,7 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
     finalSemesterId = resolvedSemesterId;
 
     let computedMetaTitle: string | null | undefined = undefined;
-    if (input.type === ResourceType.CASE_LAW) {
+    if (input.type === ResourceType.CASE_LAW || Boolean(resolvedUnitId && isPrescribedCasesUnit(resolvedUnitId))) {
       if (input.caseCategory !== undefined || input.caseLawCategory !== undefined) {
         const existing = await tx.resource.findUnique({
           where: { id: input.id },
