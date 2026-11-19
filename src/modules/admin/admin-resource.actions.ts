@@ -55,7 +55,7 @@ const createResourceSchema = z.object({
   priceAmount: z.number().int().nonnegative().optional(),
   type: z.nativeEnum(ResourceType).optional(),
   unitId: z.string().min(1).nullable().optional(),
-  caseCategory: z.enum(['NEW_CASE', 'OLD_CASE']).nullable().optional(),
+  caseCategory: z.enum(['NEW_CASE', 'OLD_CASE', 'BOTH_CASES']).nullable().optional(),
   caseLawCategory: z.enum(['CIVIL', 'CRIMINAL', 'WRIT']).nullable().optional(),
   // Local user credited as the author; defaults to the signed-in creator.
   authorUserId: z.string().min(1).optional(),
@@ -632,7 +632,7 @@ const updateResourceSchema = z.object({
   priceAmount: z.number().int().nonnegative().optional(),
   type: z.nativeEnum(ResourceType),
   unitId: z.string().min(1).nullable().optional(),
-  caseCategory: z.enum(['NEW_CASE', 'OLD_CASE']).nullable().optional(),
+  caseCategory: z.enum(['NEW_CASE', 'OLD_CASE', 'BOTH_CASES']).nullable().optional(),
   caseLawCategory: z.enum(['CIVIL', 'CRIMINAL', 'WRIT']).nullable().optional(),
   status: z.nativeEnum(ContentStatus),
   // Omitted leaves the current author unchanged (older callers, bulk edits).

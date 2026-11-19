@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Archive, CheckCircle2, ChevronLeft, ChevronRight, CircleDot, ExternalLink, Eye, FileText, History, Landmark, Loader2,
+  Archive, BookmarkCheck, CheckCircle2, ChevronLeft, ChevronRight, CircleDot, ExternalLink, Eye, FileText, History, Landmark, Loader2,
   RotateCcw, Scale, ShieldAlert, Sparkles, TriangleAlert,
 } from 'lucide-react';
 import { ResourceType, ContentStatus } from '@prisma/client';
@@ -695,7 +695,7 @@ export function AdminResourceForm({
             <label className="block text-sm font-bold text-navy dark:text-white mb-2">
               Case Category <span className="text-accent">*</span>
             </label>
-            <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Case Category">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3" role="radiogroup" aria-label="Case Category">
               <button
                 type="button"
                 role="radio"
@@ -724,9 +724,23 @@ export function AdminResourceForm({
                 <History className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                 <span>Old Case</span>
               </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={caseCategory === 'BOTH_CASES'}
+                onClick={() => setCaseCategory('BOTH_CASES')}
+                className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-sm font-bold transition-all ${
+                  caseCategory === 'BOTH_CASES'
+                    ? 'border-indigo-500 bg-indigo-50 text-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300 ring-2 ring-indigo-500/20 shadow-xs'
+                    : 'border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 text-text-secondary hover:text-navy dark:hover:text-white'
+                }`}
+              >
+                <BookmarkCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                <span>Both Cases</span>
+              </button>
             </div>
             <p className="mt-2 text-xs text-text-secondary">
-              Select whether this judgment is a New Case or Old Case for this syllabus.
+              Select whether this judgment is a New Case, Old Case, or Both Cases for this syllabus.
             </p>
           </div>
 

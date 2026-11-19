@@ -7,6 +7,7 @@ import {
   Scale,
   Sparkles,
   History,
+  BookmarkCheck,
   X,
   BookOpen,
   ArrowRight,
@@ -68,7 +69,7 @@ interface PrescribedCasesViewProps {
   initialCategory?: string | null;
 }
 
-type FilterOption = 'ALL' | 'NEW_CASE' | 'OLD_CASE';
+type FilterOption = 'ALL' | 'NEW_CASE' | 'OLD_CASE' | 'BOTH_CASES';
 
 export default function PrescribedCasesView({
   cases,
@@ -80,14 +81,14 @@ export default function PrescribedCasesView({
 }: PrescribedCasesViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<FilterOption>(() => {
-    if (initialCategory === 'NEW_CASE' || initialCategory === 'OLD_CASE') {
+    if (initialCategory === 'NEW_CASE' || initialCategory === 'OLD_CASE' || initialCategory === 'BOTH_CASES') {
       return initialCategory;
     }
     return 'ALL';
   });
 
   useEffect(() => {
-    if (initialCategory === 'NEW_CASE' || initialCategory === 'OLD_CASE') {
+    if (initialCategory === 'NEW_CASE' || initialCategory === 'OLD_CASE' || initialCategory === 'BOTH_CASES') {
       setFilter(initialCategory);
     } else if (!initialCategory) {
       setFilter('ALL');
@@ -96,11 +97,21 @@ export default function PrescribedCasesView({
 
   // Counts for filter pills
   const newCasesCount = useMemo(
-    () => cases.filter((c) => getCaseCategory(c) === 'NEW_CASE').length,
+    () => cases.filter((c) => {
+      const cat = getCaseCategory(c);
+      return cat === 'NEW_CASE' || cat === 'BOTH_CASES';
+    }).length,
     [cases]
   );
   const oldCasesCount = useMemo(
-    () => cases.filter((c) => getCaseCategory(c) === 'OLD_CASE').length,
+    () => cases.filter((c) => {
+      const cat = getCaseCategory(c);
+      return cat === 'OLD_CASE' || cat === 'BOTH_CASES';
+    }).length,
+    [cases]
+  );
+  const bothCasesCount = useMemo(
+    () => cases.filter((c) => getCaseCategory(c) === 'BOTH_CASES').length,
     [cases]
   );
   const allCasesCount = cases.length;
@@ -109,11 +120,23 @@ export default function PrescribedCasesView({
   const filteredCases = useMemo(() => {
     return cases.filter((item) => {
       // 1. Classification filter
-      if (filter === 'NEW_CASE' && getCaseCategory(item) !== 'NEW_CASE') {
-        return false;
+      if (filter === 'NEW_CASE') {
+        const cat = getCaseCategory(item);
+        if (cat !== 'NEW_CASE' && cat !== 'BOTH_CASES') {
+          return false;
+        }
       }
-      if (filter === 'OLD_CASE' && getCaseCategory(item) !== 'OLD_CASE') {
-        return false;
+      if (filter === 'OLD_CASE') {
+        const cat = getCaseCategory(item);
+        if (cat !== 'OLD_CASE' && cat !== 'BOTH_CASES') {
+          return false;
+        }
+      }
+      if (filter === 'BOTH_CASES') {
+        const cat = getCaseCategory(item);
+        if (cat !== 'BOTH_CASES') {
+          return false;
+        }
       }
       // 'ALL' includes all cases, including unclassified legacy cases
 
@@ -246,6 +269,20 @@ export default function PrescribedCasesView({
               <History className="w-3.5 h-3.5" />
               <span>Old Cases ({oldCasesCount})</span>
             </button>
+            {bothCasesCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setFilter('BOTH_CASES')}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                  filter === 'BOTH_CASES'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-text-secondary hover:text-indigo-600 dark:hover:text-indigo-400'
+                }`}
+              >
+                <BookmarkCheck className="w-3.5 h-3.5" />
+                <span>Both Cases ({bothCasesCount})</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -254,7 +291,7 @@ export default function PrescribedCasesView({
       <div className="flex items-center justify-between text-xs text-text-muted px-1">
         <span className="font-semibold">
           Showing <strong className="text-navy dark:text-white">{filteredCases.length}</strong> Prescribed Cases
-          {filter !== 'ALL' && ` in ${filter === 'NEW_CASE' ? 'New Cases' : 'Old Cases'}`}
+          {filter !== 'ALL' && ` in ${filter === 'NEW_CASE' ? 'New Cases' : filter === 'BOTH_CASES' ? 'Both Cases' : 'Old Cases'}`}
           {searchQuery && ` matching "${searchQuery}"`}
         </span>
       </div>

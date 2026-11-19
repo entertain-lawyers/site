@@ -1,6 +1,6 @@
-export type CaseCategory = 'NEW_CASE' | 'OLD_CASE';
+export type CaseCategory = 'NEW_CASE' | 'OLD_CASE' | 'BOTH_CASES';
 
-export const CASE_CATEGORY_VALUES = ['NEW_CASE', 'OLD_CASE'] as const;
+export const CASE_CATEGORY_VALUES = ['NEW_CASE', 'OLD_CASE', 'BOTH_CASES'] as const;
 
 export const CASE_CATEGORIES = {
   NEW_CASE: {
@@ -18,6 +18,14 @@ export const CASE_CATEGORIES = {
     description: 'Established precedents and historical landmark judgments prescribed for this subject.',
     badgeClass:
       'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800/40',
+  },
+  BOTH_CASES: {
+    key: 'BOTH_CASES' as CaseCategory,
+    label: 'Both Cases',
+    shortLabel: 'Both',
+    description: 'Precedents relevant as both newly prescribed and established syllabus cases.',
+    badgeClass:
+      'bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800/40',
   },
 } as const;
 
@@ -58,6 +66,14 @@ export const CASE_LAW_CATEGORIES = {
 export function parseCaseCategory(val?: string | null): CaseCategory | null {
   if (!val) return null;
   const normalized = val.trim().toUpperCase().replace(/[-\s]/g, '_');
+  if (
+    normalized.includes('BOTH_CASES') ||
+    normalized.includes('BOTH_CASE') ||
+    normalized === 'BOTH' ||
+    normalized.includes(':BOTH')
+  ) {
+    return 'BOTH_CASES';
+  }
   if (normalized.includes('NEW_CASE') || normalized === 'NEW') return 'NEW_CASE';
   if (normalized.includes('OLD_CASE') || normalized === 'OLD') return 'OLD_CASE';
   return null;

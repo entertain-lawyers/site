@@ -101,7 +101,10 @@ export default async function AdminResourcesPage({
       ? {
           OR: [
             { metaTitle: caseCategoryFilter },
-            { metaTitle: caseCategoryFilter === 'NEW_CASE' ? 'NEW' : 'OLD' },
+            { metaTitle: { contains: caseCategoryFilter } },
+            ...(caseCategoryFilter === 'NEW_CASE' ? [{ metaTitle: 'NEW' }] : []),
+            ...(caseCategoryFilter === 'OLD_CASE' ? [{ metaTitle: 'OLD' }] : []),
+            ...(caseCategoryFilter === 'BOTH_CASES' ? [{ metaTitle: 'BOTH' }] : []),
           ],
         }
       : {}),
@@ -352,6 +355,7 @@ export default async function AdminResourcesPage({
                 <option value="">All Case Types</option>
                 <option value="NEW_CASE">New Case</option>
                 <option value="OLD_CASE">Old Case</option>
+                <option value="BOTH_CASES">Both Cases</option>
               </select>
             </div>
           )}

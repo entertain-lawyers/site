@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ResourceType, ContentStatus } from '@prisma/client';
-import StudyCardNavigator from '@/components/study/StudyCardNavigator';
+import StudyCardNavigator, { UnitOption } from '@/components/study/StudyCardNavigator';
 import { AdminResourceForm } from '@/components/admin/AdminResourceForm';
 import {
   encodeCaseClassification,
@@ -166,14 +166,40 @@ describe('Unit Materials Visibility & Direct Unit Navigation Regression Suite', 
       expect(html).toContain('2 New • 3 Old Cases');
       expect(html).toContain('unit=virtual-unit-cases');
     });
+
+    it('correctly counts Both Cases toward both newCaseCount and oldCaseCount on unit cards', () => {
+      // 1 New Case, 1 Old Case, and 1 Both Cases = 2 New • 2 Old Cases, total 3 materials
+      const units: UnitOption[] = [
+        {
+          id: 'virtual-unit-cases',
+          name: 'Prescribed Cases',
+          title: null,
+          resourceCount: 3,
+          newCaseCount: 2, // 1 NEW + 1 BOTH
+          oldCaseCount: 2, // 1 OLD + 1 BOTH
+        },
+      ];
+
+      const html = renderToStaticMarkup(
+        <StudyCardNavigator
+          semesters={[{ id: 'sem-1', name: '1st Semester', order: 1 }]}
+          subjects={[{ id: 'sub-company-law', name: 'Company Law', order: 1 }]}
+          units={units}
+          selectedSemesterId="sem-1"
+          selectedSubjectId="sub-company-law"
+        />
+      );
+
+      expect(html).toContain('2 New • 2 Old Cases');
+    });
   });
 
-  describe('2. AdminResourceForm: Optional "Also publish in Case Laws?" setting', () => {
+  describe('2. AdminResourceForm: Optional "Also publish in Case Laws?" setting & Both Cases', () => {
     const semesters = [{ id: 'sem-1', name: '1st Semester' }];
     const subjects = [{ id: 'sub-1', name: 'Constitutional Law', semesterId: 'sem-1' }];
     const units = [{ id: 'unit-cases', name: 'Prescribed Cases', subjectId: 'sub-1' }];
 
-    it('defaults "Also publish in Case Laws?" to OFF (unchecked) when creating a Case Law', () => {
+    it('renders all three options (New Case, Old Case, Both Cases) in AdminResourceForm', () => {
       const html = renderToStaticMarkup(
         <AdminResourceForm
           semesters={semesters}
@@ -184,10 +210,11 @@ describe('Unit Materials Visibility & Direct Unit Navigation Regression Suite', 
         />
       );
 
-      // Verify Case Category is rendered
+      // Verify all 3 options are rendered
       expect(html).toContain('Case Category');
       expect(html).toContain('New Case');
       expect(html).toContain('Old Case');
+      expect(html).toContain('Both Cases');
 
       // Verify "Also publish in Case Laws?" toggle exists and is NOT checked by default
       expect(html).toContain('Also publish in Case Laws?');
@@ -195,6 +222,47 @@ describe('Unit Materials Visibility & Direct Unit Navigation Regression Suite', 
 
       // Since it is default OFF, Case Law Classification (Civil, Criminal, Writ) should NOT be rendered
       expect(html).not.toContain('data-testid="case-law-category-section"');
+    });
+
+    it('correctly initializes Both Cases as selected when editing a resource with BOTH_CASES', () => {
+      const existingResource = {
+        id: 'res-case-both',
+        title: 'Landmark Precedent on Constitutional Review',
+        content: '<p>Content</p>',
+        description: 'Summary',
+        semesterId: 'sem-1',
+        subjectId: 'sub-1',
+        unitId: 'unit-cases',
+        type: ResourceType.CASE_LAW,
+        isPremium: false,
+        priceAmount: 0,
+        status: ContentStatus.PUBLISHED,
+        authorId: null,
+        hasDocument: false,
+        caseCategory: 'BOTH_CASES' as const,
+        caseLawCategory: 'CIVIL' as const,
+        metaTitle: 'CIVIL:BOTH_CASES',
+      };
+
+      const html = renderToStaticMarkup(
+        <AdminResourceForm
+          semesters={semesters}
+          subjects={subjects}
+          units={units}
+          canManageLawTypes={true}
+          resource={existingResource}
+        />
+      );
+
+      // Verify Both Cases radio button is checked
+      expect(html).toContain('aria-checked="true"');
+      expect(html).toContain('Both Cases');
+
+      // Verify "Also publish in Case Laws?" is checked and Civil is selected
+      expect(html).toContain('id="alsoPublishInCaseLaws"');
+      expect(html).toContain('checked=""');
+      expect(html).toContain('data-testid="case-law-category-section"');
+      expect(html).toContain('Civil Cases');
     });
 
     it('correctly initializes "Also publish in Case Laws?" as ON when editing a resource that has a case law classification', () => {
@@ -266,6 +334,29 @@ describe('Unit Materials Visibility & Direct Unit Navigation Regression Suite', 
       expect(getCaseLawCategory({ metaTitle: encoded })).toBe('CRIMINAL');
     });
 
+    it('encodes and parses BOTH_CASES correctly alone and with case law classification', () => {
+      // Standalone Both Cases
+      const standalone = encodeCaseClassification({
+        caseCategory: 'BOTH_CASES',
+        caseLawCategory: null,
+      });
+      expect(standalone).toBe('BOTH_CASES');
+      expect(parseCaseCategory(standalone)).toBe('BOTH_CASES');
+      expect(parseCaseLawCategory(standalone)).toBe(null);
+      expect(getCaseCategory({ metaTitle: standalone })).toBe('BOTH_CASES');
+
+      // Composite with Case Law classification
+      const composite = encodeCaseClassification({
+        caseCategory: 'BOTH_CASES',
+        caseLawCategory: 'WRIT',
+      });
+      expect(composite).toBe('WRIT:BOTH_CASES');
+      expect(parseCaseCategory(composite)).toBe('BOTH_CASES');
+      expect(parseCaseLawCategory(composite)).toBe('WRIT');
+      expect(getCaseCategory({ metaTitle: composite })).toBe('BOTH_CASES');
+      expect(getCaseLawCategory({ metaTitle: composite })).toBe('WRIT');
+    });
+
     it('gracefully parses legacy unclassified cases with only Case Law classification', () => {
       const encoded = 'WRIT';
       expect(parseCaseLawCategory(encoded)).toBe('WRIT');
@@ -275,7 +366,7 @@ describe('Unit Materials Visibility & Direct Unit Navigation Regression Suite', 
     });
   });
 
-  describe('4. Prescribed Cases Filtering & Search Integration', () => {
+  describe('4. Prescribed Cases Filtering & Search Integration with Both Cases', () => {
     const testCases: PrescribedCaseItem[] = [
       {
         id: 'case-new-civil',
@@ -300,6 +391,17 @@ describe('Unit Materials Visibility & Direct Unit Navigation Regression Suite', 
         canAccess: false,
       },
       {
+        id: 'case-both-writ',
+        title: 'Case No. 068-WR-099: Dual Syllabus Precedent on Equal Protection',
+        content: 'Constitutional equality and non-discrimination benchmark.',
+        metaTitle: 'WRIT:BOTH_CASES',
+        metaDesc: 'Both syllabus case on fundamental equality',
+        documentId: null,
+        isPremium: false,
+        priceAmount: 0,
+        canAccess: true,
+      },
+      {
         id: 'case-legacy-unclassified',
         title: 'Constitutional Writ 2058: Right to Information and Transparency',
         content: 'Fundamental rights petition under Article 27.',
@@ -312,7 +414,7 @@ describe('Unit Materials Visibility & Direct Unit Navigation Regression Suite', 
       },
     ];
 
-    it('includes all cases including legacy unclassified cases when viewing All Cases', () => {
+    it('includes all cases including legacy unclassified and Both Cases when viewing All Cases', () => {
       const html = renderToStaticMarkup(
         <PrescribedCasesView
           cases={testCases}
@@ -322,17 +424,20 @@ describe('Unit Materials Visibility & Direct Unit Navigation Regression Suite', 
         />
       );
 
-      // Verify all 3 cases appear under All Cases
-      expect(html).toContain('All Cases (3)');
-      expect(html).toContain('New Cases (1)');
-      expect(html).toContain('Old Cases (1)');
+      // Verify all 4 cases appear under All Cases
+      expect(html).toContain('All Cases (4)');
+      // Both Cases contributes to both New Cases and Old Cases counts:
+      expect(html).toContain('New Cases (2)'); // 1 NEW + 1 BOTH
+      expect(html).toContain('Old Cases (2)'); // 1 OLD + 1 BOTH
+      expect(html).toContain('Both Cases (1)'); // 1 BOTH
 
       expect(html).toContain('Case No. 079-CI-001');
       expect(html).toContain('Case No. 045-CR-012');
+      expect(html).toContain('Case No. 068-WR-099');
       expect(html).toContain('Constitutional Writ 2058');
     });
 
-    it('filters strictly to New Cases when NEW_CASE filter is selected', () => {
+    it('displays New Cases and Both Cases when NEW_CASE filter is selected', () => {
       const html = renderToStaticMarkup(
         <PrescribedCasesView
           cases={testCases}
@@ -342,12 +447,16 @@ describe('Unit Materials Visibility & Direct Unit Navigation Regression Suite', 
         />
       );
 
+      // Both New Case and Both Cases must appear
       expect(html).toContain('Case No. 079-CI-001');
+      expect(html).toContain('Case No. 068-WR-099');
+
+      // Old Case and unclassified cases should NOT appear
       expect(html).not.toContain('Case No. 045-CR-012');
       expect(html).not.toContain('Constitutional Writ 2058');
     });
 
-    it('filters strictly to Old Cases when OLD_CASE filter is selected', () => {
+    it('displays Old Cases and Both Cases when OLD_CASE filter is selected', () => {
       const html = renderToStaticMarkup(
         <PrescribedCasesView
           cases={testCases}
@@ -357,8 +466,28 @@ describe('Unit Materials Visibility & Direct Unit Navigation Regression Suite', 
         />
       );
 
+      // Both Old Case and Both Cases must appear
       expect(html).toContain('Case No. 045-CR-012');
+      expect(html).toContain('Case No. 068-WR-099');
+
+      // New Case and unclassified cases should NOT appear
       expect(html).not.toContain('Case No. 079-CI-001');
+      expect(html).not.toContain('Constitutional Writ 2058');
+    });
+
+    it('displays strictly Both Cases when BOTH_CASES filter is selected', () => {
+      const html = renderToStaticMarkup(
+        <PrescribedCasesView
+          cases={testCases}
+          unitName="Prescribed Cases"
+          unitTitle="Curriculum Case Laws"
+          initialCategory="BOTH_CASES"
+        />
+      );
+
+      expect(html).toContain('Case No. 068-WR-099');
+      expect(html).not.toContain('Case No. 079-CI-001');
+      expect(html).not.toContain('Case No. 045-CR-012');
       expect(html).not.toContain('Constitutional Writ 2058');
     });
   });

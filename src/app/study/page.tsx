@@ -417,8 +417,14 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
           r => r.type === ResourceType.CASE_LAW || isPrescribedCasesUnit(r.unit) || r.unitId === u.id
         );
         u.resourceCount = cases.length;
-        u.newCaseCount = cases.filter(c => getCaseCategory(c) === 'NEW_CASE').length;
-        u.oldCaseCount = cases.filter(c => getCaseCategory(c) === 'OLD_CASE').length;
+        u.newCaseCount = cases.filter(c => {
+          const cat = getCaseCategory(c);
+          return cat === 'NEW_CASE' || cat === 'BOTH_CASES';
+        }).length;
+        u.oldCaseCount = cases.filter(c => {
+          const cat = getCaseCategory(c);
+          return cat === 'OLD_CASE' || cat === 'BOTH_CASES';
+        }).length;
       } else {
         const unitNumMatch = u.name.match(/\d+/);
         const unitNum = unitNumMatch ? parseInt(unitNumMatch[0], 10) : null;

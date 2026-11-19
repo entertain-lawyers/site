@@ -1,5 +1,5 @@
 import { parseCaseCategory, CASE_CATEGORIES, CaseCategory } from '@/lib/case-category';
-import { Sparkles, History } from 'lucide-react';
+import { Sparkles, History, BookmarkCheck } from 'lucide-react';
 
 interface CaseCategoryBadgeProps {
   category?: CaseCategory | string | null;
@@ -18,7 +18,7 @@ export default function CaseCategoryBadge({
   if (!parsed) return null;
 
   const config = CASE_CATEGORIES[parsed];
-  const Icon = parsed === 'NEW_CASE' ? Sparkles : History;
+  const Icon = parsed === 'NEW_CASE' ? Sparkles : parsed === 'BOTH_CASES' ? BookmarkCheck : History;
 
   const sizeClasses =
     size === 'sm'
