@@ -23,7 +23,6 @@ import {
   getCaseLawCategory,
   formatCaseLawCategory,
 } from '@/lib/case-category';
-import CaseCategoryBadge from '@/components/study/CaseCategoryBadge';
 import CaseLawCategoryBadge from '@/components/study/CaseLawCategoryBadge';
 import { m } from '@/components/motion/primitives';
 import { springSnappy } from '@/lib/motion';
@@ -222,7 +221,10 @@ export default function PrescribedCasesView({
 
   const handleDownload = (item: PrescribedCaseItem) => {
     if (!item.documentId && !item.document) {
-      window.location.href = `/read/${item.id}`;
+      if (typeof window !== 'undefined') {
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.assign(`/read/${item.id}`);
+      }
       return;
     }
     const a = document.createElement('a');
