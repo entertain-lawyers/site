@@ -689,7 +689,7 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
                 ? false
                 : selectedType === 'OLD_QUESTION'
                   ? (!selectedSemesterId && !searchQuery)
-                  : (!selectedSubjectId && !searchQuery)
+                  : (units.length > 0 ? (!selectedUnitId && !searchQuery) : (!selectedSubjectId && !searchQuery))
             ) ? null : resources.length === 0 ? (
               <div className="bg-surface border border-border rounded-2xl p-8 sm:p-16 text-center shadow-soft flex flex-col items-center justify-center">
                 <div className="w-16 h-16 bg-surface border border-border rounded-full flex items-center justify-center mb-6 text-text-muted shadow-sm">

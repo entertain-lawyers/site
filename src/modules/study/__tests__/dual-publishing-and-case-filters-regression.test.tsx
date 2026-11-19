@@ -243,6 +243,7 @@ describe('Admin Study Resources Dual Publishing & Case Filters Regression Suite'
         type: 'LAW_NOTE',
         semester: SEMESTER_ID,
         subject: SUBJECT_ID,
+        unit: UNIT_ID,
       }),
     });
     const lawNotesHtml = renderToStaticMarkup(lawNotesPage);

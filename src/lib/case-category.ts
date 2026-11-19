@@ -138,6 +138,7 @@ export function formatCaseLawCategory(cat?: string | null): string | null {
  * Extracts the case category (New Case / Old Case) from a resource object.
  */
 export function getCaseCategory(resource?: {
+  title?: string | null;
   metaTitle?: string | null;
   caseCategory?: string | null;
   type?: string | null;
@@ -150,6 +151,24 @@ export function getCaseCategory(resource?: {
   if (resource.metaTitle) {
     const parsed = parseCaseCategory(resource.metaTitle);
     if (parsed) return parsed;
+  }
+  if (resource.title) {
+    const upper = resource.title.toUpperCase();
+    if (
+      upper.includes('OLD AND NEW') ||
+      upper.includes('NEW AND OLD') ||
+      upper.includes('BOTH SYLLABUS') ||
+      upper.includes('BOTH CASES') ||
+      upper.includes('BOTH CASE')
+    ) {
+      return 'BOTH_CASES';
+    }
+    if (upper.includes('NEW SYLLABUS') || upper.includes('NEW CASE')) {
+      return 'NEW_CASE';
+    }
+    if (upper.includes('OLD SYLLABUS') || upper.includes('OLD CASE')) {
+      return 'OLD_CASE';
+    }
   }
   return null;
 }

@@ -160,10 +160,17 @@ export default function StudyCardNavigator({
           if (isCase) {
             icon = Scale;
             href = buildHref('unit', u.id);
-            subtitle =
-              u.newCaseCount !== undefined && u.oldCaseCount !== undefined
-                ? `${u.newCaseCount} New • ${u.oldCaseCount} Old Cases`
-                : 'Prescribed Cases';
+            const totalCases = u.resourceCount ?? 0;
+            const newCount = u.newCaseCount ?? 0;
+            const oldCount = u.oldCaseCount ?? 0;
+
+            if (newCount > 0 || oldCount > 0) {
+              subtitle = `${newCount} New • ${oldCount} Old Cases`;
+            } else if (totalCases > 0) {
+              subtitle = `${totalCases} ${totalCases === 1 ? 'Case' : 'Cases'} Available`;
+            } else {
+              subtitle = 'No Cases Yet';
+            }
           } else if (u.singleResourceId) {
             // DIRECT UNIT NAVIGATION: single resource opens directly!
             icon = BookOpen;
