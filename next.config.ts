@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  deploymentId:
+    process.env.NEXT_DEPLOYMENT_ID ||
+    process.env.VERCEL_DEPLOYMENT_ID ||
+    process.env.VERCEL_GIT_COMMIT_SHA ||
+    process.env.GIT_SHA ||
+    undefined,
   poweredByHeader: false,
   compress: true,
   images: {

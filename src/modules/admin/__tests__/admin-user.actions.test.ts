@@ -37,6 +37,13 @@ type MockUser = {
   sessionVersion?: number;
   emailVerified?: Date | null;
   isEmailVerified?: boolean;
+  firstName?: string | null;
+  lastName?: string | null;
+  nickname?: string | null;
+  bio?: string | null;
+  website?: string | null;
+  wpAuthorIdEn?: number | null;
+  wpAuthorIdNe?: number | null;
 };
 
 let mockUsers: MockUser[] = [];
@@ -57,6 +64,17 @@ vi.mock('@/lib/prisma', () => ({
         return null;
       }),
       findMany: vi.fn(async () => mockUsers),
+      findFirst: vi.fn(async ({ where }: { where?: any }) => {
+        return (
+          mockUsers.find((u) => {
+            if (where?.id?.not && u.id === where.id.not) return false;
+            if (where?.wpAuthorIdEn && u.wpAuthorIdEn === where.wpAuthorIdEn) return true;
+            if (where?.wpAuthorIdNe && u.wpAuthorIdNe === where.wpAuthorIdNe) return true;
+            if (where?.email && u.email === where.email) return true;
+            return false;
+          }) ?? null
+        );
+      }),
       count: vi.fn(async ({ where }: { where?: any }) => {
         let list = mockUsers;
         if (where?.role) {
@@ -100,11 +118,12 @@ vi.mock('@/lib/prisma', () => ({
             clientVersion: '6.0.0',
           });
         }
-        if (data.email) user.email = data.email;
-        if (data.role) user.role = data.role;
-        if (data.passwordHash) user.passwordHash = data.passwordHash;
-        if (data.sessionVersion?.increment) {
-          user.sessionVersion = (user.sessionVersion || 0) + data.sessionVersion.increment;
+        for (const [key, val] of Object.entries(data)) {
+          if (key === 'sessionVersion' && typeof val === 'object' && val && 'increment' in val) {
+            user.sessionVersion = (user.sessionVersion || 0) + (val as any).increment;
+          } else {
+            (user as any)[key] = val;
+          }
         }
         return user;
       }),
@@ -391,6 +410,124 @@ describe('admin-user.actions', () => {
       expect(result.success).toBe(false);
       if (!result.success) {
         expect(result.error).toBe('Password must not exceed 128 characters');
+      }
+    });
+
+    it('updates user profile fields and display name', async () => {
+      const result = await updateUserAction({
+        id: '33333333-3333-4333-8333-333333333333',
+        firstName: 'John',
+        lastName: 'Doe',
+        nickname: 'johnd',
+        displayName: 'John Doe',
+        bio: 'Senior legal advocate',
+        website: 'https://johndoe.law',
+        image: 'https://example.com/avatar.jpg',
+      });
+
+      expect(result.success).toBe(true);
+      const updated = mockUsers.find((u) => u.id === '33333333-3333-4333-8333-333333333333');
+      expect((updated as any)?.firstName).toBe('John');
+      expect((updated as any)?.lastName).toBe('Doe');
+      expect((updated as any)?.nickname).toBe('johnd');
+      expect(updated?.name).toBe('John Doe');
+      expect((updated as any)?.bio).toBe('Senior legal advocate');
+      expect((updated as any)?.website).toBe('https://johndoe.law');
+      expect(updated?.image).toBe('https://example.com/avatar.jpg');
+    });
+
+    it('updates user role and increments sessionVersion to invalidate stale JWTs', async () => {
+      const result = await updateUserAction({
+        id: '33333333-3333-4333-8333-333333333333',
+        role: Role.USER,
+      });
+
+      expect(result.success).toBe(true);
+      const updated = mockUsers.find((u) => u.id === '33333333-3333-4333-8333-333333333333');
+      expect(updated?.role).toBe(Role.USER);
+      expect(updated?.sessionVersion).toBe(1);
+    });
+
+    it('prevents demoting the main admin account', async () => {
+      const result = await updateUserAction({
+        id: '11111111-1111-4111-8111-111111111111',
+        role: Role.EDITOR,
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toBe('The main admin role cannot be changed.');
+      }
+    });
+
+    it('prevents an admin from demoting themselves', async () => {
+      currentSession = {
+        user: {
+          id: '22222222-2222-4222-8222-222222222222',
+          email: 'secondary-admin@example.com',
+          role: Role.ADMIN,
+        },
+      };
+
+      const result = await updateUserAction({
+        id: '22222222-2222-4222-8222-222222222222',
+        role: Role.EDITOR,
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toBe('You cannot remove your own admin role.');
+      }
+    });
+
+    it('allows linking WordPress author id to an editor or admin', async () => {
+      const result = await updateUserAction({
+        id: '33333333-3333-4333-8333-333333333333',
+        wpAuthorIdEn: 42,
+        wpAuthorIdNe: 55,
+      });
+
+      expect(result.success).toBe(true);
+      const updated = mockUsers.find((u) => u.id === '33333333-3333-4333-8333-333333333333');
+      expect((updated as any)?.wpAuthorIdEn).toBe(42);
+      expect((updated as any)?.wpAuthorIdNe).toBe(55);
+    });
+
+    it('allows unlinking WordPress author id with null', async () => {
+      (mockUsers.find((u) => u.id === '33333333-3333-4333-8333-333333333333') as any).wpAuthorIdEn = 42;
+
+      const result = await updateUserAction({
+        id: '33333333-3333-4333-8333-333333333333',
+        wpAuthorIdEn: null,
+      });
+
+      expect(result.success).toBe(true);
+      const updated = mockUsers.find((u) => u.id === '33333333-3333-4333-8333-333333333333');
+      expect((updated as any)?.wpAuthorIdEn).toBeNull();
+    });
+
+    it('rejects WordPress author mapping if user role is USER', async () => {
+      const result = await updateUserAction({
+        id: '33333333-3333-4333-8333-333333333333',
+        role: Role.USER,
+        wpAuthorIdEn: 42,
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toBe('Only Administrators and Editors can be mapped to WordPress authors.');
+      }
+    });
+
+    it('rejects invalid website URLs', async () => {
+      const result = await updateUserAction({
+        id: '33333333-3333-4333-8333-333333333333',
+        website: 'not-a-valid-url',
+      });
+
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toBe('Website must start with http(s):// and look like a URL');
       }
     });
   });
