@@ -184,9 +184,18 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
   const resourceType = input.type ?? ResourceType.LAW_NOTE;
   if (
     session.role === Role.EDITOR &&
-    (resourceType === ResourceType.LAW_NOTE || resourceType === ResourceType.CASE_LAW)
+    resourceType === ResourceType.LAW_NOTE
   ) {
-    throw new UserFacingError('Only admins can create law notes and case laws');
+    throw new UserFacingError('Only admins can create law notes');
+  }
+
+  if (
+    session.role === Role.EDITOR &&
+    resourceType === ResourceType.CASE_LAW &&
+    input.status === ContentStatus.PUBLISHED &&
+    !input.caseCategory
+  ) {
+    throw new UserFacingError('Please select a Case Category (New Case or Old Case) before publishing.');
   }
   // Honour the admin's Premium checkbox instead of deriving it from the type;
   // "Write Note" resources can be free or paid.
@@ -551,16 +560,20 @@ export const setResourcePublishedAction = createSafeAction(async (args: z.infer<
   }
   const { id, published } = parsed.data;
 
-  const existing = await prisma.resource.findUnique({ where: { id }, select: { status: true, type: true } });
+  const existing = await prisma.resource.findUnique({ where: { id }, select: { status: true, type: true, metaTitle: true } });
   if (!existing) throw new Error('Resource not found');
   if (existing.status === ContentStatus.ARCHIVED) {
     throw new UserFacingError('This resource is archived. Restore it before changing its draft status.');
   }
   if (
     session.role === Role.EDITOR &&
-    (existing.type === ResourceType.LAW_NOTE || existing.type === ResourceType.CASE_LAW)
+    existing.type === ResourceType.LAW_NOTE
   ) {
-    throw new UserFacingError('Only admins can publish or unpublish law notes and case laws');
+    throw new UserFacingError('Only admins can publish or unpublish law notes');
+  }
+
+  if (session.role === Role.EDITOR && published && existing.type === ResourceType.CASE_LAW && !existing.metaTitle) {
+    throw new UserFacingError('Please select a Case Category (New Case or Old Case) before publishing this case law.');
   }
 
   const resource = await prisma.resource.update({
@@ -625,6 +638,25 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
 
   // NOTE: Ownership validation is NOT enforced for EDITING resources, as per business rules.
   // Any Editor can maintain/edit content to prevent orphaned data when staff leaves.
+  if (session.role === Role.EDITOR && input.type === ResourceType.LAW_NOTE) {
+    throw new UserFacingError('Only admins can update law notes');
+  }
+
+  if (
+    session.role === Role.EDITOR &&
+    input.type === ResourceType.CASE_LAW &&
+    input.status === ContentStatus.PUBLISHED
+  ) {
+    if (!input.caseCategory) {
+      const existing = await prisma.resource.findUnique({
+        where: { id: input.id },
+        select: { metaTitle: true },
+      });
+      if (!existing?.metaTitle) {
+        throw new UserFacingError('Please select a Case Category (New Case or Old Case) before publishing.');
+      }
+    }
+  }
 
   const isPremium = input.isPremium;
   const priceAmount = isPremium ? (input.priceAmount ?? 0) : null;

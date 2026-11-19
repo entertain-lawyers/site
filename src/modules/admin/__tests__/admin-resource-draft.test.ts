@@ -76,12 +76,27 @@ describe('resource drafts', () => {
     expect(prisma.resource.update).not.toHaveBeenCalled();
   });
 
-  it('keeps law notes and case laws admin-only for editors', async () => {
+  it('keeps law notes admin-only for editors', async () => {
     signInAs(Role.EDITOR);
-    mock(prisma.resource.findUnique).mockResolvedValue({ status: ContentStatus.DRAFT, type: ResourceType.CASE_LAW });
+    mock(prisma.resource.findUnique).mockResolvedValue({ status: ContentStatus.DRAFT, type: ResourceType.LAW_NOTE });
     const res = await setResourcePublishedAction({ id: RESOURCE, published: true });
     expect(res.success === false && res.error).toMatch(/Only admins/);
     expect(prisma.resource.update).not.toHaveBeenCalled();
+  });
+
+  it('allows editors to publish case laws when case category is present', async () => {
+    signInAs(Role.EDITOR);
+    mock(prisma.resource.findUnique).mockResolvedValue({ status: ContentStatus.DRAFT, type: ResourceType.CASE_LAW, metaTitle: 'NEW_CASE' });
+    const res = await setResourcePublishedAction({ id: RESOURCE, published: true });
+    expect(res.success).toBe(true);
+    expect(prisma.resource.update).toHaveBeenCalled();
+  });
+
+  it('requires a case category before publishing a case law', async () => {
+    signInAs(Role.EDITOR);
+    mock(prisma.resource.findUnique).mockResolvedValue({ status: ContentStatus.DRAFT, type: ResourceType.CASE_LAW, metaTitle: null });
+    const res = await setResourcePublishedAction({ id: RESOURCE, published: true });
+    expect(res.success === false && res.error).toMatch(/Case Category/);
   });
 
   it('rejects students and unknown resources', async () => {

@@ -317,7 +317,15 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
   );
 
   const prescribedCases = isPrescribed
-    ? resources.filter((r) => r.type === ResourceType.CASE_LAW || isPrescribedCasesUnit(r.unit))
+    ? resources.filter((r) => {
+        if (r.type !== ResourceType.CASE_LAW && !isPrescribedCasesUnit(r.unit)) {
+          return false;
+        }
+        if (r.unitId && r.unitId !== selectedUnitId && !isPrescribedCasesUnit(r.unit)) {
+          return false;
+        }
+        return true;
+      })
     : [];
   const newCases = prescribedCases.filter((r) => getCaseCategory(r) === 'NEW_CASE');
   const oldCases = prescribedCases.filter((r) => getCaseCategory(r) === 'OLD_CASE');

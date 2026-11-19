@@ -23,9 +23,6 @@ export default async function NewResourcePage({
   const isCaseLaw = type === ResourceType.CASE_LAW;
   const initialCaseCategory = parseCaseCategory(caseCategory);
 
-  if (isCaseLaw && session.user.role !== 'ADMIN') {
-    redirect('/admin/study/resources');
-  }
 
   const semesters = await prisma.semester.findMany({
     orderBy: { order: 'asc' }

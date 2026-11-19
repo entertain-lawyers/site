@@ -11,7 +11,7 @@ import { ResourceType, ContentStatus } from '@prisma/client';
 import { createResourceAction, deleteResourceAction, updateResourceAction } from '@/modules/admin/admin-resource.actions';
 import { editorHtmlToArticleHtml } from '@/lib/editor-html';
 import { confirmDocumentUpload, initiateDocumentUpload } from '@/modules/admin/admin-document.actions';
-import { CaseCategory, parseCaseCategory } from '@/lib/case-category';
+import { CaseCategory, parseCaseCategory, isPrescribedCasesUnit } from '@/lib/case-category';
 import dynamic from 'next/dynamic';
 
 const RichTextEditor = dynamic(() => import('@/components/editor/RichTextEditor'), {
@@ -110,7 +110,7 @@ export function AdminResourceForm({
 
   const availableTypes = canManageLawTypes
     ? RESOURCE_TYPES
-    : RESOURCE_TYPES.filter((type) => type.value !== ResourceType.LAW_NOTE && type.value !== ResourceType.CASE_LAW);
+    : RESOURCE_TYPES.filter((type) => type.value !== ResourceType.LAW_NOTE);
 
   // Editing an existing resource loads its values; creating starts blank or with initialType.
   const initialTypeState = initialType ?? resource?.type ?? availableTypes[0].value;
@@ -118,12 +118,12 @@ export function AdminResourceForm({
   const [description] = useState(resource?.description ?? '');
   const [semesterId, setSemesterId] = useState(resource?.semesterId ?? '');
   const [subjectId, setSubjectId] = useState(resource?.subjectId ?? '');
-  // Editors cannot create law notes/case laws, so start on a type they can use.
+  // Editors can create case laws, old questions, and other study materials; law notes remain admin-only.
   const [resourceType, setResourceType] = useState<ResourceType>(initialTypeState);
   const [caseCategory, setCaseCategory] = useState<CaseCategory | null>(() => {
     if (resource?.caseCategory) return resource.caseCategory;
     if (resource?.metaTitle) return parseCaseCategory(resource.metaTitle);
-    return initialCaseCategory ?? (initialTypeState === ResourceType.CASE_LAW ? 'NEW_CASE' : null);
+    return initialCaseCategory ?? null;
   });
   const [unitId, setUnitId] = useState(resource?.unitId ?? '');
   const [isPremium, setIsPremium] = useState(resource?.isPremium ?? false);
@@ -320,6 +320,13 @@ export function AdminResourceForm({
       return;
     }
 
+    const selectedUnitObj = units.find((u) => u.id === unitId);
+    const isPrescribedUnit = isPrescribedCasesUnit(selectedUnitObj);
+    if ((resourceType === ResourceType.CASE_LAW || isPrescribedUnit) && status === 'PUBLISHED' && !caseCategory) {
+      showValidationError('Please select a Case Category (New Case or Old Case) before publishing.');
+      return;
+    }
+
     setLoading(true);
     setSavingAs(status);
     setError('');
@@ -349,7 +356,7 @@ export function AdminResourceForm({
           priceAmount: isPremium ? parseFloat(priceAmount) * 100 : undefined,
           type: resourceType,
           unitId: resourceType === ResourceType.OLD_QUESTION ? null : (unitId ? unitId : null),
-          caseCategory: resourceType === ResourceType.CASE_LAW ? (caseCategory || 'NEW_CASE') : null,
+          caseCategory: (resourceType === ResourceType.CASE_LAW || isPrescribedUnit) ? caseCategory : null,
           content: uploadMode === 'NOTE' ? editorHtmlToArticleHtml(content) : undefined,
           status: status as ContentStatus,
           authorUserId: submittedAuthorUserId,
@@ -428,7 +435,7 @@ export function AdminResourceForm({
         priceAmount: isPremium ? parseFloat(priceAmount) * 100 : undefined,
         type: resourceType,
         unitId: (resourceType === ResourceType.OLD_QUESTION ? undefined : unitId) || undefined,
-        caseCategory: resourceType === ResourceType.CASE_LAW ? (caseCategory || 'NEW_CASE') : null,
+        caseCategory: (resourceType === ResourceType.CASE_LAW || isPrescribedUnit) ? caseCategory : null,
         // Quill writes one <p> per line; store real paragraphs, as /read renders them.
         content: uploadMode === 'NOTE' ? editorHtmlToArticleHtml(content) : undefined,
         status,
@@ -613,7 +620,14 @@ export function AdminResourceForm({
       <select
         id="resource-unit"
         value={unitId}
-        onChange={e => setUnitId(e.target.value)}
+        onChange={e => {
+          const newUnitId = e.target.value;
+          setUnitId(newUnitId);
+          const unitObj = units.find(u => u.id === newUnitId);
+          if (isPrescribedCasesUnit(unitObj)) {
+            setResourceType(ResourceType.CASE_LAW);
+          }
+        }}
         disabled={!subjectId}
         className={selectClass}
       >
@@ -635,9 +649,6 @@ export function AdminResourceForm({
           onChange={e => {
             const nextType = e.target.value as ResourceType;
             setResourceType(nextType);
-            if (nextType === ResourceType.CASE_LAW && !caseCategory) {
-              setCaseCategory('NEW_CASE');
-            }
           }}
           className={selectClass}
         >
@@ -648,12 +659,12 @@ export function AdminResourceForm({
         <p className="mt-2 text-xs text-text-secondary">Old Question resources are filed by semester; other types are filed by subject.</p>
       </div>
 
-      {resourceType === ResourceType.CASE_LAW && (
-        <div className="pt-2 border-t border-black/5 dark:border-white/5">
+      {(resourceType === ResourceType.CASE_LAW || isPrescribedCasesUnit(units.find(u => u.id === unitId))) && (
+        <div className="pt-2 border-t border-black/5 dark:border-white/5" data-testid="case-category-section">
           <label className="block text-sm font-bold text-navy dark:text-white mb-2">
-            Case Classification <span className="text-accent">*</span>
+            Case Category <span className="text-accent">*</span>
           </label>
-          <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Case Classification">
+          <div className="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Case Category">
             <button
               type="button"
               role="radio"
@@ -684,7 +695,7 @@ export function AdminResourceForm({
             </button>
           </div>
           <p className="mt-2 text-xs text-text-secondary">
-            Distinguishes New Cases from Old Cases inside Prescribed Cases.
+            Select whether this judgment is a New Case or Old Case for this syllabus.
           </p>
         </div>
       )}

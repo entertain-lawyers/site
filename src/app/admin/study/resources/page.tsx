@@ -41,11 +41,11 @@ export default async function AdminResourcesPage({
   const { status: statusParam, type: typeParam, q: qParam, semester: semesterParam, subject: subjectParam, page: pageParam, caseCategory: caseCategoryParam } = await searchParams;
   const isAdmin = session.user.role === 'ADMIN';
 
-  // Optional type filter. Editors may not manage law notes/case laws, so any
-  // attempt to open those views bounces them back to the general list.
+  // Optional type filter. Editors may not manage law notes, so any
+  // attempt to open that view bounces them back to the general list.
   const requestedType = Object.values(ResourceType)
     .find((value) => value === typeParam) as ResourceType | undefined;
-  if (requestedType && !isAdmin && (requestedType === ResourceType.LAW_NOTE || requestedType === ResourceType.CASE_LAW)) {
+  if (requestedType && !isAdmin && requestedType === ResourceType.LAW_NOTE) {
     redirect('/admin/study/resources');
   }
   const isCaseLaw = requestedType === ResourceType.CASE_LAW;
@@ -64,7 +64,7 @@ export default async function AdminResourcesPage({
       ? {}
       : {
           OR: [
-            { type: { notIn: [ResourceType.LAW_NOTE, ResourceType.CASE_LAW] } }
+            { type: { notIn: [ResourceType.LAW_NOTE] } }
           ]
         };
 
@@ -96,7 +96,14 @@ export default async function AdminResourcesPage({
         }
       : {}),
     ...(subjectFilter ? { subjectId: subjectFilter } : {}),
-    ...(caseCategoryFilter ? { metaTitle: caseCategoryFilter } : {}),
+    ...(caseCategoryFilter
+      ? {
+          OR: [
+            { metaTitle: caseCategoryFilter },
+            { metaTitle: caseCategoryFilter === 'NEW_CASE' ? 'NEW' : 'OLD' },
+          ],
+        }
+      : {}),
   };
 
   const whereClause: Prisma.ResourceWhereInput = { AND: [baseTypeFilter, ...(searchWhere ? [searchWhere] : []), metadataWhere] };
