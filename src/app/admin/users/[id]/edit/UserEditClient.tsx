@@ -11,6 +11,7 @@ import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import ImageUpload from '@/components/admin/ImageUpload';
 import { updateUserAction } from '@/modules/admin/admin-user.actions';
+import { getActionErrorMessage, isServerActionNotFoundError } from '@/lib/client-action-utils';
 import { AnimatePresence, Appear, MotionButton } from '@/components/motion/primitives';
 
 interface EditableUser {
@@ -63,6 +64,7 @@ export default function UserEditClient({
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [isStaleAction, setIsStaleAction] = useState(false);
   const [success, setSuccess] = useState('');
 
   // Display-name choices — the live-typed candidates plus whatever still fits.
@@ -85,10 +87,12 @@ export default function UserEditClient({
     e.preventDefault();
     if (password && password.length < 8) {
       setError('Password must be at least 8 characters');
+      setIsStaleAction(false);
       return;
     }
     setSaving(true);
     setError('');
+    setIsStaleAction(false);
     setSuccess('');
 
     try {
@@ -113,7 +117,9 @@ export default function UserEditClient({
       setPassword('');
       router.refresh();
     } catch (err) {
-      setError((err as Error).message || 'Failed to update user');
+      const isStale = isServerActionNotFoundError(err);
+      setIsStaleAction(isStale);
+      setError(getActionErrorMessage(err, 'Failed to update user'));
     } finally {
       setSaving(false);
     }
@@ -127,7 +133,18 @@ export default function UserEditClient({
       <AnimatePresence initial={false}>
       {error && (
         <Appear key="error">
-        <div className="p-4 rounded-xl bg-red-50 border border-red-100 text-red-700 text-sm font-medium">{error}</div>
+        <div className="p-4 rounded-xl bg-red-50 dark:bg-rose-950/30 border border-red-100 dark:border-rose-900/40 text-red-700 dark:text-rose-300 text-sm font-medium flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <span>{error}</span>
+          {isStaleAction && (
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              className="inline-flex items-center justify-center px-3.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-colors shrink-0 cursor-pointer"
+            >
+              Reload Page
+            </button>
+          )}
+        </div>
         </Appear>
       )}
       </AnimatePresence>
