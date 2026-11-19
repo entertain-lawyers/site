@@ -92,7 +92,7 @@ export default async function EditResourcePage({ params }: { params: Promise<{ i
     redirect('/admin/study/resources');
   }
 
-  const { parseCaseCategory } = await import('@/lib/case-category');
+  const { parseCaseCategory, parseCaseLawCategory } = await import('@/lib/case-category');
 
   return (
     <div data-resource-page-shell className="admin-editor-page w-full min-h-screen flex flex-col">
@@ -117,6 +117,7 @@ export default async function EditResourcePage({ params }: { params: Promise<{ i
             description: resource.metaDesc,
             metaTitle: resource.metaTitle,
             caseCategory: parseCaseCategory(resource.metaTitle),
+            caseLawCategory: parseCaseLawCategory(resource.metaTitle),
             semesterId: resource.semesterId ?? resource.subject?.semesterId ?? null,
             subjectId: resource.subjectId,
             unitId: resource.unitId,

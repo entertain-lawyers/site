@@ -59,15 +59,33 @@ export default async function AdminResourcesPage({
   const caseCategoryFilter = parsedCaseCategory ?? '';
   const page = Math.max(1, Number.parseInt(pageParam ?? '', 10) || 1);
 
-  const baseTypeFilter: Prisma.ResourceWhereInput = requestedType
-    ? { type: requestedType }
-    : isAdmin
-      ? {}
-      : {
-          OR: [
-            { type: { notIn: [ResourceType.LAW_NOTE] } }
-          ]
-        };
+  const baseTypeFilter: Prisma.ResourceWhereInput = requestedType === ResourceType.CASE_LAW
+    ? {
+        OR: [
+          { type: ResourceType.CASE_LAW },
+          {
+            AND: [
+              { type: ResourceType.LAW_NOTE },
+              {
+                OR: [
+                  { metaTitle: { contains: 'CIVIL' } },
+                  { metaTitle: { contains: 'CRIMINAL' } },
+                  { metaTitle: { contains: 'WRIT' } },
+                ],
+              },
+            ],
+          },
+        ],
+      }
+    : requestedType
+      ? { type: requestedType }
+      : isAdmin
+        ? {}
+        : {
+            OR: [
+              { type: { notIn: [ResourceType.LAW_NOTE] } }
+            ]
+          };
 
   // Server-side search: match resource title, subject name, or author/creator.
   const searchWhere: Prisma.ResourceWhereInput | undefined = q
@@ -97,17 +115,27 @@ export default async function AdminResourcesPage({
         }
       : {}),
     ...(subjectFilter ? { subjectId: subjectFilter } : {}),
-    ...(caseCategoryFilter
+    ...(caseCategoryFilter === 'NEW_CASE'
       ? {
           OR: [
-            { metaTitle: caseCategoryFilter },
-            { metaTitle: { contains: caseCategoryFilter } },
-            ...(caseCategoryFilter === 'NEW_CASE' ? [{ metaTitle: 'NEW' }] : []),
-            ...(caseCategoryFilter === 'OLD_CASE' ? [{ metaTitle: 'OLD' }] : []),
-            ...(caseCategoryFilter === 'BOTH_CASES' ? [{ metaTitle: 'BOTH' }] : []),
+            { metaTitle: { contains: 'NEW' } },
+            { metaTitle: { contains: 'BOTH' } },
           ],
         }
-      : {}),
+      : caseCategoryFilter === 'OLD_CASE'
+        ? {
+            OR: [
+              { metaTitle: { contains: 'OLD' } },
+              { metaTitle: { contains: 'BOTH' } },
+            ],
+          }
+        : caseCategoryFilter === 'BOTH_CASES'
+          ? {
+              OR: [
+                { metaTitle: { contains: 'BOTH' } },
+              ],
+            }
+          : {}),
   };
 
   const whereClause: Prisma.ResourceWhereInput = { AND: [baseTypeFilter, ...(searchWhere ? [searchWhere] : []), metadataWhere] };
@@ -402,7 +430,7 @@ export default async function AdminResourcesPage({
                               <div className="text-sm font-bold text-navy dark:text-white line-clamp-2 max-w-xs">{resource.title}</div>
                               <div className="flex flex-wrap items-center gap-1.5 mt-1">
                                 <span className="text-xs text-text-muted font-mono" title={resource.id}>ID: {resource.id.split('-')[0]}...</span>
-                                {resource.type === ResourceType.CASE_LAW && (
+                                {(resource.type === ResourceType.CASE_LAW || Boolean(getCaseLawCategory(resource))) && (
                                   <>
                                     <CaseCategoryBadge category={resource.metaTitle} size="sm" />
                                     {getCaseLawCategory(resource) && (
@@ -446,7 +474,7 @@ export default async function AdminResourcesPage({
                         </td>
                         <td className="px-8 py-5 whitespace-nowrap">
                           <div className="flex flex-col gap-1 items-start">
-                            {resource.type === ResourceType.CASE_LAW && (
+                            {(resource.type === ResourceType.CASE_LAW || Boolean(getCaseLawCategory(resource))) && (
                               <>
                                 <CaseCategoryBadge category={resource.metaTitle} size="sm" />
                                 {getCaseLawCategory(resource) && (

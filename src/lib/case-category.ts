@@ -62,20 +62,45 @@ export const CASE_LAW_CATEGORIES = {
 
 /**
  * Normalizes an arbitrary string into a strict CaseCategory or null.
+ * Robustly parses single tokens ('NEW', 'NEW_CASE', 'BOTH', 'BOTH_CASES', 'OLD', 'OLD_CASE'),
+ * combined tokens with delimiters ('CIVIL:NEW', 'CIVIL:NEW_CASE', 'WRIT:BOTH_CASES', 'CRIMINAL:OLD', 'BOTH:WRIT'),
+ * and legacy variations without false positives on bare law categories.
  */
 export function parseCaseCategory(val?: string | null): CaseCategory | null {
   if (!val) return null;
-  const normalized = val.trim().toUpperCase().replace(/[-\s]/g, '_');
+  const normalized = val.trim().toUpperCase().replace(/[-\s/]/g, '_');
+
+  // 1. Both Cases (must precede NEW/OLD checks to prevent matching OLD/NEW in longer tokens)
   if (
+    /(^|[:_])(BOTH_CASES|BOTH_CASE|BOTH)([:_]|$)/.test(normalized) ||
     normalized.includes('BOTH_CASES') ||
     normalized.includes('BOTH_CASE') ||
-    normalized === 'BOTH' ||
-    normalized.includes(':BOTH')
+    normalized.includes(':BOTH') ||
+    normalized.startsWith('BOTH:')
   ) {
     return 'BOTH_CASES';
   }
-  if (normalized.includes('NEW_CASE') || normalized === 'NEW') return 'NEW_CASE';
-  if (normalized.includes('OLD_CASE') || normalized === 'OLD') return 'OLD_CASE';
+
+  // 2. New Case
+  if (
+    /(^|[:_])(NEW_CASE|NEW_CASES|NEW)([:_]|$)/.test(normalized) ||
+    normalized.includes('NEW_CASE') ||
+    normalized.includes(':NEW') ||
+    normalized.startsWith('NEW:')
+  ) {
+    return 'NEW_CASE';
+  }
+
+  // 3. Old Case
+  if (
+    /(^|[:_])(OLD_CASE|OLD_CASES|OLD)([:_]|$)/.test(normalized) ||
+    normalized.includes('OLD_CASE') ||
+    normalized.includes(':OLD') ||
+    normalized.startsWith('OLD:')
+  ) {
+    return 'OLD_CASE';
+  }
+
   return null;
 }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Search,
@@ -80,6 +80,7 @@ export default function PrescribedCasesView({
   initialCategory,
 }: PrescribedCasesViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [prevInitialCategory, setPrevInitialCategory] = useState(initialCategory);
   const [filter, setFilter] = useState<FilterOption>(() => {
     if (initialCategory === 'NEW_CASE' || initialCategory === 'OLD_CASE' || initialCategory === 'BOTH_CASES') {
       return initialCategory;
@@ -87,84 +88,82 @@ export default function PrescribedCasesView({
     return 'ALL';
   });
 
-  useEffect(() => {
-    if (initialCategory === 'NEW_CASE' || initialCategory === 'OLD_CASE' || initialCategory === 'BOTH_CASES') {
-      setFilter(initialCategory);
-    } else if (!initialCategory) {
-      setFilter('ALL');
-    }
-  }, [initialCategory]);
+  if (initialCategory !== prevInitialCategory) {
+    setPrevInitialCategory(initialCategory);
+    setFilter(
+      initialCategory === 'NEW_CASE' || initialCategory === 'OLD_CASE' || initialCategory === 'BOTH_CASES'
+        ? initialCategory
+        : 'ALL'
+    );
+  }
 
-  // Counts for filter pills
+  // 1. Cases matching the search query (if any)
+  const searchFilteredCases = useMemo(() => {
+    if (!searchQuery.trim()) return cases;
+    const q = searchQuery.trim();
+    return cases.filter((item) => {
+      const matchesTitle = searchMatches(item.title, q);
+      const matchesDesc = item.metaDesc ? searchMatches(item.metaDesc, q) : false;
+      const matchesContent = item.content
+        ? searchMatches(item.content.substring(0, 1000), q)
+        : false;
+      const lawCat = getCaseLawCategory(item);
+      const matchesLawCat = lawCat
+        ? searchMatches(lawCat, q) || searchMatches(formatCaseLawCategory(lawCat) || '', q)
+        : false;
+      const caseCat = getCaseCategory(item);
+      const matchesCaseCat = caseCat
+        ? searchMatches(caseCat, q) || searchMatches(formatCaseCategory(caseCat) || '', q)
+        : false;
+
+      return matchesTitle || matchesDesc || matchesContent || matchesLawCat || matchesCaseCat;
+    });
+  }, [cases, searchQuery]);
+
+  // 2. Counts for filter pills (based on search-matching cases so counts and records always agree)
+  const allCasesCount = searchFilteredCases.length;
   const newCasesCount = useMemo(
-    () => cases.filter((c) => {
+    () => searchFilteredCases.filter((c) => {
       const cat = getCaseCategory(c);
       return cat === 'NEW_CASE' || cat === 'BOTH_CASES';
     }).length,
-    [cases]
+    [searchFilteredCases]
   );
   const oldCasesCount = useMemo(
-    () => cases.filter((c) => {
+    () => searchFilteredCases.filter((c) => {
       const cat = getCaseCategory(c);
       return cat === 'OLD_CASE' || cat === 'BOTH_CASES';
     }).length,
-    [cases]
+    [searchFilteredCases]
   );
   const bothCasesCount = useMemo(
-    () => cases.filter((c) => getCaseCategory(c) === 'BOTH_CASES').length,
-    [cases]
+    () => searchFilteredCases.filter((c) => getCaseCategory(c) === 'BOTH_CASES').length,
+    [searchFilteredCases]
   );
-  const allCasesCount = cases.length;
 
-  // Filter and search
+  // 3. Filtered cases by active tab
   const filteredCases = useMemo(() => {
-    return cases.filter((item) => {
-      // 1. Classification filter
-      if (filter === 'NEW_CASE') {
+    if (filter === 'NEW_CASE') {
+      return searchFilteredCases.filter((item) => {
         const cat = getCaseCategory(item);
-        if (cat !== 'NEW_CASE' && cat !== 'BOTH_CASES') {
-          return false;
-        }
-      }
-      if (filter === 'OLD_CASE') {
+        return cat === 'NEW_CASE' || cat === 'BOTH_CASES';
+      });
+    }
+    if (filter === 'OLD_CASE') {
+      return searchFilteredCases.filter((item) => {
         const cat = getCaseCategory(item);
-        if (cat !== 'OLD_CASE' && cat !== 'BOTH_CASES') {
-          return false;
-        }
-      }
-      if (filter === 'BOTH_CASES') {
+        return cat === 'OLD_CASE' || cat === 'BOTH_CASES';
+      });
+    }
+    if (filter === 'BOTH_CASES') {
+      return searchFilteredCases.filter((item) => {
         const cat = getCaseCategory(item);
-        if (cat !== 'BOTH_CASES') {
-          return false;
-        }
-      }
-      // 'ALL' includes all cases, including unclassified legacy cases
-
-      // 2. Search query matching across title, case number, summary, and categories
-      if (searchQuery.trim()) {
-        const q = searchQuery.trim();
-        const matchesTitle = searchMatches(item.title, q);
-        const matchesDesc = item.metaDesc ? searchMatches(item.metaDesc, q) : false;
-        const matchesContent = item.content
-          ? searchMatches(item.content.substring(0, 1000), q)
-          : false;
-        const lawCat = getCaseLawCategory(item);
-        const matchesLawCat = lawCat
-          ? searchMatches(lawCat, q) || searchMatches(formatCaseLawCategory(lawCat) || '', q)
-          : false;
-        const caseCat = getCaseCategory(item);
-        const matchesCaseCat = caseCat
-          ? searchMatches(caseCat, q) || searchMatches(formatCaseCategory(caseCat) || '', q)
-          : false;
-
-        if (!matchesTitle && !matchesDesc && !matchesContent && !matchesLawCat && !matchesCaseCat) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [cases, filter, searchQuery]);
+        return cat === 'BOTH_CASES';
+      });
+    }
+    // 'ALL' includes all search-matching cases, including unclassified legacy cases
+    return searchFilteredCases;
+  }, [searchFilteredCases, filter]);
 
   const handleResetFilters = () => {
     setSearchQuery('');

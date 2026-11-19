@@ -4,8 +4,8 @@ import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  Archive, BookmarkCheck, CheckCircle2, ChevronLeft, ChevronRight, CircleDot, ExternalLink, Eye, FileText, History, Landmark, Loader2,
-  RotateCcw, Scale, ShieldAlert, Sparkles, TriangleAlert,
+  Archive, BookmarkCheck, BookOpen, CheckCircle2, ChevronLeft, ChevronRight, CircleDot, ExternalLink, Eye, FileText, History, Image as ImageIcon, Landmark, Loader2,
+  Lock, PenTool, RotateCcw, Scale, ShieldAlert, Sparkles, TriangleAlert, UploadCloud, User,
 } from 'lucide-react';
 import { ResourceType, ContentStatus } from '@prisma/client';
 import { createResourceAction, deleteResourceAction, updateResourceAction } from '@/modules/admin/admin-resource.actions';
@@ -342,15 +342,25 @@ export function AdminResourceForm({
     const selectedUnitObj = units.find((u) => u.id === unitId);
     const isPrescribedUnit = isPrescribedCasesUnit(selectedUnitObj);
     const isCase = resourceType === ResourceType.CASE_LAW || isPrescribedUnit;
+    const isDualPublishLawNote = resourceType === ResourceType.LAW_NOTE && alsoPublishInCaseLaws;
 
     if (isCase && status === 'PUBLISHED' && !caseCategory) {
-      showValidationError('Please select a Case Category (New Case or Old Case) before publishing.');
+      showValidationError('Please select a Case Category (New Case, Old Case, or Both Cases) before publishing.');
       return;
     }
-    if (isCase && alsoPublishInCaseLaws && status === 'PUBLISHED' && !caseLawCategory) {
+    if ((isCase || isDualPublishLawNote) && alsoPublishInCaseLaws && status === 'PUBLISHED' && !caseLawCategory) {
       showValidationError('Please select a Case Law Classification (Civil, Criminal, or Writ) when "Also publish in Case Laws" is enabled.');
       return;
     }
+
+    const effectiveCaseCategory = isCase
+      ? caseCategory
+      : isDualPublishLawNote
+        ? (caseCategory || 'NEW_CASE')
+        : null;
+    const effectiveCaseLawCategory = (isCase || isDualPublishLawNote) && alsoPublishInCaseLaws
+      ? caseLawCategory
+      : null;
 
     setLoading(true);
     setSavingAs(status);
@@ -381,8 +391,8 @@ export function AdminResourceForm({
           priceAmount: isPremium ? parseFloat(priceAmount) * 100 : undefined,
           type: resourceType,
           unitId: resourceType === ResourceType.OLD_QUESTION ? null : (unitId ? unitId : null),
-          caseCategory: isCase ? caseCategory : null,
-          caseLawCategory: isCase && alsoPublishInCaseLaws ? caseLawCategory : null,
+          caseCategory: effectiveCaseCategory,
+          caseLawCategory: effectiveCaseLawCategory,
           content: uploadMode === 'NOTE' ? editorHtmlToArticleHtml(content) : undefined,
           status: status as ContentStatus,
           authorUserId: submittedAuthorUserId,
@@ -461,8 +471,8 @@ export function AdminResourceForm({
         priceAmount: isPremium ? parseFloat(priceAmount) * 100 : undefined,
         type: resourceType,
         unitId: (resourceType === ResourceType.OLD_QUESTION ? undefined : unitId) || undefined,
-        caseCategory: isCase ? caseCategory : null,
-        caseLawCategory: isCase && alsoPublishInCaseLaws ? caseLawCategory : null,
+        caseCategory: effectiveCaseCategory,
+        caseLawCategory: effectiveCaseLawCategory,
         // Quill writes one <p> per line; store real paragraphs, as /read renders them.
         content: uploadMode === 'NOTE' ? editorHtmlToArticleHtml(content) : undefined,
         status,
@@ -666,7 +676,9 @@ export function AdminResourceForm({
     </div>
   );
 
-  const isCase = resourceType === ResourceType.CASE_LAW || isPrescribedCasesUnit(units.find(u => u.id === unitId));
+  const isPrescribedUnit = isPrescribedCasesUnit(units.find(u => u.id === unitId));
+  const isCase = resourceType === ResourceType.CASE_LAW || isPrescribedUnit;
+  const isLawNote = resourceType === ResourceType.LAW_NOTE;
 
   const typeField = (
     <div className="space-y-4">
@@ -688,9 +700,9 @@ export function AdminResourceForm({
         <p className="mt-2 text-xs text-text-secondary">Old Question resources are filed by semester; other types are filed by subject.</p>
       </div>
 
+      {/* Case Category when this is a Case Law or Prescribed Cases unit */}
       {isCase && (
         <div className="space-y-4 pt-2 border-t border-black/5 dark:border-white/5">
-          {/* 1. Case Category (New Case / Old Case) */}
           <div data-testid="case-category-section">
             <label className="block text-sm font-bold text-navy dark:text-white mb-2">
               Case Category <span className="text-accent">*</span>
@@ -743,37 +755,48 @@ export function AdminResourceForm({
               Select whether this judgment is a New Case, Old Case, or Both Cases for this syllabus.
             </p>
           </div>
+        </div>
+      )}
 
-          {/* 2. Optional "Also publish in Case Laws?" setting (Default OFF) */}
-          <div className="pt-3 border-t border-black/5 dark:border-white/5" data-testid="also-publish-case-law-section">
-            <div className="flex items-start gap-3">
-              <input
-                id="alsoPublishInCaseLaws"
-                type="checkbox"
-                checked={alsoPublishInCaseLaws}
-                onChange={(e) => {
-                  const checked = e.target.checked;
-                  setAlsoPublishInCaseLaws(checked);
-                  if (!checked) {
-                    setCaseLawCategory(null);
+      {/* "Also publish in Case Laws?" setting: Available for both Prescribed Cases and Law Notes */}
+      {(isCase || isLawNote) && (
+        <div className="pt-3 border-t border-black/5 dark:border-white/5" data-testid="also-publish-case-law-section">
+          <div className="flex items-start gap-3">
+            <input
+              id="alsoPublishInCaseLaws"
+              type="checkbox"
+              checked={alsoPublishInCaseLaws}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setAlsoPublishInCaseLaws(checked);
+                if (!checked) {
+                  setCaseLawCategory(null);
+                  if (isLawNote) {
+                    setCaseCategory(null);
                   }
-                }}
-                className="mt-1 h-4 w-4 rounded border-black/20 text-accent focus:ring-accent"
-              />
-              <div>
-                <label htmlFor="alsoPublishInCaseLaws" className="text-sm font-bold text-navy dark:text-white cursor-pointer select-none">
-                  Also publish in Case Laws?
-                </label>
-                <p className="text-xs text-text-secondary mt-0.5">
-                  Publish this resource under the public Case Laws directory in addition to its curriculum syllabus. (Default: Off)
-                </p>
-              </div>
+                } else {
+                  if (isLawNote && !caseCategory) {
+                    setCaseCategory('NEW_CASE');
+                  }
+                }
+              }}
+              className="mt-1 h-4 w-4 rounded border-black/20 text-accent focus:ring-accent"
+            />
+            <div>
+              <label htmlFor="alsoPublishInCaseLaws" className="text-sm font-bold text-navy dark:text-white cursor-pointer select-none">
+                Also publish in Case Laws?
+              </label>
+              <p className="text-xs text-text-secondary mt-0.5">
+                Publish this resource under the public Case Laws directory in addition to its curriculum syllabus. (Default: Off)
+              </p>
             </div>
+          </div>
 
-            {/* 3. Conditional Case Law Classification (Civil, Criminal, Writ) */}
-            {alsoPublishInCaseLaws && (
-              <div className="mt-3 pl-7 space-y-2" data-testid="case-law-category-section">
-                <label className="block text-xs font-bold text-navy dark:text-white uppercase tracking-wider">
+          {/* Conditional Case Law Classification (Civil, Criminal, Writ) */}
+          {alsoPublishInCaseLaws && (
+            <div className="mt-3 pl-7 space-y-3" data-testid="case-law-category-section">
+              <div>
+                <label className="block text-xs font-bold text-navy dark:text-white uppercase tracking-wider mb-2">
                   Case Law Classification <span className="text-accent">*</span>
                 </label>
                 <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Case Law Classification">
@@ -820,12 +843,66 @@ export function AdminResourceForm({
                     <span>Writ Cases</span>
                   </button>
                 </div>
-                <p className="text-xs text-text-secondary">
-                  Select Civil, Criminal, or Writ to classify this case under the public Case Laws taxonomy.
-                </p>
               </div>
-            )}
-          </div>
+
+              {/* If it's a Law Note dual-publishing in Case Laws, also allow choosing timeline filter */}
+              {isLawNote && !isCase && (
+                <div>
+                  <label className="block text-xs font-bold text-navy dark:text-white uppercase tracking-wider mb-2">
+                    Case Law Timeline Filter
+                  </label>
+                  <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Case Category">
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={caseCategory === 'NEW_CASE' || !caseCategory}
+                      onClick={() => setCaseCategory('NEW_CASE')}
+                      className={`flex items-center justify-center gap-1.5 p-2 rounded-xl border text-xs font-bold transition-all ${
+                        caseCategory === 'NEW_CASE' || !caseCategory
+                          ? 'border-emerald-500 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 ring-2 ring-emerald-500/20'
+                          : 'border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 text-text-secondary hover:text-navy dark:hover:text-white'
+                      }`}
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                      <span>New</span>
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={caseCategory === 'OLD_CASE'}
+                      onClick={() => setCaseCategory('OLD_CASE')}
+                      className={`flex items-center justify-center gap-1.5 p-2 rounded-xl border text-xs font-bold transition-all ${
+                        caseCategory === 'OLD_CASE'
+                          ? 'border-amber-500 bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300 ring-2 ring-amber-500/20'
+                          : 'border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 text-text-secondary hover:text-navy dark:hover:text-white'
+                      }`}
+                    >
+                      <History className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                      <span>Old</span>
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={caseCategory === 'BOTH_CASES'}
+                      onClick={() => setCaseCategory('BOTH_CASES')}
+                      className={`flex items-center justify-center gap-1.5 p-2 rounded-xl border text-xs font-bold transition-all ${
+                        caseCategory === 'BOTH_CASES'
+                          ? 'border-indigo-500 bg-indigo-50 text-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300 ring-2 ring-indigo-500/20'
+                          : 'border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 text-text-secondary hover:text-navy dark:hover:text-white'
+                      }`}
+                    >
+                      <BookmarkCheck className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                      <span>Both</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <p className="text-xs text-text-secondary">
+                Select Civil, Criminal, or Writ to classify this case under the public Case Laws taxonomy.
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -928,39 +1005,87 @@ export function AdminResourceForm({
   // ---- Workspace body per mode ------------------------------------------------
 
   const modeSwitch = !isEdit && (
-    <div className="flex flex-col gap-2 pt-6">
-      <span id="resource-mode-label" className="text-xs font-bold uppercase tracking-wider text-text-muted">Choose how to add this resource</span>
-      <div role="group" aria-labelledby="resource-mode-label" className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setUploadMode('PDF')}
-          aria-pressed={uploadMode === 'PDF'}
-          className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold transition-all ${
-            uploadMode === 'PDF'
-              ? 'border-accent bg-accent text-white shadow-sm'
-              : 'border-black/10 dark:border-white/10 bg-white dark:bg-zinc-800 text-text-muted hover:text-navy dark:hover:text-white'
-          }`}
-        >
-          <FileText className="h-4 w-4" aria-hidden="true" /> Upload PDF
-        </button>
-        <button
-          type="button"
-          onClick={() => setUploadMode('NOTE')}
-          aria-pressed={uploadMode === 'NOTE'}
-          className={`inline-flex min-h-[44px] items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold transition-all ${
-            uploadMode === 'NOTE'
-              ? 'border-accent bg-accent text-white shadow-sm'
-              : 'border-black/10 dark:border-white/10 bg-white dark:bg-zinc-800 text-text-muted hover:text-navy dark:hover:text-white'
-          }`}
-        >
-          <FileText className="h-4 w-4" aria-hidden="true" /> Write Note
-        </button>
+    <div className="pt-6">
+      <div className="flex flex-col gap-3 rounded-2xl border border-black/10 dark:border-white/10 bg-slate-50/70 dark:bg-zinc-950/70 p-4 sm:p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+          <span id="resource-mode-label" className="text-xs font-bold uppercase tracking-wider text-navy dark:text-white">
+            Choose Publishing Mode
+          </span>
+          <span className="text-xs text-text-muted">
+            Select whether you are uploading an existing PDF document or writing directly
+          </span>
+        </div>
+
+        <div role="group" aria-labelledby="resource-mode-label" className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setUploadMode('PDF')}
+            aria-pressed={uploadMode === 'PDF'}
+            className={`group relative flex items-start gap-3.5 p-3.5 sm:p-4 rounded-xl border text-left transition-all ${
+              uploadMode === 'PDF'
+                ? 'border-accent bg-white dark:bg-zinc-900 shadow-sm ring-2 ring-accent/30'
+                : 'border-black/10 dark:border-white/10 bg-white/70 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900 text-text-secondary hover:text-navy dark:hover:text-white'
+            }`}
+          >
+            <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
+              uploadMode === 'PDF'
+                ? 'bg-accent text-white shadow-xs'
+                : 'bg-slate-100 dark:bg-zinc-800 text-text-muted group-hover:text-accent'
+            }`}>
+              <UploadCloud className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-bold text-navy dark:text-white">Upload PDF Document</span>
+                <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${
+                  uploadMode === 'PDF'
+                    ? 'bg-accent/10 text-accent dark:bg-accent/20'
+                    : 'bg-slate-100 text-text-muted dark:bg-zinc-800'
+                }`}>
+                  PDF
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-text-secondary leading-relaxed">
+                Attach a downloadable syllabus, question paper, or act document as a PDF.
+              </p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setUploadMode('NOTE')}
+            aria-pressed={uploadMode === 'NOTE'}
+            className={`group relative flex items-start gap-3.5 p-3.5 sm:p-4 rounded-xl border text-left transition-all ${
+              uploadMode === 'NOTE'
+                ? 'border-accent bg-white dark:bg-zinc-900 shadow-sm ring-2 ring-accent/30'
+                : 'border-black/10 dark:border-white/10 bg-white/70 dark:bg-zinc-900/50 hover:bg-white dark:hover:bg-zinc-900 text-text-secondary hover:text-navy dark:hover:text-white'
+            }`}
+          >
+            <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
+              uploadMode === 'NOTE'
+                ? 'bg-accent text-white shadow-xs'
+                : 'bg-slate-100 dark:bg-zinc-800 text-text-muted group-hover:text-accent'
+            }`}>
+              <PenTool className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-bold text-navy dark:text-white">Write Online Note</span>
+                <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${
+                  uploadMode === 'NOTE'
+                    ? 'bg-accent/10 text-accent dark:bg-accent/20'
+                    : 'bg-slate-100 text-text-muted dark:bg-zinc-800'
+                }`}>
+                  Editor
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-text-secondary leading-relaxed">
+                Draft rich-text notes with English &amp; Nepali fonts, formatted headings, and citations.
+              </p>
+            </div>
+          </button>
+        </div>
       </div>
-      <p className="text-xs text-text-secondary">
-        {uploadMode === 'PDF'
-          ? 'Attach a study document as a downloadable PDF file. Switching to Write Note keeps any draft you have typed.'
-          : 'Write the note directly in the editor with English or Nepali fonts. Switching to Upload PDF keeps your text in the editor.'}
-      </p>
     </div>
   );
 
@@ -1107,18 +1232,16 @@ export function AdminResourceForm({
 
           {/* Right column: metadata, independently scrollable on desktop */}
           <div className="resource-metadata-sidebar w-full space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto lg:pr-1">
-            <div className="flex flex-col gap-2 rounded-2xl border border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 p-4">
-              <span className="text-xs font-bold text-navy dark:text-white uppercase tracking-wider">Save & Publish</span>
+            {/* Primary Action Card: Save & Publish */}
+            <div className="flex flex-col gap-3 rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 p-4 shadow-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-navy dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-accent" />
+                  Publishing Actions
+                </span>
+                <ResourceStatusBadge status={lastSavedStatus ?? undefined} archived={lastSavedStatus === ContentStatus.ARCHIVED} />
+              </div>
               <div className="flex flex-col gap-2">
-                <button
-                  type="submit"
-                  name="status"
-                  value="DRAFT"
-                  disabled={loading}
-                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 px-4 py-2.5 text-sm font-bold text-navy dark:text-white hover:border-accent/50 hover:text-accent transition-colors disabled:opacity-50"
-                >
-                  {savingAs === 'DRAFT' ? (<><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Saving Draft…</>) : 'Save as Draft'}
-                </button>
                 <MotionButton
                   type="submit"
                   name="status"
@@ -1128,28 +1251,63 @@ export function AdminResourceForm({
                 >
                   {savingAs === 'PUBLISHED' ? (<><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Saving…</>) : isEdit ? 'Save & Publish' : 'Create & Publish'}
                 </MotionButton>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="submit"
+                    name="status"
+                    value="DRAFT"
+                    disabled={loading}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 px-3 py-2 text-xs font-bold text-navy dark:text-white hover:border-accent/50 hover:text-accent transition-colors disabled:opacity-50"
+                  >
+                    {savingAs === 'DRAFT' ? (<><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> Saving…</>) : 'Save Draft'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePreview}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950 px-3 py-2 text-xs font-bold text-navy dark:text-white hover:border-gold hover:text-gold transition-colors"
+                  >
+                    <Eye className="h-3.5 w-3.5" aria-hidden="true" /> Preview
+                  </button>
+                </div>
               </div>
             </div>
 
-            <div>
-              <label htmlFor="resource-title" className="block text-sm font-bold text-navy dark:text-white mb-2">Title</label>
+            {/* Title Card */}
+            <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 p-4 shadow-xs">
+              <label htmlFor="resource-title" className="block text-sm font-bold text-navy dark:text-white mb-1.5">
+                Resource Title <span className="text-accent">*</span>
+              </label>
               <input
                 id="resource-title"
                 type="text"
                 required
+                placeholder="e.g. Constitutional Law Landmark Precedents"
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                className={`${selectClass} bg-white dark:bg-zinc-950`}
+                className={`${selectClass} bg-slate-50 dark:bg-zinc-950`}
               />
+              <p className="mt-1.5 text-xs text-text-secondary">Enter a descriptive title in English or Nepali.</p>
             </div>
 
             <details open className={groupDetailsClass}>
-              <summary className={groupSummaryClass}>Classification <ChevronRight className="h-4 w-4 text-text-muted transition-transform group-open:rotate-90" aria-hidden="true" /></summary>
+              <summary className={groupSummaryClass}>
+                <span className="flex items-center gap-2">
+                  <Scale className="h-4 w-4 text-accent" aria-hidden="true" />
+                  Classification
+                </span>
+                <ChevronRight className="h-4 w-4 text-text-muted transition-transform group-open:rotate-90" aria-hidden="true" />
+              </summary>
               <div className={groupBodyClass}>{typeField}</div>
             </details>
 
             <details open className={groupDetailsClass}>
-              <summary className={groupSummaryClass}>Semester & Subject <ChevronRight className="h-4 w-4 text-text-muted transition-transform group-open:rotate-90" aria-hidden="true" /></summary>
+              <summary className={groupSummaryClass}>
+                <span className="flex items-center gap-2">
+                  <BookOpen className="h-4 w-4 text-accent" aria-hidden="true" />
+                  Semester & Subject
+                </span>
+                <ChevronRight className="h-4 w-4 text-text-muted transition-transform group-open:rotate-90" aria-hidden="true" />
+              </summary>
               <div className={groupBodyClass}>
                 {semesterField}
                 {resourceType !== ResourceType.OLD_QUESTION && subjectField}
@@ -1158,17 +1316,35 @@ export function AdminResourceForm({
             </details>
 
             <details open className={groupDetailsClass}>
-              <summary className={groupSummaryClass}>Access <ChevronRight className="h-4 w-4 text-text-muted transition-transform group-open:rotate-90" aria-hidden="true" /></summary>
+              <summary className={groupSummaryClass}>
+                <span className="flex items-center gap-2">
+                  <Lock className="h-4 w-4 text-accent" aria-hidden="true" />
+                  Access & Visibility
+                </span>
+                <ChevronRight className="h-4 w-4 text-text-muted transition-transform group-open:rotate-90" aria-hidden="true" />
+              </summary>
               <div className={groupBodyClass}>{premiumField}</div>
             </details>
 
             <details open className={groupDetailsClass}>
-              <summary className={groupSummaryClass}>Authorship <ChevronRight className="h-4 w-4 text-text-muted transition-transform group-open:rotate-90" aria-hidden="true" /></summary>
+              <summary className={groupSummaryClass}>
+                <span className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-accent" aria-hidden="true" />
+                  Authorship
+                </span>
+                <ChevronRight className="h-4 w-4 text-text-muted transition-transform group-open:rotate-90" aria-hidden="true" />
+              </summary>
               <div className={groupBodyClass}>{authorField}</div>
             </details>
 
             <details open className={groupDetailsClass}>
-              <summary className={groupSummaryClass}>Media <ChevronRight className="h-4 w-4 text-text-muted transition-transform group-open:rotate-90" aria-hidden="true" /></summary>
+              <summary className={groupSummaryClass}>
+                <span className="flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4 text-accent" aria-hidden="true" />
+                  Media
+                </span>
+                <ChevronRight className="h-4 w-4 text-text-muted transition-transform group-open:rotate-90" aria-hidden="true" />
+              </summary>
               <div className={groupBodyClass}>{featuredImageField}</div>
             </details>
 

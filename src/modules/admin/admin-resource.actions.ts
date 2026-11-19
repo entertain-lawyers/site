@@ -238,7 +238,13 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
     });
     finalSemesterId = resolvedSemesterId;
 
-    const computedMetaTitle = (resourceType === ResourceType.CASE_LAW || Boolean(resolvedUnitId && isPrescribedCasesUnit(resolvedUnitId)))
+    const isDualPublishCase = Boolean(input.caseLawCategory);
+    const isCase =
+      resourceType === ResourceType.CASE_LAW ||
+      Boolean(resolvedUnitId && isPrescribedCasesUnit(resolvedUnitId)) ||
+      isDualPublishCase;
+
+    const computedMetaTitle = isCase
       ? encodeCaseClassification({
           caseLawCategory: input.caseLawCategory,
           caseCategory: input.caseCategory,
@@ -707,7 +713,13 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
     finalSemesterId = resolvedSemesterId;
 
     let computedMetaTitle: string | null | undefined = undefined;
-    if (input.type === ResourceType.CASE_LAW || Boolean(resolvedUnitId && isPrescribedCasesUnit(resolvedUnitId))) {
+    const isDualPublishCase = Boolean(input.caseLawCategory);
+    const isCase =
+      input.type === ResourceType.CASE_LAW ||
+      Boolean(resolvedUnitId && isPrescribedCasesUnit(resolvedUnitId)) ||
+      isDualPublishCase;
+
+    if (isCase) {
       if (input.caseCategory !== undefined || input.caseLawCategory !== undefined) {
         const existing = await tx.resource.findUnique({
           where: { id: input.id },
