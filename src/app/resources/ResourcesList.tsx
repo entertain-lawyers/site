@@ -7,6 +7,8 @@ import { RESOURCES_CACHE_TAG } from '@/lib/cache-tags';
 import { RESOURCES_PAGE_SIZE } from './pagination';
 import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 import CaseCategoryBadge from '@/components/study/CaseCategoryBadge';
+import CaseLawCategoryBadge from '@/components/study/CaseLawCategoryBadge';
+import { getCaseLawCategory } from '@/lib/case-category';
 
 export const getCachedResources = unstable_cache(
   async (page: number) => {
@@ -81,6 +83,8 @@ export async function ResourcesList({
               role: authorUser?.role ? (authorUser.role === 'ADMIN' ? 'Administrator' : authorUser.role === 'EDITOR' ? 'Editor' : 'Contributor') : 'Editorial Team',
             };
 
+            const isCaseLaw = resource.type === 'CASE_LAW' || Boolean(getCaseLawCategory(resource));
+
             return (
               <div
                 key={resource.id}
@@ -88,12 +92,19 @@ export async function ResourcesList({
               >
                 <div className="flex items-start justify-between mb-4 gap-2 flex-wrap">
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-surface-alt rounded-md text-xs font-semibold text-text-secondary border border-border">
-                      <Clock className="w-3.5 h-3.5" />
-                      {semesterName}
-                    </span>
-                    {resource.type === 'CASE_LAW' && (
-                      <CaseCategoryBadge category={resource.metaTitle} size="sm" />
+                    {!isCaseLaw && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-surface-alt rounded-md text-xs font-semibold text-text-secondary border border-border">
+                        <Clock className="w-3.5 h-3.5" />
+                        {semesterName}
+                      </span>
+                    )}
+                    {isCaseLaw && (
+                      <>
+                        <CaseCategoryBadge category={resource.metaTitle} size="sm" />
+                        {getCaseLawCategory(resource) && (
+                          <CaseLawCategoryBadge category={getCaseLawCategory(resource)!} size="sm" />
+                        )}
+                      </>
                     )}
                   </div>
                   {resource.isPremium ? (
@@ -116,15 +127,17 @@ export async function ResourcesList({
                 </h2>
 
                 <div className="mt-auto space-y-4">
-                  <div className="flex items-start gap-2 text-sm text-text-secondary">
-                    <BookOpen className="w-4 h-4 mt-0.5 flex-shrink-0 text-text-muted" />
-                    <span className="line-clamp-1">{subjectName}</span>
-                  </div>
+                  {!isCaseLaw && (
+                    <div className="flex items-start gap-2 text-sm text-text-secondary">
+                      <BookOpen className="w-4 h-4 mt-0.5 flex-shrink-0 text-text-muted" />
+                      <span className="line-clamp-1">{subjectName}</span>
+                    </div>
+                  )}
 
                   <div className="pt-4 border-t border-border flex justify-between items-center group-hover:border-accent/30 transition-colors">
                     <AuthorBioTrigger author={resourceAuthor} size="xs" showName />
                     <div className="flex items-center gap-1 text-sm font-bold text-accent">
-                      <span>{dict.readMore || 'Read More'}</span>
+                      <span>{isCaseLaw ? 'Read Case' : (dict.readMore || 'Read More')}</span>
                       <ChevronRight className="w-4 h-4 text-accent opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
                     </div>
                   </div>
