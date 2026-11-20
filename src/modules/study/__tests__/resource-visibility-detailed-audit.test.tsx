@@ -75,6 +75,9 @@ const SUB_PROC_II_ID = 'sub-procedural-law-2';
 describe('Resource Visibility Detailed Audit & Cross-Navigation Parity', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPrisma.subject.findMany.mockReset();
+    mockPrisma.unit.findMany.mockReset();
+    mockPrisma.resource.findMany.mockReset();
 
     mockPrisma.semester.findMany.mockResolvedValue([
       { id: SEMESTER_4_ID, name: '4th Semester', order: 4 },

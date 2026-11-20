@@ -8,11 +8,15 @@ import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 import { BookOpen, FileText, Lock, ExternalLink, Layers, CheckCircle2, AlertCircle } from 'lucide-react';
 import { CheckoutButtons } from '@/components/payments/CheckoutButtons';
 import { resourceBodyStatus } from '@/lib/resource-status';
+import CaseCategoryBadge from '@/components/study/CaseCategoryBadge';
+import CaseLawCategoryBadge from '@/components/study/CaseLawCategoryBadge';
+import { getCaseLawCategory } from '@/lib/case-category';
 
 export interface UnitResourceData {
   id: string;
   title: string;
   type: ResourceType;
+  metaTitle?: string | null;
   isPremium: boolean;
   priceAmount: number | null;
   currency: string;
@@ -114,6 +118,14 @@ export default function UnitDirectContentView({
             <h2 className="text-xl sm:text-2xl font-extrabold text-navy dark:text-white tracking-tight">
               {activeResource.title}
             </h2>
+            {(activeResource.type === ResourceType.CASE_LAW || Boolean(getCaseLawCategory(activeResource))) && (
+              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                <CaseCategoryBadge category={activeResource.metaTitle} size="sm" />
+                {getCaseLawCategory(activeResource) && (
+                  <CaseLawCategoryBadge category={getCaseLawCategory(activeResource)!} size="sm" />
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">

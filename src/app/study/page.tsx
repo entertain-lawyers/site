@@ -81,49 +81,52 @@ const getCachedSemesters = unstable_cache(
 );
 
 const getCachedSubjects = unstable_cache(
-  async (semesterId: string) => prisma.subject.findMany({
-    where: { semesterId },
-    orderBy: { order: 'asc' },
-    select: { id: true, name: true, order: true },
-  }),
+  async (semesterId: string) =>
+    (await prisma.subject.findMany({
+      where: { semesterId },
+      orderBy: { order: 'asc' },
+      select: { id: true, name: true, order: true },
+    })) ?? [],
   ['study-subjects-ordered'],
   { revalidate: 3600, tags: [SUBJECTS_CACHE_TAG] }
 );
 
 const getCachedUnits = unstable_cache(
-  async (subjectId: string) => prisma.unit.findMany({
-    where: { subjectId },
-    orderBy: { order: 'asc' },
-    select: { id: true, name: true, title: true },
-  }),
+  async (subjectId: string) =>
+    (await prisma.unit.findMany({
+      where: { subjectId },
+      orderBy: { order: 'asc' },
+      select: { id: true, name: true, title: true },
+    })) ?? [],
   ['study-units'],
   { revalidate: 3600, tags: [RESOURCES_CACHE_TAG] }
 );
 
 const getCachedSubjectResources = unstable_cache(
-  async (subjectId: string) => prisma.resource.findMany({
-    where: {
-      subjectId,
-      status: 'PUBLISHED',
-    },
-    select: {
-      id: true,
-      title: true,
-      type: true,
-      metaTitle: true,
-      unitId: true,
-      unit: {
-        select: {
-          id: true,
-          name: true,
+  async (subjectId: string) =>
+    (await prisma.resource.findMany({
+      where: {
+        subjectId,
+        status: 'PUBLISHED',
+      },
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        metaTitle: true,
+        unitId: true,
+        unit: {
+          select: {
+            id: true,
+            name: true,
+          },
         },
       },
-    },
-    orderBy: [
-      { order: 'asc' },
-      { title: 'asc' },
-    ],
-  }),
+      orderBy: [
+        { order: 'asc' },
+        { title: 'asc' },
+      ],
+    })) ?? [],
   ['study-subject-resources-summary-v2'],
   { revalidate: 60, tags: [RESOURCES_CACHE_TAG] }
 );
@@ -319,6 +322,7 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
     hasPrescribedCases?: boolean;
   }> = [];
 
+  const safeRawSubjects = rawSubjects || [];
   if (currentSemesterConfig) {
     const usedDbIds = new Set<string>();
 
@@ -327,25 +331,16 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
       const authNorm = normalizeSubjectName(authSub.name);
       
       // 1. Exact match (case-insensitive)
-      let dbMatch = rawSubjects.find(s => !usedDbIds.has(s.id) && s.name.toLowerCase() === authSub.name.toLowerCase());
+      let dbMatch = safeRawSubjects.find(s => !usedDbIds.has(s.id) && s.name.toLowerCase() === authSub.name.toLowerCase());
       
       // 2. Normalized alphanumeric match
       if (!dbMatch) {
-        dbMatch = rawSubjects.find(s => !usedDbIds.has(s.id) && normalizeSubjectName(s.name) === authNorm);
+        dbMatch = safeRawSubjects.find(s => !usedDbIds.has(s.id) && normalizeSubjectName(s.name) === authNorm);
       }
       
-      // 3. Normalized prefix / contains match
-      if (!dbMatch) {
-        dbMatch = rawSubjects.find(s => {
-          if (usedDbIds.has(s.id)) return false;
-          const sNorm = normalizeSubjectName(s.name);
-          return sNorm.startsWith(authNorm) || authNorm.startsWith(sNorm) || sNorm.includes(authNorm) || authNorm.includes(sNorm);
-        });
-      }
-
-      // 4. Order match fallback
-      if (!dbMatch) {
-        dbMatch = rawSubjects.find(s => !usedDbIds.has(s.id) && s.order === authSub.order);
+      // 3. Disambiguated legacy pattern: e.g. "Alternative English ... (Semester 1)"
+      if (!dbMatch && authNorm.startsWith('alternativeenglishforforeignersinlieuoflegalnepali')) {
+        dbMatch = safeRawSubjects.find(s => !usedDbIds.has(s.id) && normalizeSubjectName(s.name).startsWith(authNorm));
       }
 
       if (dbMatch) {
@@ -365,7 +360,7 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
     });
 
     // Append any database subjects that weren't mapped to authoritative config
-    for (const rawSub of rawSubjects) {
+    for (const rawSub of safeRawSubjects) {
       if (!usedDbIds.has(rawSub.id)) {
         subjects.push({
           id: rawSub.id,
@@ -376,7 +371,7 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
     }
   } else {
     // Fallback if semester not in config
-    subjects = rawSubjects.map(sub => ({
+    subjects = safeRawSubjects.map(sub => ({
       id: sub.id,
       name: sub.name,
       order: sub.order ?? 0,
@@ -548,6 +543,7 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
             id: resource.id,
             title: resource.title,
             type: resource.type,
+            metaTitle: resource.metaTitle,
             isPremium: resource.isPremium,
             priceAmount: resource.priceAmount,
             currency: resource.currency || 'NPR',
