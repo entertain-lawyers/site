@@ -181,11 +181,12 @@ describe('Case Law Integration & Unified Lifecycle E2E Review', () => {
 
     mockPrisma.resource.findMany.mockResolvedValue([singleRecord]);
 
-    // A. Curriculum Navigation View: 4th Semester → Family Law
+    // A. Curriculum Navigation View: 4th Semester → Family Law → Unit 1
     const curriculumPage = await StudyPage({
       searchParams: Promise.resolve({
         semester: SEMESTER_ID,
         subject: SUBJECT_ID,
+        unit: UNIT_ID,
       }),
     });
     const curriculumHtml = renderToStaticMarkup(curriculumPage);
