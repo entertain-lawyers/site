@@ -57,7 +57,7 @@ describe('Featured Image 1200x630 Canva Aspect Ratio Suite', () => {
     expect(ogImages[0].width).toBe(1200);
     expect(ogImages[0].height).toBe(630);
 
-    const twitter = meta.twitter;
+    const twitter = meta.twitter as { card?: string } | undefined;
     expect(twitter).toBeDefined();
     expect(twitter?.card).toBe('summary_large_image');
   });
