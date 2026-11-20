@@ -26,6 +26,7 @@ export default async function EditResourcePage({ params }: { params: Promise<{ i
     type: ResourceType;
     isPremium: boolean;
     priceAmount: number | null;
+    order?: number | null;
     status: import('@prisma/client').ContentStatus;
     authorId?: string | null;
     featuredImage?: string | null;
@@ -68,6 +69,7 @@ export default async function EditResourcePage({ params }: { params: Promise<{ i
         type: true,
         isPremium: true,
         priceAmount: true,
+        order: true,
         status: true,
         document: { select: { id: true } },
         subject: { select: { semesterId: true } },
@@ -124,6 +126,7 @@ export default async function EditResourcePage({ params }: { params: Promise<{ i
             type: resource.type,
             isPremium: resource.isPremium,
             priceAmount: resource.priceAmount,
+            order: resource.order ?? 0,
             status: resource.status,
             authorId: resource.authorId ?? null,
             hasDocument: Boolean(resource.document),

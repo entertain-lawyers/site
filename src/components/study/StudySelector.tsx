@@ -4,7 +4,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback } from 'react';
 import CustomSelect from './CustomSelect';
 import { isPrescribedCasesUnit } from '@/lib/case-category';
-import { Sparkles, History, Scale, BookmarkCheck } from 'lucide-react';
 
 interface SelectorOption {
   id: string;
@@ -38,7 +37,6 @@ interface StudySelectorProps {
   selectedSemesterId?: string;
   selectedSubjectId?: string;
   selectedUnitId?: string;
-  selectedCaseCategory?: string;
 }
 
 export default function StudySelector({
@@ -49,7 +47,6 @@ export default function StudySelector({
   selectedSemesterId,
   selectedSubjectId,
   selectedUnitId,
-  selectedCaseCategory,
 }: StudySelectorProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -101,9 +98,6 @@ export default function StudySelector({
       label: u.title ? `${u.name} — ${u.title}` : u.name,
     })),
   ];
-
-  const currentUnit = units.find((u) => u.id === selectedUnitId);
-  const isCasesUnit = currentUnit && isPrescribedCasesUnit(currentUnit);
 
   const handleUnitChange = (val: string) => {
     if (!val) {
@@ -173,67 +167,7 @@ export default function StudySelector({
           </div>
         )}
       </div>
-
-      {/* Case Classification selector when Prescribed Cases unit is selected */}
-      {isCasesUnit && (
-        <div className="mt-4 pt-4 border-t border-border flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold text-text-muted uppercase tracking-[0.15em] flex items-center gap-1">
-              <Scale className="w-3.5 h-3.5 text-accent" />
-              Case Classification:
-            </span>
-            <div className="inline-flex p-0.5 bg-surface-alt rounded-lg border border-border">
-              <button
-                type="button"
-                onClick={() => updateParams('caseCategory', '')}
-                className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
-                  !selectedCaseCategory
-                    ? 'bg-surface text-navy dark:text-white shadow-2xs font-bold'
-                    : 'text-text-secondary hover:text-navy dark:hover:text-white'
-                }`}
-              >
-                All Options
-              </button>
-              <button
-                type="button"
-                onClick={() => updateParams('caseCategory', 'NEW_CASE')}
-                className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1 transition-all ${
-                  selectedCaseCategory === 'NEW_CASE'
-                    ? 'bg-emerald-600 text-white shadow-2xs font-bold'
-                    : 'text-text-secondary hover:text-emerald-600'
-                }`}
-              >
-                <Sparkles className="w-3 h-3" />
-                <span>New Syllabus</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => updateParams('caseCategory', 'OLD_CASE')}
-                className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1 transition-all ${
-                  selectedCaseCategory === 'OLD_CASE'
-                    ? 'bg-amber-600 text-white shadow-2xs font-bold'
-                    : 'text-text-secondary hover:text-amber-600'
-                }`}
-              >
-                <History className="w-3 h-3" />
-                <span>Old Syllabus</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => updateParams('caseCategory', 'BOTH_CASES')}
-                className={`px-3 py-1 rounded-md text-xs font-semibold flex items-center gap-1 transition-all ${
-                  selectedCaseCategory === 'BOTH_CASES'
-                    ? 'bg-indigo-600 text-white shadow-2xs font-bold'
-                    : 'text-text-secondary hover:text-indigo-600'
-                }`}
-              >
-                <BookmarkCheck className="w-3 h-3" />
-                <span>Both Syllabus</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
+

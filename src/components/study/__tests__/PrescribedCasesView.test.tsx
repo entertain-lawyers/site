@@ -135,6 +135,26 @@ describe('PrescribedCasesView Component', () => {
     expect(html).not.toContain('State v. Ram Bahadur Thapa (2045) Homicide Precedent');
   });
 
+  it('orders cases by syllabus order, not alphabetically', () => {
+    const ordered: PrescribedCaseItem[] = [
+      { ...MOCK_CASES[0], id: 'c-z', title: 'Zulu v. State (2081)', order: 1 },
+      { ...MOCK_CASES[1], id: 'c-a', title: 'Alpha v. State (2082)', order: 2 },
+      { ...MOCK_CASES[2], id: 'c-m', title: 'Mike v. State (2080)', order: 3 },
+    ];
+
+    const html = renderToStaticMarkup(
+      <PrescribedCasesView cases={ordered} unitName="Prescribed Cases" unitTitle="Landmark Prescribed Cases" />
+    );
+
+    // Left column holds items 1 and 3, right column item 2, so DOM order is Zulu, Mike, Alpha.
+    const positions = ['Zulu v. State (2081)', 'Mike v. State (2080)', 'Alpha v. State (2082)'].map((title) =>
+      html.indexOf(title)
+    );
+    expect(positions.every((pos) => pos >= 0)).toBe(true);
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+    expect(html).not.toContain('Alphabetical Order');
+  });
+
   it('renders clean empty state with Reset Filters button when no cases match', () => {
     const html = renderToStaticMarkup(
       <PrescribedCasesView

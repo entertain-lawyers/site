@@ -533,6 +533,23 @@ describe('Admin Prescribed Case Workflow & Category Classification', () => {
       expect(html).toContain('border-amber-500');
     });
 
+    it('renders the Post Order input with the saved order value', () => {
+      const html = renderToStaticMarkup(
+        <AdminResourceForm
+          semesters={mockSemesters}
+          subjects={mockSubjects}
+          units={mockUnits}
+          authors={mockAuthors}
+          canManageLawTypes={false}
+          resource={makeResource({ order: 7 })}
+        />
+      );
+
+      expect(html).toContain('Post Order');
+      expect(html).toContain('id="resource-order"');
+      expect(html).toContain('value="7"');
+    });
+
     it('does not render Case Category section for ordinary non-prescribed units with non-case types', () => {
       const html = renderToStaticMarkup(
         <AdminResourceForm

@@ -5,7 +5,6 @@ import Link from 'next/link';
 import {
   Search,
   Scale,
-  Sparkles,
   X,
   BookOpen,
   Filter,
@@ -42,6 +41,7 @@ export interface PrescribedCaseItem {
   isPremium: boolean;
   priceAmount: number | null;
   currency?: string | null;
+  order?: number | null;
   author?: {
     name: string | null;
     image: string | null;
@@ -172,8 +172,8 @@ export default function PrescribedCasesView({
       result = [...searchFilteredCases];
     }
 
-    // Always Alphabetical Order A-Z matching Acts & Laws
-    result.sort((a, b) => a.title.localeCompare(b.title, 'ne-NP', { sensitivity: 'base' }));
+    // Syllabus order: the admin-set order within the unit; ties keep the DB order.
+    result.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
 
     return result;
   }, [searchFilteredCases, filter]);
@@ -267,7 +267,7 @@ export default function PrescribedCasesView({
 
           {/* Subtitle */}
           <p className="mt-2 text-sm sm:text-base text-text-secondary dark:text-zinc-400 font-medium max-w-2xl mx-auto">
-            Essential judicial precedents, constitutional rulings, and syllabus case summaries in Alphabetical order
+            Syllabus wise judicial precedents, constitutional rulings, and case summaries explained in simple, easy to understand language.
           </p>
 
           <div className="mt-2 text-xs font-bold text-text-muted">
@@ -418,15 +418,12 @@ export default function PrescribedCasesView({
 
       {/* Main Content Area */}
       <div className="pt-2">
-        {/* Results Counter & Order Signal matching Acts & Laws */}
+        {/* Results Counter matching Acts & Laws */}
         <div className="flex items-center justify-between text-xs text-text-muted mb-6 px-1">
           <span className="font-semibold">
             Showing <strong className="text-navy dark:text-white">{filteredCases.length}</strong> Prescribed Cases
             {syllabusFilterLabel && ` in ${syllabusFilterLabel}`}
             {searchQuery && ` matching "${searchQuery}"`}
-          </span>
-          <span className="inline-flex items-center gap-1 font-semibold text-accent">
-            <Sparkles className="h-3 w-3" aria-hidden="true" /> Alphabetical Order (A–Z)
           </span>
         </div>
 

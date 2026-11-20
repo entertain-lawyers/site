@@ -55,6 +55,7 @@ const createResourceSchema = z.object({
   priceAmount: z.number().int().nonnegative().optional(),
   type: z.nativeEnum(ResourceType).optional(),
   unitId: z.string().min(1).nullable().optional(),
+  order: z.coerce.number().int().min(0).max(9999).optional(),
   caseCategory: z.enum(['NEW_CASE', 'OLD_CASE', 'BOTH_CASES']).nullable().optional(),
   caseLawCategory: z.enum(['CIVIL', 'CRIMINAL', 'WRIT']).nullable().optional(),
   // Local user credited as the author; defaults to the signed-in creator.
@@ -266,6 +267,7 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
           currency,
           type: resourceType,
           unitId: resolvedUnitId,
+          order: input.order ?? 0,
           status: input.status,
           authorId,
           createdById: session.userId ?? null,
@@ -638,6 +640,7 @@ const updateResourceSchema = z.object({
   priceAmount: z.number().int().nonnegative().optional(),
   type: z.nativeEnum(ResourceType),
   unitId: z.string().min(1).nullable().optional(),
+  order: z.coerce.number().int().min(0).max(9999).optional(),
   caseCategory: z.enum(['NEW_CASE', 'OLD_CASE', 'BOTH_CASES']).nullable().optional(),
   caseLawCategory: z.enum(['CIVIL', 'CRIMINAL', 'WRIT']).nullable().optional(),
   status: z.nativeEnum(ContentStatus),
@@ -758,6 +761,7 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
           currency,
           type: input.type,
           unitId: resolvedUnitId,
+          ...(input.order !== undefined ? { order: input.order } : {}),
           status: input.status,
           ...(input.authorUserId ? { authorId: input.authorUserId } : {}),
           ...(hasExplicitFeaturedImageInput
