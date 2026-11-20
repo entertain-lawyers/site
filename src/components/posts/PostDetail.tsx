@@ -125,14 +125,14 @@ export default function PostDetail({
 
             {/* Hero image */}
             {featuredImage && (
-              <figure className="relative aspect-[16/9] w-full overflow-hidden border border-border bg-surface-alt">
+              <figure className="relative aspect-[1200/630] w-full overflow-hidden border border-border bg-surface-alt">
                 <Image
                   src={featuredImage}
                   alt={post.title}
                   fill
                   priority
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 70vw, 800px"
-                  className="object-cover"
+                  className="object-cover object-center"
                 />
               </figure>
             )}

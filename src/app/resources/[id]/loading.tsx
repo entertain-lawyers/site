@@ -13,7 +13,7 @@ export default function ResourceDetailLoading() {
             <div className="h-6 w-24 bg-surface-alt rounded-full" />
             <div className="h-6 w-32 bg-surface-alt rounded-full" />
           </div>
-          <div className="aspect-video w-full bg-slate-100 dark:bg-zinc-800 rounded-xl" />
+          <div className="aspect-[1200/630] w-full bg-slate-100 dark:bg-zinc-800 rounded-xl" />
           <div className="space-y-3 pt-4">
             <div className="h-4 w-full bg-surface-alt rounded" />
             <div className="h-4 w-5/6 bg-surface-alt rounded" />

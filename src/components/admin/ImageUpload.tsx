@@ -33,13 +33,14 @@ export default function ImageUpload({
 
   // Cropper state
   const [cropperOpen, setCropperOpen] = useState(false);
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const [cropSrc, setCropSrc] = useState('');
   const [cropFilename, setCropFilename] = useState('');
   const [cropMimeType, setCropMimeType] = useState('image/jpeg');
 
   const defaultRatio =
     aspectRatio ||
-    (type === 'TEAM' || type === 'PUBLICATION' ? 4 / 5 : type === 'PROFILE' ? 1 / 1 : 16 / 9);
+    (type === 'TEAM' || type === 'PUBLICATION' ? 4 / 5 : type === 'PROFILE' ? 1 / 1 : 1200 / 630);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -53,6 +54,7 @@ export default function ImageUpload({
       return;
     }
 
+    setCropFile(file);
     const objectUrl = URL.createObjectURL(file);
     setCropSrc(objectUrl);
     setCropFilename(file.name);
@@ -115,6 +117,7 @@ export default function ImageUpload({
 
   const handleOpenRecrop = () => {
     if (!value) return;
+    setCropFile(null);
     setCropSrc(value);
     setCropFilename('photo.jpg');
     setCropMimeType('image/jpeg');
@@ -123,6 +126,7 @@ export default function ImageUpload({
 
   const handleCloseCropper = () => {
     setCropperOpen(false);
+    setCropFile(null);
     if (cropSrc.startsWith('blob:')) {
       URL.revokeObjectURL(cropSrc);
     }
@@ -183,7 +187,7 @@ export default function ImageUpload({
               ? 'h-28 w-28 rounded-full'
               : type === 'TEAM' || type === 'PUBLICATION'
               ? 'max-w-[240px] aspect-[4/5] rounded-xl'
-              : 'aspect-video rounded-xl'
+              : 'aspect-[1200/630] rounded-xl'
           }`}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -200,7 +204,7 @@ export default function ImageUpload({
               ? 'h-28 w-28 rounded-full'
               : type === 'TEAM' || type === 'PUBLICATION'
               ? 'max-w-[240px] aspect-[4/5] rounded-xl'
-              : 'aspect-video rounded-xl'
+              : 'aspect-[1200/630] rounded-xl'
           }`}
         >
           <p className="text-sm font-medium text-text-muted">No image selected</p>
@@ -218,6 +222,19 @@ export default function ImageUpload({
           defaultAspectRatio={defaultRatio}
           onClose={handleCloseCropper}
           onConfirm={handleCropConfirm}
+          onSkipCrop={
+            cropFile
+              ? () =>
+                  handleCropConfirm({
+                    filename: cropFile.name,
+                    mimeType:
+                      cropFile.type === 'image/png' || cropFile.type === 'image/webp'
+                        ? cropFile.type
+                        : 'image/jpeg',
+                    blob: cropFile,
+                  })
+              : undefined
+          }
           title={
             type === 'PROFILE'
               ? 'Crop Profile Picture'

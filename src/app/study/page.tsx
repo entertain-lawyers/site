@@ -528,6 +528,7 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
             isPremium: resource.isPremium,
             priceAmount: resource.priceAmount,
             currency: resource.currency || 'NPR',
+            order: resource.order ?? 0,
             author: resource.author,
             createdBy: resource.createdBy,
             canAccess,
@@ -684,27 +685,41 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
             />
           ) : (
             /* 3. Normal drilling or global search results */
-            (
-              selectedType === 'CASE_LAW'
-                ? false
-                : selectedType === 'OLD_QUESTION'
-                  ? (!selectedSemesterId && !searchQuery)
-                  : (units.length > 0 ? (!selectedUnitId && !searchQuery) : (!selectedSubjectId && !searchQuery))
-            ) ? null : resources.length === 0 ? (
-              <div className="bg-surface border border-border rounded-2xl p-8 sm:p-16 text-center shadow-soft flex flex-col items-center justify-center">
-                <div className="w-16 h-16 bg-surface border border-border rounded-full flex items-center justify-center mb-6 text-text-muted shadow-sm">
-                  {selectedType === 'CASE_LAW' ? <Scale className="w-8 h-8" /> : <Library className="w-8 h-8" />}
-                </div>
-                <h3 className="text-xl font-bold text-navy dark:text-white mb-2 tracking-tight">
-                  {selectedType === 'CASE_LAW' ? "No cases found" : dict.noResourcesFound}
-                </h3>
-                <p className="text-text-secondary max-w-md mx-auto">
-                  {selectedType === 'CASE_LAW' ? "Check back later for case updates." : (dict.tryAdjustingFilters || "Try adjusting your filters to find what you're looking for.")}
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {resources.map((resource, i) => {
+            (() => {
+              const displayResources =
+                !selectedUnitId && !searchQuery && units.length > 0
+                  ? resources.filter((r) => !r.unitId)
+                  : resources;
+
+              const shouldSuppress =
+                selectedType === 'CASE_LAW'
+                  ? false
+                  : selectedType === 'OLD_QUESTION'
+                    ? !selectedSemesterId && !searchQuery
+                    : (!selectedSubjectId && !searchQuery) ||
+                      (units.length > 0 && !selectedUnitId && !searchQuery && displayResources.length === 0);
+
+              if (shouldSuppress) return null;
+
+              if (displayResources.length === 0) {
+                return (
+                  <div className="bg-surface border border-border rounded-2xl p-8 sm:p-16 text-center shadow-soft flex flex-col items-center justify-center">
+                    <div className="w-16 h-16 bg-surface border border-border rounded-full flex items-center justify-center mb-6 text-text-muted shadow-sm">
+                      {selectedType === 'CASE_LAW' ? <Scale className="w-8 h-8" /> : <Library className="w-8 h-8" />}
+                    </div>
+                    <h3 className="text-xl font-bold text-navy dark:text-white mb-2 tracking-tight">
+                      {selectedType === 'CASE_LAW' ? "No cases found" : dict.noResourcesFound}
+                    </h3>
+                    <p className="text-text-secondary max-w-md mx-auto">
+                      {selectedType === 'CASE_LAW' ? "Check back later for case updates." : (dict.tryAdjustingFilters || "Try adjusting your filters to find what you're looking for.")}
+                    </p>
+                  </div>
+                );
+              }
+
+              return (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {displayResources.map((resource, i) => {
                   const Icon = iconMap[resource.type] || Library;
                   const authorUser = resource.author ?? resource.createdBy;
                   const resourceAuthor = {
@@ -822,7 +837,8 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
                   );
                 })}
               </div>
-            )
+            );
+          })()
           )}
         </div>
         </>

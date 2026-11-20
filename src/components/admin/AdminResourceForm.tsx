@@ -53,6 +53,7 @@ export type EditableResource = {
   type: ResourceType;
   isPremium: boolean;
   priceAmount: number | null;
+  order?: number | null;
   status: ContentStatus;
   authorId: string | null;
   hasDocument: boolean;
@@ -143,6 +144,7 @@ export function AdminResourceForm({
     return false;
   });
   const [unitId, setUnitId] = useState(resource?.unitId ?? '');
+  const [order, setOrder] = useState(String(resource?.order ?? 0));
   const [isPremium, setIsPremium] = useState(resource?.isPremium ?? false);
   const [priceAmount, setPriceAmount] = useState(
     resource?.priceAmount ? String(resource.priceAmount / 100) : ''
@@ -391,6 +393,7 @@ export function AdminResourceForm({
           priceAmount: isPremium ? parseFloat(priceAmount) * 100 : undefined,
           type: resourceType,
           unitId: resourceType === ResourceType.OLD_QUESTION ? null : (unitId ? unitId : null),
+          order: Number(order) || 0,
           caseCategory: effectiveCaseCategory,
           caseLawCategory: effectiveCaseLawCategory,
           content: uploadMode === 'NOTE' ? editorHtmlToArticleHtml(content) : undefined,
@@ -471,6 +474,7 @@ export function AdminResourceForm({
         priceAmount: isPremium ? parseFloat(priceAmount) * 100 : undefined,
         type: resourceType,
         unitId: (resourceType === ResourceType.OLD_QUESTION ? undefined : unitId) || undefined,
+        order: Number(order) || 0,
         caseCategory: effectiveCaseCategory,
         caseLawCategory: effectiveCaseLawCategory,
         // Quill writes one <p> per line; store real paragraphs, as /read renders them.
@@ -620,6 +624,22 @@ export function AdminResourceForm({
           <option key={s.id} value={s.id}>{s.name}</option>
         ))}
       </select>
+    </div>
+  );
+
+  const orderField = (
+    <div>
+      <label htmlFor="resource-order" className="block text-sm font-bold text-navy dark:text-white mb-2">Post Order</label>
+      <input
+        id="resource-order"
+        type="number"
+        min="0"
+        step="1"
+        value={order}
+        onChange={e => setOrder(e.target.value)}
+        className={selectClass}
+      />
+      <p className="mt-1.5 text-xs text-text-secondary">Lower numbers appear first. Arrange posts in the order students should read them.</p>
     </div>
   );
 
@@ -1289,6 +1309,11 @@ export function AdminResourceForm({
               <p className="mt-1.5 text-xs text-text-secondary">Enter a descriptive title in English or Nepali.</p>
             </div>
 
+            {/* Post Order Card */}
+            <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-white dark:bg-zinc-900 p-4 shadow-xs">
+              {orderField}
+            </div>
+
             <details open className={groupDetailsClass}>
               <summary className={groupSummaryClass}>
                 <span className="flex items-center gap-2">
@@ -1433,6 +1458,10 @@ export function AdminResourceForm({
 
           <div className="pt-4 border-t border-black/10 dark:border-white/10">
             {premiumField}
+          </div>
+
+          <div className="pt-4 border-t border-black/10 dark:border-white/10">
+            {orderField}
           </div>
 
           {/* Featured Image */}
