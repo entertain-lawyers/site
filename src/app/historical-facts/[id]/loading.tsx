@@ -10,7 +10,7 @@ export default function HistoricalFactDetailLoading() {
               <div className="h-10 w-full bg-surface-alt rounded-xl animate-pulse" />
               <div className="h-10 w-4/5 bg-surface-alt rounded-xl animate-pulse" />
             </div>
-            <div className="aspect-[16/9] w-full bg-slate-100 dark:bg-zinc-800 rounded-xl border border-border animate-pulse" />
+            <div className="aspect-[1200/630] w-full bg-slate-100 dark:bg-zinc-800 rounded-xl border border-border animate-pulse" />
             <div className="space-y-3 pt-4">
               <div className="h-4 w-full bg-surface-alt rounded animate-pulse" />
               <div className="h-4 w-full bg-surface-alt rounded animate-pulse" />

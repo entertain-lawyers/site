@@ -310,12 +310,12 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
 
         {/* Featured Image */}
         {resource.featuredImage && (
-          <div className="mb-8 rounded-2xl overflow-hidden border border-border shadow-sm max-h-[460px] aspect-video w-full bg-slate-100 dark:bg-zinc-800">
+          <div className="mb-8 rounded-2xl overflow-hidden border border-border shadow-sm aspect-[1200/630] w-full bg-slate-100 dark:bg-zinc-800">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={resource.featuredImage}
               alt={resource.title}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover object-center"
             />
           </div>
         )}

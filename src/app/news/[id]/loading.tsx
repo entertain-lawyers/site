@@ -19,7 +19,7 @@ export default function NewsDetailLoading() {
               </div>
             </div>
             {/* Hero image placeholder */}
-            <div className="aspect-[16/9] w-full bg-slate-100 dark:bg-zinc-800 rounded-xl border border-border animate-pulse" />
+            <div className="aspect-[1200/630] w-full bg-slate-100 dark:bg-zinc-800 rounded-xl border border-border animate-pulse" />
             {/* Body paragraphs */}
             <div className="space-y-3 pt-4">
               <div className="h-4 w-full bg-surface-alt rounded animate-pulse" />

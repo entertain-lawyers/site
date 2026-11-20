@@ -13,17 +13,19 @@ interface ImageCropperModalProps {
   imageSrc: string;
   filename: string;
   mimeType: string;
-  defaultAspectRatio?: number; // width / height, e.g. 4/5 = 0.8, 1/1 = 1
+  defaultAspectRatio?: number; // width / height, e.g. 1200/630 = ~1.905 (Canva/Social), 4/5 = 0.8, 1/1 = 1
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (result: CropResult) => void;
+  onSkipCrop?: () => void;
   title?: string;
 }
 
-const ASPECT_RATIO_PRESETS = [
+export const ASPECT_RATIO_PRESETS = [
+  { label: '1200×630 (Canva)', value: 1200 / 630 },
+  { label: '16:9 Banner', value: 16 / 9 },
   { label: '4:5 Portrait', value: 4 / 5 },
   { label: '1:1 Square', value: 1 / 1 },
-  { label: '16:9 Banner', value: 16 / 9 },
   { label: '3:2 Classic', value: 3 / 2 },
 ];
 
@@ -31,10 +33,11 @@ export default function ImageCropperModal({
   imageSrc,
   filename,
   mimeType,
-  defaultAspectRatio = 4 / 5,
+  defaultAspectRatio = 1200 / 630,
   isOpen,
   onClose,
   onConfirm,
+  onSkipCrop,
   title = 'Crop & Position Photo',
 }: ImageCropperModalProps) {
   const [aspectRatio, setAspectRatio] = useState<number>(defaultAspectRatio);
@@ -63,9 +66,9 @@ export default function ImageCropperModal({
         const scale0 = Math.max(boxW / img.naturalWidth, boxH / img.naturalHeight);
         const h = img.naturalHeight * scale0;
         const maxPanY = Math.max(0, (h - boxH) / 2);
-        // Default pan.y to top alignment with natural headroom (maxPanY * 0.9)
+        const isPortrait = aspectRatio < 1;
         setZoom(1);
-        setPan({ x: 0, y: maxPanY > 0 ? maxPanY * 0.9 : 0 });
+        setPan({ x: 0, y: isPortrait && maxPanY > 0 ? maxPanY * 0.9 : 0 });
       }
     };
     img.src = imageSrc;
@@ -183,8 +186,9 @@ export default function ImageCropperModal({
       const scale0 = Math.max(boxW / imageObj.naturalWidth, boxH / imageObj.naturalHeight);
       const h = imageObj.naturalHeight * scale0;
       const maxPanY = Math.max(0, (h - boxH) / 2);
+      const isPortrait = aspectRatio < 1;
       setZoom(1);
-      setPan({ x: 0, y: maxPanY > 0 ? maxPanY * 0.9 : 0 });
+      setPan({ x: 0, y: isPortrait && maxPanY > 0 ? maxPanY * 0.9 : 0 });
     } else {
       setZoom(1);
       setPan({ x: 0, y: 0 });
@@ -207,9 +211,16 @@ export default function ImageCropperModal({
       const imgLeft = (boxW - w) / 2 + pan.x;
       const imgTop = (boxH - h) / 2 + pan.y;
 
-      let targetWidth = 1000;
-      let targetHeight = Math.round(targetWidth / aspectRatio);
-      if (aspectRatio < 1) {
+      let targetWidth = 1200;
+      let targetHeight = 630;
+      if (Math.abs(aspectRatio - 1200 / 630) < 0.02) {
+        // Exact 1200x630 Canva / Social aspect ratio
+        targetWidth = 1200;
+        targetHeight = 630;
+      } else if (aspectRatio >= 1) {
+        targetWidth = 1200;
+        targetHeight = Math.round(targetWidth / aspectRatio);
+      } else {
         targetHeight = 1200;
         targetWidth = Math.round(targetHeight * aspectRatio);
       }
@@ -305,6 +316,23 @@ export default function ImageCropperModal({
               {preset.label}
             </button>
           ))}
+          {imageObj && imageObj.naturalWidth > 0 && imageObj.naturalHeight > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setAspectRatio(imageObj.naturalWidth / imageObj.naturalHeight);
+                setZoom(1);
+              }}
+              className={`rounded-lg px-2.5 py-1 text-xs font-bold transition-colors ${
+                Math.abs(aspectRatio - imageObj.naturalWidth / imageObj.naturalHeight) < 0.01 &&
+                !ASPECT_RATIO_PRESETS.some((p) => Math.abs(p.value - imageObj.naturalWidth / imageObj.naturalHeight) < 0.01)
+                  ? 'bg-accent text-white shadow-sm'
+                  : 'bg-surface border border-border text-text-secondary hover:text-text-primary hover:border-accent'
+              }`}
+            >
+              Original ({imageObj.naturalWidth}×{imageObj.naturalHeight})
+            </button>
+          )}
         </div>
 
         {/* Viewport Area with Interactive Canvas */}
@@ -397,29 +425,44 @@ export default function ImageCropperModal({
         </div>
 
         {/* Footer actions */}
-        <div className="flex items-center justify-end gap-3 border-t border-border bg-surface-alt/50 px-6 py-4">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={processing}
-            className="rounded-xl border border-border px-4 py-2.5 text-sm font-bold text-text-secondary hover:bg-surface hover:text-text-primary disabled:opacity-50"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={handleApplyCrop}
-            disabled={processing}
-            className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-bold text-white shadow-md hover:bg-accent-hover disabled:opacity-50"
-          >
-            {processing ? (
-              <>Processing...</>
-            ) : (
-              <>
-                <Check className="h-4 w-4" aria-hidden="true" /> Apply & Upload
-              </>
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface-alt/50 px-6 py-4">
+          <div>
+            {onSkipCrop && (
+              <button
+                type="button"
+                onClick={onSkipCrop}
+                disabled={processing}
+                className="rounded-xl border border-border bg-surface px-4 py-2.5 text-xs sm:text-sm font-semibold text-text-primary hover:border-accent hover:text-accent disabled:opacity-50 transition-colors"
+                title="Upload image directly without cropping"
+              >
+                Upload Original (As-Is)
+              </button>
             )}
-          </button>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={processing}
+              className="rounded-xl border border-border px-4 py-2.5 text-sm font-bold text-text-secondary hover:bg-surface hover:text-text-primary disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleApplyCrop}
+              disabled={processing}
+              className="inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-sm font-bold text-white shadow-md hover:bg-accent-hover disabled:opacity-50"
+            >
+              {processing ? (
+                <>Processing...</>
+              ) : (
+                <>
+                  <Check className="h-4 w-4" aria-hidden="true" /> Apply & Upload
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

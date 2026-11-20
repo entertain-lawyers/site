@@ -81,6 +81,7 @@ export default function FeaturedImagePanel({
 
   // Cropper state
   const [cropperOpen, setCropperOpen] = useState(false);
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const [cropSrc, setCropSrc] = useState('');
   const [cropFilename, setCropFilename] = useState('');
   const [cropMimeType, setCropMimeType] = useState('image/jpeg');
@@ -96,6 +97,7 @@ export default function FeaturedImagePanel({
       setError(invalid);
       return;
     }
+    setCropFile(file);
     const objectUrl = URL.createObjectURL(file);
     setCropSrc(objectUrl);
     setCropFilename(file.name);
@@ -106,12 +108,14 @@ export default function FeaturedImagePanel({
 
   const handleCropConfirm = async (result: CropResult) => {
     setCropperOpen(false);
+    setCropFile(null);
     const croppedFile = new File([result.blob], result.filename, { type: result.mimeType });
     await startUpload(croppedFile);
   };
 
   const handleOpenRecrop = () => {
     if (!value?.url) return;
+    setCropFile(null);
     setCropSrc(value.url);
     setCropFilename(`${value.title || 'featured-image'}.jpg`);
     setCropMimeType('image/jpeg');
@@ -175,9 +179,9 @@ export default function FeaturedImagePanel({
           <div className="overflow-hidden rounded-xl border border-black/10 bg-white dark:border-white/10 dark:bg-zinc-900">
             {value.url ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={value.thumbnailUrl || value.url} alt={value.title} className="aspect-video w-full object-cover" />
+              <img src={value.thumbnailUrl || value.url} alt={value.title} className="aspect-[1200/630] w-full object-cover" />
             ) : (
-              <div className="flex aspect-video items-center justify-center text-xs text-text-secondary">
+              <div className="flex aspect-[1200/630] items-center justify-center text-xs text-text-secondary">
                 Image #{value.id} (preview unavailable)
               </div>
             )}
@@ -234,7 +238,7 @@ export default function FeaturedImagePanel({
           <p className="text-xs text-text-secondary">
             {uploadBlockedReason
               ? 'Choose an existing image from the Media Library.'
-              : `Drop an image here, upload one, or pick from the library. JPEG, PNG, WebP or GIF up to ${formatMegabytes(WP_MEDIA_MAX_BYTES)}.`}
+              : `Drop an image here, upload one, or pick from the library. Recommended: 1200 × 630 px (Canva). JPEG, PNG, WebP or GIF up to ${formatMegabytes(WP_MEDIA_MAX_BYTES)}.`}
           </p>
         </div>
       )}
@@ -323,13 +327,25 @@ export default function FeaturedImagePanel({
           imageSrc={cropSrc}
           filename={cropFilename}
           mimeType={cropMimeType}
-          defaultAspectRatio={16 / 9}
+          defaultAspectRatio={1200 / 630}
           onClose={() => {
             setCropperOpen(false);
+            setCropFile(null);
             if (cropSrc.startsWith('blob:')) URL.revokeObjectURL(cropSrc);
           }}
           onConfirm={handleCropConfirm}
-          title="Crop Featured Image"
+          onSkipCrop={
+            cropFile
+              ? async () => {
+                  const fileToUpload = cropFile;
+                  setCropperOpen(false);
+                  setCropFile(null);
+                  if (cropSrc.startsWith('blob:')) URL.revokeObjectURL(cropSrc);
+                  await startUpload(fileToUpload);
+                }
+              : undefined
+          }
+          title="Crop Featured Image (1200×630)"
         />
       )}
     </div>

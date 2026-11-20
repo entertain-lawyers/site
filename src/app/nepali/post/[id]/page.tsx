@@ -148,7 +148,7 @@ export default async function NepaliPostDetailPage({ params }: { params: Promise
         {post.featuredImage && (
           <div className="w-full mb-10 overflow-hidden rounded-2xl shadow-sm border border-black/5 dark:border-white/5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={post.featuredImage} alt={post.title} className="w-full aspect-video object-cover" loading="eager" fetchPriority="high" decoding="async" />
+            <img src={post.featuredImage} alt={post.title} className="w-full aspect-[1200/630] object-cover object-center" loading="eager" fetchPriority="high" decoding="async" />
           </div>
         )}
 
