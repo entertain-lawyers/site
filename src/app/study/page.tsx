@@ -727,6 +727,8 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
                     email: authorUser?.email || null,
                   };
 
+                  const isCaseLaw = resource.type === 'CASE_LAW' || Boolean(getCaseLawCategory(resource));
+
                   return (
                     <Reveal key={resource.id} index={i} perRow={3} lift className="h-full">
                     <div
@@ -755,7 +757,7 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
                               {RESOURCE_TYPE_LABELS[resource.type] || 'Other'}
                             </span>
                           )}
-                          {(resource.type === 'CASE_LAW' || Boolean(getCaseLawCategory(resource))) && (
+                          {isCaseLaw && (
                             <>
                               <CaseCategoryBadge category={resource.metaTitle} size="sm" />
                               {getCaseLawCategory(resource) && (
@@ -787,43 +789,45 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
                         </Link>
                       </h3>
 
-                      <div className="mt-auto space-y-2 mb-6">
-                        {resource.subject?.semester?.name ? (
-                          <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
-                            <BookOpen className="w-4 h-4 mt-0.5 flex-shrink-0 text-text-muted" />
-                            <span className="line-clamp-1">{resource.subject.semester.name}</span>
-                          </div>
-                        ) : resource.semester?.name ? (
-                          <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
-                            <BookOpen className="w-4 h-4 mt-0.5 flex-shrink-0 text-text-muted" />
-                            <span className="line-clamp-1">{resource.semester.name}</span>
-                          </div>
-                        ) : null}
-
-                        {resource.subject && (
-                          <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
-                            {resource.subject?.semester?.name ? (
-                              <div className="w-4 h-4 flex-shrink-0 ml-0.5 border-l-2 border-b-2 border-border rounded-bl-md" />
-                            ) : (
+                      {!isCaseLaw && (
+                        <div className="mt-auto space-y-2 mb-6">
+                          {resource.subject?.semester?.name ? (
+                            <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
                               <BookOpen className="w-4 h-4 mt-0.5 flex-shrink-0 text-text-muted" />
-                            )}
-                            <span className="line-clamp-1">{resource.subject.name}</span>
-                          </div>
-                        )}
+                              <span className="line-clamp-1">{resource.subject.semester.name}</span>
+                            </div>
+                          ) : resource.semester?.name ? (
+                            <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
+                              <BookOpen className="w-4 h-4 mt-0.5 flex-shrink-0 text-text-muted" />
+                              <span className="line-clamp-1">{resource.semester.name}</span>
+                            </div>
+                          ) : null}
 
-                        {resource.unit && (
-                          <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
-                            <div className="w-4 h-4 flex-shrink-0 ml-0.5 border-l-2 border-b-2 border-border rounded-bl-md" />
-                            <span className="line-clamp-1">{resource.unit.name}</span>
-                          </div>
-                        )}
-                      </div>
+                          {resource.subject && (
+                            <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
+                              {resource.subject?.semester?.name ? (
+                                <div className="w-4 h-4 flex-shrink-0 ml-0.5 border-l-2 border-b-2 border-border rounded-bl-md" />
+                              ) : (
+                                <BookOpen className="w-4 h-4 mt-0.5 flex-shrink-0 text-text-muted" />
+                              )}
+                              <span className="line-clamp-1">{resource.subject.name}</span>
+                            </div>
+                          )}
+
+                          {resource.unit && (
+                            <div className="flex items-start gap-2 text-sm text-text-secondary font-medium">
+                              <div className="w-4 h-4 flex-shrink-0 ml-0.5 border-l-2 border-b-2 border-border rounded-bl-md" />
+                              <span className="line-clamp-1">{resource.unit.name}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       <div className="mt-auto pt-5 border-t border-border flex justify-between items-center group-hover:border-accent/30 transition-colors">
                         <AuthorBioTrigger author={resourceAuthor} size="xs" showName />
                         <div className="flex items-center gap-1 text-sm font-bold text-accent">
                           <span>
-                            {resource.type === 'LAW_NOTE' ? 'Read Note' : resource.type === 'CASE_LAW' ? 'Read Case' : resource.type === 'OLD_QUESTION' ? 'View Question' : dict.readMore}
+                            {isCaseLaw ? 'Read Case' : resource.type === 'LAW_NOTE' ? 'Read Note' : resource.type === 'OLD_QUESTION' ? 'View Question' : dict.readMore}
                           </span>
                           <ArrowRight className="w-4 h-4 text-accent opacity-0 -translate-x-2 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300" />
                         </div>
