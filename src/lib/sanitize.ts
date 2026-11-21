@@ -100,6 +100,31 @@ const options: sanitizeHtmlLib.IOptions = {
   },
 };
 
+/**
+ * Strips accidental white/near-white background colors and hardcoded dark text
+ * colors from pasted content (e.g. from Word, Google Docs, or web pages).
+ * In dark mode or on cards, these inline styles create unwanted white highlight
+ * blocks behind text. True highlights (e.g. yellow, green, orange markers) are
+ * preserved.
+ */
+export function cleanPastedInlineStyles(html: string): string {
+  if (!html) return html;
+  const out = html.replace(/style=["']([^"']*)["']/gi, (match, styleContent) => {
+    const hasWhiteBg = /background-color:\s*(?:#fff(?:fff)?|rgba?\(\s*25[0-5]\s*,\s*25[0-5]\s*,\s*25[0-5](?:\s*,\s*(?:1|0?\.\d+))?\s*\)|white)(?:;|$|\s)/i.test(styleContent);
+    if (!hasWhiteBg) return match;
+
+    let updated = styleContent.replace(/background-color:\s*(?:#fff(?:fff)?|rgba?\(\s*25[0-5]\s*,\s*25[0-5]\s*,\s*25[0-5](?:\s*,\s*(?:1|0?\.\d+))?\s*\)|white)\s*;?/gi, '');
+    // If accompanied by hardcoded dark text color (rgb(17,17,17), rgb(0,0,0), #000, #111), strip it so text inherits the theme color
+    updated = updated.replace(/color:\s*(?:#000(?:000)?|#111(?:111)?|rgba?\(\s*(?:0|1[0-7])\s*,\s*(?:0|1[0-7])\s*,\s*(?:0|1[0-7])(?:\s*,\s*1)?\s*\)|black)\s*;?/gi, '');
+
+    updated = updated.trim().replace(/^;|;$/g, '').trim();
+    return updated ? `style="${updated}"` : '';
+  });
+
+  return out.replace(/<([a-z0-9]+)\s+>/gi, '<$1>').replace(/\s*style=["']\s*["']/gi, '');
+}
+
 export function sanitizeHtml(html: string): string {
-  return sanitizeHtmlLib(html, options);
+  const sanitized = sanitizeHtmlLib(html, options);
+  return cleanPastedInlineStyles(sanitized);
 }

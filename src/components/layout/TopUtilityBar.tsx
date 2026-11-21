@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { Locale, Dictionary } from '@/lib/i18n';
 import { formatBSDate } from '@/lib/nepali-date';
 import { Sun, Moon, Globe, Clock, Loader2 } from 'lucide-react';
@@ -12,6 +13,13 @@ interface TopUtilityBarProps {
 }
 
 export default function TopUtilityBar({ locale, dict }: TopUtilityBarProps) {
+  const pathname = usePathname();
+
+  // Hide on /admin routes where the admin panel has its own navigation/theme controls
+  if (pathname?.startsWith('/admin')) {
+    return null;
+  }
+
   const [dateStr, setDateStr] = useState('');
   const [isPending, setIsPending] = useState(false); // Kept to avoid unused var errors, though not needed for navigation now
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
@@ -55,7 +63,7 @@ export default function TopUtilityBar({ locale, dict }: TopUtilityBarProps) {
     updateDateTime();
     const interval = setInterval(updateDateTime, 60000); // Update every minute
     return () => clearInterval(interval);
-  }, [locale, dict.dateLabel]);
+  }, [locale, dict?.dateLabel]);
 
   const handleLanguageToggle = () => {
     setIsPending(true);

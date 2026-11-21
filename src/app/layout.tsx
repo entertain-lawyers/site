@@ -210,8 +210,8 @@ export default async function RootLayout({
         <AnalyticsTracker />
         <ContentProtection />
         <MotionProvider>
+          <TopUtilityBar locale={locale} dict={dict} />
           <PublicOnly>
-            <TopUtilityBar locale={locale} dict={dict} />
             <Navbar dict={dict} session={session} semesters={uniqueSemesters} locale={locale} />
           </PublicOnly>
           <main id="main-content" tabIndex={-1} className="flex-grow flex flex-col focus:outline-none">

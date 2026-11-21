@@ -350,6 +350,27 @@
   .article-body a:focus-visible {
     color: var(--color-accent-hover);
   }
+
+  /* Neutralize accidental pasted white backgrounds from inline styles */
+  :is(.article-body, .prose) [style*="rgb(255, 255, 255)"],
+  :is(.article-body, .prose) [style*="rgb(255,255,255)"],
+  :is(.article-body, .prose) [style*="#ffffff"],
+  :is(.article-body, .prose) [style*="#fff;"],
+  :is(.article-body, .prose) [style*="background-color: white"],
+  :is(.article-body, .prose) [style*="background-color:white"] {
+    background-color: transparent !important;
+  }
+
+  :is(:root[data-theme='dark'], :root.dark) :is(.article-body, .prose) [style*="rgb(17, 17, 17)"],
+  :is(:root[data-theme='dark'], :root.dark) :is(.article-body, .prose) [style*="rgb(17,17,17)"],
+  :is(:root[data-theme='dark'], :root.dark) :is(.article-body, .prose) [style*="#111111"],
+  :is(:root[data-theme='dark'], :root.dark) :is(.article-body, .prose) [style*="#111;"],
+  :is(:root[data-theme='dark'], :root.dark) :is(.article-body, .prose) [style*="rgb(0, 0, 0)"],
+  :is(:root[data-theme='dark'], :root.dark) :is(.article-body, .prose) [style*="rgb(0,0,0)"],
+  :is(:root[data-theme='dark'], :root.dark) :is(.article-body, .prose) [style*="#000000"],
+  :is(:root[data-theme='dark'], :root.dark) :is(.article-body, .prose) [style*="#000;"] {
+    color: inherit !important;
+  }
   /* Quill stores alignment/indent as classes. Its stylesheet only ships with
      the admin editor, so mirror those rules for previews and public pages
      (article detail uses .article-body, Nepali/law-note pages use .prose). */
