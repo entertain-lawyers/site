@@ -24,7 +24,9 @@ import CaseCategoryBadge from '@/components/study/CaseCategoryBadge';
 import SocialShareToolbar from '@/components/posts/SocialShareToolbar';
 import Reactions from '@/components/posts/Reactions';
 import Comments from '@/components/posts/Comments';
-import { ArrowLeft, ChevronRight, FileText } from 'lucide-react';
+import LatestPostsSidebar from '@/components/posts/LatestPostsSidebar';
+import { getLatestPosts } from '@/lib/latest-posts';
+import { ArrowLeft, ChevronRight, FileText, Clock } from 'lucide-react';
 
 export async function generateMetadata({ params }: { params: Promise<{ resourceId: string }> }): Promise<Metadata> {
   const { resourceId } = await params;
@@ -266,138 +268,149 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
         ? 'Law Note'
         : resource.type.replace('_', ' ');
 
+      const latestPosts = await getLatestPosts();
+
       return (
         <div className="min-h-screen bg-background pb-16">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
-            {/* Breadcrumb Navigation */}
-            <nav aria-label="Breadcrumb" className="mb-6">
-              <ol className="flex items-center space-x-2 text-xs sm:text-sm text-text-muted">
-                <li>
-                  <Link href={studyBackUrl} className="hover:text-accent font-medium transition-colors flex items-center gap-1.5">
-                    <ArrowLeft className="w-3.5 h-3.5" />
-                    Back to Study
-                  </Link>
-                </li>
-                <li>
-                  <ChevronRight className="w-3.5 h-3.5 text-border" />
-                </li>
-                <li className="font-semibold text-text-secondary uppercase tracking-wider text-[11px]">
-                  {typeLabel}
-                </li>
-              </ol>
-            </nav>
+          <div className="max-w-[1360px] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
+            <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_360px] lg:gap-12">
+              <article className="min-w-0">
+                {/* Breadcrumb Navigation */}
+                <nav aria-label="Breadcrumb" className="mb-4">
+                  <ol className="flex items-center space-x-2 text-xs sm:text-sm text-text-muted">
+                    <li>
+                      <Link href={studyBackUrl} className="hover:text-accent font-medium transition-colors flex items-center gap-1.5">
+                        <ArrowLeft className="w-3.5 h-3.5" />
+                        Back to Study
+                      </Link>
+                    </li>
+                    <li>
+                      <ChevronRight className="w-3.5 h-3.5 text-border" />
+                    </li>
+                    <li className="font-semibold text-text-secondary uppercase tracking-wider text-[11px]">
+                      {typeLabel}
+                    </li>
+                  </ol>
+                </nav>
 
-            {/* Content Header */}
-            <div className="mb-8 pb-6 border-b border-border">
-              <div className="flex flex-wrap items-center gap-2 mb-4">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-md bg-accent/10 text-accent border border-accent/20 tracking-wider uppercase">
-                  <FileText className="w-3.5 h-3.5" />
-                  {typeLabel}
-                </span>
-                {resource.type === 'CASE_LAW' && resource.metaTitle && (
-                  <CaseCategoryBadge category={resource.metaTitle} size="sm" />
-                )}
-                {(resource.subject?.name || semesterName) && (
-                  <span className="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-md bg-surface-alt border border-border text-text-muted">
-                    {resource.subject?.name || semesterName}
-                  </span>
-                )}
-              </div>
-
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-navy dark:text-white mb-6 leading-tight tracking-tight break-words">
-                {resource.title}
-              </h1>
-
-              <div className="flex flex-wrap items-center gap-6 text-sm text-text-secondary">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-text-muted uppercase tracking-wider text-xs">{dict.author}:</span>
-                  <AuthorBioTrigger author={resourceAuthor} size="sm" showName />
-                </div>
-                {createdDateFormatted && (
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-text-muted uppercase tracking-wider text-xs">Created:</span>
-                    <span>{createdDateFormatted}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Featured Image */}
-            {resource.featuredImage && (
-              <div className="mb-6 rounded-2xl overflow-hidden border border-border shadow-sm aspect-[1200/630] w-full bg-slate-100 dark:bg-zinc-800">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={resource.featuredImage}
-                  alt={resource.title}
-                  className="w-full h-full object-cover object-center"
-                />
-              </div>
-            )}
-
-            {/* Social Share Toolbar - Below Featured Image as in News */}
-            <div id="share" className="mb-8 rounded-xl border border-border bg-surface p-3 sm:p-4 shadow-xs">
-              <SocialShareToolbar title={resource.title} labels />
-            </div>
-
-            {/* Reading Body - Separate styled box matching preview layout */}
-            <div className="bg-surface border border-border rounded-2xl p-6 sm:p-10 shadow-sm mb-10">
-              <ArticleBody html={resource.content} toc />
-            </div>
-
-            {/* About Author Section */}
-            <section aria-labelledby="read-author-heading" className="bg-surface border border-border rounded-2xl p-6 sm:p-7 shadow-sm mb-10">
-              <div className="border-b border-border pb-3 mb-5">
-                <h2 id="read-author-heading" className="text-xs font-bold uppercase tracking-wider text-text-muted">
-                  About Author
-                </h2>
-              </div>
-              <div className="flex items-start gap-4 sm:gap-5">
-                <AuthorBioTrigger author={resourceAuthor} size="lg" showName={false} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <AuthorBioTrigger
-                      author={resourceAuthor}
-                      showName
-                      nameClassName="text-base font-bold text-navy dark:text-white hover:text-accent"
-                    >
-                      <span className="font-bold text-navy dark:text-white text-base hover:text-accent transition-colors cursor-pointer">
-                        {resourceAuthor.name}
-                      </span>
-                    </AuthorBioTrigger>
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-accent/10 text-accent">
-                      {resourceAuthor.role}
+                {/* Content Header */}
+                <header className="mb-6 pb-6 border-b border-border">
+                  <div className="flex flex-wrap items-center gap-2 mb-3">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-md bg-accent/10 text-accent border border-accent/20 tracking-wider uppercase">
+                      <FileText className="w-3.5 h-3.5" />
+                      {typeLabel}
                     </span>
+                    {resource.type === 'CASE_LAW' && resource.metaTitle && (
+                      <CaseCategoryBadge category={resource.metaTitle} size="sm" />
+                    )}
+                    {(resource.subject?.name || semesterName) && (
+                      <span className="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-md bg-surface-alt border border-border text-text-muted">
+                        {resource.subject?.name || semesterName}
+                      </span>
+                    )}
                   </div>
-                  <p className="mt-1 text-sm leading-relaxed text-text-secondary">
-                    {resourceAuthor.bio}
-                  </p>
-                  {resourceAuthor.website && (
-                    <a
-                      href={resourceAuthor.website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-2 inline-flex items-center text-xs font-semibold text-accent hover:underline"
-                    >
-                      {resourceAuthor.website.replace(/^https?:\/\//, '')} &rarr;
-                    </a>
-                  )}
+
+                  <h1 className="text-[clamp(1.85rem,3.4vw,2.75rem)] font-extrabold text-navy dark:text-white leading-[1.2] tracking-tight mb-4 break-words">
+                    {resource.title}
+                  </h1>
+
+                  {/* Clean Author & Date line matching previous site */}
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-text-muted">
+                    <AuthorBioTrigger author={resourceAuthor} size="sm" showName />
+                    {createdDateFormatted && (
+                      <span className="inline-flex items-center gap-1.5">
+                        <Clock className="w-4 h-4 text-text-muted" aria-hidden="true" />
+                        <time>{createdDateFormatted}</time>
+                      </span>
+                    )}
+                  </div>
+                </header>
+
+                {/* Featured Image */}
+                {resource.featuredImage && (
+                  <div className="mb-6 rounded-xl overflow-hidden border border-border shadow-xs aspect-[1200/630] w-full bg-slate-100 dark:bg-zinc-800">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={resource.featuredImage}
+                      alt={resource.title}
+                      className="w-full h-full object-cover object-center"
+                    />
+                  </div>
+                )}
+
+                {/* Article Body with Table of Contents and SocialShareToolbar directly below TOC */}
+                <ArticleBody
+                  html={resource.content}
+                  toc
+                  belowToc={
+                    <div id="share" className="pt-1 pb-1">
+                      <SocialShareToolbar title={resource.title} labels />
+                    </div>
+                  }
+                />
+
+                {/* About Author Section */}
+                <section aria-labelledby="read-author-heading" className="bg-surface border border-border rounded-2xl p-6 sm:p-7 shadow-xs mt-12 mb-8">
+                  <div className="border-b border-border pb-3 mb-5">
+                    <h2 id="read-author-heading" className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                      About Author
+                    </h2>
+                  </div>
+                  <div className="flex items-start gap-4 sm:gap-5">
+                    <AuthorBioTrigger author={resourceAuthor} size="lg" showName={false} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <AuthorBioTrigger
+                          author={resourceAuthor}
+                          showName
+                          nameClassName="text-base font-bold text-navy dark:text-white hover:text-accent"
+                        >
+                          <span className="font-bold text-navy dark:text-white text-base hover:text-accent transition-colors cursor-pointer">
+                            {resourceAuthor.name}
+                          </span>
+                        </AuthorBioTrigger>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-accent/10 text-accent">
+                          {resourceAuthor.role}
+                        </span>
+                      </div>
+                      <p className="mt-1 text-sm leading-relaxed text-text-secondary">
+                        {resourceAuthor.bio}
+                      </p>
+                      {resourceAuthor.website && (
+                        <a
+                          href={resourceAuthor.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-2 inline-flex items-center text-xs font-semibold text-accent hover:underline"
+                        >
+                          {resourceAuthor.website.replace(/^https?:\/\//, '')} &rarr;
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </section>
+
+                {/* User Reaction Bar */}
+                <Reactions
+                  postId={resource.id}
+                  postType={resource.type === 'CASE_LAW' ? 'CASELAW' : 'NOTES'}
+                  title={resource.type === 'CASE_LAW' ? 'How did this case law make you feel?' : 'How did this note make you feel?'}
+                />
+
+                {/* Comments Section */}
+                <div className="mt-8">
+                  <Comments
+                    postId={resource.id}
+                    postType={resource.type === 'CASE_LAW' ? 'CASELAW' : 'NOTES'}
+                    variant="study"
+                  />
                 </div>
-              </div>
-            </section>
+              </article>
 
-            {/* User Reaction Bar */}
-            <Reactions
-              postId={resource.id}
-              postType={resource.type === 'CASE_LAW' ? 'CASELAW' : 'NOTES'}
-              title={resource.type === 'CASE_LAW' ? 'How did this case law make you feel?' : 'How did this note make you feel?'}
-            />
-
-            {/* Comments Section */}
-            <div className="mt-8">
-              <Comments
-                postId={resource.id}
-                postType={resource.type === 'CASE_LAW' ? 'CASELAW' : 'NOTES'}
-              />
+              {/* Sidebar on Desktop (Matching Image 2 Latest Post) */}
+              <aside className="hidden lg:block space-y-8 lg:sticky lg:top-24">
+                <LatestPostsSidebar posts={latestPosts} />
+              </aside>
             </div>
           </div>
         </div>

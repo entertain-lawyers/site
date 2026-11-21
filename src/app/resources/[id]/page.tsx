@@ -579,6 +579,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
           <Comments
             postId={resource.id}
             postType={resource.type === 'CASE_LAW' ? 'CASELAW' : 'NOTES'}
+            variant="study"
           />
         </div>
       </div>

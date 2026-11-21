@@ -44,7 +44,15 @@ function relativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-export default function Comments({ postId, postType = 'NEWS' }: { postId: string; postType?: string }) {
+export default function Comments({
+  postId,
+  postType = 'NEWS',
+  variant = 'news',
+}: {
+  postId: string;
+  postType?: string;
+  variant?: 'news' | 'study';
+}) {
   const pathname = usePathname();
   const [comments, setComments] = useState<CommentItem[]>([]);
   const [user, setUser] = useState<SessionUser | null>(null);
@@ -53,6 +61,7 @@ export default function Comments({ postId, postType = 'NEWS' }: { postId: string
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [helpfulVotes, setHelpfulVotes] = useState<Record<string, { count: number; active: boolean }>>({});
 
   const loginHref = useMemo(
     () => `/login?callbackUrl=${encodeURIComponent(pathname || '/')}`,
@@ -135,6 +144,242 @@ export default function Comments({ postId, postType = 'NEWS' }: { postId: string
     }
   };
 
+  const toggleHelpful = (id: string) => {
+    setHelpfulVotes((prev) => {
+      const current = prev[id] || { count: 0, active: false };
+      return {
+        ...prev,
+        [id]: {
+          count: current.active ? Math.max(0, current.count - 1) : current.count + 1,
+          active: !current.active,
+        },
+      };
+    });
+  };
+
+  const replyTo = (authorName: string | null) => {
+    const name = authorName || 'Reader';
+    setDraft((prev) => (prev ? `${prev} @${name} ` : `@${name} `));
+    const el = document.getElementById('comment-body');
+    if (el) {
+      el.focus();
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  };
+
+  // Study / Law Notes / Case Laws Redesigned Discussion Layout
+  if (variant === 'study') {
+    return (
+      <section aria-labelledby="discussion-heading" className="mt-10 scroll-mt-24 rounded-2xl border border-border/80 bg-surface/90 dark:bg-zinc-900/60 p-6 sm:p-8 shadow-xs">
+        {/* Discussion Header */}
+        <div className="flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-border/70">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent border border-accent/20">
+              <MessageSquare className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div>
+              <h2 id="discussion-heading" className="text-lg sm:text-xl font-bold text-navy dark:text-white leading-tight">
+                Discussion & Study Inquiries
+              </h2>
+              <p className="text-xs sm:text-sm text-text-muted mt-0.5">
+                Discuss legal provisions, ask questions, or share study insights with peers.
+              </p>
+            </div>
+          </div>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-surface-alt border border-border text-navy dark:text-white">
+            <span className="h-2 w-2 rounded-full bg-accent" />
+            {loading ? '…' : `${comments.length} ${comments.length === 1 ? 'Comment' : 'Comments'}`}
+          </span>
+        </div>
+
+        {/* Composer Form */}
+        <div className="pt-6">
+          {user ? (
+            <form onSubmit={submit} className="mb-8">
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-white text-xs font-bold shadow-xs">
+                  {user.image ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={user.image} alt="" className="h-full w-full rounded-full object-cover" />
+                  ) : (
+                    initials(user.name, user.email)
+                  )}
+                </div>
+                <div className="text-xs">
+                  <span className="font-bold text-navy dark:text-white">{user.name || user.email}</span>
+                  <span className="ml-2 text-text-muted">• Contributing to study discussion</span>
+                </div>
+              </div>
+
+              <div className="relative rounded-xl border border-border bg-background focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 transition-all">
+                <textarea
+                  id="comment-body"
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  maxLength={MAX_LENGTH}
+                  rows={3}
+                  placeholder="Have a question or insight on this note? Share your perspective, cite relevant sections, or ask for clarification..."
+                  className="w-full resize-y rounded-t-xl bg-transparent px-4 py-3 text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
+                />
+                <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-2 border-t border-border/50 bg-surface-alt/40 rounded-b-xl text-xs text-text-muted">
+                  <span className="text-[11px] text-text-muted hidden sm:inline">
+                    💡 Tip: Reference specific statutes or case names to help others.
+                  </span>
+                  <div className="flex items-center gap-3 ml-auto">
+                    <span aria-live="polite" className="text-[11px]">{draft.length}/{MAX_LENGTH}</span>
+                    <MotionButton
+                      type="submit"
+                      disabled={submitting || !draft.trim()}
+                      className="inline-flex min-h-[36px] items-center gap-1.5 rounded-lg bg-accent px-4 text-xs font-bold text-white transition-all hover:bg-accent-hover active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {submitting ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : <Send className="h-3.5 w-3.5" aria-hidden="true" />}
+                      {submitting ? 'Posting…' : 'Post Comment'}
+                    </MotionButton>
+                  </div>
+                </div>
+              </div>
+            </form>
+          ) : (
+            <div className="mb-8 rounded-xl border border-dashed border-border bg-surface-alt/50 p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-lg bg-accent/10 text-accent flex items-center justify-center shrink-0">
+                  <LogIn className="h-4 w-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-navy dark:text-white">Join the study discussion</p>
+                  <p className="text-xs text-text-muted">
+                    Sign in to ask questions, share case notes, and exchange insights with fellow students.
+                  </p>
+                </div>
+              </div>
+              <Link
+                href={loginHref}
+                className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-accent px-5 py-2.5 text-xs font-bold text-white hover:bg-accent-hover transition-colors shadow-xs"
+              >
+                Sign in to comment
+              </Link>
+            </div>
+          )}
+
+          {/* Feedback messages */}
+          <AnimatePresence initial={false}>
+            {error && (
+              <Appear key="error">
+                <p role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-xs text-red-700 dark:border-red-900/60 dark:bg-red-950/40 dark:text-red-300">
+                  {error}
+                </p>
+              </Appear>
+            )}
+            {notice && (
+              <p role="status" className="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-2.5 text-xs text-green-700 dark:border-green-900/60 dark:bg-green-950/40 dark:text-green-300">
+                {notice}
+              </p>
+            )}
+          </AnimatePresence>
+
+          {/* Comments List */}
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-8 text-sm text-text-muted">
+              <Loader2 className="h-4 w-4 animate-spin text-accent" aria-hidden="true" />
+              Loading discussion…
+            </div>
+          ) : comments.length === 0 ? (
+            <div className="py-10 px-4 text-center rounded-xl border border-border/60 bg-surface-alt/30">
+              <div className="h-12 w-12 rounded-full bg-accent/10 text-accent flex items-center justify-center mx-auto mb-3">
+                <MessageSquare className="h-6 w-6" />
+              </div>
+              <h3 className="text-sm font-bold text-navy dark:text-white mb-1">
+                No inquiries or comments yet
+              </h3>
+              <p className="text-xs text-text-muted max-w-sm mx-auto">
+                Be the first to start the discussion! Ask a question or share your key takeaways from this note.
+              </p>
+            </div>
+          ) : (
+            <ul className="space-y-4">
+              {comments.map((comment) => {
+                const helpful = helpfulVotes[comment.id] || { count: 0, active: false };
+                return (
+                  <li
+                    key={comment.id}
+                    className="rounded-xl border border-border/80 bg-background/60 p-4 transition-all hover:border-border"
+                  >
+                    <div className="flex items-start gap-3">
+                      {/* Avatar */}
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-navy to-accent text-xs font-bold text-white shadow-xs">
+                        {comment.authorImage ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img src={comment.authorImage} alt="" className="h-full w-full object-cover" loading="lazy" />
+                        ) : (
+                          initials(comment.authorName)
+                        )}
+                      </div>
+
+                      {/* Content */}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1.5">
+                          <span className="text-sm font-bold text-navy dark:text-white">
+                            {comment.authorName || 'Student'}
+                          </span>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-accent/10 text-accent">
+                            Law Student
+                          </span>
+                          <span className="text-xs text-text-muted">• {relativeTime(comment.createdAt)}</span>
+
+                          {comment.canDelete && (
+                            <button
+                              type="button"
+                              onClick={() => remove(comment.id)}
+                              className="ml-auto inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-text-muted hover:text-red-600 transition-colors cursor-pointer"
+                              aria-label="Delete comment"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                              <span className="text-[11px]">Delete</span>
+                            </button>
+                          )}
+                        </div>
+
+                        <p className="text-sm leading-relaxed text-text-secondary whitespace-pre-line break-words">
+                          {comment.content}
+                        </p>
+
+                        {/* Interactive Action Bar */}
+                        <div className="mt-3 flex items-center gap-4 text-xs text-text-muted pt-2 border-t border-border/40">
+                          <button
+                            type="button"
+                            onClick={() => toggleHelpful(comment.id)}
+                            className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md transition-colors cursor-pointer text-xs ${
+                              helpful.active
+                                ? 'text-accent font-bold bg-accent/10'
+                                : 'hover:text-accent hover:bg-surface-alt'
+                            }`}
+                          >
+                            <span>👍</span>
+                            <span>Helpful</span>
+                            {helpful.count > 0 && <span className="font-semibold">({helpful.count})</span>}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => replyTo(comment.authorName)}
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md hover:text-accent hover:bg-surface-alt transition-colors cursor-pointer text-xs"
+                          >
+                            <span>Reply</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </section>
+    );
+  }
+
+  // Classic News Version (kept 100% as is per requirement)
   return (
     <section aria-labelledby="comments-heading" className="mt-8 scroll-mt-24 border border-border bg-surface">
       <div className="flex items-center justify-between gap-3 bg-navy px-4 py-2.5 dark:bg-zinc-900 dark:border-b dark:border-white/10">
