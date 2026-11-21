@@ -329,4 +329,63 @@ describe('Editor Law Notes & Comprehensive RBAC Verification', () => {
       expect(adminRes).toBe(true);
     });
   });
+
+  describe('5. Law Notes Preservation & Dual Publishing Integrity', () => {
+    it('preserves LAW_NOTE in AdminResourceForm even when a Prescribed Cases unit is provided', () => {
+      const semesters = [{ id: 'sem-1', name: '1st Semester' }];
+      const subjects = [{ id: 'sub-1', name: 'Constitutional Law', semesterId: 'sem-1' }];
+      const units = [{ id: 'unit-cases', name: 'Prescribed Cases', subjectId: 'sub-1' }];
+
+      const html = renderToStaticMarkup(
+        <AdminResourceForm
+          semesters={semesters}
+          subjects={subjects}
+          units={units}
+          canManageLawTypes={true}
+          initialType={ResourceType.LAW_NOTE}
+        />
+      );
+
+      // Verify Resource Type dropdown is rendered with Law Note as selected
+      expect(html).toContain('value="LAW_NOTE"');
+      expect(html).toContain('Law Note');
+
+      // Verify "Also publish in Case Laws?" is available for Law Notes
+      expect(html).toContain('Also publish in Case Laws?');
+      expect(html).toContain('id="alsoPublishInCaseLaws"');
+    });
+
+    it('creates a LAW_NOTE resource with type LAW_NOTE and dual publishes to Case Laws when case category is present', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ id: 'editor-1', role: Role.EDITOR });
+      mockPrisma.subject.findUnique.mockResolvedValue({ id: 'sub-1', semesterId: 'sem-1' });
+      mockPrisma.unit.findUnique.mockResolvedValue({ id: 'unit-cases', subjectId: 'sub-1' });
+      mockPrisma.resource.create.mockResolvedValue({
+        id: 'note-1',
+        title: 'Constitutional Review Landmarks Note',
+        type: ResourceType.LAW_NOTE,
+        metaTitle: 'CIVIL:NEW_CASE',
+        semesterId: 'sem-1',
+        subjectId: 'sub-1',
+        unitId: 'unit-cases',
+      });
+
+      const res = await createResourceAction({
+        title: 'Constitutional Review Landmarks Note',
+        subjectId: 'sub-1',
+        semesterId: 'sem-1',
+        unitId: 'unit-cases',
+        type: ResourceType.LAW_NOTE,
+        status: ContentStatus.PUBLISHED,
+        isPremium: false,
+        caseCategory: 'NEW_CASE',
+        caseLawCategory: 'CIVIL',
+      });
+
+      expect(res.success).toBe(true);
+      const createCall = mockPrisma.resource.create.mock.calls[0][0];
+      // Must strictly save as LAW_NOTE so it appears in both Law Notes and Case Laws
+      expect(createCall.data.type).toBe(ResourceType.LAW_NOTE);
+      expect(createCall.data.metaTitle).toBe('CIVIL:NEW_CASE');
+    });
+  });
 });

@@ -678,12 +678,7 @@ export function AdminResourceForm({
         id="resource-unit"
         value={unitId}
         onChange={e => {
-          const newUnitId = e.target.value;
-          setUnitId(newUnitId);
-          const unitObj = units.find(u => u.id === newUnitId);
-          if (isPrescribedCasesUnit(unitObj)) {
-            setResourceType(ResourceType.CASE_LAW);
-          }
+          setUnitId(e.target.value);
         }}
         disabled={!subjectId}
         className={selectClass}
