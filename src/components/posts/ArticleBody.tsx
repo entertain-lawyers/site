@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { X, ChevronDown } from 'lucide-react';
 import { articleFont } from './article-font';
 import { sanitizeHtml } from '@/lib/sanitize';
 import { AnimatePresence, Backdrop, m } from '@/components/motion/primitives';
@@ -103,7 +103,7 @@ export default function ArticleBody({ html, toc = false }: { html: string; toc?:
           aria-label="Table of contents"
           className="mb-8 rounded-2xl border border-border bg-surface/80 dark:bg-zinc-900/60 p-5 shadow-soft transition-all"
         >
-          <div className="flex items-center justify-between pb-2 border-b border-border/60">
+          <div className={`flex items-center justify-between ${isTocCollapsed ? 'pb-0' : 'pb-2 border-b border-border/60'} transition-all`}>
             <div className="flex items-center gap-2">
               <span className="text-sm sm:text-base font-bold text-navy dark:text-white">
                 Contents
@@ -112,39 +112,56 @@ export default function ArticleBody({ html, toc = false }: { html: string; toc?:
             <button
               type="button"
               onClick={() => setIsTocCollapsed(!isTocCollapsed)}
-              className="text-xs font-semibold text-accent hover:text-accent-hover transition-colors px-2 py-0.5 rounded-md hover:bg-surface-alt flex items-center gap-1 cursor-pointer"
+              className="p-1 rounded-md text-text-secondary hover:text-accent hover:bg-surface-alt dark:hover:bg-zinc-800 transition-colors flex items-center justify-center cursor-pointer"
               aria-expanded={!isTocCollapsed}
               aria-label={isTocCollapsed ? "Show Table of Contents" : "Hide Table of Contents"}
+              title={isTocCollapsed ? "Show Table of Contents" : "Hide Table of Contents"}
             >
-              [{isTocCollapsed ? 'Show' : 'Hide'}]
+              <ChevronDown
+                className={`w-5 h-5 text-accent transition-transform duration-300 ease-in-out ${
+                  isTocCollapsed ? 'rotate-180' : 'rotate-0'
+                }`}
+                aria-hidden="true"
+              />
             </button>
           </div>
 
-          {!isTocCollapsed && (
-            <ul className="mt-4 space-y-2 text-sm sm:text-[15px]">
-              {numberedToc.map((item) => {
-                const isTopHeading = item.level === minLevel || item.level === 2;
-                return (
-                  <li
-                    key={item.id}
-                    style={{ paddingLeft: `${(item.level - minLevel) * 1.25}rem` }}
-                  >
-                    <a
-                      href={`#${item.id}`}
-                      className={`inline-block transition-colors hover:text-accent ${
-                        isTopHeading
-                          ? 'font-bold text-navy dark:text-white'
-                          : 'font-medium text-text-secondary'
-                      }`}
-                    >
-                      <span className="text-text-muted font-normal mr-1">{item.prefix}</span>
-                      {item.text}
-                    </a>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+          <AnimatePresence initial={false}>
+            {!isTocCollapsed && (
+              <m.div
+                key="toc-content"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.25, ease: 'easeInOut' }}
+                className="overflow-hidden"
+              >
+                <ul className="mt-4 space-y-2 text-sm sm:text-[15px]">
+                  {numberedToc.map((item) => {
+                    const isTopHeading = item.level === minLevel || item.level === 2;
+                    return (
+                      <li
+                        key={item.id}
+                        style={{ paddingLeft: `${(item.level - minLevel) * 1.25}rem` }}
+                      >
+                        <a
+                          href={`#${item.id}`}
+                          className={`inline-block transition-colors hover:text-accent ${
+                            isTopHeading
+                              ? 'font-bold text-navy dark:text-white'
+                              : 'font-medium text-text-secondary'
+                          }`}
+                        >
+                          <span className="text-text-muted font-normal mr-1">{item.prefix}</span>
+                          {item.text}
+                        </a>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </m.div>
+            )}
+          </AnimatePresence>
         </nav>
       )}
 
