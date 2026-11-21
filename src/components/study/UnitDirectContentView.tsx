@@ -243,12 +243,16 @@ export default function UnitDirectContentView({
         ) : status === 'WRITTEN' && activeResource.content ? (
           /* Written Note rendering via ArticleBody */
           <div className="space-y-8">
-            <div className="border border-border bg-surface p-3 sm:p-4 rounded-xl">
-              <SocialShareToolbar title={activeResource.title} labels />
-            </div>
-
             <div className="prose dark:prose-invert max-w-none">
-              <ArticleBody html={activeResource.content} toc={true} />
+              <ArticleBody
+                html={activeResource.content}
+                toc={true}
+                belowToc={
+                  <div className="pt-1 pb-1">
+                    <SocialShareToolbar title={activeResource.title} labels />
+                  </div>
+                }
+              />
             </div>
 
             <Reactions
@@ -260,6 +264,7 @@ export default function UnitDirectContentView({
             <Comments
               postId={activeResource.id}
               postType={activeResource.type === 'CASE_LAW' ? 'CASELAW' : 'NOTES'}
+              variant="study"
             />
           </div>
         ) : status === 'UPLOADED' && activeResource.document ? (

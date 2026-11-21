@@ -17,7 +17,15 @@ import { springSmooth } from '@/lib/motion';
  */
 type TocItem = { id: string; text: string; level: number };
 
-export default function ArticleBody({ html, toc = false }: { html: string; toc?: boolean }) {
+export default function ArticleBody({
+  html,
+  toc = false,
+  belowToc,
+}: {
+  html: string;
+  toc?: boolean;
+  belowToc?: React.ReactNode;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [zoomSrc, setZoomSrc] = useState<string | null>(null);
   // Sections for the auto table of contents; null = not built yet / not wanted.
@@ -74,24 +82,31 @@ export default function ArticleBody({ html, toc = false }: { html: string; toc?:
 
   const minLevel = tocItems ? Math.min(...tocItems.map((t) => t.level)) : 2;
 
-  // Hierarchical numbering (e.g. 1., 1.1, 1.2, 2.) matching WordPress TOC
+  // Check if headings already contain their own numbering (e.g. "2.1 Meaning of neutrality:")
+  const alreadyNumbered = tocItems?.some((item) =>
+    /^\s*(\d+(\.\d+)*|[a-zA-Z]\.|\b[IVXLCDM]+\.)\s+/i.test(item.text)
+  );
+
+  // Hierarchical numbering (e.g. 1., 1.1, 1.2, 2.) if not already numbered in heading text
   let h2Count = 0;
   let h3Count = 0;
   let h4Count = 0;
   const numberedToc = tocItems?.map((item) => {
     let prefix = '';
-    if (item.level === 2) {
-      h2Count++;
-      h3Count = 0;
-      h4Count = 0;
-      prefix = `${h2Count}. `;
-    } else if (item.level === 3) {
-      h3Count++;
-      h4Count = 0;
-      prefix = `${h2Count || 1}.${h3Count} `;
-    } else {
-      h4Count++;
-      prefix = `${h2Count || 1}.${h3Count || 1}.${h4Count} `;
+    if (!alreadyNumbered) {
+      if (item.level === 2) {
+        h2Count++;
+        h3Count = 0;
+        h4Count = 0;
+        prefix = `${h2Count}. `;
+      } else if (item.level === 3) {
+        h3Count++;
+        h4Count = 0;
+        prefix = `${h2Count || 1}.${h3Count} `;
+      } else {
+        h4Count++;
+        prefix = `${h2Count || 1}.${h3Count || 1}.${h4Count} `;
+      }
     }
     return { ...item, prefix };
   });
@@ -101,12 +116,12 @@ export default function ArticleBody({ html, toc = false }: { html: string; toc?:
       {numberedToc && numberedToc.length > 0 && (
         <nav
           aria-label="Table of contents"
-          className="mb-8 rounded-2xl border border-border bg-surface/80 dark:bg-zinc-900/60 p-5 shadow-soft transition-all"
+          className="mb-6 rounded-xl border border-border bg-surface-alt/40 dark:bg-zinc-900/40 p-4 sm:p-5 shadow-xs w-full transition-all"
         >
           <div className={`flex items-center justify-between ${isTocCollapsed ? 'pb-0' : 'pb-2 border-b border-border/60'} transition-all`}>
             <div className="flex items-center gap-2">
               <span className="text-sm sm:text-base font-bold text-navy dark:text-white">
-                Contents
+                Table of Contents
               </span>
             </div>
             <button
@@ -152,7 +167,7 @@ export default function ArticleBody({ html, toc = false }: { html: string; toc?:
                               : 'font-medium text-text-secondary'
                           }`}
                         >
-                          <span className="text-text-muted font-normal mr-1">{item.prefix}</span>
+                          {item.prefix && <span className="text-text-muted font-normal mr-1">{item.prefix}</span>}
                           {item.text}
                         </a>
                       </li>
@@ -163,6 +178,12 @@ export default function ArticleBody({ html, toc = false }: { html: string; toc?:
             )}
           </AnimatePresence>
         </nav>
+      )}
+
+      {belowToc && (
+        <div className="mb-6 w-full">
+          {belowToc}
+        </div>
       )}
 
       <div
