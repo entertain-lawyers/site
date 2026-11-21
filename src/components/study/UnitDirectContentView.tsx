@@ -243,19 +243,12 @@ export default function UnitDirectContentView({
         ) : status === 'WRITTEN' && activeResource.content ? (
           /* Written Note rendering via ArticleBody */
           <div className="space-y-8">
-            <div className="bg-surface border border-border rounded-2xl p-6 sm:p-10 shadow-xs">
-              <div className="prose dark:prose-invert max-w-none">
-                <ArticleBody
-                  html={activeResource.content}
-                  toc={true}
-                  belowToc={
-                    <div className="pt-1 pb-1">
-                      <SocialShareToolbar title={activeResource.title} labels />
-                    </div>
-                  }
-                />
-              </div>
-            </div>
+            <ArticleBody
+              html={activeResource.content}
+              toc={true}
+              boxed
+              belowToc={<SocialShareToolbar title={activeResource.title} labels />}
+            />
 
             <Reactions
               postId={activeResource.id}

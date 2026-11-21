@@ -16,15 +16,18 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const parsed = new URL(imageUrl);
+    const parsed = imageUrl.startsWith('/')
+      ? new URL(imageUrl, req.nextUrl.origin)
+      : new URL(imageUrl);
     if (!['http:', 'https:'].includes(parsed.protocol)) {
       return NextResponse.json({ error: 'Invalid URL protocol' }, { status: 400 });
     }
 
-    const response = await fetch(imageUrl, {
+    const response = await fetch(parsed.toString(), {
       headers: {
         'User-Agent': 'EntertainLawyers-MediaProxy/1.0',
       },
+      redirect: 'follow',
     });
 
     if (!response.ok) {
