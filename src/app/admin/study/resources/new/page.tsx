@@ -21,6 +21,7 @@ export default async function NewResourcePage({
 
   const { type, caseCategory } = await searchParams;
   const isCaseLaw = type === ResourceType.CASE_LAW;
+  const isLawNote = type === ResourceType.LAW_NOTE;
   const initialCaseCategory = parseCaseCategory(caseCategory);
 
 
@@ -46,11 +47,11 @@ export default async function NewResourcePage({
           semesters={semesters}
           subjects={subjects}
           units={units}
-          canManageLawTypes={session.user.role === 'ADMIN'}
+          canManageLawTypes={session.user.role === 'ADMIN' || session.user.role === 'EDITOR'}
           authors={authors}
           authorMappingAvailable={authorMappingAvailable}
           defaultAuthorId={session.user.id}
-          initialType={isCaseLaw ? ResourceType.CASE_LAW : undefined}
+          initialType={isCaseLaw ? ResourceType.CASE_LAW : isLawNote ? ResourceType.LAW_NOTE : undefined}
           initialCaseCategory={initialCaseCategory ?? undefined}
           uploadBlockedReason={getWordPressWriteBlock('en')}
         />

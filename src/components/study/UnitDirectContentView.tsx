@@ -11,6 +11,9 @@ import { resourceBodyStatus } from '@/lib/resource-status';
 import CaseCategoryBadge from '@/components/study/CaseCategoryBadge';
 import CaseLawCategoryBadge from '@/components/study/CaseLawCategoryBadge';
 import { getCaseLawCategory } from '@/lib/case-category';
+import SocialShareToolbar from '@/components/posts/SocialShareToolbar';
+import Reactions from '@/components/posts/Reactions';
+import Comments from '@/components/posts/Comments';
 
 export interface UnitResourceData {
   id: string;
@@ -239,8 +242,25 @@ export default function UnitDirectContentView({
           </div>
         ) : status === 'WRITTEN' && activeResource.content ? (
           /* Written Note rendering via ArticleBody */
-          <div className="prose dark:prose-invert max-w-none">
-            <ArticleBody html={activeResource.content} toc={true} />
+          <div className="space-y-8">
+            <div className="border border-border bg-surface p-3 sm:p-4 rounded-xl">
+              <SocialShareToolbar title={activeResource.title} labels />
+            </div>
+
+            <div className="prose dark:prose-invert max-w-none">
+              <ArticleBody html={activeResource.content} toc={true} />
+            </div>
+
+            <Reactions
+              postId={activeResource.id}
+              postType={activeResource.type === 'CASE_LAW' ? 'CASELAW' : 'NOTES'}
+              title={activeResource.type === 'CASE_LAW' ? 'How did this case law make you feel?' : 'How did this note make you feel?'}
+            />
+
+            <Comments
+              postId={activeResource.id}
+              postType={activeResource.type === 'CASE_LAW' ? 'CASELAW' : 'NOTES'}
+            />
           </div>
         ) : status === 'UPLOADED' && activeResource.document ? (
           /* Uploaded PDF view/action */

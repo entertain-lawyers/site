@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { ResourceType, ContentStatus } from '@prisma/client';
 import { createResourceAction, deleteResourceAction, updateResourceAction } from '@/modules/admin/admin-resource.actions';
-import { editorHtmlToArticleHtml } from '@/lib/editor-html';
+import { articleHtmlToEditorHtml, editorHtmlToArticleHtml } from '@/lib/editor-html';
 import { confirmDocumentUpload, initiateDocumentUpload } from '@/modules/admin/admin-document.actions';
 import {
   CaseCategory,
@@ -87,7 +87,7 @@ export function AdminResourceForm({
   semesters,
   subjects,
   units,
-  canManageLawTypes = false,
+  canManageLawTypes = true,
   authors = [],
   authorMappingAvailable = true,
   defaultAuthorId = '',
@@ -126,7 +126,7 @@ export function AdminResourceForm({
   const [description] = useState(resource?.description ?? '');
   const [semesterId, setSemesterId] = useState(resource?.semesterId ?? '');
   const [subjectId, setSubjectId] = useState(resource?.subjectId ?? '');
-  // Editors can create case laws, old questions, and other study materials; law notes remain admin-only.
+  // Both Admins and Editors can create and manage law notes, case laws, old questions, and study materials.
   const [resourceType, setResourceType] = useState<ResourceType>(initialTypeState);
   const [caseLawCategory, setCaseLawCategory] = useState<CaseLawCategory | null>(() => {
     if (resource?.caseLawCategory) return resource.caseLawCategory;
@@ -208,7 +208,7 @@ export function AdminResourceForm({
 
   const [file, setFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [content, setContent] = useState(resource?.content ?? '');
+  const [content, setContent] = useState(() => (resource?.content ? articleHtmlToEditorHtml(resource.content) : ''));
 
   // Filter subjects by selected semester; show all subjects when no semester is selected
   const filteredSubjects = useMemo(

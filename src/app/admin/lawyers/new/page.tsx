@@ -1,8 +1,15 @@
+import { auth } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 import LawyerFormClient from '../LawyerFormClient';
 
 export const metadata = { title: 'Add Consultation Lawyer | Admin' };
 
-export default function NewLawyerPage() {
+export default async function NewLawyerPage() {
+  const session = await auth();
+  if (!session?.user?.id || (session.user.role !== 'ADMIN' && session.user.role !== 'EDITOR')) {
+    redirect('/');
+  }
+
   return (
     <div className="py-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto space-y-6">
       <div>

@@ -70,6 +70,7 @@ export default function AdminSidebar({
     { name: 'Publications', href: '/admin/publications', icon: BookOpen, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Team', href: '/admin/team', icon: Users, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Resources', href: '/admin/study/resources', icon: FileText, roles: ['ADMIN', 'EDITOR'] },
+    { name: 'Law Notes', href: '/admin/study/resources?type=LAW_NOTE', icon: BookOpen, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Case Laws', href: '/admin/study/resources?type=CASE_LAW', icon: Scale, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Semesters', href: '/admin/study/semesters', icon: Database, roles: ['ADMIN', 'EDITOR'] },
     { name: 'Subjects', href: '/admin/study/subjects', icon: Database, roles: ['ADMIN', 'EDITOR'] },
@@ -89,7 +90,7 @@ export default function AdminSidebar({
   const groups: { label: string; names: string[] }[] = [
     { label: 'Overview', names: ['Dashboard'] },
     { label: 'Requests', names: ['Consultations', 'Consult Lawyers'] },
-    { label: 'Resources', names: ['Resources', 'Case Laws', 'Semesters', 'Subjects', 'Units'] },
+    { label: 'Resources', names: ['Resources', 'Law Notes', 'Case Laws', 'Semesters', 'Subjects', 'Units'] },
     { label: 'Publishing', names: ['Posts', 'Acts & Laws', 'Visual Pages', 'Events', 'FAQs', 'Gallery', 'Publications', 'Team'] },
     { label: 'Site Control', names: ['Site Settings', 'Homepage', 'Announcements', 'Redirects'] },
     { label: 'System', names: ['Users & Roles', 'Protection Center', 'Audit Logs', 'AI Index'] },

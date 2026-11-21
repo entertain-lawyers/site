@@ -36,6 +36,7 @@ const { mockPrisma } = vi.hoisted(() => {
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
+  usePathname: () => '/study',
   notFound: vi.fn(),
   redirect: vi.fn(),
 }));
@@ -292,20 +293,17 @@ describe('Case Law Integration & Unified Lifecycle E2E Review', () => {
     expect(html).toContain('No cases found');
   });
 
-  it('5. Enforces security boundary: Editor is blocked from creating LAW_NOTE or deleting resources with documents', async () => {
-    // Attempt LAW_NOTE creation as Editor
+  it('5. Enforces security boundary: Editor can create LAW_NOTE, but is blocked from deleting resources with documents', async () => {
+    // Editor creates LAW_NOTE
     const lawNoteResult = await createResourceAction({
-      title: 'Unauthorized Editor Law Note',
+      title: 'Valid Editor Law Note',
       type: ResourceType.LAW_NOTE,
       semesterId: SEMESTER_ID,
       subjectId: SUBJECT_ID,
       unitId: UNIT_ID,
       isPremium: false,
     });
-    expect(lawNoteResult.success).toBe(false);
-    if (!lawNoteResult.success) {
-      expect(lawNoteResult.error).toBe('Only admins can create law notes');
-    }
+    expect(lawNoteResult.success).toBe(true);
 
     const testUuid = '123e4567-e89b-12d3-a456-426614174000';
 

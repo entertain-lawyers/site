@@ -244,7 +244,7 @@ describe('Admin Prescribed Case Workflow & Category Classification', () => {
   });
 
   describe('Scenario 6: Role permissions (Editor vs Admin)', () => {
-    it('keeps Law Notes restricted to Admin (Editor cannot create or update Law Notes)', async () => {
+    it('allows Editor to create and update Law Notes', async () => {
       signInAs(Role.EDITOR);
 
       const createNoteRes = await createResourceAction({
@@ -257,10 +257,7 @@ describe('Admin Prescribed Case Workflow & Category Classification', () => {
         status: ContentStatus.PUBLISHED,
       });
 
-      expect(createNoteRes.success).toBe(false);
-      if (!createNoteRes.success) {
-        expect(createNoteRes.error).toMatch(/Only admins can create law notes/i);
-      }
+      expect(createNoteRes.success).toBe(true);
 
       const updateNoteRes = await updateResourceAction({
         id: RESOURCE_ID,
@@ -273,10 +270,7 @@ describe('Admin Prescribed Case Workflow & Category Classification', () => {
         status: ContentStatus.PUBLISHED,
       });
 
-      expect(updateNoteRes.success).toBe(false);
-      if (!updateNoteRes.success) {
-        expect(updateNoteRes.error).toMatch(/Only admins can update law notes/i);
-      }
+      expect(updateNoteRes.success).toBe(true);
     });
 
     it('allows Admin to create and update Law Notes and Case Laws without restriction', async () => {

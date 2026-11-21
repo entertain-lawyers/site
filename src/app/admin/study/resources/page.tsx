@@ -42,14 +42,11 @@ export default async function AdminResourcesPage({
   const { status: statusParam, type: typeParam, q: qParam, semester: semesterParam, subject: subjectParam, page: pageParam, caseCategory: caseCategoryParam } = await searchParams;
   const isAdmin = session.user.role === 'ADMIN';
 
-  // Optional type filter. Editors may not manage law notes, so any
-  // attempt to open that view bounces them back to the general list.
+  // Optional type filter (e.g. ?type=CASE_LAW or ?type=LAW_NOTE)
   const requestedType = Object.values(ResourceType)
     .find((value) => value === typeParam) as ResourceType | undefined;
-  if (requestedType && !isAdmin && requestedType === ResourceType.LAW_NOTE) {
-    redirect('/admin/study/resources');
-  }
   const isCaseLaw = requestedType === ResourceType.CASE_LAW;
+  const isLawNote = requestedType === ResourceType.LAW_NOTE;
   const parsedCaseCategory = parseCaseCategory(caseCategoryParam);
 
   // Query filter inputs (kept as plain strings for href building).
@@ -79,13 +76,7 @@ export default async function AdminResourcesPage({
       }
     : requestedType
       ? { type: requestedType }
-      : isAdmin
-        ? {}
-        : {
-            OR: [
-              { type: { notIn: [ResourceType.LAW_NOTE] } }
-            ]
-          };
+      : {};
 
   // Server-side search: match resource title, subject name, or author/creator.
   const searchWhere: Prisma.ResourceWhereInput | undefined = q
@@ -269,12 +260,14 @@ export default async function AdminResourcesPage({
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-10 gap-4">
           <div>
             <h1 className="text-3xl font-extrabold text-navy dark:text-white tracking-tight">
-              {isCaseLaw ? 'Manage Case Laws' : 'Manage Resources'}
+              {isCaseLaw ? 'Manage Case Laws' : isLawNote ? 'Manage Law Notes' : 'Manage Resources'}
             </h1>
             <p className="mt-2 text-text-secondary font-medium">
               {isCaseLaw
                 ? 'A comprehensive list of landmark judgments and precedent case laws.'
-                : 'A comprehensive list of all study materials, PDFs, and resources available.'}
+                : isLawNote
+                  ? 'A comprehensive list of student study notes, unit outlines, and written materials.'
+                  : 'A comprehensive list of all study materials, PDFs, and resources available.'}
             </p>
           </div>
           <div className="flex-shrink-0">
@@ -282,14 +275,16 @@ export default async function AdminResourcesPage({
               href={
                 isCaseLaw
                   ? `/admin/study/resources/new?type=CASE_LAW${caseCategoryFilter ? `&caseCategory=${caseCategoryFilter}` : ''}`
-                  : '/admin/study/resources/new'
+                  : isLawNote
+                    ? '/admin/study/resources/new?type=LAW_NOTE'
+                    : '/admin/study/resources/new'
               }
               className="inline-flex items-center justify-center px-6 py-2.5 border border-transparent shadow-[0_4px_14px_0_rgba(var(--color-accent),0.39)] text-sm font-bold rounded-xl text-white bg-accent hover:bg-accent/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent transition-all duration-300 hover:-translate-y-0.5"
             >
               <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
               </svg>
-              {isCaseLaw ? 'Add Case Law' : 'Add Resource'}
+              {isCaseLaw ? 'Add Case Law' : isLawNote ? 'Add Law Note' : 'Add Resource'}
             </Link>
           </div>
         </div>

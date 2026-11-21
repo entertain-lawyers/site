@@ -54,6 +54,7 @@ export default function ImageCropperModal({
   // Load image object once when imageSrc changes
   useEffect(() => {
     if (!imageSrc) return;
+    let didFallback = false;
     const img = new Image();
     img.crossOrigin = 'anonymous';
     img.onload = () => {
@@ -69,6 +70,12 @@ export default function ImageCropperModal({
         const isPortrait = aspectRatio < 1;
         setZoom(1);
         setPan({ x: 0, y: isPortrait && maxPanY > 0 ? maxPanY * 0.9 : 0 });
+      }
+    };
+    img.onerror = () => {
+      if (!didFallback && imageSrc.startsWith('http')) {
+        didFallback = true;
+        img.src = `/api/admin/media/image-proxy?url=${encodeURIComponent(imageSrc)}`;
       }
     };
     img.src = imageSrc;

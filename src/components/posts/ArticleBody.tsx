@@ -70,29 +70,81 @@ export default function ArticleBody({ html, toc = false }: { html: string; toc?:
     };
   }, [zoomSrc]);
 
+  const [isTocCollapsed, setIsTocCollapsed] = useState(false);
+
+  const minLevel = tocItems ? Math.min(...tocItems.map((t) => t.level)) : 2;
+
+  // Hierarchical numbering (e.g. 1., 1.1, 1.2, 2.) matching WordPress TOC
+  let h2Count = 0;
+  let h3Count = 0;
+  let h4Count = 0;
+  const numberedToc = tocItems?.map((item) => {
+    let prefix = '';
+    if (item.level === 2) {
+      h2Count++;
+      h3Count = 0;
+      h4Count = 0;
+      prefix = `${h2Count}. `;
+    } else if (item.level === 3) {
+      h3Count++;
+      h4Count = 0;
+      prefix = `${h2Count || 1}.${h3Count} `;
+    } else {
+      h4Count++;
+      prefix = `${h2Count || 1}.${h3Count || 1}.${h4Count} `;
+    }
+    return { ...item, prefix };
+  });
+
   return (
     <>
-      {tocItems && (
+      {numberedToc && numberedToc.length > 0 && (
         <nav
           aria-label="Table of contents"
-          className="mb-10 rounded-2xl border border-border bg-surface px-5 py-5 shadow-soft"
+          className="mb-8 rounded-2xl border border-border bg-surface/80 dark:bg-zinc-900/60 p-5 shadow-soft transition-all"
         >
-          <p className="text-xs font-bold uppercase tracking-wider text-text-muted">Table of Contents</p>
-          <ul className="mt-4 space-y-2 text-sm sm:text-[15px]">
-            {tocItems.map((item) => (
-              <li
-                key={item.id}
-                style={{ paddingLeft: `${(item.level - Math.min(...tocItems.map((t) => t.level))) * 1.25}rem` }}
-              >
-                <a
-                  href={`#${item.id}`}
-                  className="font-medium text-text-secondary transition-colors hover:text-accent"
-                >
-                  {item.text}
-                </a>
-              </li>
-            ))}
-          </ul>
+          <div className="flex items-center justify-between pb-2 border-b border-border/60">
+            <div className="flex items-center gap-2">
+              <span className="text-sm sm:text-base font-bold text-navy dark:text-white">
+                Contents
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsTocCollapsed(!isTocCollapsed)}
+              className="text-xs font-semibold text-accent hover:text-accent-hover transition-colors px-2 py-0.5 rounded-md hover:bg-surface-alt flex items-center gap-1 cursor-pointer"
+              aria-expanded={!isTocCollapsed}
+              aria-label={isTocCollapsed ? "Show Table of Contents" : "Hide Table of Contents"}
+            >
+              [{isTocCollapsed ? 'Show' : 'Hide'}]
+            </button>
+          </div>
+
+          {!isTocCollapsed && (
+            <ul className="mt-4 space-y-2 text-sm sm:text-[15px]">
+              {numberedToc.map((item) => {
+                const isTopHeading = item.level === minLevel || item.level === 2;
+                return (
+                  <li
+                    key={item.id}
+                    style={{ paddingLeft: `${(item.level - minLevel) * 1.25}rem` }}
+                  >
+                    <a
+                      href={`#${item.id}`}
+                      className={`inline-block transition-colors hover:text-accent ${
+                        isTopHeading
+                          ? 'font-bold text-navy dark:text-white'
+                          : 'font-medium text-text-secondary'
+                      }`}
+                    >
+                      <span className="text-text-muted font-normal mr-1">{item.prefix}</span>
+                      {item.text}
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </nav>
       )}
 

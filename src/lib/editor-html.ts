@@ -149,7 +149,22 @@ export function editorHtmlToArticleHtml(html: string): string {
       const gap = Math.min(unit.gapAfter, MAX_GAP);
       const markers = ['el-ed', ...(isLast ? [] : gap === 0 ? ['el-tight'] : gap > 1 ? [`el-gap-${gap}`] : [])];
       if (unit.block.tag === '#text') return unit.block.html;
-      const block = unit.block.tag === 'p' ? { ...unit.block, inner: unit.lines.join('<br>') } : unit.block;
+      let block = unit.block.tag === 'p' ? { ...unit.block, inner: unit.lines.join('<br>') } : unit.block;
+      if (block.tag === 'ol') {
+        const hasRoman = /data-list\s*=\s*["']roman["']/i.test(block.inner);
+        const hasAlpha = /data-list\s*=\s*["']alpha["']/i.test(block.inner);
+        if (hasRoman) {
+          if (!own.includes('list-roman')) own.push('list-roman');
+          if (!/type\s*=/i.test(block.attrs)) {
+            block = { ...block, attrs: ` type="i"${block.attrs}` };
+          }
+        } else if (hasAlpha) {
+          if (!own.includes('list-alpha')) own.push('list-alpha');
+          if (!/type\s*=/i.test(block.attrs)) {
+            block = { ...block, attrs: ` type="a"${block.attrs}` };
+          }
+        }
+      }
       return rebuild(block, [...own, ...markers]);
     })
     .join('');
@@ -206,6 +221,17 @@ function stripWordPressImageAlignment(html: string): string {
   });
 }
 
+function unpackParagraphLines(blockHtml: string): string {
+  return blockHtml.replace(/<p([^>]*)>([\s\S]*?)<\/p>/gi, (match, attrs: string, inner: string) => {
+    if (!/<br\s*\/?>/i.test(inner)) return match;
+    if (/^(?:<br\s*\/?>|\s|&nbsp;)*$/i.test(inner.trim())) return match;
+    const lines = inner.split(/<br\s*\/?>\s*/gi);
+    return lines
+      .map((line) => `<p${attrs}>${line}</p>`)
+      .join('');
+  });
+}
+
 /**
  * Article HTML -> Quill HTML, when a saved post is loaded into the editor.
  * Editor-authored blocks get back exactly the blank lines they were saved
@@ -222,7 +248,22 @@ export function articleHtmlToEditorHtml(html: string): string {
       // which is what the editor's image tools read and write.
       const wpWrap = block.tag === 'p' ? wordpressImageWrap(block.inner) : null;
       if (wpWrap && !own.some((c) => c.startsWith('el-wrap-'))) own.push(wpWrap);
-      const out = rebuild({ ...block, inner: stripWordPressImageAlignment(block.inner) }, own);
+
+      let inner = stripWordPressImageAlignment(block.inner);
+      if (block.tag === 'ol') {
+        const isRoman = /type\s*=\s*["']i["']/i.test(block.attrs) || classes.includes('list-roman') || /lower-roman/i.test(block.attrs);
+        const isAlpha = /type\s*=\s*["']a["']/i.test(block.attrs) || classes.includes('list-alpha') || /lower-alpha/i.test(block.attrs);
+        if (isRoman) {
+          inner = inner.replace(/<li(?![^>]*data-list)/gi, '<li data-list="roman"');
+        } else if (isAlpha) {
+          inner = inner.replace(/<li(?![^>]*data-list)/gi, '<li data-list="alpha"');
+        }
+      }
+
+      let out = rebuild({ ...block, inner }, own);
+      if (block.tag === 'p') {
+        out = unpackParagraphLines(out);
+      }
       if (index === blocks.length - 1) return out;
       let gap = 1;
       if (classes.includes('el-ed')) {

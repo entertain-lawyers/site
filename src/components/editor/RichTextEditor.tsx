@@ -67,7 +67,7 @@ const QUILL_TOOLBAR_CONTAINER = [
   ],
   ['bold', 'italic', 'underline', 'strike'],
   [{ script: 'super' }, { script: 'sub' }],
-  [{ list: 'ordered' }, { list: 'bullet' }],
+  [{ list: 'ordered' }, { list: 'roman' }, { list: 'alpha' }, { list: 'bullet' }],
   [{ indent: '-1' }, { indent: '+1' }],
   // Individual align buttons (left/center/right/justify); "align" is already
   // in QUILL_FORMATS for the image tools.
@@ -181,7 +181,10 @@ export default function RichTextEditor({
     (html: string) => {
       const editor = reactQuillRef.current?.getEditor?.();
       const withListStyles = editor?.root ? syncListLineHeights(html, editor.root) : html;
-      onChange(restoreVideoEmbeds(withListStyles).replaceAll('&nbsp;', ' '));
+      // Normalize only isolated single &nbsp; between words for wrapping,
+      // preserving multiple non-breaking spaces (&nbsp;&nbsp;) and indentation spaces.
+      const normalized = restoreVideoEmbeds(withListStyles).replace(/([^\s&])&nbsp;([^\s&])/g, '$1 $2');
+      onChange(normalized);
     },
     [onChange]
   );
@@ -322,7 +325,9 @@ export default function RichTextEditor({
           ['.ql-strike', 'Strikethrough'],
           ['.ql-script[value="super"]', 'Superscript'],
           ['.ql-script[value="sub"]', 'Subscript'],
-          ['.ql-list[value="ordered"]', 'Numbered list'],
+          ['.ql-list[value="ordered"]', 'Numbered list (1, 2, 3)'],
+          ['.ql-list[value="roman"]', 'Roman numerals (i, ii, iii)'],
+          ['.ql-list[value="alpha"]', 'Alphanumeric list (a, b, c, d)'],
           ['.ql-list[value="bullet"]', 'Bullet list'],
           ['.ql-indent[value="-1"]', 'Decrease indent'],
           ['.ql-indent[value="+1"]', 'Increase indent'],
@@ -510,6 +515,56 @@ export default function RichTextEditor({
           }
           .editor-wrapper .ql-toolbar.ql-snow button.ql-active .ql-fill {
             fill: #0284c7 !important;
+          }
+
+          /* Roman and Alpha List Toolbar Button Icons */
+          .editor-wrapper .ql-toolbar.ql-snow button.ql-list[value="roman"]::before {
+            content: "i.";
+            font-size: 13px;
+            font-weight: 700;
+            font-family: serif;
+            color: #4b5563;
+          }
+          .dark .editor-wrapper .ql-toolbar.ql-snow button.ql-list[value="roman"]::before {
+            color: #d1d5db;
+          }
+          .editor-wrapper .ql-toolbar.ql-snow button.ql-list[value="roman"].ql-active::before {
+            color: #0284c7;
+          }
+          .editor-wrapper .ql-toolbar.ql-snow button.ql-list[value="alpha"]::before {
+            content: "a.";
+            font-size: 13px;
+            font-weight: 700;
+            font-family: sans-serif;
+            color: #4b5563;
+          }
+          .dark .editor-wrapper .ql-toolbar.ql-snow button.ql-list[value="alpha"]::before {
+            color: #d1d5db;
+          }
+          .editor-wrapper .ql-toolbar.ql-snow button.ql-list[value="alpha"].ql-active::before {
+            color: #0284c7;
+          }
+
+          /* Roman & Alpha List Numbering inside Editor Writing Canvas */
+          .editor-wrapper .ql-editor li[data-list="roman"] {
+            counter-increment: list-roman;
+          }
+          .editor-wrapper .ql-editor li[data-list="roman"] > .ql-ui:before {
+            content: counter(list-roman, lower-roman) '. ';
+          }
+          .editor-wrapper .ql-editor li:not([data-list="roman"]) + li[data-list="roman"],
+          .editor-wrapper .ql-editor ol > li[data-list="roman"]:first-child {
+            counter-reset: list-roman;
+          }
+          .editor-wrapper .ql-editor li[data-list="alpha"] {
+            counter-increment: list-alpha;
+          }
+          .editor-wrapper .ql-editor li[data-list="alpha"] > .ql-ui:before {
+            content: counter(list-alpha, lower-alpha) '. ';
+          }
+          .editor-wrapper .ql-editor li:not([data-list="alpha"]) + li[data-list="alpha"],
+          .editor-wrapper .ql-editor ol > li[data-list="alpha"]:first-child {
+            counter-reset: list-alpha;
           }
 
           /* Dropdown Pickers */

@@ -1,4 +1,6 @@
 import { prisma } from '@/lib/prisma';
+import { auth } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 import { SITE_KNOWLEDGE } from '@/lib/ai/site-knowledge';
 import RebuildIndexClient from './RebuildIndexClient';
 import { Brain, BookOpen, Users, HelpCircle, FileText, Layers, CreditCard } from 'lucide-react';
@@ -11,6 +13,11 @@ export const dynamic = 'force-dynamic';
  * Shows what is currently embedded and lets an admin (re)build the index.
  */
 export default async function AdminAiPage() {
+  const session = await auth();
+  if (!session?.user?.id || (session.user.role !== 'ADMIN' && session.user.role !== 'EDITOR')) {
+    redirect('/');
+  }
+
   let embeddingRows: { source: string; count: number }[] = [];
   let embeddingTotal = 0;
   let teamCount = 0;

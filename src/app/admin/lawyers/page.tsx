@@ -1,4 +1,6 @@
 import { prisma } from '@/lib/prisma';
+import { auth } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { randomUUID } from 'crypto';
@@ -10,6 +12,11 @@ import { isMissingTableError } from '@/lib/prisma-errors';
 export const metadata = { title: 'Manage Consultation Lawyers | Admin' };
 
 export default async function AdminLawyersPage() {
+  const session = await auth();
+  if (!session?.user?.id || (session.user.role !== 'ADMIN' && session.user.role !== 'EDITOR')) {
+    redirect('/');
+  }
+
   let lawyers: any[] = [];
   let dbError = false;
   let errorId: string | null = null;
