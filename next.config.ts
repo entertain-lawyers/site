@@ -16,6 +16,8 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'entertainlawyers.com' },
       { protocol: 'https', hostname: 'www.entertainlawyers.com' },
       { protocol: 'https', hostname: 'secure.gravatar.com' },
+      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
+      { protocol: 'https', hostname: '*.googleusercontent.com' },
       // CMS media proxied via rewrites (Phase 1: CMS hostname compatibility)
       { protocol: 'https', hostname: 'cms.entertainlawyers.com', pathname: '/wp-content/uploads/**' },
       { protocol: 'https', hostname: 'cms.entertainlawyers.com', pathname: '/nepali/wp-content/uploads/**' },

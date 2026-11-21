@@ -44,6 +44,36 @@ function relativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+function AvatarImage({
+  src,
+  alt = '',
+  initialsFallback,
+  className = 'h-full w-full object-cover',
+}: {
+  src?: string | null;
+  alt?: string;
+  initialsFallback: string;
+  className?: string;
+}) {
+  const [error, setError] = useState(false);
+
+  if (src && !error) {
+    return (
+      /* eslint-disable-next-line @next/next/no-img-element */
+      <img
+        src={src}
+        alt={alt}
+        referrerPolicy="no-referrer"
+        onError={() => setError(true)}
+        className={className}
+        loading="lazy"
+      />
+    );
+  }
+
+  return <>{initialsFallback}</>;
+}
+
 export default function Comments({
   postId,
   postType = 'NEWS',
@@ -197,13 +227,12 @@ export default function Comments({
           {user ? (
             <form onSubmit={submit} className="mb-8">
               <div className="flex items-center gap-2.5 mb-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-white text-xs font-bold shadow-xs">
-                  {user.image ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={user.image} alt="" className="h-full w-full rounded-full object-cover" />
-                  ) : (
-                    initials(user.name, user.email)
-                  )}
+                <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-accent text-white text-xs font-bold shadow-xs">
+                  <AvatarImage
+                    src={user.image}
+                    initialsFallback={initials(user.name, user.email)}
+                    className="h-full w-full rounded-full object-cover"
+                  />
                 </div>
                 <div className="text-xs">
                   <span className="font-bold text-navy dark:text-white">{user.name || user.email}</span>
@@ -307,12 +336,10 @@ export default function Comments({
                     <div className="flex items-start gap-3">
                       {/* Avatar */}
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-navy to-accent text-xs font-bold text-white shadow-xs">
-                        {comment.authorImage ? (
-                          /* eslint-disable-next-line @next/next/no-img-element */
-                          <img src={comment.authorImage} alt="" className="h-full w-full object-cover" loading="lazy" />
-                        ) : (
-                          initials(comment.authorName)
-                        )}
+                        <AvatarImage
+                          src={comment.authorImage}
+                          initialsFallback={initials(comment.authorName)}
+                        />
                       </div>
 
                       {/* Content */}
@@ -477,12 +504,10 @@ export default function Comments({
                   className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-navy text-xs font-bold text-white"
                   aria-hidden="true"
                 >
-                  {comment.authorImage ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={comment.authorImage} alt="" className="h-full w-full object-cover" loading="lazy" />
-                  ) : (
-                    initials(comment.authorName)
-                  )}
+                  <AvatarImage
+                    src={comment.authorImage}
+                    initialsFallback={initials(comment.authorName)}
+                  />
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
