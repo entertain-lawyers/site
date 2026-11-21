@@ -25,6 +25,7 @@ import SocialShareToolbar from '@/components/posts/SocialShareToolbar';
 import Reactions from '@/components/posts/Reactions';
 import Comments from '@/components/posts/Comments';
 import LatestPostsSidebar from '@/components/posts/LatestPostsSidebar';
+import StudyCurriculumSidebar from '@/components/study/StudyCurriculumSidebar';
 import { getLatestPosts } from '@/lib/latest-posts';
 import { ArrowLeft, ChevronRight, FileText, Clock } from 'lucide-react';
 
@@ -338,18 +339,13 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
                   </div>
                 )}
 
-                {/* Reading Body - Styled card container matching About Author and preview layout */}
-                <div className="bg-surface border border-border rounded-2xl p-6 sm:p-10 shadow-xs mb-8">
-                  <ArticleBody
-                    html={resource.content}
-                    toc
-                    belowToc={
-                      <div id="share" className="pt-1 pb-1">
-                        <SocialShareToolbar title={resource.title} labels />
-                      </div>
-                    }
-                  />
-                </div>
+                {/* Article Body - 3 separate boxes/pills for TOC, Share, and Content */}
+                <ArticleBody
+                  html={resource.content}
+                  toc
+                  boxed
+                  belowToc={<SocialShareToolbar title={resource.title} labels />}
+                />
 
                 {/* About Author Section */}
                 <section aria-labelledby="read-author-heading" className="bg-surface border border-border rounded-2xl p-6 sm:p-7 shadow-xs mb-8">
@@ -409,9 +405,20 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
                 </div>
               </article>
 
-              {/* Sidebar on Desktop (Matching Image 2 Latest Post) */}
-              <aside className="hidden lg:block space-y-8 lg:sticky lg:top-24">
-                <LatestPostsSidebar posts={latestPosts} />
+              {/* Sidebar on Desktop (Option 1: Study Curriculum & Unit Companion) */}
+              <aside className="hidden lg:block space-y-6 lg:sticky lg:top-24">
+                {resource.subject?.units && resource.subject.units.length > 0 ? (
+                  <StudyCurriculumSidebar
+                    semesterName={semesterName}
+                    subjectName={resource.subject?.name}
+                    subjectId={resource.subjectId}
+                    currentUnitId={resource.unitId}
+                    currentResourceId={resource.id}
+                    units={resource.subject?.units}
+                  />
+                ) : (
+                  <LatestPostsSidebar posts={latestPosts} />
+                )}
               </aside>
             </div>
           </div>

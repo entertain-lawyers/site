@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ZoomIn, ZoomOut, RotateCcw, Check, X, Move, Crop } from 'lucide-react';
+import { ZoomIn, ZoomOut, RotateCcw, Check, X, Move, Crop, Loader2, AlertCircle } from 'lucide-react';
 
 export interface CropResult {
   blob: Blob;
@@ -46,42 +46,102 @@ export default function ImageCropperModal({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [processing, setProcessing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const [imageObj, setImageObj] = useState<HTMLImageElement | null>(null);
+  const [containerSize, setContainerSize] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
 
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  // Measure container size dynamically
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const updateSize = () => {
+      const w = container.clientWidth || 320;
+      const h = container.clientHeight || 400;
+      setContainerSize({ width: w, height: h });
+    };
+
+    updateSize();
+
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const { width, height } = entry.contentRect;
+          if (width > 0 && height > 0) {
+            setContainerSize({ width, height });
+          }
+        }
+      });
+      observer.observe(container);
+      return () => observer.disconnect();
+    }
+  }, [aspectRatio, isOpen]);
+
   // Load image object once when imageSrc changes
   useEffect(() => {
     if (!imageSrc) return;
-    let didFallback = false;
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      setImageObj(img);
-      // Initialize scale and pan so portrait photos are top-aligned with headroom (head never chopped off)
-      const container = containerRef.current;
-      if (container) {
-        const boxW = container.clientWidth || 320;
-        const boxH = container.clientHeight || 400;
-        const scale0 = Math.max(boxW / img.naturalWidth, boxH / img.naturalHeight);
-        const h = img.naturalHeight * scale0;
-        const maxPanY = Math.max(0, (h - boxH) / 2);
-        const isPortrait = aspectRatio < 1;
-        setZoom(1);
-        setPan({ x: 0, y: isPortrait && maxPanY > 0 ? maxPanY * 0.9 : 0 });
-      }
-    };
-    img.onerror = () => {
-      if (!didFallback && imageSrc.startsWith('http')) {
-        didFallback = true;
-        img.src = `/api/admin/media/image-proxy?url=${encodeURIComponent(imageSrc)}`;
-      }
-    };
-    img.src = imageSrc;
-  }, [imageSrc, aspectRatio]);
+    setLoading(true);
+    setLoadError(null);
 
-  // Redraw canvas whenever zoom, pan, or aspectRatio changes
+    let cancelled = false;
+    let didFallback = false;
+    const isBlobOrData = imageSrc.startsWith('blob:') || imageSrc.startsWith('data:');
+
+    const initImage = (img: HTMLImageElement) => {
+      if (cancelled) return;
+      setImageObj(img);
+      setLoading(false);
+      setLoadError(null);
+
+      const container = containerRef.current;
+      const boxW = container?.clientWidth || 320;
+      const boxH = container?.clientHeight || 400;
+      const scale0 = Math.max(boxW / img.naturalWidth, boxH / img.naturalHeight);
+      const h = img.naturalHeight * scale0;
+      const maxPanY = Math.max(0, (h - boxH) / 2);
+      const isPortrait = aspectRatio < 1;
+      setZoom(1);
+      setPan({ x: 0, y: isPortrait && maxPanY > 0 ? maxPanY * 0.9 : 0 });
+    };
+
+    const tryLoad = (src: string, useCrossOrigin: boolean) => {
+      const img = new Image();
+      if (useCrossOrigin) {
+        img.crossOrigin = 'anonymous';
+      }
+      img.onload = () => {
+        initImage(img);
+      };
+      img.onerror = () => {
+        if (cancelled) return;
+        if (!didFallback && !isBlobOrData) {
+          didFallback = true;
+          const proxyUrl = `/api/admin/media/image-proxy?url=${encodeURIComponent(imageSrc)}`;
+          tryLoad(proxyUrl, true);
+        } else if (useCrossOrigin && !isBlobOrData) {
+          tryLoad(src, false);
+        } else {
+          setLoading(false);
+          setLoadError('Failed to load image preview. Please check image source or upload again.');
+        }
+      };
+      img.src = src;
+    };
+
+    // For blob and data URLs, NEVER set crossOrigin as it causes security/CORS failures in Chrome
+    tryLoad(imageSrc, !isBlobOrData);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [imageSrc, retryCount]);
+
+  // Redraw canvas whenever zoom, pan, aspectRatio, imageObj, or containerSize changes
   useEffect(() => {
     const canvas = canvasRef.current;
     const container = containerRef.current;
@@ -90,8 +150,8 @@ export default function ImageCropperModal({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const boxW = container.clientWidth || 320;
-    const boxH = container.clientHeight || 400;
+    const boxW = container.clientWidth || containerSize.width || 320;
+    const boxH = container.clientHeight || containerSize.height || 400;
 
     canvas.width = boxW * window.devicePixelRatio;
     canvas.height = boxH * window.devicePixelRatio;
@@ -111,7 +171,7 @@ export default function ImageCropperModal({
     ctx.imageSmoothingQuality = 'high';
     ctx.drawImage(imageObj, imgLeft, imgTop, w, h);
     ctx.restore();
-  }, [zoom, pan, aspectRatio, imageObj]);
+  }, [zoom, pan, aspectRatio, imageObj, containerSize]);
 
   const getClampedPan = useCallback(
     (newPan: { x: number; y: number }, currentZoom: number) => {
@@ -343,7 +403,39 @@ export default function ImageCropperModal({
         </div>
 
         {/* Viewport Area with Interactive Canvas */}
-        <div className="flex flex-1 items-center justify-center bg-black/90 p-4 sm:p-6 select-none">
+        <div className="relative flex flex-1 items-center justify-center bg-black/90 p-4 sm:p-6 select-none min-h-[320px]">
+          {loading && !imageObj && (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-black/85 text-white backdrop-blur-xs">
+              <Loader2 className="h-8 w-8 animate-spin text-accent" />
+              <p className="text-sm font-medium text-white/90">Loading photo preview...</p>
+            </div>
+          )}
+
+          {loadError && !imageObj && (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-black/95 p-6 text-center text-white">
+              <AlertCircle className="h-10 w-10 text-red-400" />
+              <p className="max-w-md text-sm font-medium text-red-200">{loadError}</p>
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setRetryCount((c) => c + 1)}
+                  className="rounded-lg bg-surface border border-border px-3.5 py-1.5 text-xs font-semibold text-text-primary hover:border-accent"
+                >
+                  Retry Loading
+                </button>
+                {onSkipCrop && (
+                  <button
+                    type="button"
+                    onClick={onSkipCrop}
+                    className="rounded-lg bg-accent px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-accent-hover"
+                  >
+                    Upload Original Without Crop
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           <div
             ref={containerRef}
             onMouseDown={handleMouseDown}

@@ -21,10 +21,12 @@ export default function ArticleBody({
   html,
   toc = false,
   belowToc,
+  boxed = false,
 }: {
   html: string;
   toc?: boolean;
   belowToc?: React.ReactNode;
+  boxed?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [zoomSrc, setZoomSrc] = useState<string | null>(null);
@@ -116,18 +118,20 @@ export default function ArticleBody({
       {numberedToc && numberedToc.length > 0 && (
         <nav
           aria-label="Table of contents"
-          className="mb-6 rounded-2xl border border-border bg-surface-alt/50 dark:bg-zinc-900/50 p-5 sm:p-6 shadow-xs w-full transition-all"
+          className={`mb-6 rounded-2xl border border-border shadow-xs w-full transition-all p-5 sm:p-6 ${
+            boxed ? 'bg-surface' : 'bg-surface-alt/50 dark:bg-zinc-900/50'
+          }`}
         >
-          <div className={`flex items-center justify-between ${isTocCollapsed ? 'pb-0' : 'pb-2 border-b border-border/60'} transition-all`}>
+          <div className={`flex items-center justify-between ${isTocCollapsed ? 'pb-0' : 'pb-3 border-b border-border/70'} transition-all`}>
             <div className="flex items-center gap-2">
-              <span className="text-sm sm:text-base font-bold text-navy dark:text-white">
+              <span className="text-base font-bold text-navy dark:text-white">
                 Table of Contents
               </span>
             </div>
             <button
               type="button"
               onClick={() => setIsTocCollapsed(!isTocCollapsed)}
-              className="p-1 rounded-md text-text-secondary hover:text-accent hover:bg-surface-alt dark:hover:bg-zinc-800 transition-colors flex items-center justify-center cursor-pointer"
+              className="p-1.5 rounded-lg text-text-secondary hover:text-accent hover:bg-surface-alt dark:hover:bg-zinc-800 transition-colors flex items-center justify-center cursor-pointer"
               aria-expanded={!isTocCollapsed}
               aria-label={isTocCollapsed ? "Show Table of Contents" : "Hide Table of Contents"}
               title={isTocCollapsed ? "Show Table of Contents" : "Hide Table of Contents"}
@@ -182,16 +186,33 @@ export default function ArticleBody({
 
       {belowToc && (
         <div className="mb-6 w-full">
-          {belowToc}
+          {boxed ? (
+            <div className="rounded-2xl border border-border bg-surface px-4 py-3 sm:px-6 sm:py-3.5 shadow-xs">
+              {belowToc}
+            </div>
+          ) : (
+            belowToc
+          )}
         </div>
       )}
 
-      <div
-        ref={containerRef}
-        id="article-body"
-        className={`article-body article-body--reading mt-7 ${articleFont.variable}`}
-        dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
-      />
+      {boxed ? (
+        <div className="bg-surface border border-border rounded-2xl p-6 sm:p-10 shadow-xs mb-8">
+          <div
+            ref={containerRef}
+            id="article-body"
+            className={`article-body article-body--reading ${articleFont.variable}`}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
+          />
+        </div>
+      ) : (
+        <div
+          ref={containerRef}
+          id="article-body"
+          className={`article-body article-body--reading mt-7 ${articleFont.variable}`}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
+        />
+      )}
 
       <AnimatePresence>
       {zoomSrc && (
