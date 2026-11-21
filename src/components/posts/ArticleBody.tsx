@@ -116,7 +116,7 @@ export default function ArticleBody({
       {numberedToc && numberedToc.length > 0 && (
         <nav
           aria-label="Table of contents"
-          className="mb-6 rounded-xl border border-border bg-surface-alt/40 dark:bg-zinc-900/40 p-4 sm:p-5 shadow-xs w-full transition-all"
+          className="mb-6 rounded-2xl border border-border bg-surface-alt/50 dark:bg-zinc-900/50 p-5 sm:p-6 shadow-xs w-full transition-all"
         >
           <div className={`flex items-center justify-between ${isTocCollapsed ? 'pb-0' : 'pb-2 border-b border-border/60'} transition-all`}>
             <div className="flex items-center gap-2">
