@@ -162,19 +162,30 @@ export function insertClipboardContent(
 
   try {
     const range = editor.getSelection(true) || { index: editor.getLength() - 1, length: 0 };
-    const formats = editor.getFormat(range.index) || {};
+    const rawFormats = editor.getFormat(range.index) || {};
+    // Only pass inline formatting to convert; block-level attributes like lineheight,
+    // header, list, and align must not be forcefully stamped onto all pasted content blocks.
+    const inlineFormats: Record<string, unknown> = {};
+    const INLINE_FORMAT_KEYS = new Set([
+      'bold', 'italic', 'underline', 'strike', 'color', 'background', 'font', 'size', 'script', 'link'
+    ]);
+    for (const [k, v] of Object.entries(rawFormats)) {
+      if (INLINE_FORMAT_KEYS.has(k)) {
+        inlineFormats[k] = v;
+      }
+    }
 
     let pastedDelta;
     if (rawHtml) {
       const sanitizedHtml = preparePastedHtml(rawHtml);
       if (sanitizedHtml) {
-        pastedDelta = editor.clipboard.convert({ html: sanitizedHtml, text: rawText }, formats);
+        pastedDelta = editor.clipboard.convert({ html: sanitizedHtml, text: rawText }, inlineFormats);
       }
     }
 
     if (!pastedDelta || pastedDelta.length() === 0) {
       if (!rawText) return false;
-      pastedDelta = editor.clipboard.convert({ text: rawText }, formats);
+      pastedDelta = editor.clipboard.convert({ text: rawText }, inlineFormats);
     }
 
     if (!pastedDelta || pastedDelta.length() === 0) return false;

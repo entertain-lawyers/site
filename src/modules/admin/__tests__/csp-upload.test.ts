@@ -107,4 +107,11 @@ describe('CSP Upload Policy & Storage Connection', () => {
     expect(formActionDirective).not.toContain('*');
     expect(formActionDirective).not.toContain('https://attacker.com');
   });
+
+  it('permits Google OAuth profile avatar domains in img-src', () => {
+    const cspHeader = buildCsp();
+    expect(cspHeader).toContain("img-src");
+    expect(cspHeader).toContain("https://lh3.googleusercontent.com");
+    expect(cspHeader).toContain("https://*.googleusercontent.com");
+  });
 });

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   LINE_HEIGHT_OPTIONS,
   LINE_HEIGHT_WHITELIST,
@@ -8,7 +8,7 @@ import {
 } from '@/lib/editor-line-height';
 import { editorHtmlToArticleHtml, articleHtmlToEditorHtml } from '@/lib/editor-html';
 import { sanitizeHtml } from '@/lib/sanitize';
-import { preparePastedHtml } from '@/lib/editor-clipboard';
+import { preparePastedHtml, insertClipboardContent } from '@/lib/editor-clipboard';
 
 describe('Quill Line Height Attributor and Options', () => {
   it('defines the required dropdown options', () => {
@@ -214,3 +214,81 @@ describe('Public Rendering and Sanitization for Posts & Resources', () => {
     expect(sanitized).toContain('<p>Default reset</p>');
   });
 });
+
+describe('Multiple and Mixed Line Spacing Across Content Blocks', () => {
+  it('preserves distinct line heights (e.g. 1.0 and 1.5) in the same document without leakage', () => {
+    const mixedEditorHtml = [
+      '<p style="line-height: 1.5;">Heading line at 1.5</p>',
+      '<p style="line-height: 1.0;">Body paragraph 1 at 1.0</p>',
+      '<p style="line-height: 1.0;">Body paragraph 2 at 1.0</p>',
+      '<p>Unstyled normal paragraph</p>',
+      '<p style="line-height: 1.5;">Final summary at 1.5</p>',
+    ].join('');
+
+    const savedArticle = editorHtmlToArticleHtml(mixedEditorHtml);
+    expect(savedArticle).toContain('style="line-height: 1.5;"');
+    expect(savedArticle).toContain('style="line-height: 1.0;"');
+    expect(savedArticle).toContain('<p class="el-ed el-tight">Unstyled normal paragraph</p>');
+
+    const reloadedEditor = articleHtmlToEditorHtml(savedArticle);
+    expect(reloadedEditor).toContain('<p style="line-height: 1.5;">Heading line at 1.5</p>');
+    expect(reloadedEditor).toContain('<p style="line-height: 1.0;">Body paragraph 1 at 1.0</p>');
+    expect(reloadedEditor).toContain('<p style="line-height: 1.0;">Body paragraph 2 at 1.0</p>');
+    expect(reloadedEditor).toContain('<p>Unstyled normal paragraph</p>');
+    expect(reloadedEditor).toContain('<p style="line-height: 1.5;">Final summary at 1.5</p>');
+  });
+
+  it('keeps alternating line heights (1.5 then 1.0 then 1.5) intact across save and reload', () => {
+    const alternatingHtml = [
+      '<p style="line-height: 1.5;">Paragraph A (1.5)</p>',
+      '<p style="line-height: 1.0;">Paragraph B (1.0)</p>',
+      '<p style="line-height: 1.5;">Paragraph C (1.5)</p>',
+    ].join('');
+
+    const saved = editorHtmlToArticleHtml(alternatingHtml);
+    // Because line-heights differ between adjacent blocks, they never merge into a single <p>
+    expect(saved).toContain('<p class="el-ed el-tight" style="line-height: 1.5;">Paragraph A (1.5)</p>');
+    expect(saved).toContain('<p class="el-ed el-tight" style="line-height: 1.0;">Paragraph B (1.0)</p>');
+    expect(saved).toContain('<p class="el-ed" style="line-height: 1.5;">Paragraph C (1.5)</p>');
+
+    const reloaded = articleHtmlToEditorHtml(saved);
+    expect(reloaded).toBe(alternatingHtml);
+  });
+
+  it('does not stamp cursor block line-height onto pasted content blocks', () => {
+    class MockDelta {
+      ops: any[];
+      constructor(ops: any[] = []) { this.ops = ops; }
+      retain(_n: number) { return this; }
+      delete(_n: number) { return this; }
+      concat(d: any) { return d; }
+      length() { return 1; }
+    }
+
+    const mockConvert = vi.fn().mockReturnValue(new MockDelta([{ insert: 'pasted\n' }]));
+    const mockEditor = {
+      constructor: { import: vi.fn().mockReturnValue(MockDelta) },
+      getSelection: vi.fn().mockReturnValue({ index: 5, length: 0 }),
+      // Cursor currently has lineheight: 1.5 and bold: true
+      getFormat: vi.fn().mockReturnValue({ lineheight: '1.5', bold: true }),
+      clipboard: { convert: mockConvert },
+      updateContents: vi.fn(),
+      setSelection: vi.fn(),
+      scrollSelectionIntoView: vi.fn(),
+    };
+
+    const pastedHtml = '<p style="line-height: 1.0;">Pasted line with 1.0</p>';
+    insertClipboardContent(mockEditor, { html: pastedHtml });
+
+    // Verify convert was called with inline format (bold: true), but NOT lineheight: 1.5
+    expect(mockConvert).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.not.objectContaining({ lineheight: '1.5' })
+    );
+    expect(mockConvert).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ bold: true })
+    );
+  });
+});
+

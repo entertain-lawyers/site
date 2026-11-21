@@ -214,6 +214,7 @@ export default function ImageUpload({
           <img
             src={value}
             alt="Preview"
+            referrerPolicy="no-referrer"
             className="w-full h-full object-cover"
           />
         </div>

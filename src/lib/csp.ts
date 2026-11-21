@@ -55,6 +55,8 @@ export function buildCsp(nonce?: string): string {
       "https://www.entertainlawyers.com",
       "https://secure.gravatar.com",
       "https://cms.entertainlawyers.com",
+      "https://lh3.googleusercontent.com",
+      "https://*.googleusercontent.com",
       b2OriginPart,
     ].filter(Boolean).join(" ");
 

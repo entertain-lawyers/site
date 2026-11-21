@@ -491,7 +491,7 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
   })) || [];
 
   return (
-    <div className="h-dvh flex flex-col bg-background overflow-hidden transition-colors duration-300">
+    <div className="h-[calc(100dvh-44px)] flex flex-col bg-background overflow-hidden transition-colors duration-300">
       {/* Top Header/Breadcrumb */}
       <div className="h-11 bg-surface border-b border-border flex items-center px-3 shrink-0 shadow-sm z-10 justify-between">
         <div className="flex items-center text-sm">

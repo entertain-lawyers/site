@@ -4,12 +4,8 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import {
   BookOpen,
-  ChevronDown,
   ChevronRight,
   ChevronLeft,
-  FileText,
-  Scale,
-  HelpCircle,
   Layers,
   Minimize2,
   Maximize2,
@@ -38,27 +34,88 @@ interface StudyCurriculumSidebarProps {
   units?: UnitItem[];
 }
 
-const getResourceIcon = (type: string) => {
-  switch (type) {
-    case 'CASE_LAW':
-      return <Scale className="w-3 h-3 shrink-0 text-amber-500" aria-hidden="true" />;
-    case 'OLD_QUESTION':
-      return <HelpCircle className="w-3 h-3 shrink-0 text-purple-500" aria-hidden="true" />;
-    default:
-      return <FileText className="w-3 h-3 shrink-0 text-accent" aria-hidden="true" />;
+export interface ParsedUnitInfo {
+  prefix: string;
+  title: string;
+  fullLabel: string;
+}
+
+export const parseUnitInfo = (unit: UnitItem, uIdx: number): ParsedUnitInfo => {
+  const rawName = (unit.name || '').trim();
+  const rawTitle = (unit.title || '').trim();
+  const fallbackPrefix = `Unit ${uIdx + 1}`;
+  const effectivePrefix = (rawName || fallbackPrefix).replace(/[:\-_\s]+$/, '');
+
+  // 1. If explicit title in DB
+  let resolvedTitle = rawTitle;
+
+  // 2. If no title in DB, check first resource attached to this unit
+  if (!resolvedTitle && unit.resources && unit.resources.length > 0) {
+    const firstResTitle = (unit.resources[0]?.title || '').trim();
+    // Clean off leading "Unit X:" or "Unit-X" or "Unit X -" prefixes
+    const stripped = firstResTitle.replace(/^unit[\s-_]*\d+[\s:.-]*/i, '').trim();
+    if (stripped && stripped.toLowerCase() !== effectivePrefix.toLowerCase()) {
+      resolvedTitle = stripped;
+    }
   }
+
+  // If resolvedTitle already has the prefix, remove it from title
+  if (resolvedTitle) {
+    resolvedTitle = resolvedTitle.replace(/^unit[\s-_]*\d+[\s:.-]*/i, '').trim();
+  }
+
+  // If rawName already contained the full title (e.g. "Unit 1: Neutrality")
+  if (rawName.includes(':') && !rawTitle) {
+    const [p, ...rest] = rawName.split(':');
+    const t = rest.join(':').trim();
+    if (t) {
+      return {
+        prefix: p.trim(),
+        title: t,
+        fullLabel: `${p.trim()}: ${t}`,
+      };
+    }
+  }
+
+  // If effectivePrefix already includes resolvedTitle, don't duplicate
+  if (resolvedTitle && effectivePrefix.toLowerCase().includes(resolvedTitle.toLowerCase())) {
+    return {
+      prefix: effectivePrefix,
+      title: '',
+      fullLabel: effectivePrefix,
+    };
+  }
+
+  if (resolvedTitle) {
+    return {
+      prefix: effectivePrefix,
+      title: resolvedTitle,
+      fullLabel: `${effectivePrefix}: ${resolvedTitle}`,
+    };
+  }
+
+  return {
+    prefix: effectivePrefix,
+    title: '',
+    fullLabel: effectivePrefix,
+  };
+};
+
+export const formatUnitLabel = (unit: UnitItem, uIdx: number): string => {
+  return parseUnitInfo(unit, uIdx).fullLabel;
 };
 
 export default function StudyCurriculumSidebar({
   semesterName,
   subjectName,
+  subjectId,
   currentUnitId,
   currentResourceId,
   units = [],
 }: StudyCurriculumSidebarProps) {
   const [isMinimized, setIsMinimized] = useState(false);
 
-  // All resources flattened across all units in order
+  // All resources flattened across all units in order for sequential Next/Prev traversal
   const allResources: { resource: UnitResource; unitName: string }[] = units.flatMap((u) =>
     (u.resources || []).map((r) => ({
       resource: r,
@@ -69,33 +126,6 @@ export default function StudyCurriculumSidebar({
   const currentIndex = allResources.findIndex((item) => item.resource.id === currentResourceId);
   const prevItem = currentIndex > 0 ? allResources[currentIndex - 1] : null;
   const nextItem = currentIndex >= 0 && currentIndex < allResources.length - 1 ? allResources[currentIndex + 1] : null;
-
-  // Track expanded units. Default to ONLY expanding the unit of the current resource to keep it compact
-  const [expandedUnits, setExpandedUnits] = useState<Set<string>>(() => {
-    const initial = new Set<string>();
-    if (currentUnitId) initial.add(currentUnitId);
-    units.forEach((u) => {
-      if (u.resources?.some((r) => r.id === currentResourceId)) {
-        initial.add(u.id);
-      }
-    });
-    // If none matched, expand first unit only
-    if (initial.size === 0 && units.length > 0) {
-      initial.add(units[0].id);
-    }
-    return initial;
-  });
-
-  const toggleUnit = (id: string) => {
-    setExpandedUnits((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const totalNotes = allResources.length;
 
   // When minimized: render an ultra-compact single-row pill card
   if (isMinimized) {
@@ -118,14 +148,14 @@ export default function StudyCurriculumSidebar({
                   <span id="curriculum-sidebar-heading" className="text-xs font-bold text-navy dark:text-white truncate">
                     Syllabus Navigator
                   </span>
-                  {totalNotes > 0 && (
+                  {units.length > 0 && (
                     <span className="text-[10px] font-semibold text-accent px-1.5 py-0.2 rounded-full bg-accent/10">
-                      {totalNotes}
+                      {units.length} {units.length === 1 ? 'unit' : 'units'}
                     </span>
                   )}
                 </div>
                 <p className="text-[10px] text-text-muted truncate">
-                  {subjectName ? `${subjectName} • ` : ''}Click to expand topics
+                  {subjectName ? `${subjectName} • ` : ''}Click to view units
                 </p>
               </div>
             </div>
@@ -158,9 +188,9 @@ export default function StudyCurriculumSidebar({
             </div>
 
             <div className="flex items-center gap-1.5 shrink-0">
-              {totalNotes > 0 && (
+              {units.length > 0 && (
                 <span className="text-[10px] font-bold text-text-muted bg-surface-alt px-1.5 py-0.5 rounded-full border border-border">
-                  {totalNotes} {totalNotes === 1 ? 'topic' : 'topics'}
+                  {units.length} {units.length === 1 ? 'unit' : 'units'}
                 </span>
               )}
               <button
@@ -229,7 +259,7 @@ export default function StudyCurriculumSidebar({
           </div>
         )}
 
-        {/* Units List (Scrollable, fits within remaining card height) */}
+        {/* Units List (Directly Clickable Unit Pills - No Dropdowns) */}
         <div className="flex-1 overflow-y-auto min-h-0 pr-0.5 space-y-1.5 [scrollbar-width:thin]">
           {units.length === 0 ? (
             <div className="text-center py-4 text-xs text-text-muted">
@@ -238,68 +268,60 @@ export default function StudyCurriculumSidebar({
             </div>
           ) : (
             units.map((unit, uIdx) => {
-              const isExpanded = expandedUnits.has(unit.id);
-              const unitTitle = unit.title || unit.name || `Unit ${uIdx + 1}`;
-              const hasCurrent = unit.resources?.some((r) => r.id === currentResourceId);
+              const unitInfo = parseUnitInfo(unit, uIdx);
+              const unitLabel = unitInfo.fullLabel;
+              const hasCurrent =
+                unit.id === currentUnitId ||
+                unit.resources?.some((r) => r.id === currentResourceId);
+
+              const targetResourceId = hasCurrent
+                ? currentResourceId
+                : unit.resources?.[0]?.id;
+
+              const href = targetResourceId
+                ? `/read/${targetResourceId}`
+                : subjectId
+                  ? `/study?subject=${subjectId}&unit=${unit.id}`
+                  : '/study';
 
               return (
-                <div
+                <Link
                   key={unit.id}
-                  className={`rounded-xl border transition-all ${
+                  href={href}
+                  aria-current={hasCurrent ? 'page' : undefined}
+                  title={unitLabel}
+                  className={`group flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-xs transition-all ${
                     hasCurrent
-                      ? 'border-accent/40 bg-accent/[0.02]'
-                      : 'border-border/70 bg-surface-alt/20 hover:border-border'
+                      ? 'bg-accent text-white font-bold shadow-xs border border-accent ring-1 ring-accent/30'
+                      : 'bg-accent/5 text-navy dark:text-white border border-accent/20 hover:bg-accent hover:text-white hover:border-accent font-semibold'
                   }`}
                 >
-                  <button
-                    type="button"
-                    onClick={() => toggleUnit(unit.id)}
-                    className="flex w-full items-center justify-between px-2.5 py-1.5 text-left transition-colors cursor-pointer"
-                    aria-expanded={isExpanded}
-                  >
-                    <div className="min-w-0 pr-2">
-                      <span className={`block text-[11px] font-bold truncate ${hasCurrent ? 'text-accent' : 'text-navy dark:text-white'}`}>
-                        {unitTitle}
-                      </span>
-                      <span className="text-[9px] text-text-muted">
-                        {unit.resources?.length || 0} {(unit.resources?.length || 0) === 1 ? 'topic' : 'topics'}
-                      </span>
-                    </div>
-                    <ChevronDown
-                      className={`h-3.5 w-3.5 shrink-0 text-text-muted transition-transform duration-200 ${
-                        isExpanded ? 'rotate-180 text-accent' : ''
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Layers
+                      className={`h-3.5 w-3.5 shrink-0 transition-colors ${
+                        hasCurrent
+                          ? 'text-white'
+                          : 'text-accent group-hover:text-white'
                       }`}
                       aria-hidden="true"
                     />
-                  </button>
+                    <span className="truncate block font-semibold text-[11.5px] leading-tight">
+                      {unitLabel}
+                    </span>
+                  </div>
 
-                  {isExpanded && unit.resources && unit.resources.length > 0 && (
-                    <div className="px-1.5 pb-2 pt-0 space-y-0.5 border-t border-border/40 mt-0.5">
-                      {unit.resources.map((r) => {
-                        const isCurrent = r.id === currentResourceId;
-                        return (
-                          <Link
-                            key={r.id}
-                            href={`/read/${r.id}`}
-                            className={`flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] transition-all ${
-                              isCurrent
-                                ? 'bg-accent text-white font-semibold shadow-xs'
-                                : 'text-text-secondary hover:bg-surface-alt hover:text-navy dark:hover:text-white'
-                            }`}
-                          >
-                            <span className={isCurrent ? 'text-white' : ''}>
-                              {getResourceIcon(r.type)}
-                            </span>
-                            <span className="truncate flex-1 min-w-0">{r.title}</span>
-                            {isCurrent && (
-                              <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse shrink-0" />
-                            )}
-                          </Link>
-                        );
-                      })}
-                    </div>
+                  {hasCurrent ? (
+                    <span
+                      className="h-1.5 w-1.5 rounded-full bg-white animate-pulse shrink-0"
+                      aria-label="Current Unit"
+                    />
+                  ) : (
+                    <ChevronRight
+                      className="h-3.5 w-3.5 shrink-0 text-text-muted group-hover:text-white transition-all group-hover:translate-x-0.5"
+                      aria-hidden="true"
+                    />
                   )}
-                </div>
+                </Link>
               );
             })
           )}

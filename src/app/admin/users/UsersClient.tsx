@@ -10,18 +10,26 @@ import { useEscapeKey } from '@/hooks/use-escape-key';
 import { AnimatePresence, Appear, Backdrop, DialogPanel, MotionButton } from '@/components/motion/primitives';
 
 function Avatar({ image, label }: { image?: string | null; label: string }) {
-  if (image) {
+  const [imgError, setImgError] = useState(false);
+
+  if (image && !imgError) {
     return (
       /* eslint-disable-next-line @next/next/no-img-element */
-      <img src={image} alt="" className="h-10 w-10 rounded-full object-cover border border-black/10 dark:border-white/10" />
+      <img
+        src={image}
+        alt=""
+        referrerPolicy="no-referrer"
+        onError={() => setImgError(true)}
+        className="h-10 w-10 rounded-full object-cover border border-black/10 dark:border-white/10 shrink-0"
+      />
     );
   }
   return (
     <span
-      className="flex h-10 w-10 items-center justify-center rounded-full bg-navy text-sm font-bold text-white"
+      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy text-sm font-bold text-white"
       aria-hidden="true"
     >
-      {label.charAt(0).toUpperCase()}
+      {label ? label.charAt(0).toUpperCase() : '?'}
     </span>
   );
 }

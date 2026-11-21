@@ -155,6 +155,7 @@ export default function AuthorBioTrigger({
               <img
                 src={authorImage}
                 alt={displayName}
+                referrerPolicy="no-referrer"
                 onError={() => setImgError(true)}
                 className={`${sizeClasses.avatar} rounded-full object-cover border border-accent/40 shadow-xs shrink-0 group-hover:scale-105 group-hover:border-accent transition-transform`}
               />
@@ -212,6 +213,7 @@ export default function AuthorBioTrigger({
                   <img
                     src={authorImage}
                     alt={displayName}
+                    referrerPolicy="no-referrer"
                     onError={() => setModalImgError(true)}
                     className="w-20 h-20 rounded-full object-cover border-2 border-accent shadow-md mb-3"
                   />

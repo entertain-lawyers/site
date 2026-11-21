@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { m, AnimatePresence } from 'motion/react';
 import type { ReactionCounts, ReactionType } from '@/lib/reactions';
 
 interface ReactionsProps {
@@ -165,7 +165,7 @@ export default function Reactions({
               </div>
 
               {/* Emoji Reaction Button */}
-              <motion.button
+              <m.button
                 type="button"
                 onClick={() => handleReact(type)}
                 whileHover={{ scale: 1.25, rotate: isSelected ? 0 : [0, -6, 6, 0] }}
@@ -187,7 +187,7 @@ export default function Reactions({
                 }`}
               >
                 {emoji}
-              </motion.button>
+              </m.button>
             </div>
           );
         })}

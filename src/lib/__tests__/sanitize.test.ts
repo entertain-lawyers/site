@@ -195,4 +195,24 @@ describe("sanitizeHtml editor output (regression)", () => {
     const clean = sanitizeHtml(dangerous);
     expect(clean).not.toContain('line-height');
   });
+
+  it("strips accidental pasted white background highlights and dark text color", () => {
+    const pastedWordHtml =
+      '<strong style="background-color: rgb(255, 255, 255); color: rgb(17, 17, 17);">2.1.1 Neutralization:</strong>' +
+      '<p><span style="background-color: rgb(255, 255, 255); color: rgb(17, 17, 17); font-weight: bold;">Neutralization text</span></p>' +
+      '<p><span style="background-color: #ffffff; color: #111;">Hex white</span></p>' +
+      '<mark style="background-color: rgb(255, 255, 0);">Intentional Yellow Highlight</mark>';
+
+    const clean = sanitizeHtml(pastedWordHtml);
+
+    // Accidental white background and forced dark color must be stripped
+    expect(clean).not.toContain('rgb(255, 255, 255)');
+    expect(clean).not.toContain('#ffffff');
+    expect(clean).not.toContain('rgb(17, 17, 17)');
+    expect(clean).toContain('<strong>2.1.1 Neutralization:</strong>');
+    expect(clean).toContain('font-weight:bold');
+
+    // Intentional non-white highlights must be preserved
+    expect(clean).toContain('background-color:rgb(255, 255, 0)');
+  });
 });
