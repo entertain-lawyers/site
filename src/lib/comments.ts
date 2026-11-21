@@ -139,7 +139,7 @@ export async function deleteComment(
   `;
   const row = rows[0];
   if (!row) return false;
-  if (row.userId !== actor.id && actor.role !== 'ADMIN') return false;
+  if (row.userId !== actor.id && actor.role !== 'ADMIN' && actor.role !== 'EDITOR') return false;
   await prisma.$executeRaw`DELETE FROM "Comment" WHERE "id" = ${id}`;
   return true;
 }

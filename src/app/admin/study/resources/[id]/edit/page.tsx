@@ -86,14 +86,6 @@ export default async function EditResourcePage({ params }: { params: Promise<{ i
 
   if (!resource) notFound();
 
-  // Mirror the resource list: editors cannot maintain law notes.
-  if (
-    session.user.role === 'EDITOR' &&
-    resource.type === ResourceType.LAW_NOTE
-  ) {
-    redirect('/admin/study/resources');
-  }
-
   const { parseCaseCategory, parseCaseLawCategory } = await import('@/lib/case-category');
 
   return (
@@ -107,7 +99,7 @@ export default async function EditResourcePage({ params }: { params: Promise<{ i
             semesterId: subject.semesterId,
           }))}
           units={units.map((unit) => ({ id: unit.id, name: unit.name, subjectId: unit.subjectId }))}
-          canManageLawTypes={session.user.role === 'ADMIN'}
+          canManageLawTypes={session.user.role === 'ADMIN' || session.user.role === 'EDITOR'}
           authors={authors}
           authorMappingAvailable={authorMappingAvailable}
           defaultAuthorId={session.user.id}

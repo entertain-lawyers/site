@@ -371,6 +371,16 @@
   }
   .article-body ul { list-style: disc; }
   .article-body ol { list-style: decimal; }
+  :is(.article-body, .prose) ol.list-roman,
+  :is(.article-body, .prose) ol[type="i"],
+  :is(.article-body, .prose) li[data-list="roman"] {
+    list-style-type: lower-roman !important;
+  }
+  :is(.article-body, .prose) ol.list-alpha,
+  :is(.article-body, .prose) ol[type="a"],
+  :is(.article-body, .prose) li[data-list="alpha"] {
+    list-style-type: lower-alpha !important;
+  }
   /* Nested numbering matches the editor (Quill): 1. → a. → i. → 1. … */
   .article-body ol ol { list-style: lower-alpha; }
   .article-body ol ol ol { list-style: lower-roman; }

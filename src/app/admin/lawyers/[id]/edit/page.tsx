@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
-import { notFound } from 'next/navigation';
+import { auth } from '@/lib/auth';
+import { notFound, redirect } from 'next/navigation';
 import LawyerFormClient from '../../LawyerFormClient';
 
 export const metadata = { title: 'Edit Consultation Lawyer | Admin' };
@@ -9,6 +10,11 @@ export default async function EditLawyerPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const session = await auth();
+  if (!session?.user?.id || (session.user.role !== 'ADMIN' && session.user.role !== 'EDITOR')) {
+    redirect('/');
+  }
+
   const { id } = await params;
 
   const lawyer = await prisma.consultationLawyer.findUnique({

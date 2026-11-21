@@ -5,6 +5,7 @@ import SocialShareToolbar from './SocialShareToolbar';
 import LatestPostsSidebar from './LatestPostsSidebar';
 import BrandSearchHeader from './BrandSearchHeader';
 import Comments from './Comments';
+import Reactions from './Reactions';
 import { articleFont } from './article-font';
 import type { LatestPost } from './LatestPostsSidebar';
 import { extractFirstImage } from '@/lib/media/extract-first-image';
@@ -225,6 +226,13 @@ export default function PostDetail({
                 </ul>
               </section>
             )}
+
+            {/* User Reaction Bar */}
+            <Reactions
+              postId={post.id}
+              postType={post.type === 'BLOG' ? 'BLOG' : 'NEWS'}
+              title={post.type === 'NEWS' ? 'How did this news make you feel?' : 'How did this make you feel?'}
+            />
 
             <div className="mt-10 text-center">
               <Link

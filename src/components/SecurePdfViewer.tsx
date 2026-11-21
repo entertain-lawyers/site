@@ -505,8 +505,66 @@ export default function SecurePdfViewer({
     ));
   }, [geom, numPages, pageImages, mode, scheduleBookPaint]);
 
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const playPageTurnSound = () => {
+    try {
+      if (typeof window === 'undefined') return;
+      const AudioContextClass =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextClass) return;
+      if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
+        audioCtxRef.current = new AudioContextClass();
+      }
+      const audioCtx = audioCtxRef.current;
+      if (audioCtx.state === 'suspended') {
+        void audioCtx.resume();
+      }
+
+      const now = audioCtx.currentTime;
+      const bufferSize = Math.floor(audioCtx.sampleRate * 0.16);
+      const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+
+      let b0 = 0, b1 = 0, b2 = 0;
+      for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1;
+        b0 = 0.99886 * b0 + white * 0.0555179;
+        b1 = 0.99332 * b1 + white * 0.0750759;
+        b2 = 0.96900 * b2 + white * 0.1538520;
+        data[i] = (b0 + b1 + b2 + white * 0.2) * 0.22;
+      }
+
+      const noise = audioCtx.createBufferSource();
+      noise.buffer = buffer;
+
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(1600, now);
+      filter.frequency.exponentialRampToValueAtTime(700, now + 0.14);
+      filter.Q.setValueAtTime(1.6, now);
+
+      const gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(0.25, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      noise.start(now);
+      noise.stop(now + 0.16);
+    } catch {
+      // Audio autoplay restrictions or errors
+    }
+  };
+
   const onFlip = (e: { data: number | { page: number } | undefined }) => {
     const p = typeof e.data === "number" ? e.data : (e.data?.page ?? 0);
+    if (p !== pageRef.current) {
+      playPageTurnSound();
+    }
     pageRef.current = p;
     setPage(p);
   };
@@ -602,13 +660,15 @@ export default function SecurePdfViewer({
                   transform: `scale(${zoom})`,
                   transformOrigin: "center center",
                   transition: "transform 0.15s ease-out",
+                  willChange: "transform",
+                  backfaceVisibility: "hidden",
                 }}
                 className="h-full w-full flex items-center justify-center overflow-hidden"
               >
                 <HTMLFlipBook
                   ref={bookRef}
                   className="h-full w-full"
-                  style={{ margin: "0 auto" }}
+                  style={{ margin: "0 auto", willChange: "transform" }}
                   width={geom.pageW}
                   height={geom.pageH}
                   size="fixed"
@@ -620,8 +680,8 @@ export default function SecurePdfViewer({
                   usePortrait={geom.portrait}
                   showCover={false}
                   drawShadow={true}
-                  maxShadowOpacity={0.35}
-                  flippingTime={600}
+                  maxShadowOpacity={0.2}
+                  flippingTime={400}
                   useMouseEvents={true}
                   swipeDistance={30}
                   showPageCorners={true}

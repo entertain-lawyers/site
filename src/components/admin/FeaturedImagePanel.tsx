@@ -113,8 +113,28 @@ export default function FeaturedImagePanel({
     await startUpload(croppedFile);
   };
 
-  const handleOpenRecrop = () => {
+  const handleOpenRecrop = async () => {
     if (!value?.url) return;
+    try {
+      setUpload({ phase: 'uploading', percent: 10, filename: 'Loading image for editing...' });
+      const proxyUrl = `/api/admin/media/image-proxy?url=${encodeURIComponent(value.url)}`;
+      const res = await fetch(proxyUrl);
+      if (res.ok) {
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        setCropFile(null);
+        setCropSrc(blobUrl);
+        setCropFilename(`${value.title || 'featured-image'}.jpg`);
+        setCropMimeType(blob.type || 'image/jpeg');
+        setCropperOpen(true);
+        return;
+      }
+    } catch (err) {
+      console.warn('[FeaturedImagePanel] proxy fetch failed, falling back to direct URL:', err);
+    } finally {
+      setUpload({ phase: 'idle' });
+    }
+
     setCropFile(null);
     setCropSrc(value.url);
     setCropFilename(`${value.title || 'featured-image'}.jpg`);

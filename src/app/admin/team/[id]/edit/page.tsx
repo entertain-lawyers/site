@@ -1,10 +1,16 @@
 import { prisma } from '@/lib/prisma';
-import { notFound } from 'next/navigation';
+import { auth } from '@/lib/auth';
+import { notFound, redirect } from 'next/navigation';
 import TeamMemberFormClient from '../../TeamMemberFormClient';
 
 export const metadata = { title: 'Edit Team Member | Admin' };
 
 export default async function EditTeamMemberPage({ params }: { params: Promise<{ id: string }> }) {
+  const session = await auth();
+  if (!session?.user?.id || (session.user.role !== 'ADMIN' && session.user.role !== 'EDITOR')) {
+    redirect('/');
+  }
+
   const { id } = await params;
   const member = await prisma.teamMember.findUnique({
     where: { id },

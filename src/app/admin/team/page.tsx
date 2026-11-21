@@ -1,4 +1,6 @@
 import { prisma } from '@/lib/prisma';
+import { auth } from '@/lib/auth';
+import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { Edit, Eye, Plus } from 'lucide-react';
 import DeleteTeamMemberButton from './DeleteTeamMemberButton';
@@ -8,6 +10,11 @@ import Image from 'next/image';
 export const metadata = { title: 'Manage Team | Admin' };
 
 export default async function AdminTeamPage() {
+  const session = await auth();
+  if (!session?.user?.id || (session.user.role !== 'ADMIN' && session.user.role !== 'EDITOR')) {
+    redirect('/');
+  }
+
   let members: any[] = [];
   let dbError = false;
 

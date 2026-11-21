@@ -191,15 +191,7 @@ export const createResourceAction = createSafeAction(async (args: z.input<typeof
   }
 
   const input = parsed.data;
-  // `type` is optional, and the create below defaults it to LAW_NOTE, so the
-  // editor check must apply that default too.
   const resourceType = input.type ?? ResourceType.LAW_NOTE;
-  if (
-    session.role === Role.EDITOR &&
-    resourceType === ResourceType.LAW_NOTE
-  ) {
-    throw new UserFacingError('Only admins can create law notes');
-  }
 
   if (
     session.role === Role.EDITOR &&
@@ -596,12 +588,6 @@ export const setResourcePublishedAction = createSafeAction(async (args: z.infer<
   if (existing.status === ContentStatus.ARCHIVED) {
     throw new UserFacingError('This resource is archived. Restore it before changing its draft status.');
   }
-  if (
-    session.role === Role.EDITOR &&
-    existing.type === ResourceType.LAW_NOTE
-  ) {
-    throw new UserFacingError('Only admins can publish or unpublish law notes');
-  }
 
   if (session.role === Role.EDITOR && published && existing.type === ResourceType.CASE_LAW && !existing.metaTitle) {
     throw new UserFacingError('Please select a Case Category or Case Law Classification before publishing this case law.');
@@ -671,9 +657,6 @@ export const updateResourceAction = createSafeAction(async (args: z.infer<typeof
 
   // NOTE: Ownership validation is NOT enforced for EDITING resources, as per business rules.
   // Any Editor can maintain/edit content to prevent orphaned data when staff leaves.
-  if (session.role === Role.EDITOR && input.type === ResourceType.LAW_NOTE) {
-    throw new UserFacingError('Only admins can update law notes');
-  }
 
   if (
     session.role === Role.EDITOR &&

@@ -115,8 +115,28 @@ export default function ImageUpload({
     }
   };
 
-  const handleOpenRecrop = () => {
+  const handleOpenRecrop = async () => {
     if (!value) return;
+    try {
+      setLoading(true);
+      const proxyUrl = `/api/admin/media/image-proxy?url=${encodeURIComponent(value)}`;
+      const res = await fetch(proxyUrl);
+      if (res.ok) {
+        const blob = await res.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        setCropFile(null);
+        setCropSrc(blobUrl);
+        setCropFilename('photo.jpg');
+        setCropMimeType(blob.type || 'image/jpeg');
+        setCropperOpen(true);
+        return;
+      }
+    } catch (err) {
+      console.warn('[ImageUpload] proxy fetch failed, falling back to direct URL:', err);
+    } finally {
+      setLoading(false);
+    }
+
     setCropFile(null);
     setCropSrc(value);
     setCropFilename('photo.jpg');

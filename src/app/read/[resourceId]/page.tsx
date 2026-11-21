@@ -21,6 +21,10 @@ import { Metadata } from 'next';
 import { getDictionary } from '@/lib/i18n';
 import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 import CaseCategoryBadge from '@/components/study/CaseCategoryBadge';
+import SocialShareToolbar from '@/components/posts/SocialShareToolbar';
+import Reactions from '@/components/posts/Reactions';
+import Comments from '@/components/posts/Comments';
+import { ArrowLeft, ChevronRight, FileText } from 'lucide-react';
 
 export async function generateMetadata({ params }: { params: Promise<{ resourceId: string }> }): Promise<Metadata> {
   const { resourceId } = await params;
@@ -242,56 +246,85 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
     // from WordPress, have no PDF; render the stored body instead of telling
     // the reader the document is missing.
     if (resource.content) {
+      const displayAuthor = resource.author ?? resource.createdBy;
+      const resourceAuthor = {
+        name: displayAuthor?.name || 'Entertain Lawyers',
+        image: displayAuthor?.image || null,
+        bio: displayAuthor?.bio || 'Entertain Lawyers provides comprehensive law notes, old questions, case laws, and study resources for law students and legal practitioners in Nepal.',
+        role: displayAuthor?.role ? (displayAuthor.role === 'ADMIN' ? 'Administrator' : displayAuthor.role === 'EDITOR' ? 'Editor' : 'Contributor') : 'Editorial Team',
+        website: displayAuthor?.website || null,
+        email: displayAuthor?.email || null,
+      };
+
+      const createdDateFormatted = resource.createdAt
+        ? new Date(resource.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+        : null;
+
+      const typeLabel = resource.type === 'CASE_LAW'
+        ? 'Case Law'
+        : resource.type === 'LAW_NOTE'
+        ? 'Law Note'
+        : resource.type.replace('_', ' ');
+
       return (
-        <div className="min-h-dvh bg-background transition-colors duration-300">
-          <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 sm:py-16">
-            <Link
-              href={studyBackUrl}
-              className="inline-flex items-center gap-2 text-sm font-medium text-text-muted hover:text-accent transition-colors"
-            >
-              <svg className="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 10">
-                <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5H1m0 0 4 4M1 5l4-4"/>
-              </svg>
-              {dict.goBack}
-            </Link>
+        <div className="min-h-screen bg-background pb-16">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+            {/* Breadcrumb Navigation */}
+            <nav aria-label="Breadcrumb" className="mb-6">
+              <ol className="flex items-center space-x-2 text-xs sm:text-sm text-text-muted">
+                <li>
+                  <Link href={studyBackUrl} className="hover:text-accent font-medium transition-colors flex items-center gap-1.5">
+                    <ArrowLeft className="w-3.5 h-3.5" />
+                    Back to Study
+                  </Link>
+                </li>
+                <li>
+                  <ChevronRight className="w-3.5 h-3.5 text-border" />
+                </li>
+                <li className="font-semibold text-text-secondary uppercase tracking-wider text-[11px]">
+                  {typeLabel}
+                </li>
+              </ol>
+            </nav>
 
-            {resource.type === 'CASE_LAW' && (
-              <div className="mt-6 mb-2">
-                <CaseCategoryBadge category={resource.metaTitle} size="md" />
+            {/* Content Header */}
+            <div className="mb-8 pb-6 border-b border-border">
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-md bg-accent/10 text-accent border border-accent/20 tracking-wider uppercase">
+                  <FileText className="w-3.5 h-3.5" />
+                  {typeLabel}
+                </span>
+                {resource.type === 'CASE_LAW' && resource.metaTitle && (
+                  <CaseCategoryBadge category={resource.metaTitle} size="sm" />
+                )}
+                {(resource.subject?.name || semesterName) && (
+                  <span className="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-md bg-surface-alt border border-border text-text-muted">
+                    {resource.subject?.name || semesterName}
+                  </span>
+                )}
               </div>
-            )}
 
-            <h1 className="mt-4 text-3xl font-bold leading-tight tracking-tight text-navy dark:text-white sm:text-4xl">
-              {resource.title}
-            </h1>
-            {(resource.subject?.name || semesterName) && (
-              <p className="mt-3 text-[15px] text-text-muted sm:text-base">
-                {resource.subject?.name}
-                {resource.subject?.name && semesterName ? ' · ' : ''}
-                {!resource.subject?.name && semesterName ? semesterName : (resource.subject?.name ? semesterName || '' : '')}
-              </p>
-            )}
-            {(() => {
-              const displayAuthor = resource.author ?? resource.createdBy;
-              const resourceAuthor = {
-                name: displayAuthor?.name || 'Entertain Lawyers',
-                image: displayAuthor?.image || null,
-                bio: displayAuthor?.bio || 'Entertain Lawyers provides comprehensive law notes, old questions, case laws, and study resources for law students and legal practitioners in Nepal.',
-                role: displayAuthor?.role ? (displayAuthor.role === 'ADMIN' ? 'Administrator' : displayAuthor.role === 'EDITOR' ? 'Editor' : 'Contributor') : 'Editorial Team',
-                website: displayAuthor?.website || null,
-                email: displayAuthor?.email || null,
-              };
-              return (
-                <div className="mt-5 flex items-center gap-2">
-                  <span className="text-xs font-bold text-text-muted uppercase tracking-wider">{dict.author}:</span>
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-navy dark:text-white mb-6 leading-tight tracking-tight break-words">
+                {resource.title}
+              </h1>
+
+              <div className="flex flex-wrap items-center gap-6 text-sm text-text-secondary">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-text-muted uppercase tracking-wider text-xs">{dict.author}:</span>
                   <AuthorBioTrigger author={resourceAuthor} size="sm" showName />
                 </div>
-              );
-            })()}
+                {createdDateFormatted && (
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-text-muted uppercase tracking-wider text-xs">Created:</span>
+                    <span>{createdDateFormatted}</span>
+                  </div>
+                )}
+              </div>
+            </div>
 
             {/* Featured Image */}
             {resource.featuredImage && (
-              <div className="mt-6 mb-8 rounded-2xl overflow-hidden border border-border shadow-sm aspect-[1200/630] w-full bg-slate-100 dark:bg-zinc-800">
+              <div className="mb-6 rounded-2xl overflow-hidden border border-border shadow-sm aspect-[1200/630] w-full bg-slate-100 dark:bg-zinc-800">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={resource.featuredImage}
@@ -301,62 +334,71 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
               </div>
             )}
 
-            {/* Same sanitized renderer and reading typography as articles, so
-                headings, lists and inserted (resized) images survive. toc
-                builds the contents list from the body's own headings. */}
-            <ArticleBody html={resource.content} toc />
+            {/* Social Share Toolbar - Below Featured Image as in News */}
+            <div id="share" className="mb-8 rounded-xl border border-border bg-surface p-3 sm:p-4 shadow-xs">
+              <SocialShareToolbar title={resource.title} labels />
+            </div>
+
+            {/* Reading Body - Separate styled box matching preview layout */}
+            <div className="bg-surface border border-border rounded-2xl p-6 sm:p-10 shadow-sm mb-10">
+              <ArticleBody html={resource.content} toc />
+            </div>
 
             {/* About Author Section */}
-            {(() => {
-              const displayAuthor = resource.author ?? resource.createdBy;
-              const resourceAuthor = {
-                name: displayAuthor?.name || 'Entertain Lawyers',
-                image: displayAuthor?.image || '/logo.jpg',
-                bio: displayAuthor?.bio || 'Entertain Lawyers provides comprehensive law notes, old questions, case laws, and study resources for law students and legal practitioners in Nepal.',
-                role: displayAuthor?.role ? (displayAuthor.role === 'ADMIN' ? 'Administrator' : displayAuthor.role === 'EDITOR' ? 'Editor' : 'Contributor') : 'Editorial Team',
-                website: displayAuthor?.website || null,
-                email: displayAuthor?.email || null,
-              };
-              return (
-                <section aria-labelledby="read-author-heading" className="mt-10 pt-6 border-t border-border">
-                  <h2 id="read-author-heading" className="text-xs font-bold uppercase tracking-wider text-text-muted mb-4">
-                    About Author
-                  </h2>
-                  <div className="flex items-start gap-4 p-5 rounded-2xl bg-surface border border-border">
-                    <AuthorBioTrigger author={resourceAuthor} size="lg" showName={false} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <AuthorBioTrigger
-                          author={resourceAuthor}
-                          showName
-                          nameClassName="text-base font-bold text-navy dark:text-white hover:text-accent"
-                        >
-                          <span className="font-bold text-navy dark:text-white text-base hover:text-accent transition-colors cursor-pointer">
-                            {resourceAuthor.name}
-                          </span>
-                        </AuthorBioTrigger>
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-accent/10 text-accent">
-                          {resourceAuthor.role}
-                        </span>
-                      </div>
-                      <p className="mt-1 text-sm leading-relaxed text-text-secondary">
-                        {resourceAuthor.bio}
-                      </p>
-                      {resourceAuthor.website && (
-                        <a
-                          href={resourceAuthor.website}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="mt-2 inline-flex items-center text-xs font-semibold text-accent hover:underline"
-                        >
-                          {resourceAuthor.website.replace(/^https?:\/\//, '')} &rarr;
-                        </a>
-                      )}
-                    </div>
+            <section aria-labelledby="read-author-heading" className="bg-surface border border-border rounded-2xl p-6 sm:p-7 shadow-sm mb-10">
+              <div className="border-b border-border pb-3 mb-5">
+                <h2 id="read-author-heading" className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                  About Author
+                </h2>
+              </div>
+              <div className="flex items-start gap-4 sm:gap-5">
+                <AuthorBioTrigger author={resourceAuthor} size="lg" showName={false} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <AuthorBioTrigger
+                      author={resourceAuthor}
+                      showName
+                      nameClassName="text-base font-bold text-navy dark:text-white hover:text-accent"
+                    >
+                      <span className="font-bold text-navy dark:text-white text-base hover:text-accent transition-colors cursor-pointer">
+                        {resourceAuthor.name}
+                      </span>
+                    </AuthorBioTrigger>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-accent/10 text-accent">
+                      {resourceAuthor.role}
+                    </span>
                   </div>
-                </section>
-              );
-            })()}
+                  <p className="mt-1 text-sm leading-relaxed text-text-secondary">
+                    {resourceAuthor.bio}
+                  </p>
+                  {resourceAuthor.website && (
+                    <a
+                      href={resourceAuthor.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-2 inline-flex items-center text-xs font-semibold text-accent hover:underline"
+                    >
+                      {resourceAuthor.website.replace(/^https?:\/\//, '')} &rarr;
+                    </a>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {/* User Reaction Bar */}
+            <Reactions
+              postId={resource.id}
+              postType={resource.type === 'CASE_LAW' ? 'CASELAW' : 'NOTES'}
+              title={resource.type === 'CASE_LAW' ? 'How did this case law make you feel?' : 'How did this note make you feel?'}
+            />
+
+            {/* Comments Section */}
+            <div className="mt-8">
+              <Comments
+                postId={resource.id}
+                postType={resource.type === 'CASE_LAW' ? 'CASELAW' : 'NOTES'}
+              />
+            </div>
           </div>
         </div>
       );

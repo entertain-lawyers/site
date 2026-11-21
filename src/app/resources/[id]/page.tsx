@@ -16,6 +16,9 @@ import { cache } from 'react';
 import { BookOpen, FileText, Lock, ChevronLeft, ChevronRight, LockOpen } from 'lucide-react';
 import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 import CaseCategoryBadge from '@/components/study/CaseCategoryBadge';
+import SocialShareToolbar from '@/components/posts/SocialShareToolbar';
+import Reactions from '@/components/posts/Reactions';
+import Comments from '@/components/posts/Comments';
 
 const getCachedResource = cache(async (id: string) => {
   try {
@@ -310,7 +313,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
 
         {/* Featured Image */}
         {resource.featuredImage && (
-          <div className="mb-8 rounded-2xl overflow-hidden border border-border shadow-sm aspect-[1200/630] w-full bg-slate-100 dark:bg-zinc-800">
+          <div className="mb-6 rounded-2xl overflow-hidden border border-border shadow-sm aspect-[1200/630] w-full bg-slate-100 dark:bg-zinc-800">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={resource.featuredImage}
@@ -319,6 +322,11 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
             />
           </div>
         )}
+
+        {/* Social Share Toolbar */}
+        <div id="share" className="mb-8 rounded-xl border border-border bg-surface p-3 sm:p-4 shadow-xs">
+          <SocialShareToolbar title={resource.title} labels />
+        </div>
 
         {/* Content Header */}
         <div className="mb-12">
@@ -558,6 +566,21 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
             ) : <div className="hidden sm:block flex-1" />}
           </div>
         )}
+
+        {/* User Reaction Bar */}
+        <Reactions
+          postId={resource.id}
+          postType={resource.type === 'CASE_LAW' ? 'CASELAW' : 'NOTES'}
+          title={resource.type === 'CASE_LAW' ? 'How did this case law make you feel?' : 'How did this note make you feel?'}
+        />
+
+        {/* Comments Section */}
+        <div className="mt-8">
+          <Comments
+            postId={resource.id}
+            postType={resource.type === 'CASE_LAW' ? 'CASELAW' : 'NOTES'}
+          />
+        </div>
       </div>
     </div>
   );
