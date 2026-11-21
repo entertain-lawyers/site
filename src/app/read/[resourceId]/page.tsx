@@ -338,19 +338,21 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
                   </div>
                 )}
 
-                {/* Article Body with Table of Contents and SocialShareToolbar directly below TOC */}
-                <ArticleBody
-                  html={resource.content}
-                  toc
-                  belowToc={
-                    <div id="share" className="pt-1 pb-1">
-                      <SocialShareToolbar title={resource.title} labels />
-                    </div>
-                  }
-                />
+                {/* Reading Body - Styled card container matching About Author and preview layout */}
+                <div className="bg-surface border border-border rounded-2xl p-6 sm:p-10 shadow-xs mb-8">
+                  <ArticleBody
+                    html={resource.content}
+                    toc
+                    belowToc={
+                      <div id="share" className="pt-1 pb-1">
+                        <SocialShareToolbar title={resource.title} labels />
+                      </div>
+                    }
+                  />
+                </div>
 
                 {/* About Author Section */}
-                <section aria-labelledby="read-author-heading" className="bg-surface border border-border rounded-2xl p-6 sm:p-7 shadow-xs mt-12 mb-8">
+                <section aria-labelledby="read-author-heading" className="bg-surface border border-border rounded-2xl p-6 sm:p-7 shadow-xs mb-8">
                   <div className="border-b border-border pb-3 mb-5">
                     <h2 id="read-author-heading" className="text-xs font-bold uppercase tracking-wider text-text-muted">
                       About Author
