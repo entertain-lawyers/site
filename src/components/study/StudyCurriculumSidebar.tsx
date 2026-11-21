@@ -34,22 +34,75 @@ interface StudyCurriculumSidebarProps {
   units?: UnitItem[];
 }
 
-const formatUnitLabel = (unit: UnitItem, uIdx: number) => {
+export interface ParsedUnitInfo {
+  prefix: string;
+  title: string;
+  fullLabel: string;
+}
+
+export const parseUnitInfo = (unit: UnitItem, uIdx: number): ParsedUnitInfo => {
   const rawName = (unit.name || '').trim();
   const rawTitle = (unit.title || '').trim();
-  const fallbackName = `Unit ${uIdx + 1}`;
+  const fallbackPrefix = `Unit ${uIdx + 1}`;
+  const effectivePrefix = (rawName || fallbackPrefix).replace(/[:\-_\s]+$/, '');
 
-  if (!rawName && !rawTitle) return fallbackName;
-  if (!rawTitle) return rawName;
-  if (!rawName) return `${fallbackName}: ${rawTitle}`;
+  // 1. If explicit title in DB
+  let resolvedTitle = rawTitle;
 
-  // If unit.name already includes the title text, don't duplicate
-  if (rawName.toLowerCase().includes(rawTitle.toLowerCase())) {
-    return rawName;
+  // 2. If no title in DB, check first resource attached to this unit
+  if (!resolvedTitle && unit.resources && unit.resources.length > 0) {
+    const firstResTitle = (unit.resources[0]?.title || '').trim();
+    // Clean off leading "Unit X:" or "Unit-X" or "Unit X -" prefixes
+    const stripped = firstResTitle.replace(/^unit[\s-_]*\d+[\s:.-]*/i, '').trim();
+    if (stripped && stripped.toLowerCase() !== effectivePrefix.toLowerCase()) {
+      resolvedTitle = stripped;
+    }
   }
 
-  // Format as "Unit: It's Title"
-  return `${rawName}: ${rawTitle}`;
+  // If resolvedTitle already has the prefix, remove it from title
+  if (resolvedTitle) {
+    resolvedTitle = resolvedTitle.replace(/^unit[\s-_]*\d+[\s:.-]*/i, '').trim();
+  }
+
+  // If rawName already contained the full title (e.g. "Unit 1: Neutrality")
+  if (rawName.includes(':') && !rawTitle) {
+    const [p, ...rest] = rawName.split(':');
+    const t = rest.join(':').trim();
+    if (t) {
+      return {
+        prefix: p.trim(),
+        title: t,
+        fullLabel: `${p.trim()}: ${t}`,
+      };
+    }
+  }
+
+  // If effectivePrefix already includes resolvedTitle, don't duplicate
+  if (resolvedTitle && effectivePrefix.toLowerCase().includes(resolvedTitle.toLowerCase())) {
+    return {
+      prefix: effectivePrefix,
+      title: '',
+      fullLabel: effectivePrefix,
+    };
+  }
+
+  if (resolvedTitle) {
+    return {
+      prefix: effectivePrefix,
+      title: resolvedTitle,
+      fullLabel: `${effectivePrefix}: ${resolvedTitle}`,
+    };
+  }
+
+  return {
+    prefix: effectivePrefix,
+    title: '',
+    fullLabel: effectivePrefix,
+  };
+};
+
+export const formatUnitLabel = (unit: UnitItem, uIdx: number): string => {
+  return parseUnitInfo(unit, uIdx).fullLabel;
 };
 
 export default function StudyCurriculumSidebar({
@@ -215,7 +268,8 @@ export default function StudyCurriculumSidebar({
             </div>
           ) : (
             units.map((unit, uIdx) => {
-              const unitLabel = formatUnitLabel(unit, uIdx);
+              const unitInfo = parseUnitInfo(unit, uIdx);
+              const unitLabel = unitInfo.fullLabel;
               const hasCurrent =
                 unit.id === currentUnitId ||
                 unit.resources?.some((r) => r.id === currentResourceId);
@@ -238,7 +292,7 @@ export default function StudyCurriculumSidebar({
                   title={unitLabel}
                   className={`group flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-xs transition-all ${
                     hasCurrent
-                      ? 'bg-accent text-white font-bold shadow-xs border border-accent'
+                      ? 'bg-accent text-white font-bold shadow-xs border border-accent ring-1 ring-accent/30'
                       : 'bg-accent/5 text-navy dark:text-white border border-accent/20 hover:bg-accent hover:text-white hover:border-accent font-semibold'
                   }`}
                 >
@@ -251,7 +305,7 @@ export default function StudyCurriculumSidebar({
                       }`}
                       aria-hidden="true"
                     />
-                    <span className="truncate block font-semibold text-[11px] leading-tight">
+                    <span className="truncate block font-semibold text-[11.5px] leading-tight">
                       {unitLabel}
                     </span>
                   </div>

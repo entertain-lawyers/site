@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { LazyMotion } from 'motion/react';
+import { LazyMotion, domAnimation } from 'motion/react';
 import Reactions from '../Reactions';
 
 describe('Reactions component under LazyMotion strict mode', () => {
@@ -17,7 +17,7 @@ describe('Reactions component under LazyMotion strict mode', () => {
   it('renders without throwing strict motion error inside LazyMotion', () => {
     expect(() => {
       renderToStaticMarkup(
-        <LazyMotion features={async () => ({})} strict>
+        <LazyMotion features={domAnimation} strict>
           <Reactions postId="post-123" />
         </LazyMotion>
       );
@@ -26,7 +26,7 @@ describe('Reactions component under LazyMotion strict mode', () => {
 
   it('contains reaction buttons and labels', () => {
     const html = renderToStaticMarkup(
-      <LazyMotion features={async () => ({})} strict>
+      <LazyMotion features={domAnimation} strict>
         <Reactions postId="post-123" />
       </LazyMotion>
     );

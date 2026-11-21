@@ -126,4 +126,44 @@ describe('StudyCurriculumSidebar Component', () => {
     expect(html).toContain('href="/study"');
     expect(html).toContain('All Subjects &amp; Syllabus →');
   });
+
+  it('dynamically extracts and displays unit title next to unit number even when unit.title in DB is null', () => {
+    const unitsWithoutTitle = [
+      {
+        id: 'u-1',
+        name: 'Unit 1',
+        title: null,
+        resources: [
+          { id: 'r-1', title: 'Unit 1: Use of force and war', type: 'LAW_NOTE' },
+        ],
+      },
+      {
+        id: 'u-2',
+        name: 'Unit 2',
+        title: null,
+        resources: [
+          { id: 'r-2', title: 'Unit-2 Neutrality', type: 'LAW_NOTE' },
+        ],
+      },
+      {
+        id: 'u-3',
+        name: 'Unit 3',
+        title: null,
+        resources: [],
+      },
+    ];
+
+    const html = renderToStaticMarkup(
+      <StudyCurriculumSidebar
+        semesterName="Semester 4"
+        subjectName="Public International Law - I"
+        currentResourceId="r-1"
+        units={unitsWithoutTitle}
+      />
+    );
+
+    expect(html).toContain('Unit 1: Use of force and war');
+    expect(html).toContain('Unit 2: Neutrality');
+    expect(html).toContain('Unit 3');
+  });
 });
