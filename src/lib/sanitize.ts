@@ -1,4 +1,5 @@
 import sanitizeHtmlLib from 'sanitize-html';
+import { unwrapEmptyListWrappers } from './editor-html';
 
 /**
  * Allowed markup is the same reading surface the old site used: headings,
@@ -60,6 +61,9 @@ const cssRules: Record<string, RegExp[]> = {
   'line-height': [
     /^(?:normal|(?:0\.[8-9]\d*|[1-2](?:\.\d+)?|3(?:\.0+)?)|(?:[89]\d|1[0-9]{2}|200|300)%|(?:0\.[8-9]\d*|[1-2](?:\.\d+)?|3(?:\.0+)?)(?:rem|em)|(?:1[2-9]|[2-6]\d|7[0-2])px)$/i,
   ],
+  width: [/^(?:auto|0|0px|[1-9]\d{0,3}px|[1-9]\d?%|100%)$/i],
+  'min-width': [/^(?:0|0px|[1-9]\d{0,3}px)$/i],
+  'border-collapse': [/^(?:collapse|separate)$/i],
 };
 
 // `allowedStyles` is keyed by tag name; `*` applies to every element. A
@@ -79,8 +83,13 @@ const options: sanitizeHtmlLib.IOptions = {
     col: ['span', 'width'],
     colgroup: ['span', 'width'],
     ol: ['start', 'type'],
-    td: ['colspan', 'rowspan', 'headers'],
-    th: ['colspan', 'rowspan', 'scope', 'headers'],
+    table: ['class', 'style', 'width', 'border', 'cellpadding', 'cellspacing'],
+    tbody: ['class', 'style'],
+    thead: ['class', 'style'],
+    tfoot: ['class', 'style'],
+    tr: ['data-row', 'class', 'style'],
+    td: ['colspan', 'rowspan', 'headers', 'data-row', 'class', 'style', 'width'],
+    th: ['colspan', 'rowspan', 'scope', 'headers', 'data-row', 'class', 'style', 'width'],
     time: ['datetime'],
   },
   allowedStyles: styleRules,
@@ -125,6 +134,7 @@ export function cleanPastedInlineStyles(html: string): string {
 }
 
 export function sanitizeHtml(html: string): string {
-  const sanitized = sanitizeHtmlLib(html, options);
+  const unwrapped = unwrapEmptyListWrappers(html);
+  const sanitized = sanitizeHtmlLib(unwrapped, options);
   return cleanPastedInlineStyles(sanitized);
 }

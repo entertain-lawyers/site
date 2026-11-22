@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { articleHtmlToEditorHtml, editorHtmlToArticleHtml, restoreVideoEmbeds } from '../editor-html';
+import { articleHtmlToEditorHtml, editorHtmlToArticleHtml, restoreVideoEmbeds, unwrapEmptyListWrappers } from '../editor-html';
 
 // WordPress post 5982 as rendered by the REST API (shortened).
 const wordpressRendered = [
@@ -226,5 +226,44 @@ describe('round trip', () => {
     expect(firstSave).toContain('<i>Case:</i> Narcotic Drug<br><i>Plaintiff/Applicant:</i>');
     const secondSave = editorHtmlToArticleHtml(asQuillLines(articleHtmlToEditorHtml(firstSave)));
     expect(secondSave).toBe(firstSave);
+  });
+
+  it('unwraps empty nested list wrappers to prevent stacked markers and squished columns', () => {
+    // 3-level empty wrapper from Unit-2 Neutrality (media_1795366712951_9776d2d8.jpg)
+    const brokenInput =
+      '<ol class="el-ed el-tight"><li><ol><li><ol><li><span>A neutralized state may become a member of the UN...</span></li><li><span>Austria ids also a neutralized state...</span></li></ol></li></ol></li></ol>';
+    const unwrappedDirect = unwrapEmptyListWrappers(brokenInput);
+    expect(unwrappedDirect).not.toContain('<li><ol><li><ol>');
+    expect(unwrappedDirect).toContain('class="el-ed el-tight list-roman"');
+    expect(unwrappedDirect).toContain('type="i"');
+    expect(unwrappedDirect).toContain('A neutralized state may become a member of the UN...');
+
+    const unwrappedArticle = editorHtmlToArticleHtml(brokenInput);
+    expect(unwrappedArticle).not.toContain('<li><ol>');
+    expect(unwrappedArticle).toContain('class="el-ed list-roman"');
+    expect(unwrappedArticle).toContain('type="i"');
+
+    // 2-level empty wrapper
+    const twoLevel =
+      '<ol class="el-ed"><li><ol><li><span>Rights of the neutral states:</span></li><li><span>Inviolability of territory</span></li></ol></li></ol>';
+    const unwrapped2 = editorHtmlToArticleHtml(twoLevel);
+    expect(unwrapped2).not.toContain('<li><ol>');
+    expect(unwrapped2).toContain('class="el-ed list-alpha"');
+    expect(unwrapped2).toContain('type="a"');
+
+    // Legitimate nested list with text in parent li is NOT unwrapped
+    const legitimate = '<ol class="el-ed"><li>Parent item<ol><li>Child item</li></ol></li></ol>';
+    expect(editorHtmlToArticleHtml(legitimate)).toContain('Parent item<ol');
+  });
+
+  it('preserves tables across save -> load -> save', () => {
+    const tableHtml =
+      '<table><tbody><tr><td data-row="row-1">Cell 1</td><td data-row="row-1">Cell 2</td></tr><tr><td data-row="row-2">Cell 3</td><td data-row="row-2">Cell 4</td></tr></tbody></table>';
+    const saved = editorHtmlToArticleHtml(tableHtml);
+    expect(saved).toContain('<table class="el-ed">');
+    expect(saved).toContain('Cell 1');
+    const reloaded = asQuillLines(articleHtmlToEditorHtml(saved));
+    expect(reloaded).toContain('<table><tbody><tr>');
+    expect(reloaded).toContain('Cell 1');
   });
 });

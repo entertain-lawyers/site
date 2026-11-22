@@ -215,4 +215,32 @@ describe("sanitizeHtml editor output (regression)", () => {
     // Intentional non-white highlights must be preserved
     expect(clean).toContain('background-color:rgb(255, 255, 0)');
   });
+
+  it("unwraps empty list wrappers and cleans white background highlights simultaneously", () => {
+    const rawDbContent =
+      '<ol class="el-ed el-tight"><li><ol><li><ol><li><span style="background-color: rgb(255, 255, 255); color: rgb(17, 17, 17);">A neutralized state may become a member of the UN...</span></li><li><span style="background-color: rgb(255, 255, 255); color: rgb(17, 17, 17);">Austria ids also a neutralized state...</span></li></ol></li></ol></li></ol>';
+
+    const clean = sanitizeHtml(rawDbContent);
+    expect(clean).not.toContain('<li><ol><li><ol>');
+    expect(clean).toContain('class="el-ed el-tight list-roman"');
+    expect(clean).toContain('type="i"');
+    expect(clean).not.toContain('background-color');
+    expect(clean).not.toContain('rgb(17, 17, 17)');
+    expect(clean).toContain('A neutralized state may become a member of the UN...');
+  });
+
+  it("preserves tables, data-row attributes, and cell widths safely", () => {
+    const tableInput =
+      '<table class="ql-table el-ed" style="width: 100%; border-collapse: collapse;">' +
+      '<thead><tr><th data-row="r1" style="width: 50%;">Header 1</th><th data-row="r1">Header 2</th></tr></thead>' +
+      '<tbody><tr><td data-row="r2" colspan="2">Merged cell</td></tr></tbody>' +
+      '</table>';
+
+    const clean = sanitizeHtml(tableInput);
+    expect(clean).toContain('<table class="ql-table el-ed" style="width:100%;border-collapse:collapse">');
+    expect(clean).toContain('data-row="r1"');
+    expect(clean).toContain('style="width:50%"');
+    expect(clean).toContain('colspan="2"');
+    expect(clean).toContain('Merged cell');
+  });
 });
