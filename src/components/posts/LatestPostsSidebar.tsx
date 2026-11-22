@@ -26,10 +26,12 @@ export default function LatestPostsSidebar({
   posts,
   currentPostId,
   max = 6,
+  title = 'Latest Post',
 }: {
   posts: LatestPost[];
   currentPostId?: string;
   max?: number;
+  title?: string;
 }) {
   const items = posts.filter((p) => p.id !== currentPostId).slice(0, max);
 
@@ -43,7 +45,7 @@ export default function LatestPostsSidebar({
           id="latest-posts-heading"
           className="text-[20px] lg:text-[25px] font-semibold leading-tight text-white"
         >
-          Latest Post
+          {title}
         </h2>
       </div>
 

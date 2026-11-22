@@ -147,7 +147,7 @@ export default function UnitDirectContentView({
             {activeResource.canAccess && (
               <Link
                 href={`/read/${activeResource.id}`}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-accent text-white hover:bg-accent/90 text-xs font-bold shadow-sm transition-all duration-200 hover:-translate-y-0.5"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 min-h-[38px] rounded-xl bg-accent text-white hover:bg-accent/90 text-xs font-bold shadow-sm transition-all duration-200 hover:-translate-y-0.5"
                 title="Open fullscreen reader"
                 {...(activeResource.type === 'OLD_QUESTION' ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
               >
@@ -171,7 +171,7 @@ export default function UnitDirectContentView({
                   <button
                     key={r.id}
                     onClick={() => setActiveResourceId(r.id)}
-                    className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    className={`inline-flex items-center gap-2 px-3.5 py-2 min-h-[38px] rounded-xl text-xs font-bold transition-all ${
                       isActive
                         ? 'bg-navy text-white dark:bg-accent dark:text-white shadow-sm'
                         : 'bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-text-secondary hover:text-navy dark:hover:text-white'
