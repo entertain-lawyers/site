@@ -53,3 +53,23 @@ export const getLatestPosts = cache(async (excludeId?: number, limit = 6, lang: 
 
   return items.slice(0, limit);
 });
+
+/**
+ * Latest published news posts specifically for sidebar rails.
+ * Used on prescribed cases and legal updates.
+ */
+export const getLatestNewsPosts = cache(async (excludeId?: number, limit = 5, lang: 'en' = 'en'): Promise<LatestPost[]> => {
+  try {
+    const all = await getLatestPosts(excludeId, 24, lang);
+    const newsOnly = all.filter((p) => p.type === 'NEWS');
+    if (newsOnly.length >= limit) {
+      return newsOnly.slice(0, limit);
+    }
+    // Fill remaining with freshest posts if fewer than limit news posts
+    const others = all.filter((p) => p.type !== 'NEWS');
+    return [...newsOnly, ...others].slice(0, limit);
+  } catch (error) {
+    console.error('[getLatestNewsPosts] Failed to fetch latest news posts:', error);
+    return [];
+  }
+});

@@ -26,7 +26,9 @@ import Reactions from '@/components/posts/Reactions';
 import Comments from '@/components/posts/Comments';
 import LatestPostsSidebar from '@/components/posts/LatestPostsSidebar';
 import StudyCurriculumSidebar from '@/components/study/StudyCurriculumSidebar';
-import { getLatestPosts } from '@/lib/latest-posts';
+import LatestCaseLawsSidebar from '@/components/study/LatestCaseLawsSidebar';
+import { getLatestPosts, getLatestNewsPosts } from '@/lib/latest-posts';
+import { isPrescribedCasesUnit, getCaseLawCategory } from '@/lib/case-category';
 import { ArrowLeft, ChevronRight, FileText, Clock } from 'lucide-react';
 
 export async function generateMetadata({ params }: { params: Promise<{ resourceId: string }> }): Promise<Metadata> {
@@ -212,6 +214,12 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
     ? `/study?${studyBackParams.toString()}`
     : '/study';
 
+  const isPrescribedCase =
+    resource.type === 'CASE_LAW' ||
+    isPrescribedCasesUnit(resource.unit) ||
+    isPrescribedCasesUnit(resource.unitId) ||
+    Boolean(getCaseLawCategory(resource));
+
   if (!hasAccess) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 transition-colors duration-300">
@@ -269,7 +277,37 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
         ? 'Law Note'
         : resource.type.replace('_', ' ');
 
-      const latestPosts = await getLatestPosts();
+      const [latestPosts, latestNewsPosts, latestCaseLaws] = await Promise.all([
+        !isPrescribedCase ? getLatestPosts() : Promise.resolve([]),
+        isPrescribedCase ? getLatestNewsPosts(undefined, 5) : Promise.resolve([]),
+        isPrescribedCase
+          ? prisma.resource
+              .findMany({
+                where: {
+                  status: 'PUBLISHED',
+                  OR: [
+                    { type: 'CASE_LAW' },
+                    { unit: { name: { contains: 'prescribed', mode: 'insensitive' } } },
+                  ],
+                  id: { not: resource.id },
+                },
+                orderBy: { createdAt: 'desc' },
+                take: 5,
+                select: {
+                  id: true,
+                  title: true,
+                  type: true,
+                  createdAt: true,
+                  featuredImage: true,
+                  metaTitle: true,
+                },
+              })
+              .catch((err) => {
+                console.error(`[read/${resourceId}] error loading latest case laws:`, err);
+                return [];
+              })
+          : Promise.resolve([]),
+      ]);
 
       return (
         <div className="min-h-screen bg-background pb-16">
@@ -403,11 +441,28 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
                     variant="study"
                   />
                 </div>
+
+                {/* Mobile / Tablet: On prescribed cases, show Latest Case Laws and News stacked below comments */}
+                {isPrescribedCase && (latestCaseLaws.length > 0 || latestNewsPosts.length > 0) && (
+                  <div className="mt-12 lg:hidden space-y-8 border-t border-border pt-8">
+                    {latestCaseLaws.length > 0 && (
+                      <LatestCaseLawsSidebar cases={latestCaseLaws} currentResourceId={resource.id} />
+                    )}
+                    {latestNewsPosts.length > 0 && (
+                      <LatestPostsSidebar posts={latestNewsPosts} title="Latest News" />
+                    )}
+                  </div>
+                )}
               </article>
 
-              {/* Sidebar on Desktop (Option 1: Study Curriculum & Unit Companion) */}
+              {/* Sidebar on Desktop: Latest Case Laws & News for Prescribed Cases, or Syllabus Navigator for Law Notes */}
               <aside className="hidden lg:block space-y-6 lg:sticky lg:top-24">
-                {resource.subject?.units && resource.subject.units.length > 0 ? (
+                {isPrescribedCase ? (
+                  <>
+                    <LatestCaseLawsSidebar cases={latestCaseLaws} currentResourceId={resource.id} />
+                    <LatestPostsSidebar posts={latestNewsPosts} title="Latest News" />
+                  </>
+                ) : resource.subject?.units && resource.subject.units.length > 0 ? (
                   <StudyCurriculumSidebar
                     semesterName={semesterName}
                     subjectName={resource.subject?.name}
@@ -497,7 +552,7 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
         <div className="flex items-center text-sm">
           <Link
             href={studyBackUrl}
-            className="text-text-muted hover:text-accent mr-3 transition-colors flex items-center justify-center bg-surface-alt rounded-full w-8 h-8"
+            className="text-text-muted hover:text-accent mr-3 transition-colors flex items-center justify-center bg-surface-alt hover:bg-surface-alt/80 rounded-full w-8 h-8 min-h-[36px] min-w-[36px]"
             aria-label="Go back to study materials"
             title={dict.goBack}
           >
@@ -587,13 +642,15 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
 
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar */}
-        {filteredUnits.length > 0 && (
-          <StudyOutlineSidebar
-            units={filteredUnits}
-            currentResourceId={resource.id}
-            currentUnitId={resource.unitId}
-          />
+        {/* Sidebar - desktop-only and strictly for non-prescribed law notes */}
+        {!isPrescribedCase && filteredUnits.length > 0 && (
+          <div className="hidden lg:flex h-full shrink-0">
+            <StudyOutlineSidebar
+              units={filteredUnits}
+              currentResourceId={resource.id}
+              currentUnitId={resource.unitId}
+            />
+          </div>
         )}
 
         {/* PDF Viewer Area */}

@@ -66,20 +66,13 @@ export default function StudyOutlineSidebar({ units, currentResourceId, currentU
   };
 
   return (
-    <>
-      {isOpen && (
-        <div
-          className="absolute inset-0 bg-black/20 z-40 md:hidden"
-          onClick={() => setIsOpen(false)}
-        />
-      )}
-      <div className={`
-        flex flex-col h-full bg-surface transition-all duration-300 z-50
-        absolute md:relative left-0 top-0 bottom-0
-        ${isOpen
-          ? 'w-72 md:w-80 shadow-2xl md:shadow-none border-r border-border'
-          : 'w-12 border-r border-border shadow-md md:shadow-none'}
-      `}>
+    <div
+      className={`relative flex flex-col h-full bg-surface transition-all duration-300 ${
+        isOpen
+          ? 'w-72 md:w-80 border-r border-border'
+          : 'w-12 border-r border-border'
+      }`}
+    >
       <div className="flex items-center justify-between p-3 border-b border-border">
         {isOpen && <h2 className="font-semibold text-navy dark:text-gray-200 text-sm uppercase tracking-wider">Study Outline</h2>}
         <button
@@ -155,6 +148,5 @@ export default function StudyOutlineSidebar({ units, currentResourceId, currentU
         </div>
       )}
     </div>
-    </>
   );
 }
