@@ -4,6 +4,8 @@ import Image from 'next/image';
 import { Mail, Phone } from 'lucide-react';
 import { Metadata } from 'next';
 import { Reveal } from '@/components/motion/primitives';
+import { parseSocialLinks, getPlatformConfig } from '@/lib/social-links';
+import { PlatformIcon } from '@/components/team/SocialPlatformIcon';
 
 const FacebookIcon = () => (
   <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -132,43 +134,70 @@ export default async function TeamDirectoryPage() {
                 </div>
 
                 {/* Footer: social icons only — the whole card is clickable */}
-                {(member.facebookUrl || member.linkedinUrl || member.instagramUrl) && (
-                  <div className="px-5 pb-4 flex items-center gap-2.5">
-                    {member.facebookUrl && (
-                      <a
-                        href={member.facebookUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label={`${member.name} on Facebook`}
-                        className="relative z-20 w-7 h-7 flex items-center justify-center rounded-md bg-[#1877F2] text-white hover:bg-[#0e63ca] transition-colors"
-                      >
-                        <FacebookIcon />
-                      </a>
-                    )}
-                    {member.linkedinUrl && (
-                      <a
-                        href={member.linkedinUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label={`${member.name} on LinkedIn`}
-                        className="relative z-20 w-7 h-7 flex items-center justify-center rounded-md bg-[#0A66C2] text-white hover:bg-[#0855a1] transition-colors"
-                      >
-                        <LinkedinIcon />
-                      </a>
-                    )}
-                    {member.instagramUrl && (
-                      <a
-                        href={member.instagramUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label={`${member.name} on Instagram`}
-                        className="relative z-20 w-7 h-7 flex items-center justify-center rounded-md text-white bg-gradient-to-tr from-[#833AB4] via-[#E1306C] to-[#F77737] hover:opacity-90 hover:scale-105 transition-all"
-                      >
-                        <InstagramIcon />
-                      </a>
-                    )}
-                  </div>
-                )}
+                {(() => {
+                  const extraLinks = parseSocialLinks(member.websiteUrl);
+                  const hasAnySocial = Boolean(
+                    member.facebookUrl || member.linkedinUrl || member.instagramUrl || extraLinks.length > 0
+                  );
+                  if (!hasAnySocial) return null;
+
+                  return (
+                    <div className="px-5 pb-4 flex items-center gap-2 flex-wrap">
+                      {member.facebookUrl && (
+                        <a
+                          href={member.facebookUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={`${member.name} on Facebook`}
+                          title="Facebook"
+                          className="relative z-20 w-7 h-7 flex items-center justify-center rounded-md bg-[#1877F2] text-white hover:bg-[#0e63ca] hover:scale-110 transition-all shadow-xs"
+                        >
+                          <FacebookIcon />
+                        </a>
+                      )}
+                      {member.linkedinUrl && (
+                        <a
+                          href={member.linkedinUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={`${member.name} on LinkedIn`}
+                          title="LinkedIn"
+                          className="relative z-20 w-7 h-7 flex items-center justify-center rounded-md bg-[#0A66C2] text-white hover:bg-[#0855a1] hover:scale-110 transition-all shadow-xs"
+                        >
+                          <LinkedinIcon />
+                        </a>
+                      )}
+                      {member.instagramUrl && (
+                        <a
+                          href={member.instagramUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-label={`${member.name} on Instagram`}
+                          title="Instagram"
+                          className="relative z-20 w-7 h-7 flex items-center justify-center rounded-md text-white bg-gradient-to-tr from-[#833AB4] via-[#E1306C] to-[#F77737] hover:opacity-90 hover:scale-110 transition-all shadow-xs"
+                        >
+                          <InstagramIcon />
+                        </a>
+                      )}
+                      {extraLinks.map((link) => {
+                        const config = getPlatformConfig(link.platform);
+                        return (
+                          <a
+                            key={link.id}
+                            href={link.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            aria-label={`${member.name} on ${link.label || config.label}`}
+                            title={link.label || config.label}
+                            className="relative z-20 w-7 h-7 flex items-center justify-center rounded-md bg-slate-200 dark:bg-zinc-800 text-navy dark:text-white hover:bg-accent hover:text-white hover:scale-110 transition-all shadow-xs"
+                          >
+                            <PlatformIcon platform={link.platform} className="w-3.5 h-3.5" />
+                          </a>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </Reveal>
             ))}
           </div>

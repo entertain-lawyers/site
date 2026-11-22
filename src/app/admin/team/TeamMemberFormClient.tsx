@@ -5,8 +5,17 @@ import { useRouter } from 'next/navigation';
 import { createTeamMemberAction, updateTeamMemberAction } from '@/modules/admin/admin-team.actions';
 import ImageUpload from '@/components/admin/ImageUpload';
 import Link from 'next/link';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { MotionButton } from '@/components/motion/primitives';
+import {
+  PlatformKey,
+  SocialLinkItem,
+  PLATFORM_OPTIONS,
+  parseSocialLinks,
+  serializeSocialLinks,
+  getPlatformConfig,
+} from '@/lib/social-links';
+import { PlatformIcon } from '@/components/team/SocialPlatformIcon';
 
 interface TeamMemberFormClientProps {
   member?: any;
@@ -28,7 +37,9 @@ export default function TeamMemberFormClient({ member }: TeamMemberFormClientPro
   const [linkedinUrl, setLinkedinUrl] = useState(member?.linkedinUrl || '');
   const [facebookUrl, setFacebookUrl] = useState(member?.facebookUrl || '');
   const [instagramUrl, setInstagramUrl] = useState(member?.instagramUrl || '');
-  const [websiteUrl, setWebsiteUrl] = useState(member?.websiteUrl || '');
+  const [socialLinks, setSocialLinks] = useState<SocialLinkItem[]>(() =>
+    parseSocialLinks(member?.websiteUrl)
+  );
   const [qualifications, setQualifications] = useState(member?.qualifications || '');
   const [experience, setExperience] = useState(member?.experience || '');
   const [achievements, setAchievements] = useState(member?.achievements || '');
@@ -36,6 +47,29 @@ export default function TeamMemberFormClient({ member }: TeamMemberFormClientPro
   const [languages, setLanguages] = useState(member?.languages || '');
   const [displayOrder, setDisplayOrder] = useState(member?.displayOrder || 0);
   const [isPublished, setIsPublished] = useState(member?.isPublished || false);
+
+  const handleAddLink = () => {
+    const existing = new Set(socialLinks.map((l) => l.platform));
+    const defaultPlatform: PlatformKey = existing.has('website') ? 'github' : 'website';
+    setSocialLinks((prev) => [
+      ...prev,
+      {
+        id: `social-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        platform: defaultPlatform,
+        url: '',
+      },
+    ]);
+  };
+
+  const handleUpdateLink = (index: number, updates: Partial<SocialLinkItem>) => {
+    setSocialLinks((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, ...updates } : item))
+    );
+  };
+
+  const handleRemoveLink = (index: number) => {
+    setSocialLinks((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +88,7 @@ export default function TeamMemberFormClient({ member }: TeamMemberFormClientPro
       linkedinUrl,
       facebookUrl,
       instagramUrl,
-      websiteUrl,
+      websiteUrl: serializeSocialLinks(socialLinks),
       qualifications,
       experience,
       achievements,
@@ -169,6 +203,82 @@ export default function TeamMemberFormClient({ member }: TeamMemberFormClientPro
           <div>
             <label className="block text-sm font-bold text-navy dark:text-white mb-2">Instagram URL</label>
             <input type="url" value={instagramUrl} onChange={e => setInstagramUrl(e.target.value)} className="w-full border p-3 rounded-xl dark:bg-zinc-950 dark:border-white/10" placeholder="https://instagram.com/..." />
+          </div>
+
+          <div className="pt-2 border-t border-black/10 dark:border-white/10 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-sm font-bold text-navy dark:text-white">
+                  Additional Direct Connect Links
+                </label>
+                <p className="text-xs text-text-muted mt-0.5">
+                  Choose platform from dropdown and add custom profile or direct connect links.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleAddLink}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-accent text-white hover:bg-accent-dark transition-colors shadow-xs shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add Platform
+              </button>
+            </div>
+
+            {socialLinks.length === 0 ? (
+              <div className="p-4 rounded-xl border border-dashed border-black/15 dark:border-white/15 text-center text-xs text-text-muted bg-slate-50/50 dark:bg-zinc-950/50">
+                No extra platform links added. Click &quot;Add Platform&quot; to add links for GitHub, Portfolio, X (Twitter), YouTube, etc.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {socialLinks.map((link, idx) => (
+                  <div
+                    key={link.id}
+                    className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-3 rounded-xl border border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-950/80"
+                  >
+                    {/* Platform Selector dropdown with live icon preview */}
+                    <div className="flex items-center gap-2 sm:w-56 shrink-0">
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-white dark:bg-zinc-900 border border-black/10 dark:border-white/10 text-navy dark:text-white shrink-0">
+                        <PlatformIcon platform={link.platform} className="w-4 h-4" />
+                      </div>
+                      <select
+                        value={link.platform}
+                        onChange={(e) => handleUpdateLink(idx, { platform: e.target.value as PlatformKey })}
+                        className="w-full text-xs font-bold py-2 px-2.5 rounded-lg border border-black/15 dark:border-white/15 bg-white dark:bg-zinc-900 text-navy dark:text-white focus:outline-none focus:ring-1 focus:ring-accent"
+                      >
+                        {PLATFORM_OPTIONS.map((opt) => (
+                          <option key={opt.key} value={opt.key}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* URL Input with dynamic placeholder */}
+                    <div className="flex-1 min-w-0">
+                      <input
+                        type="url"
+                        value={link.url}
+                        onChange={(e) => handleUpdateLink(idx, { url: e.target.value })}
+                        placeholder={getPlatformConfig(link.platform).placeholder}
+                        className="w-full text-xs py-2 px-3 rounded-lg border border-black/15 dark:border-white/15 bg-white dark:bg-zinc-900 text-navy dark:text-white focus:outline-none focus:ring-1 focus:ring-accent"
+                      />
+                    </div>
+
+                    {/* Remove button */}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveLink(idx)}
+                      className="p-2 text-text-muted hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition-colors shrink-0 self-end sm:self-auto"
+                      title="Remove platform link"
+                      aria-label="Remove platform link"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
