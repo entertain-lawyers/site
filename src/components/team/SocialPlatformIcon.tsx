@@ -117,7 +117,7 @@ export function DirectConnectButton({
   platform,
   url,
   label,
-  className = 'w-6 h-6',
+  className = 'w-4 h-4',
 }: {
   platform: PlatformKey | string;
   url: string;
@@ -132,7 +132,7 @@ export function DirectConnectButton({
       href={url}
       target="_blank"
       rel="noopener noreferrer"
-      className={`group relative inline-flex items-center justify-center p-2 rounded-xl text-text-muted ${config.hoverColor} transition-all duration-200 ease-out hover:scale-115 hover:-translate-y-1 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
+      className={`group relative inline-flex items-center justify-center w-9 h-9 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-700/80 shadow-2xs ${config.hoverBgClass} transition-all duration-200 ease-out hover:scale-115 hover:-translate-y-0.5 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
       aria-label={displayLabel}
       title={displayLabel}
     >

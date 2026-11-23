@@ -9,8 +9,9 @@ import { syncListLineHeights } from '@/lib/editor-line-height';
 import dynamic from 'next/dynamic';
 import EditorImageTools from '@/components/editor/EditorImageTools';
 import EditorTableTools from '@/components/editor/EditorTableTools';
-import { Table as TableIcon } from 'lucide-react';
 import 'react-quill-new/dist/quill.snow.css';
+
+const TABLE_TOOLBAR_SVG = '<svg viewBox="0 0 18 18"><rect class="ql-stroke" height="12" width="14" x="2" y="3" rx="1.5"/><line class="ql-stroke" x1="2" x2="16" y1="7" y2="7"/><line class="ql-stroke" x1="2" x2="16" y1="11" y2="11"/><line class="ql-stroke" x1="7" x2="7" y1="3" y2="15"/><line class="ql-stroke" x1="11" x2="11" y1="3" y2="15"/></svg>';
 
 // Custom attributors (wrap, lineheight) must exist before ReactQuill constructs Quill,
 // so they are loaded (browser-only) in the same dynamic loader.
@@ -18,7 +19,15 @@ const ReactQuill = dynamic(
   async () => {
     await import('@/components/editor/quill-image-wrap');
     await import('@/components/editor/quill-line-height');
-    return (await import('react-quill-new')).default;
+    const RQ = (await import('react-quill-new')).default;
+    try {
+      const QuillModule = (await import('quill')).default;
+      const icons = QuillModule?.import?.('ui/icons') as Record<string, string> | undefined;
+      if (icons && !icons['table']) {
+        icons['table'] = TABLE_TOOLBAR_SVG;
+      }
+    } catch {}
+    return RQ;
   },
   { ssr: false }
 );
@@ -372,6 +381,11 @@ export default function RichTextEditor({
           }
         }
 
+        const tableBtn = container.querySelector<HTMLElement>('button.ql-table');
+        if (tableBtn && !tableBtn.querySelector('svg')) {
+          tableBtn.innerHTML = TABLE_TOOLBAR_SVG;
+        }
+
         // Accessible labels on line-height picker options
         const LINE_HEIGHT_LABELS: Record<string, string> = {
           '1.0': 'Single (1.0)',
@@ -538,6 +552,10 @@ export default function RichTextEditor({
           }
           .editor-wrapper .ql-toolbar.ql-snow button.ql-active .ql-fill {
             fill: #0284c7 !important;
+          }
+          .editor-wrapper .ql-toolbar.ql-snow button.ql-table svg {
+            width: 18px !important;
+            height: 18px !important;
           }
 
           /* Roman and Alpha List Toolbar Button Icons */
@@ -1041,17 +1059,6 @@ export default function RichTextEditor({
               नेपाली (Noto)
             </button>
           </div>
-
-          <button
-            type="button"
-            onClick={openTableModal}
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-bold transition-all bg-white dark:bg-zinc-800 text-text-primary hover:text-accent hover:border-accent/40 border border-black/10 dark:border-white/10 shadow-2xs cursor-pointer"
-            title="Insert and customize table (Advanced Table Tools)"
-            aria-label="Insert Table"
-          >
-            <TableIcon className="h-3.5 w-3.5 text-accent" />
-            <span>Table</span>
-          </button>
         </div>
 
         <span className="text-xs text-text-muted">

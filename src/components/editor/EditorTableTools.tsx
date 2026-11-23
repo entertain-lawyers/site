@@ -45,7 +45,9 @@ export default function EditorTableTools({ getQuill, isOpen, onClose }: EditorTa
 
   // Track if cursor is currently inside a table
   const [isInTable, setIsInTable] = useState(false);
+  const [isDismissed, setIsDismissed] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
+  const lastRangeRef = useRef<{ index: number; length: number } | null>(null);
 
   // Check if cursor is inside a table
   const updateTableState = useCallback(() => {
@@ -55,24 +57,35 @@ export default function EditorTableTools({ getQuill, isOpen, onClose }: EditorTa
       return;
     }
     const tableModule = quill.getModule('table');
-    if (!tableModule) {
-      setIsInTable(false);
-      return;
-    }
+    let inCell = false;
 
     const range = quill.getSelection();
     if (range) {
-      const [table, , cell] = tableModule.getTable(range);
-      setIsInTable(Boolean(table && cell));
-    } else {
-      // Check active element inside editor root
+      lastRangeRef.current = range;
+      if (tableModule) {
+        try {
+          const [table, , cell] = tableModule.getTable(range);
+          inCell = Boolean(table && cell);
+        } catch {}
+      }
+    }
+
+    if (!inCell && quill.root) {
       const activeEl = document.activeElement;
       if (activeEl && quill.root.contains(activeEl)) {
-        const inCell = Boolean(activeEl.closest('td, th'));
-        setIsInTable(inCell);
+        inCell = Boolean(activeEl.closest('td, th'));
       } else {
-        setIsInTable(false);
+        const sel = window.getSelection();
+        if (sel && sel.anchorNode && quill.root.contains(sel.anchorNode)) {
+          const parentCell = (sel.anchorNode instanceof Element ? sel.anchorNode : sel.anchorNode.parentElement)?.closest('td, th');
+          inCell = Boolean(parentCell);
+        }
       }
+    }
+
+    setIsInTable(inCell);
+    if (!inCell) {
+      setIsDismissed(false);
     }
   }, [getQuill]);
 
@@ -150,18 +163,24 @@ export default function EditorTableTools({ getQuill, isOpen, onClose }: EditorTa
       setTimeout(() => {
         quill.focus();
         updateTableState();
-      }, 50);
+      }, 60);
     } catch (err) {
       console.error('Failed to insert table:', err);
     }
   };
 
-  // Table modification actions
+  // Table modification actions - keep selection and prevent stealing focus
   const executeTableAction = (action: (tableModule: any) => void) => {
     const quill = getQuill();
     if (!quill) return;
     const tableModule = quill.getModule('table');
     if (!tableModule) return;
+
+    if (lastRangeRef.current) {
+      try {
+        quill.setSelection(lastRangeRef.current.index, lastRangeRef.current.length, 'silent');
+      } catch {}
+    }
 
     try {
       action(tableModule);
@@ -176,12 +195,12 @@ export default function EditorTableTools({ getQuill, isOpen, onClose }: EditorTa
 
   return (
     <>
-      {/* 1. Contextual Table Tools Bar: visible whenever the editor cursor is inside any table */}
-      {isInTable && (
+      {/* 1. Contextual Table Tools Bar: visible ONLY when the editor cursor is actively inside a table */}
+      {isInTable && !isDismissed && (
         <div
           role="toolbar"
           aria-label="Table Actions"
-          className="sticky top-[var(--editor-toolbar-row-h,2.75rem)] z-30 mx-2 my-2 flex flex-wrap items-center gap-1.5 rounded-xl border border-accent/30 bg-surface-alt/95 px-3 py-2 shadow-md backdrop-blur-md transition-all duration-200 animate-in fade-in"
+          className="mx-3 my-2 flex flex-wrap items-center gap-1.5 rounded-xl border border-accent/30 bg-surface-alt/95 px-3 py-2 shadow-sm backdrop-blur-md transition-all duration-200 animate-in fade-in"
         >
           <div className="flex items-center gap-1.5 border-r border-border pr-2.5 text-xs font-bold text-accent">
             <TableIcon className="h-3.5 w-3.5" aria-hidden="true" />
@@ -193,10 +212,8 @@ export default function EditorTableTools({ getQuill, isOpen, onClose }: EditorTa
             <span className="text-[11px] font-semibold text-text-muted px-1">Row:</span>
             <button
               type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                executeTableAction((m) => m.insertRowAbove());
-              }}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => executeTableAction((m) => m.insertRowAbove())}
               className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-xs font-medium text-text-primary hover:border-accent hover:text-accent transition-colors shadow-2xs"
               title="Insert Row Above"
               aria-label="Insert Row Above"
@@ -206,10 +223,8 @@ export default function EditorTableTools({ getQuill, isOpen, onClose }: EditorTa
             </button>
             <button
               type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                executeTableAction((m) => m.insertRowBelow());
-              }}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => executeTableAction((m) => m.insertRowBelow())}
               className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-xs font-medium text-text-primary hover:border-accent hover:text-accent transition-colors shadow-2xs"
               title="Insert Row Below"
               aria-label="Insert Row Below"
@@ -219,10 +234,8 @@ export default function EditorTableTools({ getQuill, isOpen, onClose }: EditorTa
             </button>
             <button
               type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                executeTableAction((m) => m.deleteRow());
-              }}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => executeTableAction((m) => m.deleteRow())}
               className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-xs font-medium text-red-600 hover:border-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors shadow-2xs"
               title="Delete Current Row"
               aria-label="Delete Current Row"
@@ -239,10 +252,8 @@ export default function EditorTableTools({ getQuill, isOpen, onClose }: EditorTa
             <span className="text-[11px] font-semibold text-text-muted px-1">Col:</span>
             <button
               type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                executeTableAction((m) => m.insertColumnLeft());
-              }}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => executeTableAction((m) => m.insertColumnLeft())}
               className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-xs font-medium text-text-primary hover:border-accent hover:text-accent transition-colors shadow-2xs"
               title="Insert Column Left"
               aria-label="Insert Column Left"
@@ -252,10 +263,8 @@ export default function EditorTableTools({ getQuill, isOpen, onClose }: EditorTa
             </button>
             <button
               type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                executeTableAction((m) => m.insertColumnRight());
-              }}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => executeTableAction((m) => m.insertColumnRight())}
               className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-xs font-medium text-text-primary hover:border-accent hover:text-accent transition-colors shadow-2xs"
               title="Insert Column Right"
               aria-label="Insert Column Right"
@@ -265,10 +274,8 @@ export default function EditorTableTools({ getQuill, isOpen, onClose }: EditorTa
             </button>
             <button
               type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                executeTableAction((m) => m.deleteColumn());
-              }}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => executeTableAction((m) => m.deleteColumn())}
               className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface px-2 py-1 text-xs font-medium text-red-600 hover:border-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors shadow-2xs"
               title="Delete Current Column"
               aria-label="Delete Current Column"
@@ -283,8 +290,8 @@ export default function EditorTableTools({ getQuill, isOpen, onClose }: EditorTa
           {/* Delete Table button */}
           <button
             type="button"
-            onClick={(e) => {
-              e.preventDefault();
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
               if (confirm('Are you sure you want to delete this table?')) {
                 executeTableAction((m) => m.deleteTable());
               }
@@ -295,6 +302,18 @@ export default function EditorTableTools({ getQuill, isOpen, onClose }: EditorTa
           >
             <Trash2 className="h-3 w-3" />
             <span>Delete Table</span>
+          </button>
+
+          {/* Dismiss button */}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setIsDismissed(true)}
+            className="p-1 rounded-lg text-text-muted hover:text-text-primary hover:bg-black/5 dark:hover:bg-white/10 transition-colors ml-1"
+            title="Hide Table Toolbar"
+            aria-label="Hide Table Toolbar"
+          >
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
       )}

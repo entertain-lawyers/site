@@ -237,10 +237,20 @@ describe("sanitizeHtml editor output (regression)", () => {
       '</table>';
 
     const clean = sanitizeHtml(tableInput);
+    expect(clean).toContain('<div class="table-container">');
     expect(clean).toContain('<table class="ql-table el-ed" style="width:100%;border-collapse:collapse">');
     expect(clean).toContain('data-row="r1"');
     expect(clean).toContain('style="width:50%"');
     expect(clean).toContain('colspan="2"');
     expect(clean).toContain('Merged cell');
+  });
+
+  it("does not double-wrap an already wrapped table-container", () => {
+    const wrapped =
+      '<div class="table-container"><table><tbody><tr><td>Text</td></tr></tbody></table></div>';
+    const clean = sanitizeHtml(wrapped);
+    expect(clean).toBe(
+      '<div class="table-container"><table><tbody><tr><td>Text</td></tr></tbody></table></div>'
+    );
   });
 });

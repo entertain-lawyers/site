@@ -76,12 +76,12 @@ describe('resource drafts', () => {
     expect(prisma.resource.update).not.toHaveBeenCalled();
   });
 
-  it('keeps law notes admin-only for editors', async () => {
+  it('allows editors to publish law notes', async () => {
     signInAs(Role.EDITOR);
     mock(prisma.resource.findUnique).mockResolvedValue({ status: ContentStatus.DRAFT, type: ResourceType.LAW_NOTE });
     const res = await setResourcePublishedAction({ id: RESOURCE, published: true });
-    expect(res.success === false && res.error).toMatch(/Only admins/);
-    expect(prisma.resource.update).not.toHaveBeenCalled();
+    expect(res.success).toBe(true);
+    expect(prisma.resource.update).toHaveBeenCalled();
   });
 
   it('allows editors to publish case laws when case category is present', async () => {

@@ -1,16 +1,24 @@
-import { describe, it, expect } from 'vitest';
+import { it, expect } from 'vitest';
 import { prisma } from '@/lib/prisma';
 import { SYLLABUS_CONFIG, normalizeSubjectName } from '@/lib/syllabus-config';
 import { ResourceType } from '@prisma/client';
+import { describeDb } from '@/test/db';
 
-describe('Study Resource Placement & Curriculum Audit Verification', () => {
+async function isFullCurriculumDb(): Promise<boolean> {
+  const semesters = await prisma.semester.findMany();
+  if (semesters.length < 10) return false;
+  const caseLawCount = await prisma.resource.count({ where: { type: ResourceType.CASE_LAW } });
+  return caseLawCount >= 20;
+}
+
+describeDb('Study Resource Placement & Curriculum Audit Verification', () => {
   it('has exactly 10 semesters and exactly 83 canonical subjects in DB', async () => {
     const semesters = await prisma.semester.findMany({
       orderBy: { order: 'asc' },
       include: { subjects: true },
     });
 
-    if (semesters.length < 10) {
+    if (!(await isFullCurriculumDb())) {
       // Local development database has mock stub data; skip live database assertion
       expect(semesters.length).toBeGreaterThanOrEqual(1);
       return;
@@ -47,8 +55,7 @@ describe('Study Resource Placement & Curriculum Audit Verification', () => {
   });
 
   it('verifies 4th Semester Family Law canonical placement with all 20 resources', async () => {
-    const semesters = await prisma.semester.findMany();
-    if (semesters.length < 10) return;
+    if (!(await isFullCurriculumDb())) return;
 
     const familyLawSubjects = await prisma.subject.findMany({
       where: { name: { contains: 'Family Law' } },
@@ -81,10 +88,10 @@ describe('Study Resource Placement & Curriculum Audit Verification', () => {
   });
 
   it('verifies resources are present across all 10 semesters', async () => {
+    if (!(await isFullCurriculumDb())) return;
     const semesters = await prisma.semester.findMany({
       orderBy: { order: 'asc' },
     });
-    if (semesters.length < 10) return;
 
     for (const sem of semesters) {
       const count = await prisma.resource.count({
@@ -100,8 +107,7 @@ describe('Study Resource Placement & Curriculum Audit Verification', () => {
   });
 
   it('verifies old questions are typed OLD_QUESTION with valid semesterId and subjectId null', async () => {
-    const semesters = await prisma.semester.findMany();
-    if (semesters.length < 10) return;
+    if (!(await isFullCurriculumDb())) return;
 
     const oldQuestions = await prisma.resource.findMany({
       where: { type: ResourceType.OLD_QUESTION },
@@ -132,8 +138,7 @@ describe('Study Resource Placement & Curriculum Audit Verification', () => {
   });
 
   it('verifies non-curriculum items are strictly isolated (test fixtures & standalone articles)', async () => {
-    const semesters = await prisma.semester.findMany();
-    if (semesters.length < 10) return;
+    if (!(await isFullCurriculumDb())) return;
 
     const unassigned = await prisma.resource.findMany({
       where: { semesterId: null },

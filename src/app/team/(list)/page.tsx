@@ -150,7 +150,7 @@ export default async function TeamDirectoryPage() {
                           rel="noopener noreferrer"
                           aria-label={`${member.name} on Facebook`}
                           title="Facebook"
-                          className="relative z-20 w-7 h-7 flex items-center justify-center rounded-md bg-[#1877F2] text-white hover:bg-[#0e63ca] hover:scale-110 transition-all shadow-xs"
+                          className="relative z-20 w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-700/80 shadow-2xs hover:bg-[#1877F2] hover:text-white hover:border-[#1877F2] hover:scale-115 hover:-translate-y-0.5 active:scale-95 transition-all duration-200"
                         >
                           <FacebookIcon />
                         </a>
@@ -162,7 +162,7 @@ export default async function TeamDirectoryPage() {
                           rel="noopener noreferrer"
                           aria-label={`${member.name} on LinkedIn`}
                           title="LinkedIn"
-                          className="relative z-20 w-7 h-7 flex items-center justify-center rounded-md bg-[#0A66C2] text-white hover:bg-[#0855a1] hover:scale-110 transition-all shadow-xs"
+                          className="relative z-20 w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-700/80 shadow-2xs hover:bg-[#0A66C2] hover:text-white hover:border-[#0A66C2] hover:scale-115 hover:-translate-y-0.5 active:scale-95 transition-all duration-200"
                         >
                           <LinkedinIcon />
                         </a>
@@ -174,7 +174,7 @@ export default async function TeamDirectoryPage() {
                           rel="noopener noreferrer"
                           aria-label={`${member.name} on Instagram`}
                           title="Instagram"
-                          className="relative z-20 w-7 h-7 flex items-center justify-center rounded-md text-white bg-gradient-to-tr from-[#833AB4] via-[#E1306C] to-[#F77737] hover:opacity-90 hover:scale-110 transition-all shadow-xs"
+                          className="relative z-20 w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-700/80 shadow-2xs hover:bg-gradient-to-tr hover:from-[#833AB4] hover:via-[#E1306C] hover:to-[#F77737] hover:text-white hover:border-transparent hover:scale-115 hover:-translate-y-0.5 active:scale-95 transition-all duration-200"
                         >
                           <InstagramIcon />
                         </a>
@@ -189,7 +189,7 @@ export default async function TeamDirectoryPage() {
                             rel="noopener noreferrer"
                             aria-label={`${member.name} on ${link.label || config.label}`}
                             title={link.label || config.label}
-                            className="relative z-20 w-7 h-7 flex items-center justify-center rounded-md bg-slate-200 dark:bg-zinc-800 text-navy dark:text-white hover:bg-accent hover:text-white hover:scale-110 transition-all shadow-xs"
+                            className={`relative z-20 w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-700/80 shadow-2xs ${config.hoverBgClass} hover:scale-115 hover:-translate-y-0.5 active:scale-95 transition-all duration-200`}
                           >
                             <PlatformIcon platform={link.platform} className="w-3.5 h-3.5" />
                           </a>

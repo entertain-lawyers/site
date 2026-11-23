@@ -32,6 +32,7 @@ export interface PlatformConfig {
   label: string;
   placeholder: string;
   hoverColor: string;
+  hoverBgClass: string;
   badgeBg: string;
 }
 
@@ -41,6 +42,7 @@ export const PLATFORM_OPTIONS: PlatformConfig[] = [
     label: 'Portfolio / Website',
     placeholder: 'https://amritesh.com.np',
     hoverColor: 'hover:text-accent',
+    hoverBgClass: 'hover:bg-accent hover:text-white hover:border-accent',
     badgeBg: 'bg-accent/10 text-accent',
   },
   {
@@ -48,6 +50,7 @@ export const PLATFORM_OPTIONS: PlatformConfig[] = [
     label: 'GitHub',
     placeholder: 'https://github.com/username',
     hoverColor: 'hover:text-[#24292e] dark:hover:text-[#f0f6fc]',
+    hoverBgClass: 'hover:bg-[#24292e] hover:text-white dark:hover:bg-zinc-100 dark:hover:text-zinc-900 hover:border-[#24292e] dark:hover:border-zinc-100',
     badgeBg: 'bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-slate-200',
   },
   {
@@ -55,6 +58,7 @@ export const PLATFORM_OPTIONS: PlatformConfig[] = [
     label: 'X (Twitter)',
     placeholder: 'https://x.com/username',
     hoverColor: 'hover:text-black dark:hover:text-white',
+    hoverBgClass: 'hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black hover:border-black dark:hover:border-white',
     badgeBg: 'bg-black/5 dark:bg-white/10 text-black dark:text-white',
   },
   {
@@ -62,6 +66,7 @@ export const PLATFORM_OPTIONS: PlatformConfig[] = [
     label: 'YouTube',
     placeholder: 'https://youtube.com/@channel',
     hoverColor: 'hover:text-[#ff0000]',
+    hoverBgClass: 'hover:bg-[#ff0000] hover:text-white hover:border-[#ff0000]',
     badgeBg: 'bg-red-50 dark:bg-red-950/40 text-red-600',
   },
   {
@@ -69,6 +74,7 @@ export const PLATFORM_OPTIONS: PlatformConfig[] = [
     label: 'WhatsApp',
     placeholder: 'https://wa.me/97798...',
     hoverColor: 'hover:text-[#25d366]',
+    hoverBgClass: 'hover:bg-[#25d366] hover:text-white hover:border-[#25d366]',
     badgeBg: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600',
   },
   {
@@ -76,6 +82,7 @@ export const PLATFORM_OPTIONS: PlatformConfig[] = [
     label: 'Telegram',
     placeholder: 'https://t.me/username',
     hoverColor: 'hover:text-[#229ed9]',
+    hoverBgClass: 'hover:bg-[#229ed9] hover:text-white hover:border-[#229ed9]',
     badgeBg: 'bg-sky-50 dark:bg-sky-950/40 text-sky-600',
   },
   {
@@ -83,6 +90,7 @@ export const PLATFORM_OPTIONS: PlatformConfig[] = [
     label: 'Threads',
     placeholder: 'https://threads.net/@username',
     hoverColor: 'hover:text-black dark:hover:text-white',
+    hoverBgClass: 'hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black hover:border-black dark:hover:border-white',
     badgeBg: 'bg-black/5 dark:bg-white/10 text-black dark:text-white',
   },
   {
@@ -90,6 +98,7 @@ export const PLATFORM_OPTIONS: PlatformConfig[] = [
     label: 'TikTok',
     placeholder: 'https://tiktok.com/@username',
     hoverColor: 'hover:text-[#fe2c55]',
+    hoverBgClass: 'hover:bg-black hover:text-white hover:border-black',
     badgeBg: 'bg-rose-50 dark:bg-rose-950/40 text-rose-600',
   },
   {
@@ -97,6 +106,7 @@ export const PLATFORM_OPTIONS: PlatformConfig[] = [
     label: 'Discord',
     placeholder: 'https://discord.gg/... or profile link',
     hoverColor: 'hover:text-[#5865f2]',
+    hoverBgClass: 'hover:bg-[#5865f2] hover:text-white hover:border-[#5865f2]',
     badgeBg: 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600',
   },
   {
@@ -104,6 +114,7 @@ export const PLATFORM_OPTIONS: PlatformConfig[] = [
     label: 'Google Scholar / Research',
     placeholder: 'https://scholar.google.com/citations?...',
     hoverColor: 'hover:text-[#4285f4]',
+    hoverBgClass: 'hover:bg-[#4285f4] hover:text-white hover:border-[#4285f4]',
     badgeBg: 'bg-blue-50 dark:bg-blue-950/40 text-blue-600',
   },
   {
@@ -111,6 +122,7 @@ export const PLATFORM_OPTIONS: PlatformConfig[] = [
     label: 'Medium / Substack',
     placeholder: 'https://medium.com/@username',
     hoverColor: 'hover:text-[#00ab6c]',
+    hoverBgClass: 'hover:bg-[#00ab6c] hover:text-white hover:border-[#00ab6c]',
     badgeBg: 'bg-teal-50 dark:bg-teal-950/40 text-teal-600',
   },
   {
@@ -118,6 +130,7 @@ export const PLATFORM_OPTIONS: PlatformConfig[] = [
     label: 'LinkedIn',
     placeholder: 'https://linkedin.com/in/...',
     hoverColor: 'hover:text-[#0A66C2]',
+    hoverBgClass: 'hover:bg-[#0A66C2] hover:text-white hover:border-[#0A66C2]',
     badgeBg: 'bg-blue-50 dark:bg-blue-950/40 text-[#0A66C2]',
   },
   {
@@ -125,6 +138,7 @@ export const PLATFORM_OPTIONS: PlatformConfig[] = [
     label: 'Facebook',
     placeholder: 'https://facebook.com/...',
     hoverColor: 'hover:text-[#1877f2]',
+    hoverBgClass: 'hover:bg-[#1877f2] hover:text-white hover:border-[#1877f2]',
     badgeBg: 'bg-blue-50 dark:bg-blue-950/40 text-[#1877f2]',
   },
   {
@@ -132,6 +146,7 @@ export const PLATFORM_OPTIONS: PlatformConfig[] = [
     label: 'Instagram',
     placeholder: 'https://instagram.com/...',
     hoverColor: 'hover:text-[#e1306c]',
+    hoverBgClass: 'hover:bg-gradient-to-tr hover:from-[#833AB4] hover:via-[#E1306C] hover:to-[#F77737] hover:text-white hover:border-transparent',
     badgeBg: 'bg-pink-50 dark:bg-pink-950/40 text-[#e1306c]',
   },
   {
@@ -139,6 +154,7 @@ export const PLATFORM_OPTIONS: PlatformConfig[] = [
     label: 'Custom Link',
     placeholder: 'https://...',
     hoverColor: 'hover:text-accent',
+    hoverBgClass: 'hover:bg-accent hover:text-white hover:border-accent',
     badgeBg: 'bg-slate-100 dark:bg-zinc-800 text-text-primary',
   },
 ];
@@ -154,6 +170,7 @@ export function getPlatformConfig(key: string): PlatformConfig {
       label: 'Direct Link',
       placeholder: 'https://...',
       hoverColor: 'hover:text-accent',
+      hoverBgClass: 'hover:bg-accent hover:text-white hover:border-accent',
       badgeBg: 'bg-slate-100 dark:bg-zinc-800 text-text-primary',
     }
   );

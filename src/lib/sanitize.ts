@@ -133,8 +133,27 @@ export function cleanPastedInlineStyles(html: string): string {
   return out.replace(/<([a-z0-9]+)\s+>/gi, '<$1>').replace(/\s*style=["']\s*["']/gi, '');
 }
 
+/**
+ * Wraps any bare <table> in a responsive scroll container (<div class="table-container">)
+ * so broad tables scroll horizontally on mobile viewports instead of breaking the layout
+ * or degrading into block layout.
+ */
+export function wrapTablesResponsively(html: string): string {
+  if (!html || !html.includes('<table')) return html;
+  return html.replace(
+    /(<div\s+[^>]*class=["'][^"']*table-container[^"']*["'][^>]*>\s*)?(<table[\s\S]*?<\/table>)(\s*<\/div>)?/gi,
+    (match, prefix, table, suffix) => {
+      if (!prefix && suffix) {
+        return `<div class="table-container">${table}</div>${suffix}`;
+      }
+      return `<div class="table-container">${table}</div>`;
+    }
+  );
+}
+
 export function sanitizeHtml(html: string): string {
   const unwrapped = unwrapEmptyListWrappers(html);
   const sanitized = sanitizeHtmlLib(unwrapped, options);
-  return cleanPastedInlineStyles(sanitized);
+  const cleaned = cleanPastedInlineStyles(sanitized);
+  return wrapTablesResponsively(cleaned);
 }

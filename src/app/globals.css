@@ -503,20 +503,33 @@
     color: var(--text-primary);
     font-weight: 700;
   }
-  :is(.article-body, .prose) table {
-    display: block;
+  :is(.article-body, .prose) .table-container {
+    width: 100%;
     max-width: 100%;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
+    margin: 1.5em 0 2em;
+    border-radius: 0.75rem;
+    border: 1px solid var(--border-color);
+    background: var(--bg-surface);
+  }
+  :is(.article-body, .prose) table {
+    display: table;
     width: 100%;
+    min-width: 100%;
     border-collapse: collapse;
     margin: 1.2em 0 1.8em;
     font-size: 0.95rem;
     border-radius: 0.5rem;
   }
+  :is(.article-body, .prose) .table-container table {
+    margin: 0;
+    border: none;
+    border-radius: 0;
+  }
   :is(.article-body, .prose) :is(th, td) {
     border: 1px solid var(--border-color);
-    padding: 0.65em 0.9em;
+    padding: 0.75em 1em;
     text-align: left;
     vertical-align: top;
     min-width: 5rem;
