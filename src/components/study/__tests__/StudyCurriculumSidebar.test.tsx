@@ -68,11 +68,11 @@ describe('StudyCurriculumSidebar Component', () => {
 
     expect(html).toContain('Prev: Definition and Nature of Law');
     expect(html).toContain('href="/read/res-1"');
-    expect(html).toContain('Next in Syllabus');
+    expect(html).toContain('Next Prescribed Case');
     expect(html).toContain('Kesavananda Bharati Doctrine');
   });
 
-  it('renders directly clickable unit pills formatted as Unit: It\'s Title without dropdown options', () => {
+  it('renders directly clickable unit pills formatted as Unit: It\'s Title with case count and child list for active multi-resource units', () => {
     const html = renderToStaticMarkup(
       <StudyCurriculumSidebar
         semesterName="Semester 1"
@@ -86,8 +86,17 @@ describe('StudyCurriculumSidebar Component', () => {
     expect(html).toContain('Unit 1: Introduction to Jurisprudence');
     expect(html).toContain('Unit 2: Landmark Precedents');
 
+    // Case unit has case badge
+    expect(html).toContain('1 case');
+
+    // Active unit (unit-1) has multiple resources, so child items are listed
+    expect(html).toContain('Definition and Nature of Law');
+    expect(html).toContain('Schools of Legal Thought');
+
     // Units are directly clickable links to reading view
     expect(html).toContain('href="/read/res-1"');
+    expect(html).toContain('href="/read/res-2"');
+    expect(html).toContain('href="/read/res-3"');
     expect(html).toContain('href="/read/res-3"');
 
     // No accordion dropdown buttons or sub-topic lists

@@ -220,6 +220,8 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
     isPrescribedCasesUnit(resource.unitId) ||
     Boolean(getCaseLawCategory(resource));
 
+  const hasSyllabus = Boolean(resource.subject?.units && resource.subject.units.length > 0);
+
   if (!hasAccess) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 transition-colors duration-300">
@@ -278,9 +280,9 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
         : resource.type.replace('_', ' ');
 
       const [latestPosts, latestNewsPosts, latestCaseLaws] = await Promise.all([
-        !isPrescribedCase ? getLatestPosts() : Promise.resolve([]),
-        isPrescribedCase ? getLatestNewsPosts(undefined, 5) : Promise.resolve([]),
-        isPrescribedCase
+        !hasSyllabus ? getLatestPosts() : Promise.resolve([]),
+        !hasSyllabus ? getLatestNewsPosts(undefined, 5) : Promise.resolve([]),
+        !hasSyllabus
           ? prisma.resource
               .findMany({
                 where: {
@@ -442,27 +444,24 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
                   />
                 </div>
 
-                {/* Mobile / Tablet: On prescribed cases, show Latest Case Laws and News stacked below comments */}
-                {isPrescribedCase && (latestCaseLaws.length > 0 || latestNewsPosts.length > 0) && (
+                {/* Mobile / Tablet: On standalone precedents/notes without a syllabus, show Latest Case Laws and News stacked below comments */}
+                {!hasSyllabus && (latestCaseLaws.length > 0 || latestNewsPosts.length > 0 || latestPosts.length > 0) && (
                   <div className="mt-12 lg:hidden space-y-8 border-t border-border pt-8">
                     {latestCaseLaws.length > 0 && (
                       <LatestCaseLawsSidebar cases={latestCaseLaws} currentResourceId={resource.id} />
                     )}
-                    {latestNewsPosts.length > 0 && (
+                    {latestNewsPosts.length > 0 ? (
                       <LatestPostsSidebar posts={latestNewsPosts} title="Latest News" />
-                    )}
+                    ) : latestPosts.length > 0 ? (
+                      <LatestPostsSidebar posts={latestPosts} />
+                    ) : null}
                   </div>
                 )}
               </article>
 
-              {/* Sidebar on Desktop: Latest Case Laws & News for Prescribed Cases, or Syllabus Navigator for Law Notes */}
+              {/* Sidebar on Desktop: Syllabus Navigator for all notes/prescribed cases in a syllabus, or Latest Precedents & News for standalone items */}
               <aside className="hidden lg:block space-y-6 lg:sticky lg:top-24">
-                {isPrescribedCase ? (
-                  <>
-                    <LatestCaseLawsSidebar cases={latestCaseLaws} currentResourceId={resource.id} />
-                    <LatestPostsSidebar posts={latestNewsPosts} title="Latest News" />
-                  </>
-                ) : resource.subject?.units && resource.subject.units.length > 0 ? (
+                {hasSyllabus ? (
                   <StudyCurriculumSidebar
                     semesterName={semesterName}
                     subjectName={resource.subject?.name}
@@ -472,7 +471,16 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
                     units={resource.subject?.units}
                   />
                 ) : (
-                  <LatestPostsSidebar posts={latestPosts} />
+                  <>
+                    {latestCaseLaws.length > 0 && (
+                      <LatestCaseLawsSidebar cases={latestCaseLaws} currentResourceId={resource.id} />
+                    )}
+                    {latestNewsPosts.length > 0 ? (
+                      <LatestPostsSidebar posts={latestNewsPosts} title="Latest News" />
+                    ) : latestPosts.length > 0 ? (
+                      <LatestPostsSidebar posts={latestPosts} />
+                    ) : null}
+                  </>
                 )}
               </aside>
             </div>
@@ -642,8 +650,8 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
 
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar - desktop-only and strictly for non-prescribed law notes */}
-        {!isPrescribedCase && filteredUnits.length > 0 && (
+        {/* Sidebar - desktop-only syllabus outline for notes and prescribed cases */}
+        {hasSyllabus && filteredUnits.length > 0 && (
           <div className="hidden lg:flex h-full shrink-0">
             <StudyOutlineSidebar
               units={filteredUnits}

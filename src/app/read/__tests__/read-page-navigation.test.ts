@@ -203,7 +203,7 @@ describe('Reader and Resource navigation & breadcrumbs', () => {
     expect(hrefs.some((h) => h.includes('subject=null'))).toBe(false);
   });
 
-  it('renders LatestCaseLawsSidebar and LatestPostsSidebar, and omits StudyCurriculumSidebar for prescribed cases in note reading view', async () => {
+  it('renders StudyCurriculumSidebar for prescribed cases with syllabus in note reading view', async () => {
     (prisma.resource.findUnique as any).mockResolvedValue({
       id: 'case-1',
       title: 'Kesavananda Bharati v. State of Kerala',
@@ -236,19 +236,49 @@ describe('Reader and Resource navigation & breadcrumbs', () => {
       createdAt: new Date('2026-01-01'),
     });
 
+    const vdom = await ReadResourcePage({
+      params: Promise.resolve({ resourceId: 'case-1' }),
+    });
+
+    expect(hasComponent(vdom, StudyCurriculumSidebar)).toBe(true);
+    expect(hasComponent(vdom, LatestCaseLawsSidebar)).toBe(false);
+  });
+
+  it('renders LatestCaseLawsSidebar and LatestPostsSidebar for standalone precedents/case laws without syllabus', async () => {
+    (prisma.resource.findUnique as any).mockResolvedValue({
+      id: 'precedent-standalone-1',
+      title: 'Maneka Gandhi v. Union of India',
+      status: 'PUBLISHED',
+      type: 'CASE_LAW',
+      semesterId: null,
+      semester: null,
+      subjectId: null,
+      subject: null,
+      unitId: null,
+      unit: null,
+      documentId: null,
+      document: null,
+      content: '<p>Right to travel abroad under Article 21.</p>',
+      featuredImage: null,
+      metaTitle: 'Writ Cases',
+      author: null,
+      createdBy: null,
+      createdAt: new Date('2026-01-01'),
+    });
+
     (prisma.resource.findMany as any).mockResolvedValue([
       {
         id: 'case-2',
-        title: 'Maneka Gandhi v. Union of India',
+        title: 'Kesavananda Bharati v. State of Kerala',
         type: 'CASE_LAW',
         createdAt: new Date('2026-01-02'),
         featuredImage: null,
-        metaTitle: 'Writ Cases',
+        metaTitle: 'Civil Cases',
       },
     ]);
 
     const vdom = await ReadResourcePage({
-      params: Promise.resolve({ resourceId: 'case-1' }),
+      params: Promise.resolve({ resourceId: 'precedent-standalone-1' }),
     });
 
     expect(hasComponent(vdom, LatestCaseLawsSidebar)).toBe(true);
@@ -297,7 +327,7 @@ describe('Reader and Resource navigation & breadcrumbs', () => {
     expect(hasComponent(vdom, LatestCaseLawsSidebar)).toBe(false);
   });
 
-  it('omits StudyOutlineSidebar for prescribed cases in PDF view', async () => {
+  it('renders StudyOutlineSidebar for prescribed cases with syllabus in PDF view', async () => {
     (prisma.resource.findUnique as any).mockResolvedValue({
       id: 'case-pdf-1',
       title: 'Prescribed Case PDF Judgment',
@@ -332,7 +362,7 @@ describe('Reader and Resource navigation & breadcrumbs', () => {
       params: Promise.resolve({ resourceId: 'case-pdf-1' }),
     });
 
-    expect(hasComponent(vdom, StudyOutlineSidebar)).toBe(false);
+    expect(hasComponent(vdom, StudyOutlineSidebar)).toBe(true);
   });
 
   it('renders StudyOutlineSidebar for regular law notes in PDF view on desktop', async () => {
