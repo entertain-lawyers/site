@@ -563,6 +563,24 @@
     font-weight: 700;
     color: var(--text-primary);
   }
+  :is(.article-body, .prose) caption {
+    caption-side: top;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    padding: 0.5em 0.25em;
+    text-align: left;
+  }
+  :is(.article-body, .prose) table.table-preset-minimal :is(td, th) {
+    border-left: none !important;
+    border-right: none !important;
+  }
+  :is(.article-body, .prose) table.table-preset-striped tr:nth-child(even) td {
+    background: rgba(0, 0, 0, 0.025);
+  }
+  :is(:root[data-theme='dark'], :root.dark) :is(.article-body, .prose) table.table-preset-striped tr:nth-child(even) td {
+    background: rgba(255, 255, 255, 0.03);
+  }
   :is(.article-body, .prose) tr:nth-child(even) td {
     background: rgba(0, 0, 0, 0.015);
   }

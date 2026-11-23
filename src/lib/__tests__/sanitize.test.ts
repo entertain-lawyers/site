@@ -253,4 +253,23 @@ describe("sanitizeHtml editor output (regression)", () => {
       '<div class="table-container"><table><tbody><tr><td>Text</td></tr></tbody></table></div>'
     );
   });
+
+  it("preserves advanced table styling, captions, borders, and vertical alignment", () => {
+    const tableInput =
+      '<table class="table-preset-striped el-ed" style="width: 100%; border: 1px solid #cbd5e1; border-collapse: collapse;" data-table-preset="striped">' +
+      '<caption style="caption-side: top;">Schedule of Landmark Rulings</caption>' +
+      '<thead><tr><th style="padding: 8px 12px; vertical-align: middle; background-color: rgb(248, 250, 252); border: 1px solid #cbd5e1;">Case</th></tr></thead>' +
+      '<tbody><tr><td style="padding: 8px 12px; vertical-align: top; background-color: #f0fdf4; border: 1px solid #cbd5e1;">Decision</td></tr></tbody>' +
+      '</table>';
+
+    const clean = sanitizeHtml(tableInput);
+    expect(clean).toContain('<div class="table-container">');
+    expect(clean).toContain('Schedule of Landmark Rulings');
+    expect(clean).toContain('caption-side:top');
+    expect(clean).toContain('padding:8px 12px');
+    expect(clean).toContain('vertical-align:middle');
+    expect(clean).toContain('background-color:rgb(248, 250, 252)');
+    expect(clean).toContain('background-color:#f0fdf4');
+    expect(clean).toContain('border:1px solid #cbd5e1');
+  });
 });

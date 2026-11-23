@@ -19,6 +19,7 @@ const ReactQuill = dynamic(
   async () => {
     await import('@/components/editor/quill-image-wrap');
     await import('@/components/editor/quill-line-height');
+    await import('@/components/editor/quill-table-advanced');
     const RQ = (await import('react-quill-new')).default;
     try {
       const QuillModule = (await import('quill')).default;
@@ -1024,6 +1025,35 @@ export default function RichTextEditor({
           .dark .editor-wrapper .ql-editor th {
             border-color: rgba(255, 255, 255, 0.18);
           }
+          .editor-wrapper .ql-editor th {
+            background-color: rgba(0, 0, 0, 0.04);
+            font-weight: 700;
+          }
+          .dark .editor-wrapper .ql-editor th {
+            background-color: rgba(255, 255, 255, 0.05);
+          }
+          .editor-wrapper .ql-editor table.table-preset-striped tr:nth-child(even) td {
+            background-color: rgba(0, 0, 0, 0.02);
+          }
+          .dark .editor-wrapper .ql-editor table.table-preset-striped tr:nth-child(even) td {
+            background-color: rgba(255, 255, 255, 0.025);
+          }
+          .editor-wrapper .ql-editor table.table-preset-minimal td,
+          .editor-wrapper .ql-editor table.table-preset-minimal th {
+            border-left: none !important;
+            border-right: none !important;
+          }
+          .editor-wrapper .ql-editor caption {
+            caption-side: top;
+            font-weight: 600;
+            font-size: 0.8125rem;
+            color: #64748b;
+            padding: 0.375rem 0;
+            text-align: left;
+          }
+          .dark .editor-wrapper .ql-editor caption {
+            color: #94a3b8;
+          }
           .editor-wrapper .ql-editor td:focus-within,
           .editor-wrapper .ql-editor th:focus-within {
             outline: 2px solid #0284c7;
@@ -1090,6 +1120,12 @@ export default function RichTextEditor({
           getQuill={getQuill}
           isOpen={isTableModalOpen}
           onClose={closeTableModal}
+          onContentChange={() => {
+            const editor = reactQuillRef.current?.getEditor?.();
+            if (editor && editor.root) {
+              handleChange(editor.root.innerHTML);
+            }
+          }}
         />
       </div>
     </div>
