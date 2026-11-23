@@ -365,13 +365,23 @@ function unpackParagraphLines(blockHtml: string): string {
 }
 
 /**
+ * Strips responsive .table-container wrapper div when loading into Quill editor,
+ * ensuring tables are directly accessible as native Quill table blots.
+ */
+export function unwrapTableContainers(html: string): string {
+  if (!html || !html.includes('table-container')) return html;
+  return html.replace(/<div\s+[^>]*class=["'][^"']*table-container[^"']*["'][^>]*>\s*(<table[\s\S]*?<\/table>)\s*<\/div>/gi, '$1');
+}
+
+/**
  * Article HTML -> Quill HTML, when a saved post is loaded into the editor.
  * Editor-authored blocks get back exactly the blank lines they were saved
  * with; other content gets one blank line between blocks, with existing
  * spacer paragraphs such as WordPress's <p>&nbsp;</p> folded into it.
  */
 export function articleHtmlToEditorHtml(html: string): string {
-  const blocks = topLevelBlocks(html).filter((b) => !isBlank(b));
+  const unwrapped = unwrapTableContainers(html);
+  const blocks = topLevelBlocks(unwrapped).filter((b) => !isBlank(b));
   return blocks
     .map((block, index) => {
       const classes = classesOf(block.attrs);

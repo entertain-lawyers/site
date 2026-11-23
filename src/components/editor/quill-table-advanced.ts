@@ -10,13 +10,13 @@ import { Quill } from 'react-quill-new';
 if (typeof window !== 'undefined') {
   try {
     // 1. Patch TableContainer.balanceCells to respect cell colspan
-    const TableContainer = Quill.import('formats/table/container') as any;
+    const TableContainer = Quill.import('formats/table-container') as any;
     if (TableContainer && TableContainer.prototype) {
       const originalBalanceCells = TableContainer.prototype.balanceCells;
       TableContainer.prototype.balanceCells = function () {
         try {
-          const TableRow = Quill.import('formats/table/row') as any;
-          const TableCell = Quill.import('formats/table/cell') || (Quill.import('formats/table') as any);
+          const TableRow = Quill.import('formats/table-row') as any;
+          const TableCell = Quill.import('formats/table') as any;
           if (!TableRow || !TableCell || !this.descendants) {
             return originalBalanceCells?.call(this);
           }
@@ -66,13 +66,28 @@ if (typeof window !== 'undefined') {
     }
 
     // 2. Allow TableCell to match both TD and TH tags
-    const TableCell = (Quill.import('formats/table/cell') || Quill.import('formats/table')) as any;
+    const TableCell = Quill.import('formats/table') as any;
     if (TableCell) {
       TableCell.tagName = ['TD', 'TH'];
       try {
         Quill.register(TableCell, true);
       } catch {}
     }
+
+    // 3. Register TableCaption blot so <caption> is preserved inside <table>
+    const Block = Quill.import('blots/block') as any;
+    if (Block && TableContainer) {
+      class TableCaption extends Block {
+        static blotName = 'table-caption';
+        static tagName = 'CAPTION';
+      }
+      Quill.register(TableCaption, true);
+      if (TableContainer.allowedChildren && !TableContainer.allowedChildren.includes(TableCaption)) {
+        TableContainer.allowedChildren = [TableCaption, ...TableContainer.allowedChildren];
+      }
+    }
+
+    (window as any).Quill = Quill;
   } catch (err) {
     console.warn('[quill-table-advanced] Notice:', err);
   }

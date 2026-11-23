@@ -1,4 +1,5 @@
 import { sanitizeHtml } from '@/lib/sanitize';
+import { unwrapTableContainers } from '@/lib/editor-html';
 
 /**
  * MS Word desktop exports lists as ordinary paragraphs carrying
@@ -132,6 +133,9 @@ export function preparePastedHtml(rawHtml: string): string {
   // 4. Sanitize through the existing safe HTML pipeline (strips scripts, event handlers,
   // dangerous protocols like javascript:, and unsupported css properties).
   let sanitized = sanitizeHtml(html);
+
+  // Unwrap responsive .table-container so Quill table blot ingests <table> directly
+  sanitized = unwrapTableContainers(sanitized);
 
   // 5. Clean up excessive empty paragraphs (collapse 3+ consecutive empty lines to 1)
   sanitized = sanitized.replace(/(?:<p(?:\s[^>]*)?>\s*(?:<br\s*\/?>|&nbsp;|&#160;|\s)*<\/p>\s*){3,}/gi, '<p><br></p>');

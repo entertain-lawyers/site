@@ -45,16 +45,16 @@ const cssRules: Record<string, RegExp[]> = {
   ],
   'text-decoration': [/^(?:none|underline|line-through|underline line-through|line-through underline)$/i],
   'text-decoration-line': [/^(?:none|underline|line-through|underline line-through|line-through underline)$/i],
-  // Bounded: ±200px, ±10rem/em, ±100%.
+  // Bounded: ±200px, ±10rem/em, ±100%, or auto.
   'margin-top': [
-    /^(?:-?0|0px|-?(?:[1-9]\d?|1\d\d|200)px)$/i,
-    /^(?:-?0|0(?:rem|em)|-?(?:[1-9](?:\.\d+)?|10(?:\.0+)?)(?:rem|em))$/i,
-    /^(?:-?0|0%|-?(?:[1-9]\d?|100)%)$/i,
+    /^(?:auto|-?0|0px|-?(?:[1-9]\d?|1\d\d|200)px)$/i,
+    /^(?:auto|-?0|0(?:rem|em)|-?(?:[1-9](?:\.\d+)?|10(?:\.0+)?)(?:rem|em))$/i,
+    /^(?:auto|-?0|0%|-?(?:[1-9]\d?|100)%)$/i,
   ],
   'margin-bottom': [
-    /^(?:-?0|0px|-?(?:[1-9]\d?|1\d\d|200)px)$/i,
-    /^(?:-?0|0(?:rem|em)|-?(?:[1-9](?:\.\d+)?|10(?:\.0+)?)(?:rem|em))$/i,
-    /^(?:-?0|0%|-?(?:[1-9]\d?|100)%)$/i,
+    /^(?:auto|-?0|0px|-?(?:[1-9]\d?|1\d\d|200)px)$/i,
+    /^(?:auto|-?0|0(?:rem|em)|-?(?:[1-9](?:\.\d+)?|10(?:\.0+)?)(?:rem|em))$/i,
+    /^(?:auto|-?0|0%|-?(?:[1-9]\d?|100)%)$/i,
   ],
   'list-style-type': [/^(?:none|disc|decimal|circle|square|lower-roman|upper-roman|lower-alpha|upper-alpha)$/i],
   // Bounded line spacing: unitless 0.8-3, percentage 80-300%, 0.8-3rem/em, 12-72px, or normal.
@@ -74,6 +74,9 @@ const cssRules: Record<string, RegExp[]> = {
   'padding-right': [/^(?:0|0px|[1-9]\d?px|0?\.[1-9]\d*rem|1rem|1\.5rem)$/i],
   'margin-left': [/^(?:auto|0|0px|-?(?:[1-9]\d?|1\d\d|200)px|-?(?:[1-9](?:\.\d+)?|10(?:\.0+)?)(?:rem|em)|-?(?:[1-9]\d?|100)%)$/i],
   'margin-right': [/^(?:auto|0|0px|-?(?:[1-9]\d?|1\d\d|200)px|-?(?:[1-9](?:\.\d+)?|10(?:\.0+)?)(?:rem|em)|-?(?:[1-9]\d?|100)%)$/i],
+  margin: [
+    /^(?:auto|0|0px|[1-9]\d?px|0?\.[1-9]\d*rem|[1-5](?:\.\d+)?rem|0?\.[1-9]\d*em|[1-5](?:\.\d+)?em)(?:\s+(?:auto|0|0px|[1-9]\d?px|0?\.[1-9]\d*rem|[1-5](?:\.\d+)?rem|0?\.[1-9]\d*em|[1-5](?:\.\d+)?em)){0,3}$/i,
+  ],
   'border-collapse': [/^(?:collapse|separate)$/i],
   'border-spacing': [/^(?:0|0px|[1-9]\d?px)$/i],
   border: [
@@ -101,10 +104,20 @@ const cssRules: Record<string, RegExp[]> = {
   'caption-side': [/^(?:top|bottom)$/i],
 };
 
+const tableCssRules: Record<string, RegExp[]> = {
+  ...cssRules,
+  float: [/^(?:left|right|none)$/i],
+  clear: [/^(?:left|right|both|none)$/i],
+};
+
 // `allowedStyles` is keyed by tag name; `*` applies to every element. A
 // declaration that is absent here, or whose value fails its regex, is dropped
 // — so url(), position, display and friends can never reach output.
-const styleRules: Record<string, Record<string, RegExp[]>> = { '*': cssRules };
+const styleRules: Record<string, Record<string, RegExp[]>> = {
+  '*': cssRules,
+  table: tableCssRules,
+  div: tableCssRules,
+};
 
 const options: sanitizeHtmlLib.IOptions = {
   // iframe is only for the editor's video button; see allowedIframeHostnames.
@@ -118,7 +131,7 @@ const options: sanitizeHtmlLib.IOptions = {
     col: ['span', 'width', 'style', 'class'],
     colgroup: ['span', 'width', 'style', 'class'],
     ol: ['start', 'type'],
-    table: ['class', 'id', 'style', 'width', 'border', 'cellpadding', 'cellspacing', 'align', 'data-table-align', 'data-table-preset', 'data-table-width'],
+    table: ['class', 'id', 'style', 'width', 'border', 'cellpadding', 'cellspacing', 'align', 'data-table-align', 'data-table-preset', 'data-table-width', 'data-table-wrap', 'data-table-caption'],
     caption: ['class', 'id', 'style', 'align'],
     tbody: ['class', 'id', 'style'],
     thead: ['class', 'id', 'style'],
@@ -179,10 +192,34 @@ export function wrapTablesResponsively(html: string): string {
   return html.replace(
     /(<div\s+[^>]*class=["'][^"']*table-container[^"']*["'][^>]*>\s*)?(<table[\s\S]*?<\/table>)(\s*<\/div>)?/gi,
     (match, prefix, table, suffix) => {
-      if (!prefix && suffix) {
-        return `<div class="table-container">${table}</div>${suffix}`;
+      const wrapMatch = table.match(/data-table-wrap=["']([^"']+)["']/i);
+      const isWrapLeft = wrapMatch?.[1] === 'wrap-left' || /float:\s*left/i.test(table);
+      const isWrapRight = wrapMatch?.[1] === 'wrap-right' || /float:\s*right/i.test(table);
+
+      let wrapClass = 'table-container';
+      let containerStyle = '';
+      if (isWrapLeft) {
+        wrapClass += ' table-container--wrap-left';
+        const widthMatch = table.match(/style=["'][^"']*width:\s*([^;]+)/i);
+        if (widthMatch) {
+          containerStyle = ` style="width: ${widthMatch[1].trim()}; float: left; margin: 0.5rem 1.5rem 1rem 0; max-width: 85%;"`;
+        } else {
+          containerStyle = ` style="float: left; margin: 0.5rem 1.5rem 1rem 0; max-width: 85%;"`;
+        }
+      } else if (isWrapRight) {
+        wrapClass += ' table-container--wrap-right';
+        const widthMatch = table.match(/style=["'][^"']*width:\s*([^;]+)/i);
+        if (widthMatch) {
+          containerStyle = ` style="width: ${widthMatch[1].trim()}; float: right; margin: 0.5rem 0 1rem 1.5rem; max-width: 85%;"`;
+        } else {
+          containerStyle = ` style="float: right; margin: 0.5rem 0 1rem 1.5rem; max-width: 85%;"`;
+        }
       }
-      return `<div class="table-container">${table}</div>`;
+
+      if (!prefix && suffix) {
+        return `<div class="${wrapClass}"${containerStyle}>${table}</div>${suffix}`;
+      }
+      return `<div class="${wrapClass}"${containerStyle}>${table}</div>`;
     }
   );
 }

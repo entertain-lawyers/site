@@ -272,4 +272,29 @@ describe("sanitizeHtml editor output (regression)", () => {
     expect(clean).toContain('background-color:#f0fdf4');
     expect(clean).toContain('border:1px solid #cbd5e1');
   });
+
+  it("preserves table text wrapping (float left and right) with responsive container classes", () => {
+    const leftWrapped =
+      '<table data-table-wrap="wrap-left" style="width: 50%; float: left; margin: 0.5rem 1.5rem 1rem 0;">' +
+      '<tbody><tr><td>Side content</td></tr></tbody>' +
+      '</table><p>Normal article paragraph flowing beside the table.</p>';
+
+    const cleanLeft = sanitizeHtml(leftWrapped);
+    expect(cleanLeft).toContain('table-container--wrap-left');
+    expect(cleanLeft).toContain('data-table-wrap="wrap-left"');
+    expect(cleanLeft).toContain('float:left');
+    expect(cleanLeft).toContain('width:50%');
+    expect(cleanLeft).toContain('Normal article paragraph flowing beside the table.');
+
+    const rightWrapped =
+      '<table data-table-wrap="wrap-right" style="width: 450px; float: right; margin: 0.5rem 0 1rem 1.5rem;">' +
+      '<tbody><tr><td>Right sidebar table</td></tr></tbody>' +
+      '</table><p>Paragraph on the left.</p>';
+
+    const cleanRight = sanitizeHtml(rightWrapped);
+    expect(cleanRight).toContain('table-container--wrap-right');
+    expect(cleanRight).toContain('data-table-wrap="wrap-right"');
+    expect(cleanRight).toContain('float:right');
+    expect(cleanRight).toContain('width:450px');
+  });
 });

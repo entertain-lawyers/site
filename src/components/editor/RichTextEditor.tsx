@@ -202,10 +202,18 @@ export default function RichTextEditor({
     (html: string) => {
       const editor = reactQuillRef.current?.getEditor?.();
       const withListStyles = editor?.root ? syncListLineHeights(html, editor.root) : html;
+      // Strip editor-only transient cell selection classes before publishing
+      const cleaned = withListStyles
+        .replace(/\s*table-cell-selected\b/g, '')
+        .replace(/\s*class=["']\s*["']/g, '');
       // Normalize only isolated single &nbsp; between words for wrapping,
       // preserving multiple non-breaking spaces (&nbsp;&nbsp;) and indentation spaces.
-      const normalized = restoreVideoEmbeds(withListStyles).replace(/([^\s&])&nbsp;([^\s&])/g, '$1 $2');
-      onChange(normalized);
+      const normalized = restoreVideoEmbeds(cleaned).replace(/([^\s&])&nbsp;([^\s&])/g, '$1 $2');
+      // Ensure tables with data-table-caption include their <caption> in exported HTML
+      const withCaptions = normalized.replace(/<table\b([^>]*?)data-table-caption=["']([^"']+)["']([^>]*)>(?!\s*<caption)/gi, (_match, before, capText, after) => {
+        return `<table${before}data-table-caption="${capText}"${after}><caption class="text-left text-xs font-semibold text-text-muted py-1">${capText}</caption>`;
+      });
+      onChange(withCaptions);
     },
     [onChange]
   );
@@ -1007,8 +1015,45 @@ export default function RichTextEditor({
           .editor-wrapper .ql-editor table {
             border-collapse: collapse;
             width: 100%;
+            max-width: 100%;
             margin: 1.25rem 0;
             border: 1px solid rgba(0, 0, 0, 0.18);
+          }
+          .editor-wrapper .ql-editor table[data-table-wrap="wrap-left"] {
+            float: left;
+            margin: 0.5rem 1.5rem 1rem 0;
+            max-width: 85%;
+          }
+          .editor-wrapper .ql-editor table[data-table-wrap="wrap-right"] {
+            float: right;
+            margin: 0.5rem 0 1rem 1.5rem;
+            max-width: 85%;
+          }
+          .editor-wrapper .ql-editor table[data-table-wrap="none"] {
+            float: none;
+            clear: both;
+            margin: 1.25rem auto;
+          }
+          @media (max-width: 640px) {
+            .editor-wrapper .ql-container {
+              max-width: 100% !important;
+              overflow-x: auto !important;
+            }
+            .editor-wrapper .ql-editor {
+              max-width: 100% !important;
+              box-sizing: border-box !important;
+            }
+            .editor-wrapper .ql-editor table {
+              max-width: 100% !important;
+              width: 100% !important;
+            }
+            .editor-wrapper .ql-editor table[data-table-wrap] {
+              float: none !important;
+              width: 100% !important;
+              max-width: 100% !important;
+              margin-left: 0 !important;
+              margin-right: 0 !important;
+            }
           }
           .dark .editor-wrapper .ql-editor table {
             border-color: rgba(255, 255, 255, 0.18);
@@ -1058,6 +1103,12 @@ export default function RichTextEditor({
           .editor-wrapper .ql-editor th:focus-within {
             outline: 2px solid #0284c7;
             outline-offset: -2px;
+          }
+          .editor-wrapper .ql-editor td.table-cell-selected,
+          .editor-wrapper .ql-editor th.table-cell-selected {
+            outline: 2px solid #e5a93c !important;
+            outline-offset: -2px;
+            background-color: rgba(229, 169, 60, 0.15) !important;
           }
         `
       }} />
