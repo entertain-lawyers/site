@@ -45,16 +45,16 @@ const cssRules: Record<string, RegExp[]> = {
   ],
   'text-decoration': [/^(?:none|underline|line-through|underline line-through|line-through underline)$/i],
   'text-decoration-line': [/^(?:none|underline|line-through|underline line-through|line-through underline)$/i],
-  // Bounded: ±200px, ±10rem/em, ±100%.
+  // Bounded: ±200px, ±10rem/em, ±100%, or auto.
   'margin-top': [
-    /^(?:-?0|0px|-?(?:[1-9]\d?|1\d\d|200)px)$/i,
-    /^(?:-?0|0(?:rem|em)|-?(?:[1-9](?:\.\d+)?|10(?:\.0+)?)(?:rem|em))$/i,
-    /^(?:-?0|0%|-?(?:[1-9]\d?|100)%)$/i,
+    /^(?:auto|-?0|0px|-?(?:[1-9]\d?|1\d\d|200)px)$/i,
+    /^(?:auto|-?0|0(?:rem|em)|-?(?:[1-9](?:\.\d+)?|10(?:\.0+)?)(?:rem|em))$/i,
+    /^(?:auto|-?0|0%|-?(?:[1-9]\d?|100)%)$/i,
   ],
   'margin-bottom': [
-    /^(?:-?0|0px|-?(?:[1-9]\d?|1\d\d|200)px)$/i,
-    /^(?:-?0|0(?:rem|em)|-?(?:[1-9](?:\.\d+)?|10(?:\.0+)?)(?:rem|em))$/i,
-    /^(?:-?0|0%|-?(?:[1-9]\d?|100)%)$/i,
+    /^(?:auto|-?0|0px|-?(?:[1-9]\d?|1\d\d|200)px)$/i,
+    /^(?:auto|-?0|0(?:rem|em)|-?(?:[1-9](?:\.\d+)?|10(?:\.0+)?)(?:rem|em))$/i,
+    /^(?:auto|-?0|0%|-?(?:[1-9]\d?|100)%)$/i,
   ],
   'list-style-type': [/^(?:none|disc|decimal|circle|square|lower-roman|upper-roman|lower-alpha|upper-alpha)$/i],
   // Bounded line spacing: unitless 0.8-3, percentage 80-300%, 0.8-3rem/em, 12-72px, or normal.
@@ -62,34 +62,83 @@ const cssRules: Record<string, RegExp[]> = {
     /^(?:normal|(?:0\.[8-9]\d*|[1-2](?:\.\d+)?|3(?:\.0+)?)|(?:[89]\d|1[0-9]{2}|200|300)%|(?:0\.[8-9]\d*|[1-2](?:\.\d+)?|3(?:\.0+)?)(?:rem|em)|(?:1[2-9]|[2-6]\d|7[0-2])px)$/i,
   ],
   width: [/^(?:auto|0|0px|[1-9]\d{0,3}px|[1-9]\d?%|100%)$/i],
+  'max-width': [/^(?:none|0|0px|[1-9]\d{0,3}px|[1-9]\d?%|100%)$/i],
   'min-width': [/^(?:0|0px|[1-9]\d{0,3}px)$/i],
+  height: [/^(?:auto|0|0px|[1-9]\d{0,3}px|[1-9]\d?%|100%)$/i],
+  'min-height': [/^(?:0|0px|[1-9]\d{0,3}px)$/i],
+  'vertical-align': [/^(?:top|middle|bottom|baseline|sub|super|text-top|text-bottom)$/i],
+  padding: [/^(?:0|0px|[1-9]\d?px)(?:\s+(?:0|0px|[1-9]\d?px)){0,3}$/i],
+  'padding-top': [/^(?:0|0px|[1-9]\d?px|0?\.[1-9]\d*rem|1rem|1\.5rem)$/i],
+  'padding-bottom': [/^(?:0|0px|[1-9]\d?px|0?\.[1-9]\d*rem|1rem|1\.5rem)$/i],
+  'padding-left': [/^(?:0|0px|[1-9]\d?px|0?\.[1-9]\d*rem|1rem|1\.5rem)$/i],
+  'padding-right': [/^(?:0|0px|[1-9]\d?px|0?\.[1-9]\d*rem|1rem|1\.5rem)$/i],
+  'margin-left': [/^(?:auto|0|0px|-?(?:[1-9]\d?|1\d\d|200)px|-?(?:[1-9](?:\.\d+)?|10(?:\.0+)?)(?:rem|em)|-?(?:[1-9]\d?|100)%)$/i],
+  'margin-right': [/^(?:auto|0|0px|-?(?:[1-9]\d?|1\d\d|200)px|-?(?:[1-9](?:\.\d+)?|10(?:\.0+)?)(?:rem|em)|-?(?:[1-9]\d?|100)%)$/i],
+  margin: [
+    /^(?:auto|0|0px|[1-9]\d?px|0?\.[1-9]\d*rem|[1-5](?:\.\d+)?rem|0?\.[1-9]\d*em|[1-5](?:\.\d+)?em)(?:\s+(?:auto|0|0px|[1-9]\d?px|0?\.[1-9]\d*rem|[1-5](?:\.\d+)?rem|0?\.[1-9]\d*em|[1-5](?:\.\d+)?em)){0,3}$/i,
+  ],
   'border-collapse': [/^(?:collapse|separate)$/i],
+  'border-spacing': [/^(?:0|0px|[1-9]\d?px)$/i],
+  border: [
+    /^(?:none|0|0px|(?:(?:0|[1-9]\d?px)\s+(?:solid|dashed|dotted|double|none)(?:\s+(?:#(?:[0-9a-f]{3}|[0-9a-f]{6})|rgba?\(\s*\d{1,3}\s*(?:,\s*\d{1,3}\s*){2}(?:,\s*(?:1(?:\.0+)?|0?\.\d*[1-9]\d*))?\s*\)|transparent))?))$/i,
+  ],
+  'border-top': [
+    /^(?:none|0|0px|(?:(?:0|[1-9]\d?px)\s+(?:solid|dashed|dotted|double|none)(?:\s+(?:#(?:[0-9a-f]{3}|[0-9a-f]{6})|rgba?\(\s*\d{1,3}\s*(?:,\s*\d{1,3}\s*){2}(?:,\s*(?:1(?:\.0+)?|0?\.\d*[1-9]\d*))?\s*\)|transparent))?))$/i,
+  ],
+  'border-bottom': [
+    /^(?:none|0|0px|(?:(?:0|[1-9]\d?px)\s+(?:solid|dashed|dotted|double|none)(?:\s+(?:#(?:[0-9a-f]{3}|[0-9a-f]{6})|rgba?\(\s*\d{1,3}\s*(?:,\s*\d{1,3}\s*){2}(?:,\s*(?:1(?:\.0+)?|0?\.\d*[1-9]\d*))?\s*\)|transparent))?))$/i,
+  ],
+  'border-left': [
+    /^(?:none|0|0px|(?:(?:0|[1-9]\d?px)\s+(?:solid|dashed|dotted|double|none)(?:\s+(?:#(?:[0-9a-f]{3}|[0-9a-f]{6})|rgba?\(\s*\d{1,3}\s*(?:,\s*\d{1,3}\s*){2}(?:,\s*(?:1(?:\.0+)?|0?\.\d*[1-9]\d*))?\s*\)|transparent))?))$/i,
+  ],
+  'border-right': [
+    /^(?:none|0|0px|(?:(?:0|[1-9]\d?px)\s+(?:solid|dashed|dotted|double|none)(?:\s+(?:#(?:[0-9a-f]{3}|[0-9a-f]{6})|rgba?\(\s*\d{1,3}\s*(?:,\s*\d{1,3}\s*){2}(?:,\s*(?:1(?:\.0+)?|0?\.\d*[1-9]\d*))?\s*\)|transparent))?))$/i,
+  ],
+  'border-width': [/^(?:0|0px|[1-9]\d?px|thin|medium|thick)$/i],
+  'border-style': [/^(?:none|hidden|dotted|dashed|solid|double|groove|ridge|inset|outset)$/i],
+  'border-color': [
+    /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i,
+    /^rgba?\(\s*\d{1,3}\s*(?:,\s*\d{1,3}\s*){2}(?:,\s*(?:1(?:\.0+)?|0?\.\d*[1-9]\d*))?\s*\)$/i,
+    /^transparent$/i,
+  ],
+  'caption-side': [/^(?:top|bottom)$/i],
+};
+
+const tableCssRules: Record<string, RegExp[]> = {
+  ...cssRules,
+  float: [/^(?:left|right|none)$/i],
+  clear: [/^(?:left|right|both|none)$/i],
 };
 
 // `allowedStyles` is keyed by tag name; `*` applies to every element. A
 // declaration that is absent here, or whose value fails its regex, is dropped
 // — so url(), position, display and friends can never reach output.
-const styleRules: Record<string, Record<string, RegExp[]>> = { '*': cssRules };
+const styleRules: Record<string, Record<string, RegExp[]>> = {
+  '*': cssRules,
+  table: tableCssRules,
+  div: tableCssRules,
+};
 
 const options: sanitizeHtmlLib.IOptions = {
   // iframe is only for the editor's video button; see allowedIframeHostnames.
-  allowedTags: sanitizeHtmlLib.defaults.allowedTags.concat(['img', 'iframe']),
+  allowedTags: sanitizeHtmlLib.defaults.allowedTags.concat(['img', 'iframe', 'col', 'colgroup', 'caption']),
   allowedAttributes: {
     '*': ['class', 'id', 'title', 'dir', 'lang', 'style'],
     a: ['href', 'name', 'target', 'rel'],
     img: ['src', 'srcset', 'sizes', 'alt', 'width', 'height', 'loading'],
     iframe: ['src', 'width', 'height', 'frameborder', 'allowfullscreen', 'allow', 'title', 'loading'],
     blockquote: ['cite'],
-    col: ['span', 'width'],
-    colgroup: ['span', 'width'],
+    col: ['span', 'width', 'style', 'class'],
+    colgroup: ['span', 'width', 'style', 'class'],
     ol: ['start', 'type'],
-    table: ['class', 'style', 'width', 'border', 'cellpadding', 'cellspacing'],
-    tbody: ['class', 'style'],
-    thead: ['class', 'style'],
-    tfoot: ['class', 'style'],
-    tr: ['data-row', 'class', 'style'],
-    td: ['colspan', 'rowspan', 'headers', 'data-row', 'class', 'style', 'width'],
-    th: ['colspan', 'rowspan', 'scope', 'headers', 'data-row', 'class', 'style', 'width'],
+    table: ['class', 'id', 'style', 'width', 'border', 'cellpadding', 'cellspacing', 'align', 'data-table-align', 'data-table-preset', 'data-table-width', 'data-table-wrap', 'data-table-caption'],
+    caption: ['class', 'id', 'style', 'align'],
+    tbody: ['class', 'id', 'style'],
+    thead: ['class', 'id', 'style'],
+    tfoot: ['class', 'id', 'style'],
+    tr: ['data-row', 'class', 'id', 'style', 'align', 'valign'],
+    td: ['colspan', 'rowspan', 'headers', 'data-row', 'class', 'id', 'style', 'width', 'height', 'align', 'valign'],
+    th: ['colspan', 'rowspan', 'scope', 'headers', 'data-row', 'class', 'id', 'style', 'width', 'height', 'align', 'valign'],
     time: ['datetime'],
   },
   allowedStyles: styleRules,
@@ -143,10 +192,34 @@ export function wrapTablesResponsively(html: string): string {
   return html.replace(
     /(<div\s+[^>]*class=["'][^"']*table-container[^"']*["'][^>]*>\s*)?(<table[\s\S]*?<\/table>)(\s*<\/div>)?/gi,
     (match, prefix, table, suffix) => {
-      if (!prefix && suffix) {
-        return `<div class="table-container">${table}</div>${suffix}`;
+      const wrapMatch = table.match(/data-table-wrap=["']([^"']+)["']/i);
+      const isWrapLeft = wrapMatch?.[1] === 'wrap-left' || /float:\s*left/i.test(table);
+      const isWrapRight = wrapMatch?.[1] === 'wrap-right' || /float:\s*right/i.test(table);
+
+      let wrapClass = 'table-container';
+      let containerStyle = '';
+      if (isWrapLeft) {
+        wrapClass += ' table-container--wrap-left';
+        const widthMatch = table.match(/style=["'][^"']*width:\s*([^;]+)/i);
+        if (widthMatch) {
+          containerStyle = ` style="width: ${widthMatch[1].trim()}; float: left; margin: 0.5rem 1.5rem 1rem 0; max-width: 85%;"`;
+        } else {
+          containerStyle = ` style="float: left; margin: 0.5rem 1.5rem 1rem 0; max-width: 85%;"`;
+        }
+      } else if (isWrapRight) {
+        wrapClass += ' table-container--wrap-right';
+        const widthMatch = table.match(/style=["'][^"']*width:\s*([^;]+)/i);
+        if (widthMatch) {
+          containerStyle = ` style="width: ${widthMatch[1].trim()}; float: right; margin: 0.5rem 0 1rem 1.5rem; max-width: 85%;"`;
+        } else {
+          containerStyle = ` style="float: right; margin: 0.5rem 0 1rem 1.5rem; max-width: 85%;"`;
+        }
       }
-      return `<div class="table-container">${table}</div>`;
+
+      if (!prefix && suffix) {
+        return `<div class="${wrapClass}"${containerStyle}>${table}</div>${suffix}`;
+      }
+      return `<div class="${wrapClass}"${containerStyle}>${table}</div>`;
     }
   );
 }

@@ -521,6 +521,44 @@
     border: 1px solid var(--border-color);
     background: var(--bg-surface);
   }
+  :is(.article-body, .prose) .table-container.table-container--wrap-left {
+    float: left;
+    margin: 0.5rem 1.75rem 1rem 0;
+    max-width: 85%;
+    width: auto;
+  }
+  :is(.article-body, .prose) .table-container.table-container--wrap-right {
+    float: right;
+    margin: 0.5rem 0 1rem 1.75rem;
+    max-width: 85%;
+    width: auto;
+  }
+  :is(.article-body, .prose) table[data-table-wrap="wrap-left"] {
+    float: left;
+    margin: 0.5rem 1.75rem 1rem 0;
+    max-width: 85%;
+  }
+  :is(.article-body, .prose) table[data-table-wrap="wrap-right"] {
+    float: right;
+    margin: 0.5rem 0 1rem 1.75rem;
+    max-width: 85%;
+  }
+  :is(.article-body, .prose) table[data-table-wrap="none"] {
+    float: none;
+    clear: both;
+    margin: 1.25rem auto;
+  }
+  @media (max-width: 640px) {
+    :is(.article-body, .prose) .table-container.table-container--wrap-left,
+    :is(.article-body, .prose) .table-container.table-container--wrap-right,
+    :is(.article-body, .prose) table[data-table-wrap] {
+      float: none !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      margin-left: 0 !important;
+      margin-right: 0 !important;
+    }
+  }
   :is(.article-body, .prose) table {
     display: table;
     width: 100%;
@@ -562,6 +600,24 @@
     background: var(--bg-surface-alt);
     font-weight: 700;
     color: var(--text-primary);
+  }
+  :is(.article-body, .prose) caption {
+    caption-side: top;
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    padding: 0.5em 0.25em;
+    text-align: left;
+  }
+  :is(.article-body, .prose) table.table-preset-minimal :is(td, th) {
+    border-left: none !important;
+    border-right: none !important;
+  }
+  :is(.article-body, .prose) table.table-preset-striped tr:nth-child(even) td {
+    background: rgba(0, 0, 0, 0.025);
+  }
+  :is(:root[data-theme='dark'], :root.dark) :is(.article-body, .prose) table.table-preset-striped tr:nth-child(even) td {
+    background: rgba(255, 255, 255, 0.03);
   }
   :is(.article-body, .prose) tr:nth-child(even) td {
     background: rgba(0, 0, 0, 0.015);
