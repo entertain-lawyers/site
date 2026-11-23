@@ -203,7 +203,7 @@ describe('Reader and Resource navigation & breadcrumbs', () => {
     expect(hrefs.some((h) => h.includes('subject=null'))).toBe(false);
   });
 
-  it('renders LatestCaseLawsSidebar and LatestPostsSidebar, and omits StudyCurriculumSidebar for prescribed cases in note reading view', async () => {
+  it('renders StudyCurriculumSidebar for prescribed cases with syllabus in note reading view', async () => {
     (prisma.resource.findUnique as any).mockResolvedValue({
       id: 'case-1',
       title: 'Kesavananda Bharati v. State of Kerala',
@@ -236,19 +236,50 @@ describe('Reader and Resource navigation & breadcrumbs', () => {
       createdAt: new Date('2026-01-01'),
     });
 
+    const vdom = await ReadResourcePage({
+      params: Promise.resolve({ resourceId: 'case-1' }),
+      searchParams: Promise.resolve({ from: 'syllabus' }),
+    });
+
+    expect(hasComponent(vdom, StudyCurriculumSidebar)).toBe(true);
+    expect(hasComponent(vdom, LatestCaseLawsSidebar)).toBe(false);
+  });
+
+  it('renders LatestCaseLawsSidebar and LatestPostsSidebar for standalone precedents/case laws without syllabus', async () => {
+    (prisma.resource.findUnique as any).mockResolvedValue({
+      id: 'precedent-standalone-1',
+      title: 'Maneka Gandhi v. Union of India',
+      status: 'PUBLISHED',
+      type: 'CASE_LAW',
+      semesterId: null,
+      semester: null,
+      subjectId: null,
+      subject: null,
+      unitId: null,
+      unit: null,
+      documentId: null,
+      document: null,
+      content: '<p>Right to travel abroad under Article 21.</p>',
+      featuredImage: null,
+      metaTitle: 'Writ Cases',
+      author: null,
+      createdBy: null,
+      createdAt: new Date('2026-01-01'),
+    });
+
     (prisma.resource.findMany as any).mockResolvedValue([
       {
         id: 'case-2',
-        title: 'Maneka Gandhi v. Union of India',
+        title: 'Kesavananda Bharati v. State of Kerala',
         type: 'CASE_LAW',
         createdAt: new Date('2026-01-02'),
         featuredImage: null,
-        metaTitle: 'Writ Cases',
+        metaTitle: 'Civil Cases',
       },
     ]);
 
     const vdom = await ReadResourcePage({
-      params: Promise.resolve({ resourceId: 'case-1' }),
+      params: Promise.resolve({ resourceId: 'precedent-standalone-1' }),
     });
 
     expect(hasComponent(vdom, LatestCaseLawsSidebar)).toBe(true);
@@ -297,7 +328,7 @@ describe('Reader and Resource navigation & breadcrumbs', () => {
     expect(hasComponent(vdom, LatestCaseLawsSidebar)).toBe(false);
   });
 
-  it('omits StudyOutlineSidebar for prescribed cases in PDF view', async () => {
+  it('renders StudyOutlineSidebar for prescribed cases with syllabus in PDF view', async () => {
     (prisma.resource.findUnique as any).mockResolvedValue({
       id: 'case-pdf-1',
       title: 'Prescribed Case PDF Judgment',
@@ -330,9 +361,10 @@ describe('Reader and Resource navigation & breadcrumbs', () => {
 
     const vdom = await ReadResourcePage({
       params: Promise.resolve({ resourceId: 'case-pdf-1' }),
+      searchParams: Promise.resolve({ from: 'syllabus' }),
     });
 
-    expect(hasComponent(vdom, StudyOutlineSidebar)).toBe(false);
+    expect(hasComponent(vdom, StudyOutlineSidebar)).toBe(true);
   });
 
   it('renders StudyOutlineSidebar for regular law notes in PDF view on desktop', async () => {
@@ -371,6 +403,67 @@ describe('Reader and Resource navigation & breadcrumbs', () => {
     });
 
     expect(hasComponent(vdom, StudyOutlineSidebar)).toBe(true);
+  });
+
+  it('omits StudyCurriculumSidebar and links back to case laws when accessed from precedent case laws', async () => {
+    (prisma.resource.findUnique as any).mockResolvedValue({
+      id: 'case-landmark-1',
+      title: 'Idris Miya v. Government of Nepal',
+      status: 'PUBLISHED',
+      type: 'LAW_NOTE',
+      semesterId: 'sem-2nd',
+      semester: { id: 'sem-2nd', name: '2nd Semester' },
+      subjectId: 'sub-crim-law',
+      subject: {
+        id: 'sub-crim-law',
+        name: 'Criminal Law-II',
+        semester: { id: 'sem-2nd', name: '2nd Semester' },
+        units: [
+          {
+            id: 'unit-prescribed',
+            name: 'Prescribed Cases',
+            resources: [{ id: 'case-landmark-1', title: 'Idris Miya v. Government of Nepal', type: 'LAW_NOTE' }],
+          },
+        ],
+      },
+      unitId: 'unit-prescribed',
+      unit: { id: 'unit-prescribed', name: 'Prescribed Cases' },
+      documentId: null,
+      document: null,
+      content: '<p>Criminal case judgment content.</p>',
+      featuredImage: null,
+      metaTitle: 'CRIMINAL:BOTH_CASES',
+      author: null,
+      createdBy: null,
+      createdAt: new Date('2026-01-01'),
+    });
+
+    (prisma.resource.findMany as any).mockResolvedValue([
+      {
+        id: 'case-2',
+        title: 'Kesavananda Bharati v. State of Kerala',
+        type: 'CASE_LAW',
+        createdAt: new Date('2026-01-02'),
+        featuredImage: null,
+        metaTitle: 'Civil Cases',
+      },
+    ]);
+
+    const vdom = await ReadResourcePage({
+      params: Promise.resolve({ resourceId: 'case-landmark-1' }),
+      searchParams: Promise.resolve({ from: 'case_law', caseLaw: 'criminal' }),
+    });
+
+    // Syllabus navigator must be omitted
+    expect(hasComponent(vdom, StudyCurriculumSidebar)).toBe(false);
+    // Precedent sidebars must be shown
+    expect(hasComponent(vdom, LatestCaseLawsSidebar)).toBe(true);
+    expect(hasComponent(vdom, LatestPostsSidebar)).toBe(true);
+
+    // Back link must go to case laws category, not prescribed cases
+    const hrefs = findHrefs(vdom);
+    expect(hrefs).toContain('/study?type=CASE_LAW&caseLaw=criminal');
+    expect(hrefs.some((h) => h.includes('unit-prescribed'))).toBe(false);
   });
 });
 

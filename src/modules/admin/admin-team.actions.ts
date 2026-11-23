@@ -54,8 +54,26 @@ const teamMemberSchema = z.object({
   email: z.string().email('Invalid email address').optional().or(z.literal('')),
   linkedinUrl: z.string().url('Invalid URL').optional().or(z.literal('')),
   facebookUrl: z.string().url('Invalid URL').optional().or(z.literal('')),
-  websiteUrl: z.string().url('Invalid URL').optional().or(z.literal('')),
   instagramUrl: z.string().url('Invalid URL').optional().or(z.literal('')),
+  websiteUrl: z
+    .string()
+    .nullable()
+    .optional()
+    .or(z.literal(''))
+    .refine((val) => {
+      if (!val || val.trim() === '') return true;
+      try {
+        const parsed = JSON.parse(val);
+        if (Array.isArray(parsed)) {
+          return parsed.every(
+            (item) => typeof item.url === 'string' && /^https?:\/\//i.test(item.url.trim())
+          );
+        }
+      } catch {
+        return /^https?:\/\//i.test(val.trim());
+      }
+      return false;
+    }, 'Invalid URL or direct connect link format'),
   qualifications: z.string().optional(),
   experience: z.string().optional(),
   achievements: z.string().optional(),

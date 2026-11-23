@@ -21,6 +21,7 @@ import { Metadata } from 'next';
 import { getDictionary } from '@/lib/i18n';
 import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 import CaseCategoryBadge from '@/components/study/CaseCategoryBadge';
+import CaseLawCategoryBadge from '@/components/study/CaseLawCategoryBadge';
 import SocialShareToolbar from '@/components/posts/SocialShareToolbar';
 import Reactions from '@/components/posts/Reactions';
 import Comments from '@/components/posts/Comments';
@@ -29,7 +30,7 @@ import StudyCurriculumSidebar from '@/components/study/StudyCurriculumSidebar';
 import LatestCaseLawsSidebar from '@/components/study/LatestCaseLawsSidebar';
 import { getLatestPosts, getLatestNewsPosts } from '@/lib/latest-posts';
 import { isPrescribedCasesUnit, getCaseLawCategory } from '@/lib/case-category';
-import { ArrowLeft, ChevronRight, FileText, Clock } from 'lucide-react';
+import { ArrowLeft, ChevronRight, FileText, Clock, Scale } from 'lucide-react';
 
 export async function generateMetadata({ params }: { params: Promise<{ resourceId: string }> }): Promise<Metadata> {
   const { resourceId } = await params;
@@ -48,9 +49,16 @@ export async function generateMetadata({ params }: { params: Promise<{ resourceI
   };
 }
 
-export default async function ReadResourcePage({ params }: { params: Promise<{ resourceId: string }> }) {
+export default async function ReadResourcePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ resourceId: string }>;
+  searchParams?: Promise<{ from?: string; type?: string; caseLaw?: string }>;
+}) {
   const dict = await getDictionary();
   const { resourceId } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
   const session = await auth();
 
   if (!session?.user?.id) {
@@ -197,22 +205,64 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
   // resource detail page, linking back there would bounce straight here.
   const effectiveSemesterId = resource.semesterId || resource.subject?.semester?.id || resource.subject?.semesterId;
   const semesterName = resource.semester?.name || resource.subject?.semester?.name;
-  const studyBackParams = new URLSearchParams();
-  if (resource.type) {
-    studyBackParams.set('type', resource.type);
+
+  // Precedent / Case Law mode:
+  // 1. Accessed with from='case_law' or type='CASE_LAW' or searchParams.caseLaw
+  // 2. OR resource's native type is 'CASE_LAW' AND not explicitly opened from syllabus (from !== 'syllabus')
+  const isFromCaseLawListing = Boolean(
+    resolvedSearchParams.from === 'case_law' ||
+    resolvedSearchParams.type === 'CASE_LAW' ||
+    Boolean(resolvedSearchParams.caseLaw)
+  );
+
+  const isPrecedentCase = isFromCaseLawListing || (resource.type === 'CASE_LAW' && resolvedSearchParams.from !== 'syllabus');
+
+  // Syllabus Navigator is ONLY kept for law notes and prescribed cases of law notes!
+  // Precedent / Case laws must NOT show the syllabus navigator (keep latest posts and case laws instead).
+  const hasSyllabus = !isPrecedentCase && Boolean(resource.subject?.units && resource.subject.units.length > 0);
+
+  const rawCaseLawParam = resolvedSearchParams.caseLaw?.toLowerCase();
+  const caseCat = getCaseLawCategory(resource);
+  const effectiveCaseCategory = rawCaseLawParam || (caseCat ? caseCat.toLowerCase() : null);
+
+  let studyBackUrl = '/study?type=CASE_LAW';
+  let studyBackLabel = 'Back to Case Laws';
+
+  if (isPrecedentCase) {
+    if (effectiveCaseCategory === 'civil') {
+      studyBackUrl = '/study?type=CASE_LAW&caseLaw=civil';
+      studyBackLabel = 'Back to Civil Cases';
+    } else if (effectiveCaseCategory === 'criminal') {
+      studyBackUrl = '/study?type=CASE_LAW&caseLaw=criminal';
+      studyBackLabel = 'Back to Criminal Cases';
+    } else if (effectiveCaseCategory === 'writ' || effectiveCaseCategory === 'writs') {
+      studyBackUrl = '/study?type=CASE_LAW&caseLaw=writ';
+      studyBackLabel = 'Back to Writs';
+    } else {
+      studyBackUrl = '/study?type=CASE_LAW';
+      studyBackLabel = 'Back to Case Laws';
+    }
+  } else {
+    // Law note and prescribed cases of law note:
+    // Navigates back to the unit or prescribed cases unit of that subject in law notes!
+    studyBackLabel = 'Back to Study';
+    const studyBackParams = new URLSearchParams();
+    if (resource.type) {
+      studyBackParams.set('type', resource.type);
+    }
+    if (effectiveSemesterId) {
+      studyBackParams.set('semester', effectiveSemesterId);
+    }
+    if (resource.subjectId) {
+      studyBackParams.set('subject', resource.subjectId);
+    }
+    if (resource.unitId) {
+      studyBackParams.set('unit', resource.unitId);
+    }
+    studyBackUrl = studyBackParams.toString()
+      ? `/study?${studyBackParams.toString()}`
+      : '/study';
   }
-  if (effectiveSemesterId) {
-    studyBackParams.set('semester', effectiveSemesterId);
-  }
-  if (resource.subjectId) {
-    studyBackParams.set('subject', resource.subjectId);
-  }
-  if (resource.unitId) {
-    studyBackParams.set('unit', resource.unitId);
-  }
-  const studyBackUrl = studyBackParams.toString()
-    ? `/study?${studyBackParams.toString()}`
-    : '/study';
 
   const isPrescribedCase =
     resource.type === 'CASE_LAW' ||
@@ -278,9 +328,9 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
         : resource.type.replace('_', ' ');
 
       const [latestPosts, latestNewsPosts, latestCaseLaws] = await Promise.all([
-        !isPrescribedCase ? getLatestPosts() : Promise.resolve([]),
-        isPrescribedCase ? getLatestNewsPosts(undefined, 5) : Promise.resolve([]),
-        isPrescribedCase
+        !hasSyllabus ? getLatestPosts() : Promise.resolve([]),
+        !hasSyllabus ? getLatestNewsPosts(undefined, 5) : Promise.resolve([]),
+        !hasSyllabus
           ? prisma.resource
               .findMany({
                 where: {
@@ -320,14 +370,14 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
                     <li>
                       <Link href={studyBackUrl} className="hover:text-accent font-medium transition-colors flex items-center gap-1.5">
                         <ArrowLeft className="w-3.5 h-3.5" />
-                        Back to Study
+                        {studyBackLabel}
                       </Link>
                     </li>
                     <li>
                       <ChevronRight className="w-3.5 h-3.5 text-border" />
                     </li>
                     <li className="font-semibold text-text-secondary uppercase tracking-wider text-[11px]">
-                      {typeLabel}
+                      {isPrecedentCase ? 'Case Law' : typeLabel}
                     </li>
                   </ol>
                 </nav>
@@ -336,13 +386,16 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
                 <header className="mb-6 pb-6 border-b border-border">
                   <div className="flex flex-wrap items-center gap-2 mb-3">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-md bg-accent/10 text-accent border border-accent/20 tracking-wider uppercase">
-                      <FileText className="w-3.5 h-3.5" />
-                      {typeLabel}
+                      {isPrecedentCase ? <Scale className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
+                      {isPrecedentCase ? 'Case Law' : typeLabel}
                     </span>
-                    {resource.type === 'CASE_LAW' && resource.metaTitle && (
+                    {getCaseLawCategory(resource) && (
+                      <CaseLawCategoryBadge category={getCaseLawCategory(resource)!} size="sm" />
+                    )}
+                    {resource.metaTitle && (
                       <CaseCategoryBadge category={resource.metaTitle} size="sm" />
                     )}
-                    {(resource.subject?.name || semesterName) && (
+                    {!isPrecedentCase && (resource.subject?.name || semesterName) && (
                       <span className="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-md bg-surface-alt border border-border text-text-muted">
                         {resource.subject?.name || semesterName}
                       </span>
@@ -442,27 +495,24 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
                   />
                 </div>
 
-                {/* Mobile / Tablet: On prescribed cases, show Latest Case Laws and News stacked below comments */}
-                {isPrescribedCase && (latestCaseLaws.length > 0 || latestNewsPosts.length > 0) && (
+                {/* Mobile / Tablet: On standalone precedents/notes without a syllabus, show Latest Case Laws and News stacked below comments */}
+                {!hasSyllabus && (latestCaseLaws.length > 0 || latestNewsPosts.length > 0 || latestPosts.length > 0) && (
                   <div className="mt-12 lg:hidden space-y-8 border-t border-border pt-8">
                     {latestCaseLaws.length > 0 && (
                       <LatestCaseLawsSidebar cases={latestCaseLaws} currentResourceId={resource.id} />
                     )}
-                    {latestNewsPosts.length > 0 && (
+                    {latestNewsPosts.length > 0 ? (
                       <LatestPostsSidebar posts={latestNewsPosts} title="Latest News" />
-                    )}
+                    ) : latestPosts.length > 0 ? (
+                      <LatestPostsSidebar posts={latestPosts} />
+                    ) : null}
                   </div>
                 )}
               </article>
 
-              {/* Sidebar on Desktop: Latest Case Laws & News for Prescribed Cases, or Syllabus Navigator for Law Notes */}
+              {/* Sidebar on Desktop: Syllabus Navigator for all notes/prescribed cases in a syllabus, or Latest Precedents & News for standalone items */}
               <aside className="hidden lg:block space-y-6 lg:sticky lg:top-24">
-                {isPrescribedCase ? (
-                  <>
-                    <LatestCaseLawsSidebar cases={latestCaseLaws} currentResourceId={resource.id} />
-                    <LatestPostsSidebar posts={latestNewsPosts} title="Latest News" />
-                  </>
-                ) : resource.subject?.units && resource.subject.units.length > 0 ? (
+                {hasSyllabus ? (
                   <StudyCurriculumSidebar
                     semesterName={semesterName}
                     subjectName={resource.subject?.name}
@@ -472,7 +522,16 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
                     units={resource.subject?.units}
                   />
                 ) : (
-                  <LatestPostsSidebar posts={latestPosts} />
+                  <>
+                    {latestCaseLaws.length > 0 && (
+                      <LatestCaseLawsSidebar cases={latestCaseLaws} currentResourceId={resource.id} />
+                    )}
+                    {latestNewsPosts.length > 0 ? (
+                      <LatestPostsSidebar posts={latestNewsPosts} title="Latest News" />
+                    ) : latestPosts.length > 0 ? (
+                      <LatestPostsSidebar posts={latestPosts} />
+                    ) : null}
+                  </>
                 )}
               </aside>
             </div>
@@ -553,8 +612,8 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
           <Link
             href={studyBackUrl}
             className="text-text-muted hover:text-accent mr-3 transition-colors flex items-center justify-center bg-surface-alt hover:bg-surface-alt/80 rounded-full w-8 h-8 min-h-[36px] min-w-[36px]"
-            aria-label="Go back to study materials"
-            title={dict.goBack}
+            aria-label={studyBackLabel}
+            title={studyBackLabel}
           >
             <svg className="w-4 h-4" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 10">
               <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 5H1m0 0 4 4M1 5l4-4"/>
@@ -562,53 +621,71 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
           </Link>
           <div className="flex items-center text-text-muted hidden md:flex font-medium">
             <Link
-              href={`/study?type=${resource.type}`}
+              href={studyBackUrl}
               className="hover:text-accent transition-colors"
             >
-              {getResourceTypeLabel(resource.type)}
+              {isPrecedentCase ? 'Case Laws' : getResourceTypeLabel(resource.type)}
             </Link>
-            {resource.type === 'CASE_LAW' && (
-              <span className="ml-2">
-                <CaseCategoryBadge category={resource.metaTitle} size="sm" />
-              </span>
-            )}
-            {semesterName && (
+            {isPrecedentCase ? (
+              effectiveCaseCategory && (
+                <>
+                  <svg className="w-3.5 h-3.5 text-border-strong mx-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+                    <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 9 4-4-4-4"/>
+                  </svg>
+                  <Link
+                    href={studyBackUrl}
+                    className="hover:text-accent transition-colors capitalize"
+                  >
+                    {effectiveCaseCategory}
+                  </Link>
+                </>
+              )
+            ) : (
               <>
-                <svg className="w-3.5 h-3.5 text-border-strong mx-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
-                  <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 9 4-4-4-4"/>
-                </svg>
-                <Link
-                  href={effectiveSemesterId ? `/study?type=${resource.type}&semester=${effectiveSemesterId}` : `/study?type=${resource.type}`}
-                  className="hover:text-accent transition-colors"
-                >
-                  {semesterName}
-                </Link>
-              </>
-            )}
-            {resource.subject?.name && (
-              <>
-                <svg className="w-3.5 h-3.5 text-border-strong mx-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
-                  <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 9 4-4-4-4"/>
-                </svg>
-                <Link
-                  href={`/study?type=${resource.type}${effectiveSemesterId ? `&semester=${effectiveSemesterId}` : ''}&subject=${resource.subjectId}`}
-                  className="hover:text-accent transition-colors"
-                >
-                  {resource.subject.name}
-                </Link>
-              </>
-            )}
-            {resource.unit?.name && (
-              <>
-                <svg className="w-3.5 h-3.5 text-border-strong mx-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
-                  <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 9 4-4-4-4"/>
-                </svg>
-                <Link
-                  href={`/study?type=${resource.type}${effectiveSemesterId ? `&semester=${effectiveSemesterId}` : ''}&subject=${resource.subjectId}&unit=${resource.unitId}`}
-                  className="hover:text-accent transition-colors"
-                >
-                  {resource.unit.name}
-                </Link>
+                {resource.type === 'CASE_LAW' && (
+                  <span className="ml-2">
+                    <CaseCategoryBadge category={resource.metaTitle} size="sm" />
+                  </span>
+                )}
+                {semesterName && (
+                  <>
+                    <svg className="w-3.5 h-3.5 text-border-strong mx-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+                      <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 9 4-4-4-4"/>
+                    </svg>
+                    <Link
+                      href={effectiveSemesterId ? `/study?type=${resource.type}&semester=${effectiveSemesterId}` : `/study?type=${resource.type}`}
+                      className="hover:text-accent transition-colors"
+                    >
+                      {semesterName}
+                    </Link>
+                  </>
+                )}
+                {resource.subject?.name && (
+                  <>
+                    <svg className="w-3.5 h-3.5 text-border-strong mx-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+                      <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 9 4-4-4-4"/>
+                    </svg>
+                    <Link
+                      href={`/study?type=${resource.type}${effectiveSemesterId ? `&semester=${effectiveSemesterId}` : ''}&subject=${resource.subjectId}`}
+                      className="hover:text-accent transition-colors"
+                    >
+                      {resource.subject.name}
+                    </Link>
+                  </>
+                )}
+                {resource.unit?.name && (
+                  <>
+                    <svg className="w-3.5 h-3.5 text-border-strong mx-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
+                      <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m1 9 4-4-4-4"/>
+                    </svg>
+                    <Link
+                      href={`/study?type=${resource.type}${effectiveSemesterId ? `&semester=${effectiveSemesterId}` : ''}&subject=${resource.subjectId}&unit=${resource.unitId}`}
+                      className="hover:text-accent transition-colors"
+                    >
+                      {resource.unit.name}
+                    </Link>
+                  </>
+                )}
               </>
             )}
             <svg className="w-3.5 h-3.5 text-border-strong mx-2.5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 6 10">
@@ -642,8 +719,8 @@ export default async function ReadResourcePage({ params }: { params: Promise<{ r
 
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar - desktop-only and strictly for non-prescribed law notes */}
-        {!isPrescribedCase && filteredUnits.length > 0 && (
+        {/* Sidebar - desktop-only syllabus outline for notes and prescribed cases */}
+        {hasSyllabus && filteredUnits.length > 0 && (
           <div className="hidden lg:flex h-full shrink-0">
             <StudyOutlineSidebar
               units={filteredUnits}

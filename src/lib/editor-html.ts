@@ -142,7 +142,7 @@ export function editorHtmlToArticleHtml(html: string): string {
   }
   // Leading and trailing blank lines are dropped.
 
-  return units
+  const built = units
     .map((unit, index) => {
       const own = classesOf(unit.block.attrs).filter((c) => !MARKER_CLASS.test(c));
       const isLast = index === units.length - 1;
@@ -168,6 +168,138 @@ export function editorHtmlToArticleHtml(html: string): string {
       return rebuild(block, [...own, ...markers]);
     })
     .join('');
+
+  return unwrapEmptyListWrappers(built);
+}
+
+/**
+ * Finds the index of the matching close tag for a given HTML tag, respecting nesting.
+ */
+function findMatchingCloseTag(html: string, startIndex: number, tag: string): { innerEnd: number; closeEnd: number } | null {
+  const tagRe = new RegExp(`<(/?)${tag}(?=[\\s>/])[^>]*>`, 'gi');
+  tagRe.lastIndex = startIndex;
+  let depth = 1;
+  for (let m = tagRe.exec(html); m; m = tagRe.exec(html)) {
+    if (m[1]) depth--;
+    else if (!m[0].endsWith('/>')) depth++;
+    if (depth === 0) {
+      return { innerEnd: m.index, closeEnd: m.index + m[0].length };
+    }
+  }
+  return null;
+}
+
+/**
+ * Checks if an <li> only contains a nested sublist (ol or ul) without any direct
+ * readable text or non-list element content.
+ */
+function isEffectivelyEmptyLi(liInner: string, nestedCloseEnd: number): boolean {
+  const beforeList = liInner.slice(0, liInner.indexOf('<')).trim();
+  const afterList = liInner.slice(nestedCloseEnd).trim();
+  const strip = (s: string) => s.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim();
+  return strip(beforeList).length === 0 && strip(afterList).length === 0;
+}
+
+/**
+ * Unwraps empty nested list wrappers (e.g. <ol><li><ol><li><ol><li>...</li></ol></li></ol></li></ol>)
+ * where outer list items have no content except the nested sublist.
+ * Such patterns horizontally stack markers (1. a. i.) and compound left padding,
+ * crushing lines into 2-3 words per line on mobile devices.
+ * Unwrapping preserves the intended nested list type (decimal, lower-alpha, lower-roman)
+ * with clean single-level indentation.
+ */
+export function unwrapEmptyListWrappers(html: string): string {
+  if (!html || !/(?:<ol|<ul)/i.test(html)) return html;
+
+  let result = '';
+  let i = 0;
+  while (i < html.length) {
+    const openMatch = /^<(ol|ul)(\s[^>]*)?>/i.exec(html.slice(i));
+    if (!openMatch) {
+      result += html[i];
+      i++;
+      continue;
+    }
+
+    const listTag = openMatch[1].toLowerCase();
+    const afterListOpen = i + openMatch[0].length;
+    const listClose = findMatchingCloseTag(html, afterListOpen, listTag);
+    if (!listClose) {
+      result += openMatch[0];
+      i = afterListOpen;
+      continue;
+    }
+
+    const wholeListHtml = html.slice(i, listClose.closeEnd);
+
+    let currentTag = listTag;
+    let currentAttrs = openMatch[2] || '';
+    let currentInner = html.slice(afterListOpen, listClose.innerEnd);
+    let unwrappedLevels = 0;
+    const accumulatedClasses: string[] = [];
+
+    const getClasses = (attrs: string) => {
+      const m = /\sclass\s*=\s*["']([^"']*)["']/i.exec(attrs);
+      return m ? m[1].split(/\s+/).filter(Boolean) : [];
+    };
+
+    accumulatedClasses.push(...getClasses(currentAttrs));
+
+    while (true) {
+      const liOpenMatch = /^\s*<li(\s[^>]*)?>/i.exec(currentInner);
+      if (!liOpenMatch) break;
+      const afterLiOpen = liOpenMatch[0].length;
+      const liClose = findMatchingCloseTag(currentInner, afterLiOpen, 'li');
+      if (!liClose || currentInner.slice(liClose.closeEnd).trim() !== '') break;
+
+      const liInner = currentInner.slice(afterLiOpen, liClose.innerEnd);
+      const nestedListOpen = /^\s*<(ol|ul)(\s[^>]*)?>/i.exec(liInner);
+      if (!nestedListOpen) break;
+
+      const nestedTag = nestedListOpen[1].toLowerCase();
+      const nestedAttrs = nestedListOpen[2] || '';
+      const afterNestedOpen = nestedListOpen[0].length;
+      const nestedClose = findMatchingCloseTag(liInner, afterNestedOpen, nestedTag);
+      if (!nestedClose || !isEffectivelyEmptyLi(liInner, nestedClose.closeEnd)) break;
+
+      unwrappedLevels++;
+      currentTag = nestedTag;
+      currentAttrs = nestedAttrs;
+      accumulatedClasses.push(...getClasses(nestedAttrs));
+      currentInner = liInner.slice(afterNestedOpen, nestedClose.innerEnd);
+    }
+
+    if (unwrappedLevels > 0) {
+      const finalClasses = Array.from(new Set(accumulatedClasses));
+      let finalAttrs = currentAttrs.replace(/\sclass\s*=\s*["'][^"']*["']/gi, '');
+
+      if (currentTag === 'ol') {
+        const hasExplicitType = /type\s*=/i.test(currentAttrs) || /list-(?:roman|alpha)/.test(finalClasses.join(' '));
+        if (!hasExplicitType) {
+          if (unwrappedLevels >= 2) {
+            if (!finalClasses.includes('list-roman')) finalClasses.push('list-roman');
+            if (!/type\s*=/i.test(finalAttrs)) finalAttrs = ` type="i"${finalAttrs}`;
+          } else if (unwrappedLevels === 1) {
+            if (!finalClasses.includes('list-alpha')) finalClasses.push('list-alpha');
+            if (!/type\s*=/i.test(finalAttrs)) finalAttrs = ` type="a"${finalAttrs}`;
+          }
+        }
+      }
+
+      if (finalClasses.length > 0) {
+        finalAttrs = ` class="${finalClasses.join(' ')}"${finalAttrs}`;
+      }
+
+      result += `<${currentTag}${finalAttrs}>${currentInner}</${currentTag}>`;
+      i = listClose.closeEnd;
+      continue;
+    }
+
+    result += wholeListHtml;
+    i = listClose.closeEnd;
+  }
+
+  return result;
 }
 
 // Quill's semantic HTML (what react-quill-new reports) writes a video embed as

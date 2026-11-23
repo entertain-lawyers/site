@@ -118,7 +118,7 @@ export default function ArticleBody({
       {numberedToc && numberedToc.length > 0 && (
         <nav
           aria-label="Table of contents"
-          className={`mb-6 rounded-2xl border border-border shadow-xs w-full transition-all p-5 sm:p-6 ${
+          className={`mb-6 rounded-2xl border border-border shadow-xs w-full transition-all p-4 sm:p-6 ${
             boxed ? 'bg-surface' : 'bg-surface-alt/50 dark:bg-zinc-900/50'
           }`}
         >
@@ -197,7 +197,7 @@ export default function ArticleBody({
       )}
 
       {boxed ? (
-        <div className="bg-surface border border-border rounded-2xl p-6 sm:p-10 shadow-xs mb-8">
+        <div className="bg-surface border border-border rounded-2xl p-4 sm:p-8 lg:p-10 shadow-xs mb-8">
           <div
             ref={containerRef}
             id="article-body"

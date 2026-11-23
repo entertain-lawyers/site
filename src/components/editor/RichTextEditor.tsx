@@ -8,7 +8,10 @@ import { insertClipboardContent } from '@/lib/editor-clipboard';
 import { syncListLineHeights } from '@/lib/editor-line-height';
 import dynamic from 'next/dynamic';
 import EditorImageTools from '@/components/editor/EditorImageTools';
+import EditorTableTools from '@/components/editor/EditorTableTools';
 import 'react-quill-new/dist/quill.snow.css';
+
+const TABLE_TOOLBAR_SVG = '<svg viewBox="0 0 18 18"><rect class="ql-stroke" height="12" width="14" x="2" y="3" rx="1.5"/><line class="ql-stroke" x1="2" x2="16" y1="7" y2="7"/><line class="ql-stroke" x1="2" x2="16" y1="11" y2="11"/><line class="ql-stroke" x1="7" x2="7" y1="3" y2="15"/><line class="ql-stroke" x1="11" x2="11" y1="3" y2="15"/></svg>';
 
 // Custom attributors (wrap, lineheight) must exist before ReactQuill constructs Quill,
 // so they are loaded (browser-only) in the same dynamic loader.
@@ -16,7 +19,15 @@ const ReactQuill = dynamic(
   async () => {
     await import('@/components/editor/quill-image-wrap');
     await import('@/components/editor/quill-line-height');
-    return (await import('react-quill-new')).default;
+    const RQ = (await import('react-quill-new')).default;
+    try {
+      const QuillModule = (await import('quill')).default;
+      const icons = QuillModule?.import?.('ui/icons') as Record<string, string> | undefined;
+      if (icons && !icons['table']) {
+        icons['table'] = TABLE_TOOLBAR_SVG;
+      }
+    } catch {}
+    return RQ;
   },
   { ssr: false }
 );
@@ -50,6 +61,11 @@ const QUILL_FORMATS = [
   'align',
   // Floats an image so text wraps beside it (src/components/editor/quill-image-wrap.ts).
   'wrap',
+  // Advanced table formats
+  'table',
+  'table-row',
+  'table-body',
+  'table-container',
 ];
 
 type AllowedImageMimeType = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
@@ -72,12 +88,13 @@ const QUILL_TOOLBAR_CONTAINER = [
   // Individual align buttons (left/center/right/justify); "align" is already
   // in QUILL_FORMATS for the image tools.
   [{ align: '' }, { align: 'center' }, { align: 'right' }, { align: 'justify' }],
-  ['link', 'image', 'video'],
+  ['link', 'image', 'video', 'table'],
   [{ color: [] }, { background: [] }],
   ['clean'],
 ];
 
 let _imageHandlerRelay: (() => void) | null = null;
+let _tableHandlerRelay: (() => void) | null = null;
 
 // Node.TEXT_NODE; a literal because this module is also evaluated on the server.
 const TEXT_NODE = 3;
@@ -112,16 +129,19 @@ function oneBlankLinePerEmptyParagraph(node: Node, delta: PasteDelta): PasteDelt
 const QUILL_MODULES: {
   toolbar: {
     container: typeof QUILL_TOOLBAR_CONTAINER;
-    handlers: { image: () => void };
+    handlers: { image: () => void; table: () => void };
   };
+  table: boolean;
   clipboard: { matchVisual: boolean; matchers: Array<[number | string, (node: Node, delta: PasteDelta) => PasteDelta]> };
 } = {
   toolbar: {
     container: QUILL_TOOLBAR_CONTAINER,
     handlers: {
       image: () => _imageHandlerRelay?.(),
+      table: () => _tableHandlerRelay?.(),
     },
   },
+  table: true,
   clipboard: {
     matchVisual: false,
     matchers: [
@@ -241,6 +261,17 @@ export default function RichTextEditor({
     };
   }, [imageHandler]);
 
+  const [isTableModalOpen, setIsTableModalOpen] = useState(false);
+  const openTableModal = useCallback(() => setIsTableModalOpen(true), []);
+  const closeTableModal = useCallback(() => setIsTableModalOpen(false), []);
+
+  useEffect(() => {
+    _tableHandlerRelay = openTableModal;
+    return () => {
+      _tableHandlerRelay = null;
+    };
+  }, [openTableModal]);
+
   // Hook rich paste (Ctrl+Shift+V and Ctrl+V) and attach toolbar tooltips
   useEffect(() => {
     let cancelled = false;
@@ -334,6 +365,7 @@ export default function RichTextEditor({
           ['.ql-link', 'Insert link'],
           ['.ql-image', 'Insert image'],
           ['.ql-video', 'Insert video embed'],
+          ['.ql-table', 'Insert Table (Advanced Table Tools)'],
           ['.ql-clean', 'Clear formatting'],
           ['.ql-header', 'Heading style'],
           ['.ql-lineheight', 'Line spacing'],
@@ -347,6 +379,11 @@ export default function RichTextEditor({
             el.setAttribute('title', title);
             el.setAttribute('aria-label', title);
           }
+        }
+
+        const tableBtn = container.querySelector<HTMLElement>('button.ql-table');
+        if (tableBtn && !tableBtn.querySelector('svg')) {
+          tableBtn.innerHTML = TABLE_TOOLBAR_SVG;
         }
 
         // Accessible labels on line-height picker options
@@ -515,6 +552,10 @@ export default function RichTextEditor({
           }
           .editor-wrapper .ql-toolbar.ql-snow button.ql-active .ql-fill {
             fill: #0284c7 !important;
+          }
+          .editor-wrapper .ql-toolbar.ql-snow button.ql-table svg {
+            width: 18px !important;
+            height: 18px !important;
           }
 
           /* Roman and Alpha List Toolbar Button Icons */
@@ -960,11 +1001,39 @@ export default function RichTextEditor({
           .editor-wrapper.document-scroll-mode .ql-toolbar.ql-snow {
             will-change: transform;
           }
+
+          /* Editor Canvas Table Styling */
+          .editor-wrapper .ql-editor table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 1.25rem 0;
+            border: 1px solid rgba(0, 0, 0, 0.18);
+          }
+          .dark .editor-wrapper .ql-editor table {
+            border-color: rgba(255, 255, 255, 0.18);
+          }
+          .editor-wrapper .ql-editor td,
+          .editor-wrapper .ql-editor th {
+            border: 1px solid rgba(0, 0, 0, 0.18);
+            padding: 8px 12px;
+            min-width: 60px;
+            position: relative;
+            vertical-align: top;
+          }
+          .dark .editor-wrapper .ql-editor td,
+          .dark .editor-wrapper .ql-editor th {
+            border-color: rgba(255, 255, 255, 0.18);
+          }
+          .editor-wrapper .ql-editor td:focus-within,
+          .editor-wrapper .ql-editor th:focus-within {
+            outline: 2px solid #0284c7;
+            outline-offset: -2px;
+          }
         `
       }} />
 
       <div className="editor-toolbar-row flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3 px-1 shrink-0" ref={toolbarRowRef}>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <label className="text-xs uppercase tracking-wider font-bold text-text-secondary">Font Mode:</label>
           <div className="flex bg-slate-100 dark:bg-zinc-900 rounded-lg p-0.5 border border-black/5 dark:border-white/5">
             <button
@@ -1017,6 +1086,11 @@ export default function RichTextEditor({
           placeholder={placeholder}
         />
         <EditorImageTools getQuill={getQuill} containerRef={quillBoxRef} />
+        <EditorTableTools
+          getQuill={getQuill}
+          isOpen={isTableModalOpen}
+          onClose={closeTableModal}
+        />
       </div>
     </div>
   );

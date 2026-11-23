@@ -69,10 +69,16 @@
   :root[data-theme='dark'],
   :root.dark { color-scheme: dark; }
 
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
   html {
     scroll-behavior: smooth;
     -webkit-text-size-adjust: 100%;
     text-size-adjust: 100%;
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -92,6 +98,8 @@
     font-family: var(--font-mukta), Inter, Tahoma, sans-serif;
     color: var(--text-primary);
     background-color: var(--bg-primary);
+    overflow-x: hidden;
+    max-width: 100vw;
     transition: background-color 0.2s ease, color 0.2s ease;
   }
 
@@ -451,6 +459,35 @@
   .article-body .el-ed li > :is(ol, ul) { padding-left: 2.75em; margin: 0; }
   .article-body .el-ed li { margin: 0; padding-left: 0.25em; }
   .article-body .el-ed img { margin-bottom: 0; }
+
+  /* Responsive list padding on mobile/tablet so lists never squish text */
+  @media (max-width: 640px) {
+    .article-body :is(ol, ul) {
+      padding-left: 1.25rem !important;
+    }
+    .article-body :is(ol, ul).el-ed {
+      padding-left: 1.5rem !important;
+    }
+    .article-body .el-ed li > :is(ol, ul) {
+      padding-left: 1.25rem !important;
+    }
+    :is(.article-body, .prose) .ql-indent-1 { padding-left: 1.25rem !important; }
+    :is(.article-body, .prose) .ql-indent-2 { padding-left: 2.25rem !important; }
+    :is(.article-body, .prose) .ql-indent-3 { padding-left: 3.25rem !important; }
+    :is(.article-body, .prose) .ql-indent-4 { padding-left: 4.25rem !important; }
+    :is(.article-body, .prose) .ql-indent-5 { padding-left: 5.25rem !important; }
+  }
+
+  /* Suppress phantom markers and compounding padding when an empty li contains a nested list */
+  .article-body li:not(:has(> :not(ol, ul))):has(> :is(ol, ul):only-child) {
+    list-style-type: none !important;
+    padding-left: 0 !important;
+    margin-left: 0 !important;
+  }
+  .article-body li:not(:has(> :not(ol, ul))):has(> :is(ol, ul):only-child) > :is(ol, ul) {
+    padding-left: 0 !important;
+    margin-top: 0 !important;
+  }
   /* Images aligned in the editor (paragraph with ql-align-*). */
   .article-body .ql-align-center img {
     margin-inline: auto;
@@ -474,26 +511,63 @@
     color: var(--text-primary);
     font-weight: 700;
   }
-  .article-body table {
-    display: block;
+  :is(.article-body, .prose) .table-container {
+    width: 100%;
     max-width: 100%;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    width: 100%;
-    border-collapse: collapse;
-    margin: 0 0 1.6em;
-    font-size: 1rem;
-  }
-  .article-body :is(th, td) {
+    margin: 1.5em 0 2em;
+    border-radius: 0.75rem;
     border: 1px solid var(--border-color);
-    padding: 0.6em 0.9em;
+    background: var(--bg-surface);
+  }
+  :is(.article-body, .prose) table {
+    display: table;
+    width: 100%;
+    max-width: 100%;
+    border-collapse: collapse;
+    margin: 1.2em 0 1.8em;
+    font-size: 0.95rem;
+    border-radius: 0.5rem;
+  }
+  @media (max-width: 768px) {
+    :is(.article-body, .prose) table:not(.table-container table) {
+      display: block;
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border-radius: 0.5rem;
+    }
+  }
+  :is(.article-body, .prose) .table-container table {
+    margin: 0;
+    border: none;
+    border-radius: 0;
+  }
+  :is(.article-body, .prose) :is(th, td) {
+    border: 1px solid var(--border-color);
+    padding: 0.75em 1em;
     text-align: left;
     vertical-align: top;
+    min-width: 5rem;
   }
-  .article-body th {
+  @media (max-width: 768px) {
+    :is(.article-body, .prose) :is(th, td) {
+      padding: 0.5em 0.75em;
+      font-size: 0.85rem;
+      min-width: 4rem;
+    }
+  }
+  :is(.article-body, .prose) th {
     background: var(--bg-surface-alt);
     font-weight: 700;
     color: var(--text-primary);
+  }
+  :is(.article-body, .prose) tr:nth-child(even) td {
+    background: rgba(0, 0, 0, 0.015);
+  }
+  :is(:root[data-theme='dark'], :root.dark) :is(.article-body, .prose) tr:nth-child(even) td {
+    background: rgba(255, 255, 255, 0.02);
   }
   .article-body hr {
     border: none;

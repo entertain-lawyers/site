@@ -93,8 +93,8 @@ export default async function NepaliPostDetailPage({ params }: { params: Promise
     }));
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 pb-20 pt-10">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 grid grid-cols-1 lg:grid-cols-3 gap-10 lg:gap-16">
+    <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 pb-16 sm:pb-20 pt-4 sm:pt-10">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-2 sm:mt-6 grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-16">
 
         <article className="lg:col-span-2">
 

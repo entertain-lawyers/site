@@ -41,11 +41,11 @@ export default function BrandSearchHeader() {
         </Link>
       </section>
 
-      <div className="w-full max-w-3xl mx-auto px-6 mb-6 sm:mb-8 relative z-10">
+      <div className="w-full max-w-3xl mx-auto px-4 sm:px-6 mb-4 sm:mb-8 relative z-10">
         <hr className="border-t-2 border-border-strong dark:border-white/20" />
       </div>
 
-      <section className="max-w-7xl mx-auto mb-12 sm:mb-16 relative z-10">
+      <section className="max-w-7xl mx-auto mb-6 sm:mb-10 lg:mb-16 relative z-10 px-4 sm:px-0">
         <div className="w-full max-w-3xl mx-auto relative">
           <div className="absolute -inset-1 bg-gradient-to-r from-accent/20 to-blue-500/20 rounded-full blur opacity-70"></div>
           <HomeSearchBar />

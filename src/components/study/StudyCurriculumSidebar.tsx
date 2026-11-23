@@ -7,9 +7,11 @@ import {
   ChevronRight,
   ChevronLeft,
   Layers,
+  Scale,
   Minimize2,
   Maximize2,
 } from 'lucide-react';
+import { isPrescribedCasesUnit } from '@/lib/case-category';
 
 interface UnitResource {
   id: string;
@@ -49,8 +51,13 @@ export const parseUnitInfo = (unit: UnitItem, uIdx: number): ParsedUnitInfo => {
   // 1. If explicit title in DB
   let resolvedTitle = rawTitle;
 
-  // 2. If no title in DB, check first resource attached to this unit
-  if (!resolvedTitle && unit.resources && unit.resources.length > 0) {
+  // 2. If no title in DB, check if this is a prescribed cases unit or check first resource
+  const isCases = isPrescribedCasesUnit(unit) || unit.resources?.some((r) => r.type === 'CASE_LAW');
+  if (isCases && !rawTitle) {
+    if (!effectivePrefix.toLowerCase().includes('prescribed') && !effectivePrefix.toLowerCase().includes('cases')) {
+      resolvedTitle = 'Prescribed Cases';
+    }
+  } else if (!resolvedTitle && unit.resources && unit.resources.length > 0) {
     const firstResTitle = (unit.resources[0]?.title || '').trim();
     // Clean off leading "Unit X:" or "Unit-X" or "Unit X -" prefixes
     const stripped = firstResTitle.replace(/^unit[\s-_]*\d+[\s:.-]*/i, '').trim();
@@ -236,7 +243,7 @@ export default function StudyCurriculumSidebar({
               >
                 <div className="min-w-0">
                   <span className="block text-[9px] uppercase tracking-wider text-white/80 font-medium leading-tight">
-                    Next in Syllabus
+                    {nextItem.resource.type === 'CASE_LAW' ? 'Next Prescribed Case' : 'Next in Syllabus'}
                   </span>
                   <span className="truncate block font-semibold text-[11px] leading-tight">
                     {nextItem.resource.title}
@@ -259,7 +266,7 @@ export default function StudyCurriculumSidebar({
           </div>
         )}
 
-        {/* Units List (Directly Clickable Unit Pills - No Dropdowns) */}
+        {/* Units List (Directly Clickable Unit Pills + Active Unit Case List) */}
         <div className="flex-1 overflow-y-auto min-h-0 pr-0.5 space-y-1.5 [scrollbar-width:thin]">
           {units.length === 0 ? (
             <div className="text-center py-4 text-xs text-text-muted">
@@ -270,6 +277,9 @@ export default function StudyCurriculumSidebar({
             units.map((unit, uIdx) => {
               const unitInfo = parseUnitInfo(unit, uIdx);
               const unitLabel = unitInfo.fullLabel;
+              const isCasesUnit =
+                isPrescribedCasesUnit(unit) ||
+                unit.resources?.some((r) => r.type === 'CASE_LAW');
               const hasCurrent =
                 unit.id === currentUnitId ||
                 unit.resources?.some((r) => r.id === currentResourceId);
@@ -285,43 +295,96 @@ export default function StudyCurriculumSidebar({
                   : '/study';
 
               return (
-                <Link
-                  key={unit.id}
-                  href={href}
-                  aria-current={hasCurrent ? 'page' : undefined}
-                  title={unitLabel}
-                  className={`group flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-xs transition-all ${
-                    hasCurrent
-                      ? 'bg-accent text-white font-bold shadow-xs border border-accent ring-1 ring-accent/30'
-                      : 'bg-accent/5 text-navy dark:text-white border border-accent/20 hover:bg-accent hover:text-white hover:border-accent font-semibold'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Layers
-                      className={`h-3.5 w-3.5 shrink-0 transition-colors ${
-                        hasCurrent
-                          ? 'text-white'
-                          : 'text-accent group-hover:text-white'
-                      }`}
-                      aria-hidden="true"
-                    />
-                    <span className="truncate block font-semibold text-[11.5px] leading-tight">
-                      {unitLabel}
-                    </span>
-                  </div>
+                <div key={unit.id} className="space-y-1">
+                  <Link
+                    href={href}
+                    aria-current={hasCurrent ? 'page' : undefined}
+                    title={unitLabel}
+                    className={`group flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-xs transition-all ${
+                      hasCurrent
+                        ? 'bg-accent text-white font-bold shadow-xs border border-accent ring-1 ring-accent/30'
+                        : 'bg-accent/5 text-navy dark:text-white border border-accent/20 hover:bg-accent hover:text-white hover:border-accent font-semibold'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      {isCasesUnit ? (
+                        <Scale
+                          className={`h-3.5 w-3.5 shrink-0 transition-colors ${
+                            hasCurrent
+                              ? 'text-white'
+                              : 'text-accent group-hover:text-white'
+                          }`}
+                          aria-hidden="true"
+                        />
+                      ) : (
+                        <Layers
+                          className={`h-3.5 w-3.5 shrink-0 transition-colors ${
+                            hasCurrent
+                              ? 'text-white'
+                              : 'text-accent group-hover:text-white'
+                          }`}
+                          aria-hidden="true"
+                        />
+                      )}
+                      <span className="truncate block font-semibold text-[11.5px] leading-tight">
+                        {unitLabel}
+                      </span>
+                    </div>
 
-                  {hasCurrent ? (
-                    <span
-                      className="h-1.5 w-1.5 rounded-full bg-white animate-pulse shrink-0"
-                      aria-label="Current Unit"
-                    />
-                  ) : (
-                    <ChevronRight
-                      className="h-3.5 w-3.5 shrink-0 text-text-muted group-hover:text-white transition-all group-hover:translate-x-0.5"
-                      aria-hidden="true"
-                    />
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {isCasesUnit && unit.resources && unit.resources.length > 0 && (
+                        <span
+                          className={`text-[10px] font-bold px-1.5 py-0.2 rounded-md ${
+                            hasCurrent
+                              ? 'bg-white/20 text-white'
+                              : 'bg-accent/15 text-accent group-hover:bg-white/20 group-hover:text-white'
+                          }`}
+                        >
+                          {unit.resources.length} {unit.resources.length === 1 ? 'case' : 'cases'}
+                        </span>
+                      )}
+                      {hasCurrent ? (
+                        <span
+                          className="h-1.5 w-1.5 rounded-full bg-white animate-pulse shrink-0"
+                          aria-label="Current Unit"
+                        />
+                      ) : (
+                        <ChevronRight
+                          className="h-3.5 w-3.5 shrink-0 text-text-muted group-hover:text-white transition-all group-hover:translate-x-0.5"
+                          aria-hidden="true"
+                        />
+                      )}
+                    </div>
+                  </Link>
+
+                  {/* If active unit has multiple resources (e.g. multiple prescribed cases or note parts), display child list */}
+                  {hasCurrent && unit.resources && unit.resources.length > 1 && (
+                    <div className="mt-1 ml-2.5 pl-2.5 border-l-2 border-accent/35 space-y-1 max-h-52 overflow-y-auto [scrollbar-width:thin] py-1">
+                      {unit.resources.map((res, rIdx) => {
+                        const isCurrentRes = res.id === currentResourceId;
+                        return (
+                          <Link
+                            key={res.id}
+                            href={`/read/${res.id}`}
+                            title={res.title}
+                            className={`group/item flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all ${
+                              isCurrentRes
+                                ? 'bg-accent/15 text-accent dark:text-accent-hover font-bold border border-accent/30 shadow-2xs'
+                                : 'text-text-secondary hover:text-accent hover:bg-surface-alt font-medium border border-transparent'
+                            }`}
+                          >
+                            <span className={`text-[10px] shrink-0 font-mono ${isCurrentRes ? 'text-accent font-bold' : 'text-text-muted'}`}>
+                              {rIdx + 1}.
+                            </span>
+                            <span className="truncate text-[11px] leading-tight">
+                              {res.title}
+                            </span>
+                          </Link>
+                        );
+                      })}
+                    </div>
                   )}
-                </Link>
+                </div>
               );
             })
           )}

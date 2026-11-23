@@ -1,4 +1,5 @@
 import sanitizeHtmlLib from 'sanitize-html';
+import { unwrapEmptyListWrappers } from './editor-html';
 
 /**
  * Allowed markup is the same reading surface the old site used: headings,
@@ -60,6 +61,9 @@ const cssRules: Record<string, RegExp[]> = {
   'line-height': [
     /^(?:normal|(?:0\.[8-9]\d*|[1-2](?:\.\d+)?|3(?:\.0+)?)|(?:[89]\d|1[0-9]{2}|200|300)%|(?:0\.[8-9]\d*|[1-2](?:\.\d+)?|3(?:\.0+)?)(?:rem|em)|(?:1[2-9]|[2-6]\d|7[0-2])px)$/i,
   ],
+  width: [/^(?:auto|0|0px|[1-9]\d{0,3}px|[1-9]\d?%|100%)$/i],
+  'min-width': [/^(?:0|0px|[1-9]\d{0,3}px)$/i],
+  'border-collapse': [/^(?:collapse|separate)$/i],
 };
 
 // `allowedStyles` is keyed by tag name; `*` applies to every element. A
@@ -79,8 +83,13 @@ const options: sanitizeHtmlLib.IOptions = {
     col: ['span', 'width'],
     colgroup: ['span', 'width'],
     ol: ['start', 'type'],
-    td: ['colspan', 'rowspan', 'headers'],
-    th: ['colspan', 'rowspan', 'scope', 'headers'],
+    table: ['class', 'style', 'width', 'border', 'cellpadding', 'cellspacing'],
+    tbody: ['class', 'style'],
+    thead: ['class', 'style'],
+    tfoot: ['class', 'style'],
+    tr: ['data-row', 'class', 'style'],
+    td: ['colspan', 'rowspan', 'headers', 'data-row', 'class', 'style', 'width'],
+    th: ['colspan', 'rowspan', 'scope', 'headers', 'data-row', 'class', 'style', 'width'],
     time: ['datetime'],
   },
   allowedStyles: styleRules,
@@ -124,7 +133,27 @@ export function cleanPastedInlineStyles(html: string): string {
   return out.replace(/<([a-z0-9]+)\s+>/gi, '<$1>').replace(/\s*style=["']\s*["']/gi, '');
 }
 
+/**
+ * Wraps any bare <table> in a responsive scroll container (<div class="table-container">)
+ * so broad tables scroll horizontally on mobile viewports instead of breaking the layout
+ * or degrading into block layout.
+ */
+export function wrapTablesResponsively(html: string): string {
+  if (!html || !html.includes('<table')) return html;
+  return html.replace(
+    /(<div\s+[^>]*class=["'][^"']*table-container[^"']*["'][^>]*>\s*)?(<table[\s\S]*?<\/table>)(\s*<\/div>)?/gi,
+    (match, prefix, table, suffix) => {
+      if (!prefix && suffix) {
+        return `<div class="table-container">${table}</div>${suffix}`;
+      }
+      return `<div class="table-container">${table}</div>`;
+    }
+  );
+}
+
 export function sanitizeHtml(html: string): string {
-  const sanitized = sanitizeHtmlLib(html, options);
-  return cleanPastedInlineStyles(sanitized);
+  const unwrapped = unwrapEmptyListWrappers(html);
+  const sanitized = sanitizeHtmlLib(unwrapped, options);
+  const cleaned = cleanPastedInlineStyles(sanitized);
+  return wrapTablesResponsively(cleaned);
 }

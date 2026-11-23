@@ -553,7 +553,7 @@ function PrescribedCaseCard({
         {/* Title and metadata */}
         <div className="flex-1 min-w-0 pr-1">
           <h2 className="text-sm sm:text-base font-extrabold text-navy dark:text-white leading-snug group-hover:text-accent transition-colors line-clamp-2">
-            <Link href={`/resources/${item.id}`} className="hover:text-accent transition-colors">
+            <Link href={`/resources/${item.id}?from=syllabus`} className="hover:text-accent transition-colors">
               {item.title}
             </Link>
           </h2>
@@ -602,7 +602,7 @@ function PrescribedCaseCard({
       {/* Action Buttons: [View] [Download / Read Note] matching Acts & Laws */}
       <div className="mt-3 pt-2.5 border-t border-border/40 dark:border-white/5 flex items-center justify-end gap-2">
         <Link
-          href={`/resources/${item.id}`}
+          href={`/resources/${item.id}?from=syllabus`}
           className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-black/10 dark:border-white/10 bg-slate-50 dark:bg-zinc-800/80 text-xs font-bold text-navy dark:text-white hover:border-accent hover:text-accent dark:hover:border-accent transition-all active:scale-[0.98]"
         >
           <Eye className="h-3.5 w-3.5" aria-hidden="true" />
@@ -613,15 +613,15 @@ function PrescribedCaseCard({
           <button
             type="button"
             onClick={onDownload}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-accent px-3 py-1.5 text-xs font-bold text-white hover:bg-accent-hover shadow-xs transition-all active:scale-[0.98]"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-accent text-xs font-bold text-white hover:bg-accent-hover shadow-xs transition-all active:scale-[0.98]"
           >
             <Download className="h-3.5 w-3.5" aria-hidden="true" />
             <span>Download</span>
           </button>
         ) : (
           <Link
-            href={`/read/${item.id}`}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-accent px-3 py-1.5 text-xs font-bold text-white hover:bg-accent-hover shadow-xs transition-all active:scale-[0.98]"
+            href={`/read/${item.id}?from=syllabus`}
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-accent text-xs font-bold text-white hover:bg-accent-hover shadow-xs transition-all active:scale-[0.98]"
           >
             <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
             <span>Read Note</span>
