@@ -18,7 +18,7 @@ export function HomeSemesterCard({ order, href }: HomeSemesterCardProps) {
 
   return (
     <Link href={href} className="group block h-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-2xl">
-      <div className="h-32 sm:h-36 bg-gradient-to-br from-navy to-navy/95 dark:from-zinc-900 dark:to-zinc-950 px-5 sm:px-6 py-5 rounded-2xl border border-navy-800 dark:border-white/10 shadow-md transition-[box-shadow,border-color,background-color] duration-400 ease-out hover:shadow-[0_8px_30px_rgba(26,41,66,0.3)] flex flex-row items-center justify-between relative overflow-hidden z-0">
+      <div className="min-h-[7.5rem] sm:h-36 bg-gradient-to-br from-navy to-navy/95 dark:from-zinc-900 dark:to-zinc-950 px-4 sm:px-6 py-4 sm:py-5 rounded-2xl border border-navy-800 dark:border-white/10 shadow-md transition-[box-shadow,border-color,background-color] duration-400 ease-out hover:shadow-[0_8px_30px_rgba(26,41,66,0.3)] flex flex-row items-center justify-between relative overflow-hidden z-0">
         
         {/* Faint Background Number */}
         <div className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-2 text-[100px] sm:text-[130px] font-black text-white/5 dark:text-white/5 pointer-events-none select-none leading-none z-0 transition-transform duration-500 ease-out group-hover:-translate-x-1">
@@ -26,9 +26,9 @@ export function HomeSemesterCard({ order, href }: HomeSemesterCardProps) {
         </div>
         
         {/* Left Icon Composition */}
-        <div className="relative z-10 flex items-center justify-center w-[60px] h-[60px] sm:w-[68px] sm:h-[68px] rounded-full bg-white/10 dark:bg-white/5 backdrop-blur-sm border border-white/10 shadow-inner transition-transform duration-400 ease-out group-hover:scale-110 shrink-0">
+        <div className="relative z-10 flex items-center justify-center w-[52px] h-[52px] sm:w-[68px] sm:h-[68px] rounded-full bg-white/10 dark:bg-white/5 backdrop-blur-sm border border-white/10 shadow-inner transition-transform duration-400 ease-out group-hover:scale-110 shrink-0">
           <GraduationCap
-            className="w-7 h-7 sm:w-8 sm:h-8 text-white transition-all duration-400 ease-out group-hover:text-accent group-hover:scale-110"
+            className="w-6 h-6 sm:w-8 sm:h-8 text-white transition-all duration-400 ease-out group-hover:text-accent group-hover:scale-110"
             strokeWidth={1.5}
           />
         </div>

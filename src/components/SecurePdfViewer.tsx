@@ -336,8 +336,9 @@ export default function SecurePdfViewer({
   // Single page base width calculation
   const singleBaseWidth = useMemo(() => {
     if (!box.w) return 720;
-    const avail = box.w - (box.w < 640 ? 24 : 48);
-    return Math.min(Math.max(avail, 280), 900);
+    const padding = box.w < 640 ? 16 : 48;
+    const avail = Math.max(160, box.w - padding);
+    return Math.min(avail, 900);
   }, [box.w]);
 
   // Preload pages around current spread in Book Mode
@@ -701,7 +702,7 @@ export default function SecurePdfViewer({
       </div>
 
       {numPages != null && !error && (
-        <div className="flex flex-wrap items-center justify-between gap-2 px-3 pb-2 pt-2 bg-surface border-t border-border">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] bg-surface border-t border-border">
           {/* Mode Switcher */}
           <div className="flex items-center gap-1 rounded-lg border border-border bg-surface-alt/50 p-1 shadow-xs" role="tablist" aria-label="PDF viewing mode">
             <button

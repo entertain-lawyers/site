@@ -94,7 +94,7 @@ export default function MobileMenu({ links, session, dict, semesters, isNepaliMo
         key="panel"
         className="absolute top-[calc(100%+12px)] sm:top-[calc(100%+16px)] left-0 right-0 w-full bg-white dark:bg-zinc-950 border border-white/10 dark:border-white/10 shadow-2xl rounded-2xl z-50 lg:hidden overflow-hidden"
       >
-        <div className="px-4 py-6 space-y-2 max-h-[calc(100vh-6rem)] overflow-y-auto">
+        <div className="px-4 pt-5 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] space-y-2 max-h-[calc(100dvh-5.5rem)] overflow-y-auto overscroll-contain">
           <nav aria-label="Mobile navigation" className="space-y-1">
             <Link
               href={links[0]?.href || '/'}

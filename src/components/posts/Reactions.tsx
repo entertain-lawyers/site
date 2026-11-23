@@ -144,7 +144,7 @@ export default function Reactions({
         {title}
       </h3>
 
-      <div className="inline-flex flex-wrap items-end justify-center gap-4 sm:gap-6 md:gap-7">
+      <div className="inline-flex flex-wrap items-end justify-center gap-2 xs:gap-3.5 sm:gap-6 md:gap-7">
         {REACTION_CONFIG.map(({ type, label, emoji }) => {
           const count = counts[type] || 0;
           const isSelected = userReaction === type;
@@ -154,7 +154,7 @@ export default function Reactions({
             <div key={type} className="flex flex-col items-center">
               {/* Red Notification Speech Bubble Badge on Top */}
               <div className="relative mb-2 flex justify-center">
-                <span className="inline-block bg-[#e50914] text-white text-[11px] font-extrabold px-2 py-0.5 rounded-md shadow-xs min-w-[20px] text-center leading-none">
+                <span className="inline-block bg-[#e50914] text-white text-[11px] font-extrabold px-1.5 xs:px-2 py-0.5 rounded-md shadow-xs min-w-[18px] xs:min-w-[20px] text-center leading-none">
                   {count}
                 </span>
                 {/* Triangular speech bubble tail pointing down */}
@@ -180,7 +180,7 @@ export default function Reactions({
                 transition={{ duration: 0.35, ease: 'easeOut' }}
                 aria-label={`React with ${label}`}
                 title={label}
-                className={`relative p-2 text-3xl sm:text-4xl select-none cursor-pointer rounded-full transition-all focus:outline-none ${
+                className={`relative p-1 xs:p-2 text-2xl xs:text-3xl sm:text-4xl select-none cursor-pointer rounded-full transition-all focus:outline-none ${
                   isSelected
                     ? 'ring-2 ring-accent ring-offset-2 ring-offset-background bg-accent/10 shadow-sm'
                     : 'hover:bg-black/5 dark:hover:bg-white/10 opacity-90 hover:opacity-100'

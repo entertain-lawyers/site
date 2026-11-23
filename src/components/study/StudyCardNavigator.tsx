@@ -89,7 +89,7 @@ export default function StudyCardNavigator({
         <h2 className="text-xl font-bold text-navy dark:text-white mb-6 tracking-tight uppercase">
           Select Semester
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {canonicalSemesters.map((s, i) => {
             let order = s.order;
             if (typeof order !== 'number') {
@@ -121,7 +121,7 @@ export default function StudyCardNavigator({
           Select Subject
         </h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
           {orderedSubjects.map((s, i) => {
             const subtitle = s.isSeminar ? 'SEMINAR' : (s.isElective ? 'ELECTIVE' : 'VIEW UNITS');
             return (
@@ -149,7 +149,7 @@ export default function StudyCardNavigator({
       <h2 className="text-xl font-bold text-navy dark:text-white mb-6 tracking-tight uppercase">
         Select Unit
       </h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 lg:gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
         {units.map((u, i) => {
           const isCase = isPrescribedCasesUnit(u);
           

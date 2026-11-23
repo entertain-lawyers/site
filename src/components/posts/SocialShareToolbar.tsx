@@ -139,11 +139,11 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
   // Labeled variant: icon only on mobile (fits in single screen without dragging/swiping), icon + text on desktop
   if (labels) {
     return (
-      <div className="social-share-toolbar flex items-center justify-between sm:justify-start gap-1.5 sm:gap-2 w-full py-1">
+      <div className="social-share-toolbar flex items-center justify-between sm:justify-start gap-1 sm:gap-2 w-full py-1">
         <span className="text-xs font-bold text-text-muted mr-1 shrink-0 hidden md:inline">
           Share:
         </span>
-        <div className="flex items-center justify-between sm:justify-start gap-1.5 sm:gap-2 w-full sm:w-auto">
+        <div className="flex items-center justify-between sm:justify-start gap-1 sm:gap-2 w-full sm:w-auto">
           {platforms.map((p) => (
             <a
               key={p.name}
@@ -152,7 +152,7 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
               rel="noopener noreferrer"
               aria-label={`Share on ${p.name}`}
               title={`Share on ${p.name}`}
-              className={`flex w-8 h-8 sm:w-auto sm:min-w-[36px] sm:min-h-[32px] sm:px-3 rounded-full transition-all items-center justify-center gap-1.5 shrink-0 shadow-2xs ${p.color} hover:scale-105 active:scale-95 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
+              className={`flex w-7 h-7 xs:w-8 xs:h-8 sm:w-auto sm:min-w-[36px] sm:min-h-[32px] sm:px-3 rounded-full transition-all items-center justify-center gap-1.5 shrink-0 shadow-2xs ${p.color} hover:scale-105 active:scale-95 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent`}
             >
               {p.icon}
               <span className="text-xs font-semibold whitespace-nowrap hidden sm:inline">{p.label}</span>
@@ -163,9 +163,9 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
             onClick={handleCopyLink}
             aria-label="Copy article link"
             title="Copy article link"
-            className="relative flex w-8 h-8 sm:w-auto sm:min-w-[36px] sm:min-h-[32px] sm:px-3 rounded-full transition-all items-center justify-center gap-1.5 bg-slate-200 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-zinc-700 text-navy dark:text-white shrink-0 shadow-2xs hover:scale-105 active:scale-95 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            className="relative flex w-7 h-7 xs:w-8 xs:h-8 sm:w-auto sm:min-w-[36px] sm:min-h-[32px] sm:px-3 rounded-full transition-all items-center justify-center gap-1.5 bg-slate-200 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-zinc-700 text-navy dark:text-white shrink-0 shadow-2xs hover:scale-105 active:scale-95 hover:shadow-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
-            <Link className="w-4 h-4" aria-hidden="true" />
+            <Link className="w-3.5 h-3.5 sm:w-4 sm:h-4" aria-hidden="true" />
             <span className="text-xs font-semibold whitespace-nowrap hidden sm:inline">{copied ? 'Copied!' : 'Copy Link'}</span>
             <AnimatePresence>
               {copied && (
@@ -189,9 +189,9 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
   }
 
   const containerClass = compact
-    ? 'flex flex-nowrap items-center justify-between sm:justify-start gap-1.5 w-full pb-1'
+    ? 'flex flex-nowrap items-center justify-between sm:justify-start gap-1 w-full pb-1'
     : orientation === 'horizontal'
-      ? 'flex flex-wrap items-center gap-1.5 sm:gap-2'
+      ? 'flex items-center justify-between sm:justify-start gap-1 sm:gap-2 w-full sm:w-auto flex-wrap sm:flex-nowrap'
       : 'flex flex-col gap-2';
 
   return (
@@ -206,7 +206,7 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
           target="_blank"
           rel="noopener noreferrer"
           aria-label={`Share on ${p.name}`}
-          className={`${compact ? 'w-8 h-8 sm:min-w-[32px] sm:min-h-[32px]' : 'w-8 h-8 sm:w-auto sm:min-w-[36px] sm:min-h-[36px] sm:px-3'} rounded-full transition-all flex items-center justify-center ${p.color} shrink-0 hover:scale-105 active:scale-95 shadow-2xs`}
+          className={`${compact ? 'w-7 h-7 xs:w-8 xs:h-8 sm:min-w-[32px] sm:min-h-[32px]' : 'w-7 h-7 xs:w-8 xs:h-8 sm:w-auto sm:min-w-[36px] sm:min-h-[36px] sm:px-3'} rounded-full transition-all flex items-center justify-center ${p.color} shrink-0 hover:scale-105 active:scale-95 shadow-2xs`}
           title={`Share on ${p.name}`}
         >
           {p.icon}
@@ -217,7 +217,7 @@ export default function SocialShareToolbar({ title, orientation = 'horizontal', 
         onClick={handleCopyLink}
         aria-label="Copy Link"
         title="Copy Link"
-        className={`${compact ? 'w-8 h-8 sm:min-w-[32px] sm:min-h-[32px]' : 'w-8 h-8 sm:w-auto sm:min-w-[36px] sm:min-h-[36px] sm:px-3'} rounded-full transition-all flex items-center justify-center bg-slate-200 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-zinc-700 text-navy dark:text-white relative group shrink-0 hover:scale-105 active:scale-95 shadow-2xs`}
+        className={`${compact ? 'w-7 h-7 xs:w-8 xs:h-8 sm:min-w-[32px] sm:min-h-[32px]' : 'w-7 h-7 xs:w-8 xs:h-8 sm:w-auto sm:min-w-[36px] sm:min-h-[36px] sm:px-3'} rounded-full transition-all flex items-center justify-center bg-slate-200 dark:bg-zinc-800 hover:bg-slate-300 dark:hover:bg-zinc-700 text-navy dark:text-white relative group shrink-0 hover:scale-105 active:scale-95 shadow-2xs`}
       >
         <Link className="w-4 h-4" />
         <AnimatePresence>

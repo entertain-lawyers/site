@@ -111,7 +111,7 @@ export default function HomeSearchBar() {
           id="hero-search-results"
           className="absolute top-full left-0 right-0 mt-2 z-30 bg-surface dark:bg-zinc-950 rounded-2xl shadow-2xl border border-border dark:border-white/10 overflow-hidden"
         >
-          <div className="max-h-[380px] overflow-y-auto" role="listbox">
+          <div className="max-h-[min(380px,calc(100dvh-14rem))] overflow-y-auto overscroll-contain" role="listbox">
             {loading && (
               <div className="px-4 py-3 flex items-center gap-2.5" aria-hidden="true">
                 <Loader2 className="w-4 h-4 text-accent animate-spin shrink-0" />
