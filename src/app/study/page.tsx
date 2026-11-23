@@ -783,16 +783,26 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
                         )}
                       </div>
 
-                      <h3 className="text-lg font-bold text-navy dark:text-white group-hover:text-accent transition-colors mb-4 line-clamp-2 leading-tight">
-                        <Link
-                          href={`/resources/${resource.id}`}
-                          className="focus:outline-none"
-                          {...(resource.type === 'OLD_QUESTION' ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-                        >
-                          <span className="absolute inset-0" aria-hidden="true" />
-                          {resource.title}
-                        </Link>
-                      </h3>
+                      {(() => {
+                        const isPrecedentContext = selectedType === 'CASE_LAW' || isCaseLaw;
+                        const caseLawParam = caseLawQuery || (isCaseLaw ? getCaseLawCategory(resource)?.toLowerCase() : undefined);
+                        const resourceHref = isPrecedentContext
+                          ? `/resources/${resource.id}?from=case_law${caseLawParam ? `&caseLaw=${encodeURIComponent(caseLawParam)}` : ''}`
+                          : `/resources/${resource.id}`;
+
+                        return (
+                          <h3 className="text-lg font-bold text-navy dark:text-white group-hover:text-accent transition-colors mb-4 line-clamp-2 leading-tight">
+                            <Link
+                              href={resourceHref}
+                              className="focus:outline-none"
+                              {...(resource.type === 'OLD_QUESTION' ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                            >
+                              <span className="absolute inset-0" aria-hidden="true" />
+                              {resource.title}
+                            </Link>
+                          </h3>
+                        );
+                      })()}
 
                       {!isCaseLaw && (
                         <div className="mt-auto space-y-2 mb-6">

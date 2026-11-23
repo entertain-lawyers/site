@@ -238,6 +238,7 @@ describe('Reader and Resource navigation & breadcrumbs', () => {
 
     const vdom = await ReadResourcePage({
       params: Promise.resolve({ resourceId: 'case-1' }),
+      searchParams: Promise.resolve({ from: 'syllabus' }),
     });
 
     expect(hasComponent(vdom, StudyCurriculumSidebar)).toBe(true);
@@ -360,6 +361,7 @@ describe('Reader and Resource navigation & breadcrumbs', () => {
 
     const vdom = await ReadResourcePage({
       params: Promise.resolve({ resourceId: 'case-pdf-1' }),
+      searchParams: Promise.resolve({ from: 'syllabus' }),
     });
 
     expect(hasComponent(vdom, StudyOutlineSidebar)).toBe(true);
@@ -401,6 +403,67 @@ describe('Reader and Resource navigation & breadcrumbs', () => {
     });
 
     expect(hasComponent(vdom, StudyOutlineSidebar)).toBe(true);
+  });
+
+  it('omits StudyCurriculumSidebar and links back to case laws when accessed from precedent case laws', async () => {
+    (prisma.resource.findUnique as any).mockResolvedValue({
+      id: 'case-landmark-1',
+      title: 'Idris Miya v. Government of Nepal',
+      status: 'PUBLISHED',
+      type: 'LAW_NOTE',
+      semesterId: 'sem-2nd',
+      semester: { id: 'sem-2nd', name: '2nd Semester' },
+      subjectId: 'sub-crim-law',
+      subject: {
+        id: 'sub-crim-law',
+        name: 'Criminal Law-II',
+        semester: { id: 'sem-2nd', name: '2nd Semester' },
+        units: [
+          {
+            id: 'unit-prescribed',
+            name: 'Prescribed Cases',
+            resources: [{ id: 'case-landmark-1', title: 'Idris Miya v. Government of Nepal', type: 'LAW_NOTE' }],
+          },
+        ],
+      },
+      unitId: 'unit-prescribed',
+      unit: { id: 'unit-prescribed', name: 'Prescribed Cases' },
+      documentId: null,
+      document: null,
+      content: '<p>Criminal case judgment content.</p>',
+      featuredImage: null,
+      metaTitle: 'CRIMINAL:BOTH_CASES',
+      author: null,
+      createdBy: null,
+      createdAt: new Date('2026-01-01'),
+    });
+
+    (prisma.resource.findMany as any).mockResolvedValue([
+      {
+        id: 'case-2',
+        title: 'Kesavananda Bharati v. State of Kerala',
+        type: 'CASE_LAW',
+        createdAt: new Date('2026-01-02'),
+        featuredImage: null,
+        metaTitle: 'Civil Cases',
+      },
+    ]);
+
+    const vdom = await ReadResourcePage({
+      params: Promise.resolve({ resourceId: 'case-landmark-1' }),
+      searchParams: Promise.resolve({ from: 'case_law', caseLaw: 'criminal' }),
+    });
+
+    // Syllabus navigator must be omitted
+    expect(hasComponent(vdom, StudyCurriculumSidebar)).toBe(false);
+    // Precedent sidebars must be shown
+    expect(hasComponent(vdom, LatestCaseLawsSidebar)).toBe(true);
+    expect(hasComponent(vdom, LatestPostsSidebar)).toBe(true);
+
+    // Back link must go to case laws category, not prescribed cases
+    const hrefs = findHrefs(vdom);
+    expect(hrefs).toContain('/study?type=CASE_LAW&caseLaw=criminal');
+    expect(hrefs.some((h) => h.includes('unit-prescribed'))).toBe(false);
   });
 });
 

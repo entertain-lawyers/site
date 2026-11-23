@@ -78,7 +78,7 @@ export default function LatestCaseLawsSidebar({
             <li key={c.id}>
               <article className="group rounded-xl border border-border/70 bg-surface-alt/40 p-2.5 transition-all duration-200 hover:border-accent/40 hover:bg-accent/5 hover:shadow-2xs">
                 <Link
-                  href={`/read/${c.id}`}
+                  href={`/read/${c.id}?from=case_law`}
                   className="flex items-start gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-lg"
                 >
                   {/* Thumbnail */}

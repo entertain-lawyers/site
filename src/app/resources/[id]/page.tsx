@@ -117,9 +117,16 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   };
 }
 
-export default async function ResourcePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ResourcePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ from?: string; type?: string; caseLaw?: string }>;
+}) {
   const dict = await getDictionary();
   const { id } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : {};
   const session = await auth();
   const nonce = await getScriptNonce();
 
@@ -147,11 +154,17 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
 
   const hasAccess = session?.user?.id ? await canAccessResource(session.user.id, id) : false;
 
+  const forwardParams = new URLSearchParams();
+  if (resolvedSearchParams.from) forwardParams.set('from', resolvedSearchParams.from);
+  if (resolvedSearchParams.caseLaw) forwardParams.set('caseLaw', resolvedSearchParams.caseLaw);
+  if (resolvedSearchParams.type) forwardParams.set('type', resolvedSearchParams.type);
+  const forwardQuery = forwardParams.toString() ? `?${forwardParams.toString()}` : '';
+
   // Entitled readers go straight to the content — the "Access Granted" card
   // was an extra click between the resource and its document. Resources with
   // nothing to read yet keep the detail page (it shows "PDF Coming Soon").
   if (hasAccess && (resource.documentId || resourceBodyStatus(resource) === 'WRITTEN')) {
-    redirect(`/read/${id}`);
+    redirect(`/read/${id}${forwardQuery}`);
   }
 
   const effectiveSemesterId = resource.semesterId || resource.subject?.semester?.id || resource.subject?.semesterId;
@@ -430,7 +443,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
 
                 {resource.documentId && (
                   <Link
-                    href={`/read/${resource.id}`}
+                    href={`/read/${resource.id}${forwardQuery}`}
                     className="w-full sm:w-auto inline-flex items-center justify-center px-10 py-4 text-sm font-bold rounded-xl text-white bg-accent hover:bg-accent-hover transition-all shadow-[0_4px_15px_rgba(var(--color-accent),0.3)] hover:shadow-[0_6px_20px_rgba(var(--color-accent),0.4)] hover:-translate-y-0.5 group mb-6"
                     {...(resource.type === 'OLD_QUESTION' ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                   >
@@ -441,7 +454,7 @@ export default async function ResourcePage({ params }: { params: Promise<{ id: s
 
                 {resourceBodyStatus(resource) === 'WRITTEN' && (
                   <Link
-                    href={`/read/${resource.id}`}
+                    href={`/read/${resource.id}${forwardQuery}`}
                     className="w-full sm:w-auto inline-flex items-center justify-center px-10 py-4 text-sm font-bold rounded-xl text-white bg-accent hover:bg-accent-hover transition-all shadow-[0_4px_15px_rgba(var(--color-accent),0.3)] hover:shadow-[0_6px_20px_rgba(var(--color-accent),0.4)] hover:-translate-y-0.5 group mb-6"
                   >
                     <BookOpen className="w-5 h-5 mr-3 group-hover:scale-110 transition-transform" />
