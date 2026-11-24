@@ -427,33 +427,51 @@ export default function PrescribedCasesView({
           </span>
         </div>
 
-        {/* 2-Column Grid Layout matching Acts & Laws */}
+        {/* 2-Column Grid Layout matching Acts & Laws:
+            - Desktop (>= md): Preserved 2-Column Zigzag Layout (Left: 1, 3, 5... Right: 2, 4, 6...)
+            - Mobile (< md): Clean Linear Ascending Order (1, 2, 3, 4, 5...)
+        */}
         {paginatedCases.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-5">
-            {/* Left Column (Items 1, 3, 5...) */}
-            <div className="space-y-4">
-              {leftColumnCases.map(({ item, index }) => (
-                <PrescribedCaseCard
-                  key={item.id}
-                  item={item}
-                  index={index}
-                  onDownload={() => handleDownload(item)}
-                />
-              ))}
+          <>
+            {/* Desktop Layout (>= md): Preserved 2-column zigzag */}
+            <div className="hidden md:grid md:grid-cols-2 gap-4 lg:gap-5">
+              {/* Left Column (Items 1, 3, 5...) */}
+              <div className="space-y-4">
+                {leftColumnCases.map(({ item, index }) => (
+                  <PrescribedCaseCard
+                    key={item.id}
+                    item={item}
+                    index={index}
+                    onDownload={() => handleDownload(item)}
+                  />
+                ))}
+              </div>
+
+              {/* Right Column (Items 2, 4, 6...) */}
+              <div className="space-y-4">
+                {rightColumnCases.map(({ item, index }) => (
+                  <PrescribedCaseCard
+                    key={item.id}
+                    item={item}
+                    index={index}
+                    onDownload={() => handleDownload(item)}
+                  />
+                ))}
+              </div>
             </div>
 
-            {/* Right Column (Items 2, 4, 6...) */}
-            <div className="space-y-4">
-              {rightColumnCases.map(({ item, index }) => (
+            {/* Mobile Layout (< md): Clean Ascending Order (1, 2, 3, 4, 5...) */}
+            <div className="space-y-4 md:hidden">
+              {paginatedCases.map((item, i) => (
                 <PrescribedCaseCard
-                  key={item.id}
+                  key={`mobile-${item.id}`}
                   item={item}
-                  index={index}
+                  index={startIndex + i + 1}
                   onDownload={() => handleDownload(item)}
                 />
               ))}
             </div>
-          </div>
+          </>
         ) : (
           <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-black/5 dark:border-white/10 p-12 text-center max-w-lg mx-auto shadow-sm">
             <BookOpen className="h-10 w-10 text-text-muted mx-auto mb-3 opacity-40" aria-hidden="true" />
