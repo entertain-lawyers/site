@@ -121,4 +121,34 @@ describe('SecurePdfViewer Component Regression Suite', () => {
     // User text selection suppression
     expect(html).toContain('select-none');
   });
+
+  it('renders Fit Width, Fit Page, and Fullscreen viewer controls', () => {
+    const html = renderToStaticMarkup(
+      <SecurePdfViewer
+        url="/api/documents/doc-1/pdf"
+        watermarkLines={['Test Watermark']}
+        initialMode="single"
+        initialNumPages={5}
+      />
+    );
+
+    expect(html).toContain('Fit Width');
+    expect(html).toContain('Fit Page');
+    expect(html).toContain('aria-label="Toggle Fullscreen"');
+  });
+
+  it('renders mobile-optimized responsive navigation and page jump trigger', () => {
+    const html = renderToStaticMarkup(
+      <SecurePdfViewer
+        url="/api/documents/doc-1/pdf"
+        watermarkLines={['Mobile User']}
+        initialMode="single"
+        initialNumPages={10}
+      />
+    );
+
+    // Mobile toolbar has touch-friendly navigation buttons
+    expect(html).toContain('aria-label="Open page jump menu"');
+    expect(html).toContain('1 / 10');
+  });
 });

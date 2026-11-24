@@ -53,7 +53,7 @@ export default function ResourceTypeFilter({ dict }: ResourceTypeFilterProps) {
           <button
             key={type.value}
             onClick={() => handleSelect(type.value)}
-            className={`relative px-4 py-3 text-sm font-medium transition-colors ${
+            className={`relative inline-flex items-center px-3 sm:px-4 py-2.5 sm:py-3 min-h-[44px] text-xs sm:text-sm font-medium transition-colors ${
               isActive
                 ? 'text-text-primary'
                 : 'text-text-muted hover:text-text-primary'

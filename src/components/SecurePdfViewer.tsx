@@ -4,7 +4,20 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import HTMLFlipBook from "react-pageflip";
 import * as pdfjsLib from "pdfjs-dist";
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import { BookOpen, FileText, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
+import {
+  BookOpen,
+  FileText,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  Maximize2,
+  Minimize2,
+  MoveHorizontal,
+  SlidersHorizontal,
+  X,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
 // Serve the worker from our own origin.
 if (typeof window !== "undefined") {
@@ -124,9 +137,32 @@ export default function SecurePdfViewer({
 }: SecurePdfViewerProps) {
   const [mode, setMode] = useState<PdfViewerMode>(initialMode);
   const [zoom, setZoom] = useState(1.0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isQuickJumpOpen, setIsQuickJumpOpen] = useState(false);
 
+  const rootRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
+
+  // On small mobile screens (< 768px), default to continuous single-page mode for immediate reading comfort
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768 && !initialMode) {
+      setMode("single");
+    }
+  }, [initialMode]);
+
+  // Track native fullscreen changes
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", onFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", onFullscreenChange);
+    };
+  }, []);
 
   const pdfRef = useRef<PDFDocumentProxy | null>(null);
   const taskRef = useRef<ReturnType<typeof pdfjsLib.getDocument> | null>(null);
@@ -157,6 +193,58 @@ export default function SecurePdfViewer({
   useEffect(() => {
     watermarkRef.current = watermarkLines;
   }, [watermarkLines]);
+
+  // Multi-touch pinch-to-zoom gesture support for mobile and tablet touchscreens
+  useEffect(() => {
+    const el = measureRef.current;
+    if (!el) return;
+
+    let initialDist = 0;
+    let initialZ = 1.0;
+
+    const getDistance = (e: TouchEvent) => {
+      if (e.touches.length < 2) return 0;
+      return Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        initialDist = getDistance(e);
+        initialZ = zoom;
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && initialDist > 0) {
+        if (e.cancelable) e.preventDefault();
+        const curDist = getDistance(e);
+        if (curDist > 0) {
+          const scale = curDist / initialDist;
+          const nextZ = Math.min(2.5, Math.max(0.5, +(initialZ * scale).toFixed(2)));
+          setZoom(nextZ);
+        }
+      }
+    };
+
+    const onTouchEnd = () => {
+      initialDist = 0;
+    };
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    el.addEventListener("touchcancel", onTouchEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, [zoom]);
 
   // Painting queue
   const pendingBookRef = useRef<Set<number>>(new Set());
@@ -462,6 +550,63 @@ export default function SecurePdfViewer({
   const handleZoomOut = () => setZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)));
   const handleResetZoom = () => setZoom(1.0);
 
+  const handleFitWidth = useCallback(() => {
+    if (mode === "single") {
+      setZoom(1.0);
+    } else if (geom && box.w > 0) {
+      const totalSpreadW = geom.portrait ? geom.pageW : geom.pageW * 2;
+      const targetScale = Math.min(2.5, Math.max(0.5, +((box.w - 24) / totalSpreadW).toFixed(2)));
+      setZoom(targetScale);
+    }
+  }, [mode, geom, box.w]);
+
+  const handleFitPage = useCallback(() => {
+    if (mode === "single" && aspect && box.h > 0) {
+      const baseH = singleBaseWidth * aspect;
+      const targetScale = Math.min(2.5, Math.max(0.5, +((box.h - 48) / baseH).toFixed(2)));
+      setZoom(targetScale);
+    } else {
+      setZoom(1.0);
+    }
+  }, [mode, aspect, box.h, singleBaseWidth]);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!rootRef.current) return;
+    if (!document.fullscreenElement) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const el = rootRef.current as any;
+      if (el.requestFullscreen) {
+        void el.requestFullscreen();
+      } else if (el.webkitRequestFullscreen) {
+        void el.webkitRequestFullscreen();
+      }
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const doc = document as any;
+      if (doc.exitFullscreen) {
+        void doc.exitFullscreen();
+      } else if (doc.webkitExitFullscreen) {
+        void doc.webkitExitFullscreen();
+      }
+    }
+  }, []);
+
+  // Gracefully preserve scroll position across mobile orientation changes
+  useEffect(() => {
+    const handleOrientationChange = () => {
+      setTimeout(() => {
+        if (mode === "single") {
+          const el = singlePageRowRefs.current[pageRef.current];
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }
+      }, 200);
+    };
+    window.addEventListener("orientationchange", handleOrientationChange);
+    return () => window.removeEventListener("orientationchange", handleOrientationChange);
+  }, [mode]);
+
   // Keyboard navigation
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -482,11 +627,14 @@ export default function SecurePdfViewer({
       } else if (e.key === "0") {
         e.preventDefault();
         handleResetZoom();
+      } else if (e.key === "f" || e.key === "F") {
+        e.preventDefault();
+        toggleFullscreen();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [flipNext, flipPrev]);
+  }, [flipNext, flipPrev, toggleFullscreen]);
 
   // Book pages elements
   const bookPages = useMemo(() => {
@@ -577,7 +725,6 @@ export default function SecurePdfViewer({
       ? page + 1 >= numPages
       : page + (geom?.portrait ? 1 : 2) >= numPages);
 
-
   const spreadLabel = numPages
     ? mode === "single"
       ? `${page + 1} / ${numPages}`
@@ -589,14 +736,20 @@ export default function SecurePdfViewer({
     : "";
 
   return (
-    <div className="flex h-full flex-col select-none" onContextMenu={(e) => e.preventDefault()}>
+    <div
+      ref={rootRef}
+      className={`flex h-full flex-col select-none ${
+        isFullscreen ? "fixed inset-0 z-[100] bg-slate-900 w-screen h-screen" : ""
+      }`}
+      onContextMenu={(e) => e.preventDefault()}
+    >
       {error && (
         <div className="m-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-4 rounded-xl border border-red-200 dark:border-red-900/50">
           {error}
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-hidden bg-slate-200 p-1.5 sm:p-2.5 dark:bg-zinc-900">
+      <div className="min-h-0 flex-1 overflow-hidden bg-slate-200 p-1 sm:p-2.5 dark:bg-zinc-900">
         <div ref={measureRef} className="relative h-full w-full flex items-center justify-center overflow-hidden">
           {!ready && !error && (
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-surface-alt/70 backdrop-blur-xs">
@@ -610,11 +763,11 @@ export default function SecurePdfViewer({
           {mode === "single" ? (
             <div
               ref={singleScrollContainerRef}
-              className="h-full w-full overflow-y-auto overflow-x-auto p-3 sm:p-6 flex flex-col items-center gap-4 sm:gap-6 bg-slate-200 dark:bg-zinc-900 scroll-smooth"
+              className="h-full w-full overflow-y-auto overflow-x-auto px-2 py-3 sm:px-6 sm:py-6 flex flex-col items-center gap-3 sm:gap-6 bg-slate-200 dark:bg-zinc-900 scroll-smooth"
               tabIndex={0}
             >
               {Array.from({ length: numPages || 0 }, (_, i) => {
-                const pageW = Math.max(280, Math.round(singleBaseWidth * zoom));
+                const pageW = Math.max(260, Math.round(singleBaseWidth * zoom));
                 const pageH = Math.round(pageW * (aspect || 1.414));
                 return (
                   <div
@@ -629,7 +782,7 @@ export default function SecurePdfViewer({
                       minWidth: pageW,
                       minHeight: pageH,
                     }}
-                    className="relative flex-shrink-0 bg-white shadow-xl rounded-sm border border-slate-300 dark:border-zinc-700 overflow-hidden"
+                    className="relative flex-shrink-0 bg-white shadow-xl rounded-xs sm:rounded-sm border border-slate-300 dark:border-zinc-700 overflow-hidden"
                   >
                     <canvas
                       ref={(el) => {
@@ -702,142 +855,391 @@ export default function SecurePdfViewer({
       </div>
 
       {numPages != null && !error && (
-        <div className="flex flex-wrap items-center justify-between gap-2 px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] bg-surface border-t border-border">
-          {/* Mode Switcher */}
-          <div className="flex items-center gap-1 rounded-lg border border-border bg-surface-alt/50 p-1 shadow-xs" role="tablist" aria-label="PDF viewing mode">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === "book"}
-              onClick={() => {
-                setMode("book");
-              }}
-              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-bold transition-all ${
-                mode === "book"
-                  ? "bg-accent text-white shadow-xs"
-                  : "text-text-secondary hover:text-navy dark:hover:text-white"
-              }`}
-            >
-              <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>Book Mode</span>
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === "single"}
-              onClick={() => {
-                setMode("single");
-              }}
-              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-bold transition-all ${
-                mode === "single"
-                  ? "bg-accent text-white shadow-xs"
-                  : "text-text-secondary hover:text-navy dark:hover:text-white"
-              }`}
-            >
-              <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>Single Page</span>
-            </button>
+        <div className="relative bg-surface border-t border-border z-20">
+          {/* Quick Page Scrubber Popover */}
+          {isQuickJumpOpen && (
+            <div className="border-b border-border bg-surface-alt/95 p-3 shadow-md animate-in slide-in-from-bottom-2 duration-150">
+              <div className="max-w-md mx-auto space-y-2.5">
+                <div className="flex items-center justify-between text-xs font-bold text-navy dark:text-white">
+                  <span className="flex items-center gap-1.5">
+                    <SlidersHorizontal className="h-3.5 w-3.5 text-accent" />
+                    Quick Page Jump
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsQuickJumpOpen(false)}
+                    className="p-1 rounded text-text-muted hover:text-navy dark:hover:text-white"
+                    aria-label="Close page jump"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-semibold tabular-nums text-text-muted">1</span>
+                  <input
+                    type="range"
+                    min={1}
+                    max={numPages}
+                    value={page + 1}
+                    onChange={(e) => goTo(Number(e.target.value))}
+                    className="flex-1 accent-accent h-2 bg-border rounded-lg cursor-pointer"
+                    aria-label="Page scrubber slider"
+                  />
+                  <span className="text-xs font-semibold tabular-nums text-text-muted">{numPages}</span>
+                </div>
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      goTo(1);
+                      setIsQuickJumpOpen(false);
+                    }}
+                    className="px-2.5 py-1 text-xs font-bold rounded bg-surface border border-border text-text-secondary hover:text-navy dark:hover:text-white"
+                  >
+                    Page 1
+                  </button>
+                  <form
+                    className="flex items-center gap-1"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const input = e.currentTarget.elements.namedItem("page") as HTMLInputElement;
+                      if (input?.value) {
+                        goTo(parseInt(input.value, 10));
+                        setIsQuickJumpOpen(false);
+                      }
+                    }}
+                  >
+                    <input
+                      name="page"
+                      type="number"
+                      min={1}
+                      max={numPages}
+                      placeholder={String(page + 1)}
+                      className="w-16 rounded border border-border bg-surface px-2 py-1 text-xs tabular-nums text-text-primary text-center"
+                      aria-label="Go to page"
+                    />
+                    <button
+                      type="submit"
+                      className="rounded bg-accent text-white px-2.5 py-1 text-xs font-bold hover:bg-accent-hover transition-colors"
+                    >
+                      Go
+                    </button>
+                  </form>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      goTo(numPages);
+                      setIsQuickJumpOpen(false);
+                    }}
+                    className="px-2.5 py-1 text-xs font-bold rounded bg-surface border border-border text-text-secondary hover:text-navy dark:hover:text-white"
+                  >
+                    Page {numPages}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Desktop Toolbar (sm and up) */}
+          <div className="hidden sm:flex flex-wrap items-center justify-between gap-2 px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]">
+            {/* Mode Switcher */}
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-surface-alt/50 p-1 shadow-xs" role="tablist" aria-label="PDF viewing mode">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === "book"}
+                onClick={() => setMode("book")}
+                className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-bold transition-all ${
+                  mode === "book"
+                    ? "bg-accent text-white shadow-xs"
+                    : "text-text-secondary hover:text-navy dark:hover:text-white"
+                }`}
+              >
+                <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Book Mode</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === "single"}
+                onClick={() => setMode("single")}
+                className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-bold transition-all ${
+                  mode === "single"
+                    ? "bg-accent text-white shadow-xs"
+                    : "text-text-secondary hover:text-navy dark:hover:text-white"
+                }`}
+              >
+                <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Single Page</span>
+              </button>
+            </div>
+
+            {/* Page Controls */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-0.5 rounded-lg border border-border bg-surface px-1.5 py-1 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => goTo(1)}
+                  disabled={atStart}
+                  className="rounded px-1.5 py-1 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
+                  aria-label="First page"
+                >
+                  First
+                </button>
+                <button
+                  type="button"
+                  onClick={flipPrev}
+                  disabled={atStart}
+                  className="rounded px-1.5 py-1 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
+                  aria-label="Previous page"
+                >
+                  ‹ Prev
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsQuickJumpOpen(!isQuickJumpOpen)}
+                  className="min-w-[5.5rem] px-1.5 py-0.5 text-center text-xs font-semibold tabular-nums text-text-primary hover:bg-surface-alt rounded transition-colors"
+                  title="Click to jump to page"
+                >
+                  {spreadLabel}
+                </button>
+                <button
+                  type="button"
+                  onClick={flipNext}
+                  disabled={atEnd}
+                  className="rounded px-1.5 py-1 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
+                  aria-label="Next page"
+                >
+                  Next ›
+                </button>
+                <button
+                  type="button"
+                  onClick={() => numPages && goTo(numPages)}
+                  disabled={atEnd}
+                  className="rounded px-1.5 py-1 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
+                  aria-label="Last page"
+                >
+                  Last
+                </button>
+              </div>
+              <form
+                className="flex items-center gap-1"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const input = e.currentTarget.elements.namedItem("page") as HTMLInputElement;
+                  if (input?.value) goTo(parseInt(input.value, 10));
+                }}
+              >
+                <input
+                  name="page"
+                  type="number"
+                  min={1}
+                  max={numPages}
+                  placeholder="Page"
+                  className="w-16 rounded-lg border border-border bg-surface px-2 py-1 text-xs tabular-nums text-text-primary"
+                  aria-label="Go to page"
+                />
+                <button
+                  type="submit"
+                  className="rounded-lg border border-border bg-surface px-2 py-1 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary"
+                >
+                  Go
+                </button>
+              </form>
+            </div>
+
+            {/* Zoom & Fullscreen Controls */}
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-surface px-1.5 py-1 shadow-sm">
+              <button
+                type="button"
+                onClick={handleZoomOut}
+                disabled={zoom <= 0.5}
+                className="rounded p-1 text-xs font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary disabled:opacity-30"
+                title="Zoom Out (-)"
+                aria-label="Zoom Out"
+              >
+                <ZoomOut className="h-3.5 w-3.5" />
+              </button>
+              <span className="min-w-[3rem] text-center text-xs font-semibold tabular-nums text-text-primary">
+                {Math.round(zoom * 100)}%
+              </span>
+              <button
+                type="button"
+                onClick={handleZoomIn}
+                disabled={zoom >= 2.5}
+                className="rounded p-1 text-xs font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary disabled:opacity-30"
+                title="Zoom In (+)"
+                aria-label="Zoom In"
+              >
+                <ZoomIn className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={handleResetZoom}
+                className="rounded px-1.5 py-0.5 text-[11px] font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary"
+                title="Reset Zoom (Fit)"
+                aria-label="Reset Zoom"
+              >
+                <RotateCcw className="h-3 w-3" />
+              </button>
+              <button
+                type="button"
+                onClick={handleFitWidth}
+                className="rounded px-1.5 py-0.5 text-[11px] font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary border-l border-border/60 ml-0.5 pl-1.5"
+                title="Fit to Width"
+                aria-label="Fit to Width"
+              >
+                Fit Width
+              </button>
+              <button
+                type="button"
+                onClick={handleFitPage}
+                className="rounded px-1.5 py-0.5 text-[11px] font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary"
+                title="Fit to Page"
+                aria-label="Fit to Page"
+              >
+                Fit Page
+              </button>
+              <button
+                type="button"
+                onClick={toggleFullscreen}
+                className="rounded p-1 text-xs font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary border-l border-border/60 ml-0.5 pl-1.5"
+                title={isFullscreen ? "Exit Fullscreen (F)" : "Fullscreen (F)"}
+                aria-label="Toggle Fullscreen"
+              >
+                {isFullscreen ? <Minimize2 className="h-3.5 w-3.5 text-accent" /> : <Maximize2 className="h-3.5 w-3.5" />}
+              </button>
+            </div>
           </div>
 
-          {/* Page Controls */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-0.5 rounded-lg border border-border bg-surface px-1.5 py-1 shadow-sm">
+          {/* Mobile Toolbar (< sm) — compact, ergonomic, touch-friendly */}
+          <div className="flex sm:hidden flex-col gap-1.5 px-2.5 pt-1.5 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]">
+            {/* Mobile Row 1: Primary Navigation with large touch targets */}
+            <div className="flex items-center justify-between gap-1 w-full">
               <button
+                type="button"
                 onClick={() => goTo(1)}
                 disabled={atStart}
-                className="rounded px-1.5 py-1 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
+                className="min-h-[44px] px-2 text-xs font-bold text-text-secondary hover:text-navy dark:hover:text-white disabled:opacity-30 rounded-lg bg-surface-alt/50 active:bg-surface-alt shrink-0"
                 aria-label="First page"
               >
                 First
               </button>
               <button
+                type="button"
                 onClick={flipPrev}
                 disabled={atStart}
-                className="rounded px-1.5 py-1 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
+                className="min-h-[44px] flex-1 flex items-center justify-center gap-1 rounded-lg bg-surface-alt hover:bg-surface-alt/80 border border-border text-xs font-bold text-navy dark:text-white disabled:opacity-30 active:scale-[0.98] transition-all"
                 aria-label="Previous page"
               >
-                ‹ Prev
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                <span>Prev</span>
               </button>
-              <span className="min-w-[5.5rem] text-center text-xs font-semibold tabular-nums text-text-primary">
-                {spreadLabel}
-              </span>
               <button
+                type="button"
+                onClick={() => setIsQuickJumpOpen(!isQuickJumpOpen)}
+                className="min-h-[44px] px-3 flex items-center justify-center gap-1 rounded-lg bg-accent/10 border border-accent/20 text-xs font-extrabold tabular-nums text-accent active:scale-[0.98] transition-all shrink-0"
+                aria-label="Open page jump menu"
+              >
+                <span>{spreadLabel}</span>
+                <SlidersHorizontal className="h-3 w-3 opacity-70" />
+              </button>
+              <button
+                type="button"
                 onClick={flipNext}
                 disabled={atEnd}
-                className="rounded px-1.5 py-1 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
+                className="min-h-[44px] flex-1 flex items-center justify-center gap-1 rounded-lg bg-surface-alt hover:bg-surface-alt/80 border border-border text-xs font-bold text-navy dark:text-white disabled:opacity-30 active:scale-[0.98] transition-all"
                 aria-label="Next page"
               >
-                Next ›
+                <span>Next</span>
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
               </button>
               <button
+                type="button"
                 onClick={() => numPages && goTo(numPages)}
                 disabled={atEnd}
-                className="rounded px-1.5 py-1 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
+                className="min-h-[44px] px-2 text-xs font-bold text-text-secondary hover:text-navy dark:hover:text-white disabled:opacity-30 rounded-lg bg-surface-alt/50 active:bg-surface-alt shrink-0"
                 aria-label="Last page"
               >
                 Last
               </button>
             </div>
-            <form
-              className="hidden sm:flex items-center gap-1"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const input = e.currentTarget.elements.namedItem("page") as HTMLInputElement;
-                if (input?.value) goTo(parseInt(input.value, 10));
-              }}
-            >
-              <input
-                name="page"
-                type="number"
-                min={1}
-                max={numPages}
-                placeholder="Page"
-                className="w-16 rounded-lg border border-border bg-surface px-2 py-1 text-xs tabular-nums text-text-primary"
-                aria-label="Go to page"
-              />
-              <button
-                type="submit"
-                className="rounded-lg border border-border bg-surface px-2 py-1 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary"
-              >
-                Go
-              </button>
-            </form>
-          </div>
 
-          {/* Zoom Controls */}
-          <div className="flex items-center gap-1 rounded-lg border border-border bg-surface px-1.5 py-1 shadow-sm">
-            <button
-              type="button"
-              onClick={handleZoomOut}
-              disabled={zoom <= 0.5}
-              className="rounded p-1 text-xs font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary disabled:opacity-30"
-              title="Zoom Out (-)"
-              aria-label="Zoom Out"
-            >
-              <ZoomOut className="h-3.5 w-3.5" />
-            </button>
-            <span className="min-w-[3rem] text-center text-xs font-semibold tabular-nums text-text-primary">
-              {Math.round(zoom * 100)}%
-            </span>
-            <button
-              type="button"
-              onClick={handleZoomIn}
-              disabled={zoom >= 2.5}
-              className="rounded p-1 text-xs font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary disabled:opacity-30"
-              title="Zoom In (+)"
-              aria-label="Zoom In"
-            >
-              <ZoomIn className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={handleResetZoom}
-              className="rounded px-1.5 py-0.5 text-[11px] font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary"
-              title="Reset Zoom (Fit)"
-              aria-label="Reset Zoom"
-            >
-              <RotateCcw className="h-3 w-3" />
-            </button>
+            {/* Mobile Row 2: Mode Toggle, Zoom & Fullscreen */}
+            <div className="flex items-center justify-between gap-1 w-full pt-0.5">
+              {/* Compact Mode Switcher */}
+              <div className="flex items-center gap-0.5 rounded-lg border border-border bg-surface-alt/50 p-0.5 shadow-xs shrink-0" role="tablist" aria-label="PDF viewing mode">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === "book"}
+                  onClick={() => setMode("book")}
+                  className={`min-h-[38px] inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-bold transition-all ${
+                    mode === "book"
+                      ? "bg-accent text-white shadow-xs"
+                      : "text-text-secondary hover:text-navy dark:hover:text-white"
+                  }`}
+                >
+                  <BookOpen className="h-3 w-3" aria-hidden="true" />
+                  <span>Book</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === "single"}
+                  onClick={() => setMode("single")}
+                  className={`min-h-[38px] inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-bold transition-all ${
+                    mode === "single"
+                      ? "bg-accent text-white shadow-xs"
+                      : "text-text-secondary hover:text-navy dark:hover:text-white"
+                  }`}
+                >
+                  <FileText className="h-3 w-3" aria-hidden="true" />
+                  <span>Single</span>
+                </button>
+              </div>
+
+              {/* Mobile Zoom & Fullscreen Controls */}
+              <div className="flex items-center gap-0.5 rounded-lg border border-border bg-surface px-1 py-0.5 shadow-sm">
+                <button
+                  type="button"
+                  onClick={handleZoomOut}
+                  disabled={zoom <= 0.5}
+                  className="min-h-[38px] min-w-[32px] flex items-center justify-center rounded p-1 text-xs font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary disabled:opacity-30"
+                  aria-label="Zoom Out"
+                >
+                  <ZoomOut className="h-3.5 w-3.5" />
+                </button>
+                <span className="min-w-[2.5rem] text-center text-[11px] font-bold tabular-nums text-text-primary">
+                  {Math.round(zoom * 100)}%
+                </span>
+                <button
+                  type="button"
+                  onClick={handleZoomIn}
+                  disabled={zoom >= 2.5}
+                  className="min-h-[38px] min-w-[32px] flex items-center justify-center rounded p-1 text-xs font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary disabled:opacity-30"
+                  aria-label="Zoom In"
+                >
+                  <ZoomIn className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleFitWidth}
+                  className="min-h-[38px] px-1.5 text-[10px] font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary border-l border-border/60"
+                  aria-label="Fit to Width"
+                >
+                  Fit
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleFullscreen}
+                  className="min-h-[38px] min-w-[32px] flex items-center justify-center rounded p-1 text-xs font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary border-l border-border/60"
+                  aria-label="Toggle Fullscreen"
+                >
+                  {isFullscreen ? <Minimize2 className="h-3.5 w-3.5 text-accent" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

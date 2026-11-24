@@ -17,6 +17,7 @@ const SecurePdfViewer = dynamic(() => import('@/components/SecurePdfViewer'), {
 });
 
 import StudyOutlineSidebar from '@/components/study/StudyOutlineSidebar';
+import MobileStudyOutlineDrawer from '@/components/study/MobileStudyOutlineDrawer';
 import { Metadata } from 'next';
 import { getDictionary } from '@/lib/i18n';
 import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
@@ -696,7 +697,14 @@ export default async function ReadResourcePage({
             {resource.title}
           </h1>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {hasSyllabus && filteredUnits.length > 0 && (
+            <MobileStudyOutlineDrawer
+              units={filteredUnits}
+              currentResourceId={resource.id}
+              currentUnitId={resource.unitId}
+            />
+          )}
           {(() => {
             const displayAuthor = resource.author ?? resource.createdBy;
             const resourceAuthor = {
