@@ -741,7 +741,7 @@ export default async function ReadResourcePage({
         {/* PDF Viewer Area */}
         <div className="flex-1 relative bg-surface-alt flex flex-col h-full">
           <div className="flex-1 overflow-hidden relative">
-            <SecurePdfViewer url={pdfUrl} watermarkLines={watermarkLines} />
+            <SecurePdfViewer url={pdfUrl} watermarkLines={watermarkLines} initialFullscreen={true} />
           </div>
         </div>
       </div>

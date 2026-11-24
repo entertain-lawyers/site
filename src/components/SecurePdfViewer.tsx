@@ -31,6 +31,7 @@ interface SecurePdfViewerProps {
   watermarkLines: string[];
   initialMode?: PdfViewerMode;
   initialNumPages?: number;
+  initialFullscreen?: boolean;
 }
 
 const TARGET_RENDER_W = 1200;
@@ -134,14 +135,18 @@ export default function SecurePdfViewer({
   watermarkLines,
   initialMode,
   initialNumPages,
+  initialFullscreen = true,
 }: SecurePdfViewerProps) {
   const [mode, setMode] = useState<PdfViewerMode>(initialMode ?? "book");
   const [zoom, setZoom] = useState(1.0);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(initialFullscreen);
   const [isQuickJumpOpen, setIsQuickJumpOpen] = useState(false);
+  const [bookPan, setBookPan] = useState({ x: 0, y: 0 });
+  const [isBookDragging, setIsBookDragging] = useState(false);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
+  const bookContainerRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
 
   // On small mobile screens (< 768px), default to continuous single-page mode for immediate reading comfort
@@ -151,10 +156,14 @@ export default function SecurePdfViewer({
     }
   }, [initialMode]);
 
-  // Track native fullscreen changes
+  // Track native fullscreen changes (syncing exit when user leaves native fullscreen)
   useEffect(() => {
     const onFullscreenChange = () => {
-      setIsFullscreen(Boolean(document.fullscreenElement));
+      if (document.fullscreenElement) {
+        setIsFullscreen(true);
+      } else {
+        setIsFullscreen(false);
+      }
     };
     document.addEventListener("fullscreenchange", onFullscreenChange);
     document.addEventListener("webkitfullscreenchange", onFullscreenChange);
@@ -201,6 +210,8 @@ export default function SecurePdfViewer({
 
     let initialDist = 0;
     let initialZ = 1.0;
+    let pinchRaf: number | null = null;
+    let pendingZoom: number | null = null;
 
     const getDistance = (e: TouchEvent) => {
       if (e.touches.length < 2) return 0;
@@ -224,12 +235,28 @@ export default function SecurePdfViewer({
         if (curDist > 0) {
           const scale = curDist / initialDist;
           const nextZ = Math.min(2.5, Math.max(0.5, +(initialZ * scale).toFixed(2)));
-          setZoom(nextZ);
+          pendingZoom = nextZ;
+          if (!pinchRaf) {
+            pinchRaf = requestAnimationFrame(() => {
+              if (pendingZoom !== null) {
+                setZoom(pendingZoom);
+              }
+              pinchRaf = null;
+            });
+          }
         }
       }
     };
 
     const onTouchEnd = () => {
+      if (pinchRaf) {
+        cancelAnimationFrame(pinchRaf);
+        pinchRaf = null;
+      }
+      if (pendingZoom !== null) {
+        setZoom(pendingZoom);
+        pendingZoom = null;
+      }
       initialDist = 0;
     };
 
@@ -239,6 +266,7 @@ export default function SecurePdfViewer({
     el.addEventListener("touchcancel", onTouchEnd, { passive: true });
 
     return () => {
+      if (pinchRaf) cancelAnimationFrame(pinchRaf);
       el.removeEventListener("touchstart", onTouchStart);
       el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("touchend", onTouchEnd);
@@ -548,11 +576,21 @@ export default function SecurePdfViewer({
 
   const handleZoomIn = () => setZoom((z) => Math.min(2.5, +(z + 0.25).toFixed(2)));
   const handleZoomOut = () => setZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)));
-  const handleResetZoom = () => setZoom(1.0);
+  const handleResetZoom = () => {
+    setZoom(1.0);
+    setBookPan({ x: 0, y: 0 });
+    if (singleScrollContainerRef.current) {
+      singleScrollContainerRef.current.scrollLeft = 0;
+    }
+  };
 
   const handleFitWidth = useCallback(() => {
+    setBookPan({ x: 0, y: 0 });
     if (mode === "single") {
       setZoom(1.0);
+      if (singleScrollContainerRef.current) {
+        singleScrollContainerRef.current.scrollLeft = 0;
+      }
     } else if (geom && box.w > 0) {
       const totalSpreadW = geom.portrait ? geom.pageW : geom.pageW * 2;
       const targetScale = Math.min(2.5, Math.max(0.5, +((box.w - 24) / totalSpreadW).toFixed(2)));
@@ -561,6 +599,7 @@ export default function SecurePdfViewer({
   }, [mode, geom, box.w]);
 
   const handleFitPage = useCallback(() => {
+    setBookPan({ x: 0, y: 0 });
     if (mode === "single" && aspect && box.h > 0) {
       const baseH = singleBaseWidth * aspect;
       const targetScale = Math.min(2.5, Math.max(0.5, +((box.h - 48) / baseH).toFixed(2)));
@@ -570,26 +609,235 @@ export default function SecurePdfViewer({
     }
   }, [mode, aspect, box.h, singleBaseWidth]);
 
+  // Zoom-anchoring: preserves center reading focus point when zooming in or out
+  const prevZoomRef = useRef(zoom);
+  useEffect(() => {
+    const prev = prevZoomRef.current;
+    prevZoomRef.current = zoom;
+    if (mode === "single" && singleScrollContainerRef.current && prev !== zoom && prev > 0) {
+      const container = singleScrollContainerRef.current;
+      const ratio = zoom / prev;
+
+      // Maintain vertical reading focus point
+      const centerY = container.scrollTop + container.clientHeight / 2;
+      container.scrollTop = centerY * ratio - container.clientHeight / 2;
+
+      // Maintain horizontal center focus point
+      if (zoom > 1.02) {
+        const centerX = container.scrollLeft + container.clientWidth / 2;
+        container.scrollLeft = centerX * ratio - container.clientWidth / 2;
+      } else {
+        container.scrollLeft = 0;
+      }
+    } else if (mode === "book" && zoom <= 1.02) {
+      setBookPan({ x: 0, y: 0 });
+    }
+  }, [zoom, mode]);
+
+  // Smooth 1:1 hardware-accelerated 2D pan when zoomed in (Single Page Mode)
+  useEffect(() => {
+    const container = singleScrollContainerRef.current;
+    if (!container || mode !== "single") return;
+
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let startScrollLeft = 0;
+    let startScrollTop = 0;
+    let activePointerId: number | null = null;
+    let lastTime = 0;
+    let lastX = 0;
+    let lastY = 0;
+    let velX = 0;
+    let velY = 0;
+    let rafId: number | null = null;
+
+    const onPointerDown = (e: PointerEvent) => {
+      // Only drag when zoomed in (zoom > 1.02)
+      if (zoom <= 1.02) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'BUTTON' || target.tagName === 'INPUT' || target.tagName === 'A')) return;
+
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+
+      isDragging = true;
+      activePointerId = e.pointerId;
+      startX = e.clientX;
+      startY = e.clientY;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      lastTime = performance.now();
+      velX = 0;
+      velY = 0;
+      startScrollLeft = container.scrollLeft;
+      startScrollTop = container.scrollTop;
+
+      try {
+        container.setPointerCapture(e.pointerId);
+      } catch {
+        // Pointer capture fallback
+      }
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!isDragging || e.pointerId !== activePointerId || zoom <= 1.02) return;
+      e.preventDefault();
+
+      const now = performance.now();
+      const dt = Math.max(1, now - lastTime);
+      velX = (e.clientX - lastX) / dt;
+      velY = (e.clientY - lastY) / dt;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      lastTime = now;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      container.scrollLeft = startScrollLeft - dx;
+      container.scrollTop = startScrollTop - dy;
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      if (e.pointerId === activePointerId) {
+        isDragging = false;
+        activePointerId = null;
+        try {
+          container.releasePointerCapture(e.pointerId);
+        } catch {
+          // Ignore
+        }
+
+        // Apply smooth momentum/inertia on flick
+        const speed = Math.hypot(velX, velY);
+        if (speed > 0.3) {
+          let currentVelX = velX * 16;
+          let currentVelY = velY * 16;
+          const friction = 0.92;
+
+          const step = () => {
+            if (Math.abs(currentVelX) < 0.5 && Math.abs(currentVelY) < 0.5) {
+              rafId = null;
+              return;
+            }
+            container.scrollLeft -= currentVelX;
+            container.scrollTop -= currentVelY;
+            currentVelX *= friction;
+            currentVelY *= friction;
+            rafId = requestAnimationFrame(step);
+          };
+          rafId = requestAnimationFrame(step);
+        }
+      }
+    };
+
+    container.addEventListener('pointerdown', onPointerDown, { passive: true });
+    container.addEventListener('pointermove', onPointerMove, { passive: false });
+    container.addEventListener('pointerup', onPointerUp, { passive: true });
+    container.addEventListener('pointercancel', onPointerUp, { passive: true });
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      container.removeEventListener('pointerdown', onPointerDown);
+      container.removeEventListener('pointermove', onPointerMove);
+      container.removeEventListener('pointerup', onPointerUp);
+      container.removeEventListener('pointercancel', onPointerUp);
+    };
+  }, [mode, zoom]);
+
+  // Pointer drag panning in Book Mode when zoomed in
+  useEffect(() => {
+    const el = bookContainerRef.current;
+    if (!el || mode !== "book" || zoom <= 1.02) return;
+
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let initialPanX = 0;
+    let initialPanY = 0;
+    let activePointerId: number | null = null;
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      isDragging = true;
+      setIsBookDragging(true);
+      activePointerId = e.pointerId;
+      startX = e.clientX;
+      startY = e.clientY;
+      initialPanX = bookPan.x;
+      initialPanY = bookPan.y;
+      try {
+        el.setPointerCapture(e.pointerId);
+      } catch {
+        // Fallback
+      }
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!isDragging || e.pointerId !== activePointerId) return;
+      e.preventDefault();
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      setBookPan({
+        x: initialPanX + dx,
+        y: initialPanY + dy,
+      });
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      if (e.pointerId === activePointerId) {
+        isDragging = false;
+        setIsBookDragging(false);
+        activePointerId = null;
+        try {
+          el.releasePointerCapture(e.pointerId);
+        } catch {
+          // Fallback
+        }
+      }
+    };
+
+    el.addEventListener('pointerdown', onPointerDown, { passive: true });
+    el.addEventListener('pointermove', onPointerMove, { passive: false });
+    el.addEventListener('pointerup', onPointerUp, { passive: true });
+    el.addEventListener('pointercancel', onPointerUp, { passive: true });
+
+    return () => {
+      el.removeEventListener('pointerdown', onPointerDown);
+      el.removeEventListener('pointermove', onPointerMove);
+      el.removeEventListener('pointerup', onPointerUp);
+      el.removeEventListener('pointercancel', onPointerUp);
+    };
+  }, [mode, zoom, bookPan]);
+
   const toggleFullscreen = useCallback(() => {
     if (!rootRef.current) return;
-    if (!document.fullscreenElement) {
+    if (isFullscreen) {
+      setIsFullscreen(false);
+      if (document.fullscreenElement) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const doc = document as any;
+        if (doc.exitFullscreen) {
+          void doc.exitFullscreen().catch(() => {});
+        } else if (doc.webkitExitFullscreen) {
+          void doc.webkitExitFullscreen().catch(() => {});
+        }
+      }
+    } else {
+      setIsFullscreen(true);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const el = rootRef.current as any;
       if (el.requestFullscreen) {
-        void el.requestFullscreen();
+        void el.requestFullscreen().catch(() => {});
       } else if (el.webkitRequestFullscreen) {
-        void el.webkitRequestFullscreen();
-      }
-    } else {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const doc = document as any;
-      if (doc.exitFullscreen) {
-        void doc.exitFullscreen();
-      } else if (doc.webkitExitFullscreen) {
-        void doc.webkitExitFullscreen();
+        void el.webkitRequestFullscreen().catch(() => {});
       }
     }
-  }, []);
+  }, [isFullscreen]);
 
   // Gracefully preserve scroll position across mobile orientation changes
   useEffect(() => {
@@ -630,11 +878,14 @@ export default function SecurePdfViewer({
       } else if (e.key === "f" || e.key === "F") {
         e.preventDefault();
         toggleFullscreen();
+      } else if (e.key === "Escape" && isFullscreen) {
+        e.preventDefault();
+        toggleFullscreen();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [flipNext, flipPrev, toggleFullscreen]);
+  }, [flipNext, flipPrev, toggleFullscreen, isFullscreen]);
 
   // Book pages elements
   const bookPages = useMemo(() => {
@@ -749,6 +1000,22 @@ export default function SecurePdfViewer({
         </div>
       )}
 
+      {/* Floating Exit Fullscreen Button in Fullscreen mode */}
+      {isFullscreen && (
+        <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800/80 hover:bg-slate-700/90 text-white text-xs font-semibold backdrop-blur-sm border border-white/20 shadow-lg transition-all active:scale-[0.98]"
+            aria-label="Exit Fullscreen"
+            title="Exit Fullscreen (Esc)"
+          >
+            <Minimize2 className="w-3.5 h-3.5 text-accent" />
+            <span className="hidden sm:inline">Exit Fullscreen</span>
+          </button>
+        </div>
+      )}
+
       <div className="min-h-0 flex-1 overflow-hidden bg-slate-200 p-1 sm:p-2.5 dark:bg-zinc-900">
         <div ref={measureRef} className="relative h-full w-full flex items-center justify-center overflow-hidden">
           {!ready && !error && (
@@ -763,7 +1030,14 @@ export default function SecurePdfViewer({
           {mode === "single" ? (
             <div
               ref={singleScrollContainerRef}
-              className="h-full w-full overflow-y-auto overflow-x-auto px-2 py-3 sm:px-6 sm:py-6 flex flex-col items-center gap-3 sm:gap-6 bg-slate-200 dark:bg-zinc-900 scroll-smooth"
+              className={`h-full w-full overflow-y-auto overflow-x-auto px-2 py-3 sm:px-6 sm:py-6 flex flex-col gap-3 sm:gap-6 bg-slate-200 dark:bg-zinc-900 ${
+                zoom > 1.02 ? "items-start cursor-grab active:cursor-grabbing" : "items-center"
+              }`}
+              style={{
+                touchAction: zoom > 1.02 ? "none" : "pan-y",
+                overscrollBehavior: "contain",
+                WebkitOverflowScrolling: "touch",
+              }}
               tabIndex={0}
             >
               {Array.from({ length: numPages || 0 }, (_, i) => {
@@ -782,7 +1056,9 @@ export default function SecurePdfViewer({
                       minWidth: pageW,
                       minHeight: pageH,
                     }}
-                    className="relative flex-shrink-0 bg-white shadow-xl rounded-xs sm:rounded-sm border border-slate-300 dark:border-zinc-700 overflow-hidden"
+                    className={`relative flex-shrink-0 bg-white shadow-xl rounded-xs sm:rounded-sm border border-slate-300 dark:border-zinc-700 overflow-hidden ${
+                      zoom <= 1.02 ? "mx-auto" : ""
+                    }`}
                   >
                     <canvas
                       ref={(el) => {
@@ -810,14 +1086,18 @@ export default function SecurePdfViewer({
           ) : (
             geom && bookPages && numPages && (
               <div
+                ref={bookContainerRef}
                 style={{
-                  transform: `scale(${zoom})`,
+                  transform: `scale(${zoom}) translate(${bookPan.x / zoom}px, ${bookPan.y / zoom}px)`,
                   transformOrigin: "center center",
-                  transition: "transform 0.15s ease-out",
+                  transition: isBookDragging ? "none" : "transform 0.15s ease-out",
                   willChange: "transform",
                   backfaceVisibility: "hidden",
+                  touchAction: zoom > 1.02 ? "none" : "auto",
                 }}
-                className="h-full w-full flex items-center justify-center overflow-hidden"
+                className={`h-full w-full flex items-center justify-center overflow-hidden ${
+                  zoom > 1.02 ? "cursor-grab active:cursor-grabbing" : ""
+                }`}
               >
                 <HTMLFlipBook
                   ref={bookRef}
@@ -836,12 +1116,12 @@ export default function SecurePdfViewer({
                   drawShadow={true}
                   maxShadowOpacity={0.2}
                   flippingTime={400}
-                  useMouseEvents={true}
-                  swipeDistance={30}
-                  showPageCorners={true}
+                  useMouseEvents={zoom <= 1.02}
+                  swipeDistance={zoom > 1.02 ? 99999 : 30}
+                  showPageCorners={zoom <= 1.02}
                   mobileScrollSupport={false}
                   clickEventForward={false}
-                  disableFlipByClick={false}
+                  disableFlipByClick={zoom > 1.02}
                   startZIndex={1}
                   autoSize={false}
                   onFlip={onFlip}
