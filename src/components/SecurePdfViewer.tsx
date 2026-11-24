@@ -135,7 +135,7 @@ export default function SecurePdfViewer({
   watermarkLines,
   initialMode,
   initialNumPages,
-  initialFullscreen = true,
+  initialFullscreen = false,
 }: SecurePdfViewerProps) {
   const [mode, setMode] = useState<PdfViewerMode>(initialMode ?? "book");
   const [zoom, setZoom] = useState(1.0);
@@ -209,8 +209,9 @@ export default function SecurePdfViewer({
   }, [zoom]);
 
   const isPinchingRef = useRef(false);
+  const didPinchJustEndRef = useRef(false);
 
-  // Multi-touch pinch-to-zoom gesture support for mobile and tablet touchscreens
+  // Multi-touch pinch-to-zoom gesture and double-tap zoom for mobile/tablet touchscreens
   useEffect(() => {
     const el = measureRef.current;
     if (!el) return;
@@ -224,6 +225,7 @@ export default function SecurePdfViewer({
     let initialScrollLeft = 0;
     let initialScrollTop = 0;
     let initialBoxRect: DOMRect | null = null;
+    let lastTapTime = 0;
 
     const getDistance = (e: TouchEvent) => {
       if (e.touches.length < 2) return 0;
@@ -234,30 +236,71 @@ export default function SecurePdfViewer({
     };
 
     const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
-        isPinchingRef.current = true;
-        initialDist = getDistance(e);
-        initialZ = zoomRef.current;
-        midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-        midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      // Double tap on single page mode toggles zoom between 1.0x (Fit Width) and 1.5x
+      if (e.touches.length === 1) {
+        const now = performance.now();
+        if (now - lastTapTime < 280) {
+          lastTapTime = 0;
+          if (zoomRef.current > 1.05) {
+            handleResetZoom();
+          } else {
+            setZoom(1.5);
+          }
+          return;
+        }
+        lastTapTime = now;
+      }
 
-        const container = singleScrollContainerRef.current;
-        if (container) {
-          initialScrollLeft = container.scrollLeft;
-          initialScrollTop = container.scrollTop;
-          initialBoxRect = container.getBoundingClientRect();
+      if (e.touches.length === 2) {
+        const d = getDistance(e);
+        if (d >= 20) {
+          isPinchingRef.current = true;
+          initialDist = d;
+          initialZ = zoomRef.current;
+          midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+          midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+
+          const container = singleScrollContainerRef.current;
+          if (container) {
+            initialScrollLeft = container.scrollLeft;
+            initialScrollTop = container.scrollTop;
+            initialBoxRect = container.getBoundingClientRect();
+          }
         }
       }
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 2 && initialDist > 0) {
+      if (e.touches.length === 2) {
+        // Prevent browser native viewport zoom from conflicting with PDF zoom
         if (e.cancelable) e.preventDefault();
+
         const curDist = getDistance(e);
-        if (curDist > 0) {
-          const scale = curDist / initialDist;
-          const nextZ = Math.min(2.5, Math.max(0.5, +(initialZ * scale).toFixed(2)));
+        // Guard against zero/near-zero distance causing extreme zoom multipliers
+        if (initialDist <= 20) {
+          if (curDist >= 20) {
+            initialDist = curDist;
+            initialZ = zoomRef.current;
+            midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+            midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+            const container = singleScrollContainerRef.current;
+            if (container) {
+              initialScrollLeft = container.scrollLeft;
+              initialScrollTop = container.scrollTop;
+              initialBoxRect = container.getBoundingClientRect();
+            }
+          }
+          return;
+        }
+
+        if (curDist > 20 && initialDist > 20) {
+          const rawScale = curDist / initialDist;
+          const nextZ = Math.min(2.5, Math.max(0.5, +(initialZ * rawScale).toFixed(2)));
           pendingZoom = nextZ;
+
+          const curMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+          const curMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+
           if (!pinchRaf) {
             pinchRaf = requestAnimationFrame(() => {
               if (pendingZoom !== null && pendingZoom !== zoomRef.current) {
@@ -265,14 +308,16 @@ export default function SecurePdfViewer({
                 zoomRef.current = pendingZoom;
                 setZoom(pendingZoom);
 
-                // Focal-point zoom adjustment around the fingers
+                // Natural focal-point zoom adjustment around the fingers + pan tracking
                 const c = singleScrollContainerRef.current;
                 if (c && prevZ > 0 && initialBoxRect && mode === "single") {
                   const focalX = midX - initialBoxRect.left;
                   const focalY = midY - initialBoxRect.top;
+                  const panDx = curMidX - midX;
+                  const panDy = curMidY - midY;
                   const ratio = pendingZoom / initialZ;
-                  c.scrollLeft = (initialScrollLeft + focalX) * ratio - focalX;
-                  c.scrollTop = (initialScrollTop + focalY) * ratio - focalY;
+                  c.scrollLeft = (initialScrollLeft + focalX) * ratio - (focalX + panDx);
+                  c.scrollTop = (initialScrollTop + focalY) * ratio - (focalY + panDy);
                 }
               }
               pinchRaf = null;
@@ -294,9 +339,11 @@ export default function SecurePdfViewer({
           pendingZoom = null;
         }
         initialDist = 0;
+        didPinchJustEndRef.current = true;
         setTimeout(() => {
           isPinchingRef.current = false;
-        }, 80);
+          didPinchJustEndRef.current = false;
+        }, 120);
       }
     };
 
@@ -313,6 +360,27 @@ export default function SecurePdfViewer({
       el.removeEventListener("touchcancel", onTouchEnd);
     };
   }, [mode]);
+
+  // Desktop trackpad pinch and Ctrl+mousewheel zooming support
+  useEffect(() => {
+    const el = measureRef.current;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        const factor = Math.exp(-e.deltaY * 0.008);
+        setZoom((z) => {
+          const next = Math.min(2.5, Math.max(0.5, +(z * factor).toFixed(2)));
+          zoomRef.current = next;
+          return next;
+        });
+      }
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
 
   // Painting queue
   const pendingBookRef = useRef<Set<number>>(new Set());
@@ -654,21 +722,25 @@ export default function SecurePdfViewer({
   useEffect(() => {
     const prev = prevZoomRef.current;
     prevZoomRef.current = zoom;
-    // Never interfere with active pinch-to-zoom gestures
-    if (isPinchingRef.current) return;
+    // Never interfere with active or just-completed pinch-to-zoom gestures
+    if (isPinchingRef.current || didPinchJustEndRef.current) return;
 
     if (mode === "single" && singleScrollContainerRef.current && prev !== zoom && prev > 0) {
       const container = singleScrollContainerRef.current;
       const ratio = zoom / prev;
 
-      // Maintain vertical reading focus point
-      const centerY = container.scrollTop + container.clientHeight / 2;
-      container.scrollTop = centerY * ratio - container.clientHeight / 2;
+      // Maintain vertical reading focus point, but preserve top anchor if near page start
+      if (container.scrollTop < 10) {
+        container.scrollTop = 0;
+      } else {
+        const centerY = container.scrollTop + container.clientHeight / 2;
+        container.scrollTop = Math.max(0, centerY * ratio - container.clientHeight / 2);
+      }
 
       // Maintain horizontal center focus point
       if (zoom > 1.02) {
         const centerX = container.scrollLeft + container.clientWidth / 2;
-        container.scrollLeft = centerX * ratio - container.clientWidth / 2;
+        container.scrollLeft = Math.max(0, centerX * ratio - container.clientWidth / 2);
       } else {
         container.scrollLeft = 0;
       }
@@ -904,6 +976,21 @@ export default function SecurePdfViewer({
     return () => window.removeEventListener("orientationchange", handleOrientationChange);
   }, [mode]);
 
+  // Seamlessly maintain active page view when transitioning between fullscreen and embedded mode
+  useEffect(() => {
+    if (mode === "single") {
+      const el = singlePageRowRefs.current[pageRef.current];
+      if (el) {
+        isScrollingRef.current = true;
+        el.scrollIntoView({ behavior: "auto", block: "start" });
+        const timer = setTimeout(() => {
+          isScrollingRef.current = false;
+        }, 150);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [isFullscreen, mode]);
+
   // Keyboard navigation
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -1039,7 +1126,9 @@ export default function SecurePdfViewer({
     <div
       ref={rootRef}
       className={`flex h-full flex-col select-none ${
-        isFullscreen ? "fixed inset-0 z-[100] bg-slate-900 w-screen h-screen" : ""
+        isFullscreen
+          ? "fixed inset-0 z-[100] bg-slate-900 w-full h-[100dvh] max-h-[100dvh] overflow-hidden"
+          : "relative w-full h-full min-h-0"
       }`}
       onContextMenu={(e) => e.preventDefault()}
     >
@@ -1051,11 +1140,11 @@ export default function SecurePdfViewer({
 
       {/* Floating Exit Fullscreen Button in Fullscreen mode */}
       {isFullscreen && (
-        <div className="absolute top-3 right-3 z-30 flex items-center gap-2">
+        <div className="absolute top-[calc(0.75rem+env(safe-area-inset-top,0px))] right-[calc(0.75rem+env(safe-area-inset-right,0px))] z-30 flex items-center gap-2">
           <button
             type="button"
             onClick={toggleFullscreen}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800/80 hover:bg-slate-700/90 text-white text-xs font-semibold backdrop-blur-sm border border-white/20 shadow-lg transition-all active:scale-[0.98]"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[38px] rounded-full bg-slate-800/80 hover:bg-slate-700/90 text-white text-xs font-semibold backdrop-blur-sm border border-white/20 shadow-lg transition-all active:scale-[0.98]"
             aria-label="Exit Fullscreen"
             title="Exit Fullscreen (Esc)"
           >
@@ -1083,7 +1172,7 @@ export default function SecurePdfViewer({
                 zoom > 1.02 ? "items-start cursor-grab active:cursor-grabbing" : "items-center"
               }`}
               style={{
-                touchAction: "pan-x pan-y pinch-zoom",
+                touchAction: "pan-x pan-y",
                 overscrollBehavior: "contain",
                 WebkitOverflowScrolling: "touch",
               }}
@@ -1184,7 +1273,7 @@ export default function SecurePdfViewer({
       </div>
 
       {numPages != null && !error && (
-        <div className="relative bg-surface border-t border-border z-20">
+        <div className="relative bg-surface border-t border-border z-20 shrink-0 shadow-lg">
           {/* Quick Page Scrubber Popover */}
           {isQuickJumpOpen && (
             <div className="border-b border-border bg-surface-alt/95 p-3 shadow-md animate-in slide-in-from-bottom-2 duration-150">
@@ -1389,9 +1478,15 @@ export default function SecurePdfViewer({
               >
                 <ZoomOut className="h-3.5 w-3.5" />
               </button>
-              <span className="min-w-[3rem] text-center text-xs font-semibold tabular-nums text-text-primary">
+              <button
+                type="button"
+                onClick={handleResetZoom}
+                className="min-w-[3rem] text-center text-xs font-semibold tabular-nums text-text-primary hover:text-accent transition-colors"
+                title="Reset zoom to 100%"
+                aria-label="Reset zoom to 100%"
+              >
                 {Math.round(zoom * 100)}%
-              </span>
+              </button>
               <button
                 type="button"
                 onClick={handleZoomIn}
@@ -1539,9 +1634,15 @@ export default function SecurePdfViewer({
                 >
                   <ZoomOut className="h-3.5 w-3.5" />
                 </button>
-                <span className="min-w-[2.5rem] text-center text-[11px] font-bold tabular-nums text-text-primary">
+                <button
+                  type="button"
+                  onClick={handleResetZoom}
+                  className="min-w-[2.5rem] px-1 text-center text-[11px] font-bold tabular-nums text-text-primary hover:text-accent transition-colors"
+                  title="Reset zoom to 100%"
+                  aria-label="Reset zoom to 100%"
+                >
                   {Math.round(zoom * 100)}%
-                </span>
+                </button>
                 <button
                   type="button"
                   onClick={handleZoomIn}

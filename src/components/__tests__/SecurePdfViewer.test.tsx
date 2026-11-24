@@ -73,7 +73,7 @@ describe('SecurePdfViewer Component Regression Suite', () => {
     // Must have vertical scrollable container with hardware-accelerated touch containment
     expect(html).toContain('overflow-y-auto');
     expect(html).toContain('overscroll-behavior:contain');
-    expect(html).toContain('touch-action:pan-x pan-y pinch-zoom');
+    expect(html).toContain('touch-action:pan-x pan-y');
 
     // Must render all individual page rows
     expect(html).toContain('data-page-index="0"');
@@ -136,6 +136,7 @@ describe('SecurePdfViewer Component Regression Suite', () => {
     expect(html).toContain('Fit Width');
     expect(html).toContain('Fit Page');
     expect(html).toContain('aria-label="Toggle Fullscreen"');
+    expect(html).toContain('aria-label="Reset zoom to 100%"');
   });
 
   it('renders mobile-optimized responsive navigation and page jump trigger', () => {
@@ -153,41 +154,41 @@ describe('SecurePdfViewer Component Regression Suite', () => {
     expect(html).toContain('1 / 10');
   });
 
-  it('opens in fullscreen mode by default with floating exit control', () => {
+  it('opens in normal embedded mode by default without fullscreen overlay', () => {
+    const html = renderToStaticMarkup(
+      <SecurePdfViewer
+        url="/api/documents/doc-1/pdf"
+        watermarkLines={['Default Embedded Student']}
+        initialMode="single"
+        initialNumPages={5}
+      />
+    );
+
+    // Should NOT have fixed fullscreen overlay by default
+    expect(html).not.toContain('fixed inset-0 z-[100]');
+    // Should NOT render floating Exit Fullscreen button
+    expect(html).not.toContain('aria-label="Exit Fullscreen"');
+    // Regular fullscreen toggle should be available in toolbar
+    expect(html).toContain('aria-label="Toggle Fullscreen"');
+  });
+
+  it('opens in fullscreen mode when initialFullscreen is explicitly true', () => {
     const html = renderToStaticMarkup(
       <SecurePdfViewer
         url="/api/documents/doc-1/pdf"
         watermarkLines={['Fullscreen Student']}
         initialMode="single"
         initialNumPages={5}
+        initialFullscreen={true}
       />
     );
 
-    // Fullscreen layout classes applied by default
+    // Fullscreen layout classes applied with 100dvh
     expect(html).toContain('fixed inset-0 z-[100]');
-    expect(html).toContain('w-screen h-screen');
+    expect(html).toContain('h-[100dvh]');
     // Floating Exit Fullscreen pill button
     expect(html).toContain('aria-label="Exit Fullscreen"');
     expect(html).toContain('Exit Fullscreen');
-  });
-
-  it('renders embedded layout without fullscreen overlay when initialFullscreen is false', () => {
-    const html = renderToStaticMarkup(
-      <SecurePdfViewer
-        url="/api/documents/doc-1/pdf"
-        watermarkLines={['Embedded Student']}
-        initialMode="single"
-        initialNumPages={5}
-        initialFullscreen={false}
-      />
-    );
-
-    // Should NOT have fixed fullscreen overlay
-    expect(html).not.toContain('fixed inset-0 z-[100]');
-    // Should NOT render floating Exit Fullscreen button
-    expect(html).not.toContain('aria-label="Exit Fullscreen"');
-    // Regular fullscreen toggle should still be available in header toolbar
-    expect(html).toContain('aria-label="Toggle Fullscreen"');
   });
 });
 
