@@ -73,7 +73,7 @@ describe('SecurePdfViewer Component Regression Suite', () => {
     // Must have vertical scrollable container with hardware-accelerated touch containment
     expect(html).toContain('overflow-y-auto');
     expect(html).toContain('overscroll-behavior:contain');
-    expect(html).toContain('touch-action:pan-y');
+    expect(html).toContain('touch-action:pan-x pan-y pinch-zoom');
 
     // Must render all individual page rows
     expect(html).toContain('data-page-index="0"');

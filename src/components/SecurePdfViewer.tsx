@@ -203,6 +203,13 @@ export default function SecurePdfViewer({
     watermarkRef.current = watermarkLines;
   }, [watermarkLines]);
 
+  const zoomRef = useRef(zoom);
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+
+  const isPinchingRef = useRef(false);
+
   // Multi-touch pinch-to-zoom gesture support for mobile and tablet touchscreens
   useEffect(() => {
     const el = measureRef.current;
@@ -212,6 +219,11 @@ export default function SecurePdfViewer({
     let initialZ = 1.0;
     let pinchRaf: number | null = null;
     let pendingZoom: number | null = null;
+    let midX = 0;
+    let midY = 0;
+    let initialScrollLeft = 0;
+    let initialScrollTop = 0;
+    let initialBoxRect: DOMRect | null = null;
 
     const getDistance = (e: TouchEvent) => {
       if (e.touches.length < 2) return 0;
@@ -223,8 +235,18 @@ export default function SecurePdfViewer({
 
     const onTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
+        isPinchingRef.current = true;
         initialDist = getDistance(e);
-        initialZ = zoom;
+        initialZ = zoomRef.current;
+        midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+        midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+
+        const container = singleScrollContainerRef.current;
+        if (container) {
+          initialScrollLeft = container.scrollLeft;
+          initialScrollTop = container.scrollTop;
+          initialBoxRect = container.getBoundingClientRect();
+        }
       }
     };
 
@@ -238,8 +260,20 @@ export default function SecurePdfViewer({
           pendingZoom = nextZ;
           if (!pinchRaf) {
             pinchRaf = requestAnimationFrame(() => {
-              if (pendingZoom !== null) {
+              if (pendingZoom !== null && pendingZoom !== zoomRef.current) {
+                const prevZ = zoomRef.current;
+                zoomRef.current = pendingZoom;
                 setZoom(pendingZoom);
+
+                // Focal-point zoom adjustment around the fingers
+                const c = singleScrollContainerRef.current;
+                if (c && prevZ > 0 && initialBoxRect && mode === "single") {
+                  const focalX = midX - initialBoxRect.left;
+                  const focalY = midY - initialBoxRect.top;
+                  const ratio = pendingZoom / initialZ;
+                  c.scrollLeft = (initialScrollLeft + focalX) * ratio - focalX;
+                  c.scrollTop = (initialScrollTop + focalY) * ratio - focalY;
+                }
               }
               pinchRaf = null;
             });
@@ -248,16 +282,22 @@ export default function SecurePdfViewer({
       }
     };
 
-    const onTouchEnd = () => {
-      if (pinchRaf) {
-        cancelAnimationFrame(pinchRaf);
-        pinchRaf = null;
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length < 2) {
+        if (pinchRaf) {
+          cancelAnimationFrame(pinchRaf);
+          pinchRaf = null;
+        }
+        if (pendingZoom !== null) {
+          zoomRef.current = pendingZoom;
+          setZoom(pendingZoom);
+          pendingZoom = null;
+        }
+        initialDist = 0;
+        setTimeout(() => {
+          isPinchingRef.current = false;
+        }, 80);
       }
-      if (pendingZoom !== null) {
-        setZoom(pendingZoom);
-        pendingZoom = null;
-      }
-      initialDist = 0;
     };
 
     el.addEventListener("touchstart", onTouchStart, { passive: true });
@@ -272,7 +312,7 @@ export default function SecurePdfViewer({
       el.removeEventListener("touchend", onTouchEnd);
       el.removeEventListener("touchcancel", onTouchEnd);
     };
-  }, [zoom]);
+  }, [mode]);
 
   // Painting queue
   const pendingBookRef = useRef<Set<number>>(new Set());
@@ -609,11 +649,14 @@ export default function SecurePdfViewer({
     }
   }, [mode, aspect, box.h, singleBaseWidth]);
 
-  // Zoom-anchoring: preserves center reading focus point when zooming in or out
+  // Zoom-anchoring: preserves center reading focus point when zooming in or out via toolbar controls
   const prevZoomRef = useRef(zoom);
   useEffect(() => {
     const prev = prevZoomRef.current;
     prevZoomRef.current = zoom;
+    // Never interfere with active pinch-to-zoom gestures
+    if (isPinchingRef.current) return;
+
     if (mode === "single" && singleScrollContainerRef.current && prev !== zoom && prev > 0) {
       const container = singleScrollContainerRef.current;
       const ratio = zoom / prev;
@@ -634,7 +677,7 @@ export default function SecurePdfViewer({
     }
   }, [zoom, mode]);
 
-  // Smooth 1:1 hardware-accelerated 2D pan when zoomed in (Single Page Mode)
+  // Desktop mouse drag panning in Single Page Mode when zoomed in (touchscreens use native GPU scrolling)
   useEffect(() => {
     const container = singleScrollContainerRef.current;
     if (!container || mode !== "single") return;
@@ -653,9 +696,10 @@ export default function SecurePdfViewer({
     let rafId: number | null = null;
 
     const onPointerDown = (e: PointerEvent) => {
-      // Only drag when zoomed in (zoom > 1.02)
-      if (zoom <= 1.02) return;
-      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      // ONLY intercept mouse on desktop! Touch screens use native hardware-accelerated scrolling.
+      if (e.pointerType !== 'mouse') return;
+      if (zoomRef.current <= 1.02) return;
+      if (e.button !== 0) return;
       const target = e.target as HTMLElement | null;
       if (target && (target.tagName === 'BUTTON' || target.tagName === 'INPUT' || target.tagName === 'A')) return;
 
@@ -684,7 +728,7 @@ export default function SecurePdfViewer({
     };
 
     const onPointerMove = (e: PointerEvent) => {
-      if (!isDragging || e.pointerId !== activePointerId || zoom <= 1.02) return;
+      if (!isDragging || e.pointerId !== activePointerId || zoomRef.current <= 1.02) return;
       e.preventDefault();
 
       const now = performance.now();
@@ -747,7 +791,12 @@ export default function SecurePdfViewer({
       container.removeEventListener('pointerup', onPointerUp);
       container.removeEventListener('pointercancel', onPointerUp);
     };
-  }, [mode, zoom]);
+  }, [mode]);
+
+  const bookPanRef = useRef(bookPan);
+  useEffect(() => {
+    bookPanRef.current = bookPan;
+  }, [bookPan]);
 
   // Pointer drag panning in Book Mode when zoomed in
   useEffect(() => {
@@ -768,8 +817,8 @@ export default function SecurePdfViewer({
       activePointerId = e.pointerId;
       startX = e.clientX;
       startY = e.clientY;
-      initialPanX = bookPan.x;
-      initialPanY = bookPan.y;
+      initialPanX = bookPanRef.current.x;
+      initialPanY = bookPanRef.current.y;
       try {
         el.setPointerCapture(e.pointerId);
       } catch {
@@ -812,7 +861,7 @@ export default function SecurePdfViewer({
       el.removeEventListener('pointerup', onPointerUp);
       el.removeEventListener('pointercancel', onPointerUp);
     };
-  }, [mode, zoom, bookPan]);
+  }, [mode, zoom]);
 
   const toggleFullscreen = useCallback(() => {
     if (!rootRef.current) return;
@@ -1034,7 +1083,7 @@ export default function SecurePdfViewer({
                 zoom > 1.02 ? "items-start cursor-grab active:cursor-grabbing" : "items-center"
               }`}
               style={{
-                touchAction: zoom > 1.02 ? "none" : "pan-y",
+                touchAction: "pan-x pan-y pinch-zoom",
                 overscrollBehavior: "contain",
                 WebkitOverflowScrolling: "touch",
               }}
