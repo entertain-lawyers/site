@@ -612,7 +612,7 @@ export default async function ReadResourcePage({
         <div className="flex items-center text-sm">
           <Link
             href={studyBackUrl}
-            className="text-text-muted hover:text-accent mr-3 transition-colors flex items-center justify-center bg-surface-alt hover:bg-surface-alt/80 rounded-full w-8 h-8 min-h-[36px] min-w-[36px]"
+            className="text-text-muted hover:text-accent mr-3 transition-colors flex items-center justify-center bg-surface-alt hover:bg-surface-alt/80 rounded-full w-9 h-9 min-h-[40px] min-w-[40px]"
             aria-label={studyBackLabel}
             title={studyBackLabel}
           >
@@ -718,7 +718,7 @@ export default async function ReadResourcePage({
             return (
               <div className="flex items-center gap-2">
                 <span className="hidden sm:inline text-xs font-bold text-text-muted uppercase tracking-wider">{dict.author}:</span>
-                <AuthorBioTrigger author={resourceAuthor} size="xs" showName />
+                <AuthorBioTrigger author={resourceAuthor} size="xs" showName className="min-h-[38px] px-1" />
               </div>
             );
           })()}

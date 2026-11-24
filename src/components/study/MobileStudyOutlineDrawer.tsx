@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { BookOpen, X, ChevronRight, ChevronDown, Scale, FileQuestion, FileText, Library } from 'lucide-react';
 
@@ -42,9 +43,14 @@ export default function MobileStudyOutlineDrawer({
   currentUnitId,
 }: MobileStudyOutlineDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [expandedUnits, setExpandedUnits] = useState<Set<string>>(
     new Set(currentUnitId ? [currentUnitId] : units[0] ? [units[0].id] : [])
   );
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Close drawer on Escape key
   useEffect(() => {
@@ -86,7 +92,7 @@ export default function MobileStudyOutlineDrawer({
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="lg:hidden inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold text-accent bg-accent/10 hover:bg-accent/20 border border-accent/20 transition-all min-h-[36px]"
+        className="lg:hidden inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-accent bg-accent/10 hover:bg-accent/20 border border-accent/20 transition-all min-h-[40px]"
         aria-label="Open syllabus outline navigator"
         title="Syllabus Outline Navigator"
       >
@@ -95,8 +101,8 @@ export default function MobileStudyOutlineDrawer({
       </button>
 
       {/* Off-canvas Drawer Overlay and Panel */}
-      {isOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden flex">
+      {isOpen && mounted && createPortal(
+        <div className="fixed inset-0 z-[100] lg:hidden flex">
           {/* Backdrop */}
           <div
             className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity"
@@ -197,7 +203,8 @@ export default function MobileStudyOutlineDrawer({
               })}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

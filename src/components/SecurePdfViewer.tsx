@@ -132,10 +132,10 @@ BookPage.displayName = "BookPage";
 export default function SecurePdfViewer({
   url,
   watermarkLines,
-  initialMode = "book",
+  initialMode,
   initialNumPages,
 }: SecurePdfViewerProps) {
-  const [mode, setMode] = useState<PdfViewerMode>(initialMode);
+  const [mode, setMode] = useState<PdfViewerMode>(initialMode ?? "book");
   const [zoom, setZoom] = useState(1.0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isQuickJumpOpen, setIsQuickJumpOpen] = useState(false);
@@ -1174,7 +1174,7 @@ export default function SecurePdfViewer({
                   role="tab"
                   aria-selected={mode === "book"}
                   onClick={() => setMode("book")}
-                  className={`min-h-[38px] inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-bold transition-all ${
+                  className={`min-h-[40px] inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-bold transition-all ${
                     mode === "book"
                       ? "bg-accent text-white shadow-xs"
                       : "text-text-secondary hover:text-navy dark:hover:text-white"
@@ -1188,7 +1188,7 @@ export default function SecurePdfViewer({
                   role="tab"
                   aria-selected={mode === "single"}
                   onClick={() => setMode("single")}
-                  className={`min-h-[38px] inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-bold transition-all ${
+                  className={`min-h-[40px] inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-bold transition-all ${
                     mode === "single"
                       ? "bg-accent text-white shadow-xs"
                       : "text-text-secondary hover:text-navy dark:hover:text-white"
@@ -1205,7 +1205,7 @@ export default function SecurePdfViewer({
                   type="button"
                   onClick={handleZoomOut}
                   disabled={zoom <= 0.5}
-                  className="min-h-[38px] min-w-[32px] flex items-center justify-center rounded p-1 text-xs font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary disabled:opacity-30"
+                  className="min-h-[40px] min-w-[38px] flex items-center justify-center rounded p-1 text-xs font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary disabled:opacity-30"
                   aria-label="Zoom Out"
                 >
                   <ZoomOut className="h-3.5 w-3.5" />
@@ -1217,7 +1217,7 @@ export default function SecurePdfViewer({
                   type="button"
                   onClick={handleZoomIn}
                   disabled={zoom >= 2.5}
-                  className="min-h-[38px] min-w-[32px] flex items-center justify-center rounded p-1 text-xs font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary disabled:opacity-30"
+                  className="min-h-[40px] min-w-[38px] flex items-center justify-center rounded p-1 text-xs font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary disabled:opacity-30"
                   aria-label="Zoom In"
                 >
                   <ZoomIn className="h-3.5 w-3.5" />
@@ -1225,7 +1225,7 @@ export default function SecurePdfViewer({
                 <button
                   type="button"
                   onClick={handleFitWidth}
-                  className="min-h-[38px] px-1.5 text-[10px] font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary border-l border-border/60"
+                  className="min-h-[40px] min-w-[38px] px-2 text-[11px] font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary border-l border-border/60"
                   aria-label="Fit to Width"
                 >
                   Fit
@@ -1233,7 +1233,7 @@ export default function SecurePdfViewer({
                 <button
                   type="button"
                   onClick={toggleFullscreen}
-                  className="min-h-[38px] min-w-[32px] flex items-center justify-center rounded p-1 text-xs font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary border-l border-border/60"
+                  className="min-h-[40px] min-w-[38px] flex items-center justify-center rounded p-1 text-xs font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary border-l border-border/60"
                   aria-label="Toggle Fullscreen"
                 >
                   {isFullscreen ? <Minimize2 className="h-3.5 w-3.5 text-accent" /> : <Maximize2 className="h-3.5 w-3.5" />}
