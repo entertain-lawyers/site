@@ -465,5 +465,50 @@ describe('Reader and Resource navigation & breadcrumbs', () => {
     expect(hrefs).toContain('/study?type=CASE_LAW&caseLaw=criminal');
     expect(hrefs.some((h) => h.includes('unit-prescribed'))).toBe(false);
   });
+
+  it('opens PDF resources directly in fullscreen mode (initialFullscreen=true)', async () => {
+    (prisma.resource.findUnique as any).mockResolvedValue({
+      id: 'pdf-res-1',
+      title: 'Constitutional Law Notes PDF',
+      status: 'PUBLISHED',
+      type: 'LAW_NOTE',
+      semesterId: 'sem-1st',
+      semester: { id: 'sem-1st', name: '1st Semester', order: 1 },
+      subjectId: 'sub-1',
+      subject: { id: 'sub-1', name: 'Constitutional Law', units: [] },
+      unitId: null,
+      unit: null,
+      documentId: 'doc-123',
+      document: { id: 'doc-123', mimeType: 'application/pdf' },
+      content: null,
+      featuredImage: null,
+      metaTitle: null,
+      author: null,
+      createdBy: null,
+      createdAt: new Date('2026-01-01'),
+    });
+
+    const vdom = await ReadResourcePage({
+      params: Promise.resolve({ resourceId: 'pdf-res-1' }),
+    });
+
+    function findPropsByUrl(node: any, targetUrl: string): any {
+      if (!node || typeof node !== 'object') return null;
+      if (node.props?.url === targetUrl) return node.props;
+      if (Array.isArray(node.props?.children)) {
+        for (const child of node.props.children) {
+          const found = findPropsByUrl(child, targetUrl);
+          if (found) return found;
+        }
+      } else if (node.props?.children) {
+        return findPropsByUrl(node.props.children, targetUrl);
+      }
+      return null;
+    }
+
+    const viewerProps = findPropsByUrl(vdom, '/api/documents/pdf-res-1/pdf');
+    expect(viewerProps).not.toBeNull();
+    expect(viewerProps.initialFullscreen).toBe(true);
+  });
 });
 
