@@ -212,7 +212,7 @@ export default async function proxy(req: any, event: any) {
 }
 
 export const config = {
-  // Exclude WordPress media paths proxied via rewrites (next.config.ts).
-  // This prevents middleware overhead (CSP, redirects, locale cookie) on image requests.
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|wp-content|nepali/wp-content).*)"],
+  // Exclude WordPress media paths and app icons so middleware (CSP, redirects,
+  // locale cookie) does not add overhead or headers to static icon crawls.
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|logo-round.png|logo.jpg|wp-content|nepali/wp-content).*)"],
 };
