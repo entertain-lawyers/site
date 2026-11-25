@@ -186,6 +186,29 @@ export default function SecurePdfViewer({
     };
   }, []);
 
+  // After isFullscreen changes, the CSS class flips (fixed inset-0 ↔ embedded layout).
+  // The ResizeObserver has a 100ms debounce, so geom is computed from stale box dimensions
+  // — this causes book pages to be cropped or over-sized.
+  // Fix: force an immediate re-measure right after the layout commit, and reset zoom
+  // so the book recalculates cleanly for the new container size.
+  useEffect(() => {
+    const el = measureRef.current;
+    if (!el) return;
+    // rAF ensures the DOM has applied the new CSS class before we read clientWidth/Height
+    const id = requestAnimationFrame(() => {
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      if (w > 0 && h > 0) {
+        setBox({ w, h });
+      }
+      // Reset zoom so the book isn't stuck at a scale computed for a different viewport
+      setZoom(1.0);
+      setBookPan({ x: 0, y: 0 });
+    });
+    return () => cancelAnimationFrame(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFullscreen]);
+
   const pdfRef = useRef<PDFDocumentProxy | null>(null);
   const taskRef = useRef<ReturnType<typeof pdfjsLib.getDocument> | null>(null);
 
@@ -943,35 +966,77 @@ export default function SecurePdfViewer({
     }
   };
 
+  const computeBookGeom = useCallback(
+    (w: number, h: number) => {
+      if (!aspect || w < 60 || h < 60) return null;
+      let pageW = Math.min(w / 2 - 16, (h - 16) / aspect);
+      let portrait = false;
+      if (pageW < MIN_SPREAD_PAGE_W || w < 720) {
+        portrait = true;
+        pageW = Math.min(w - 24, (h - 20) / aspect);
+      }
+      pageW = Math.max(180, Math.floor(pageW));
+      return { pageW, pageH: Math.floor(pageW * aspect), portrait };
+    },
+    [aspect],
+  );
+
   const handleFitWidth = useCallback(() => {
     setBookPan({ x: 0, y: 0 });
+    const el = measureRef.current;
+    const liveW = el && el.clientWidth > 0 ? el.clientWidth : box.w;
+    const liveH = el && el.clientHeight > 0 ? el.clientHeight : box.h;
+    if (liveW > 0 && liveH > 0 && (Math.abs(box.w - liveW) > 2 || Math.abs(box.h - liveH) > 2)) {
+      setBox({ w: liveW, h: liveH });
+    }
+
     if (mode === "single") {
       setZoom(1.0);
       if (singleScrollContainerRef.current) {
         singleScrollContainerRef.current.scrollLeft = 0;
       }
-    } else if (geom && box.w > 0) {
-      const totalSpreadW = geom.portrait ? geom.pageW : geom.pageW * 2;
-      const targetScale = Math.min(2.5, Math.max(0.5, +((box.w - 24) / totalSpreadW).toFixed(2)));
-      setZoom(targetScale);
+    } else {
+      const liveGeom = computeBookGeom(liveW, liveH) ?? geom;
+      if (liveGeom && liveW > 0) {
+        const totalSpreadW = liveGeom.portrait ? liveGeom.pageW : liveGeom.pageW * 2;
+        const targetScale = Math.min(2.5, Math.max(0.5, +((liveW - 24) / totalSpreadW).toFixed(2)));
+        setZoom(targetScale);
+      } else {
+        setZoom(1.0);
+      }
     }
-  }, [mode, geom, box.w]);
+  }, [mode, geom, box.w, box.h, computeBookGeom]);
 
   const handleFitPage = useCallback(() => {
     setBookPan({ x: 0, y: 0 });
-    if (mode === "single" && aspect && box.h > 0) {
+    const el = measureRef.current;
+    const liveW = el && el.clientWidth > 0 ? el.clientWidth : box.w;
+    const liveH = el && el.clientHeight > 0 ? el.clientHeight : box.h;
+    if (liveW > 0 && liveH > 0 && (Math.abs(box.w - liveW) > 2 || Math.abs(box.h - liveH) > 2)) {
+      setBox({ w: liveW, h: liveH });
+    }
+
+    if (mode === "single" && aspect && liveH > 0) {
       // Single mode: scale so one page height fills the available viewport height
-      const baseH = singleBaseWidth * aspect;
-      const targetScale = Math.min(2.5, Math.max(0.5, +((box.h - 48) / baseH).toFixed(2)));
+      const w = liveW || (typeof window !== "undefined" ? window.innerWidth : 720);
+      const padding = w < 640 ? 16 : 48;
+      const baseW = Math.min(Math.max(160, w - padding), 900);
+      const baseH = baseW * aspect;
+      const targetScale = Math.min(2.5, Math.max(0.5, +((liveH - 48) / baseH).toFixed(2)));
       setZoom(targetScale);
-    } else if (mode === "book" && geom && box.h > 0) {
+    } else if (mode === "book" && liveH > 0) {
       // Book mode: scale so the page height fits the available viewport height
-      const targetScale = Math.min(2.5, Math.max(0.5, +((box.h - 24) / geom.pageH).toFixed(2)));
-      setZoom(targetScale);
+      const liveGeom = computeBookGeom(liveW, liveH) ?? geom;
+      if (liveGeom && liveGeom.pageH > 0) {
+        const targetScale = Math.min(2.5, Math.max(0.5, +((liveH - 24) / liveGeom.pageH).toFixed(2)));
+        setZoom(targetScale);
+      } else {
+        setZoom(1.0);
+      }
     } else {
       setZoom(1.0);
     }
-  }, [mode, aspect, box.h, singleBaseWidth, geom]);
+  }, [mode, aspect, box.w, box.h, geom, computeBookGeom]);
 
   // Zoom-anchoring: preserves center reading focus point when zooming in or out via toolbar controls
   const prevZoomRef = useRef(zoom);
@@ -1307,6 +1372,13 @@ export default function SecurePdfViewer({
         }}
         onImgMount={(el) => {
           bookImgRefs.current[i] = el;
+          if (el) {
+            const existingUrl = bookObjectUrlsRef.current.get(i);
+            if (existingUrl) {
+              el.src = existingUrl;
+              el.classList.remove("hidden");
+            }
+          }
         }}
       />
     ));
@@ -1667,6 +1739,7 @@ export default function SecurePdfViewer({
                 }`}
               >
                 <HTMLFlipBook
+                  key={`${docSeq}-${geom.pageW}x${geom.pageH}-${geom.portrait}`}
                   ref={bookRef}
                   className="h-full w-full"
                   style={{ margin: "0 auto" }}
