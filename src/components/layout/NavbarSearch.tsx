@@ -144,7 +144,7 @@ export default function NavbarSearch({ variant = 'desktop' }: { variant?: 'deskt
             </div>
 
             {/* Results */}
-            <div id="navbar-search-results" className="max-h-[55vh] overflow-y-auto">
+            <div id="navbar-search-results" className="max-h-[55dvh] overflow-y-auto">
               {/* Translit hint while typing */}
               {query.trim().length >= 2 && (
                 <div className="flex items-center gap-1.5 px-4 sm:px-5 py-2 text-[11px] text-text-muted border-b border-border/60 bg-surface-alt/50 dark:bg-white/[0.03]">

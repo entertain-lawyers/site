@@ -176,7 +176,7 @@ export default function LoginPage() {
               Don&apos;t have an account?{' '}
               <button
                 onClick={() => { setMode('register'); setError(null); setSuccess(null); }}
-                className="font-bold text-accent hover:text-accent-hover transition-colors"
+                className="inline-flex items-center min-h-[36px] px-1 font-bold text-accent hover:text-accent-hover transition-colors"
               >
                 Sign up
               </button>
@@ -186,7 +186,7 @@ export default function LoginPage() {
               Already have an account?{' '}
               <button
                 onClick={() => { setMode('login'); setError(null); setSuccess(null); }}
-                className="font-bold text-accent hover:text-accent-hover transition-colors"
+                className="inline-flex items-center min-h-[36px] px-1 font-bold text-accent hover:text-accent-hover transition-colors"
               >
                 Sign in
               </button>

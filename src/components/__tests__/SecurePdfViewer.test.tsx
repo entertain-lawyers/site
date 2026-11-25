@@ -190,5 +190,20 @@ describe('SecurePdfViewer Component Regression Suite', () => {
     expect(html).toContain('aria-label="Exit Fullscreen"');
     expect(html).toContain('Exit Fullscreen');
   });
+
+  it('renders clean single-mode canvas layers without duplicate page img overlays', () => {
+    const html = renderToStaticMarkup(
+      <SecurePdfViewer
+        url="/api/documents/doc-1/pdf"
+        watermarkLines={['Single Mode Student']}
+        initialMode="single"
+        initialNumPages={12}
+      />
+    );
+
+    const canvasMatches = html.match(/<canvas/g) ?? [];
+    expect(canvasMatches).toHaveLength(12);
+    expect(html).not.toContain('alt="Page 1"');
+  });
 });
 

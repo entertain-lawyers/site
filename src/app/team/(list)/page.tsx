@@ -39,6 +39,21 @@ export default async function TeamDirectoryPage() {
     members = await prisma.teamMember.findMany({
       where: { isPublished: true },
       orderBy: { displayOrder: 'asc' },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        designation: true,
+        shortBio: true,
+        imageUrl: true,
+        practiceAreas: true,
+        email: true,
+        phone: true,
+        facebookUrl: true,
+        linkedinUrl: true,
+        instagramUrl: true,
+        websiteUrl: true,
+      },
     });
   } catch (error: any) {
     if (error?.code === 'P2021') {
@@ -49,11 +64,11 @@ export default async function TeamDirectoryPage() {
   }
 
   return (
-    <div className="bg-slate-50 dark:bg-zinc-950 min-h-screen py-16 px-4 sm:px-6 lg:px-8">
+    <div className="bg-slate-50 dark:bg-zinc-950 min-h-screen py-10 sm:py-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-16">
-          <h1 className="text-4xl md:text-5xl font-extrabold text-navy dark:text-white tracking-tight">Our Team</h1>
-          <p className="mt-4 text-xl text-text-secondary max-w-3xl mx-auto">
+        <div className="text-center mb-10 sm:mb-14">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-navy dark:text-white tracking-tight">Our Team</h1>
+          <p className="mt-3 sm:mt-4 text-base sm:text-xl text-text-secondary max-w-3xl mx-auto">
             Meet the experienced professionals dedicated to providing exceptional legal services and strategic counsel.
           </p>
         </div>
@@ -91,6 +106,7 @@ export default async function TeamDirectoryPage() {
                         fill
                         className="object-cover"
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+                        unoptimized={member.imageUrl.startsWith('/api/')}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-4xl font-bold text-text-muted">
@@ -150,7 +166,7 @@ export default async function TeamDirectoryPage() {
                           rel="noopener noreferrer"
                           aria-label={`${member.name} on Facebook`}
                           title="Facebook"
-                          className="relative z-20 w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-700/80 shadow-2xs hover:bg-[#1877F2] hover:text-white hover:border-[#1877F2] hover:scale-115 hover:-translate-y-0.5 active:scale-95 transition-all duration-200"
+                          className="relative z-20 w-9 h-9 flex items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-700/80 shadow-2xs hover:bg-[#1877F2] hover:text-white hover:border-[#1877F2] hover:scale-115 hover:-translate-y-0.5 active:scale-95 transition-all duration-200"
                         >
                           <FacebookIcon />
                         </a>
@@ -162,7 +178,7 @@ export default async function TeamDirectoryPage() {
                           rel="noopener noreferrer"
                           aria-label={`${member.name} on LinkedIn`}
                           title="LinkedIn"
-                          className="relative z-20 w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-700/80 shadow-2xs hover:bg-[#0A66C2] hover:text-white hover:border-[#0A66C2] hover:scale-115 hover:-translate-y-0.5 active:scale-95 transition-all duration-200"
+                          className="relative z-20 w-9 h-9 flex items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-700/80 shadow-2xs hover:bg-[#0A66C2] hover:text-white hover:border-[#0A66C2] hover:scale-115 hover:-translate-y-0.5 active:scale-95 transition-all duration-200"
                         >
                           <LinkedinIcon />
                         </a>
@@ -174,7 +190,7 @@ export default async function TeamDirectoryPage() {
                           rel="noopener noreferrer"
                           aria-label={`${member.name} on Instagram`}
                           title="Instagram"
-                          className="relative z-20 w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-700/80 shadow-2xs hover:bg-gradient-to-tr hover:from-[#833AB4] hover:via-[#E1306C] hover:to-[#F77737] hover:text-white hover:border-transparent hover:scale-115 hover:-translate-y-0.5 active:scale-95 transition-all duration-200"
+                          className="relative z-20 w-9 h-9 flex items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-700/80 shadow-2xs hover:bg-gradient-to-tr hover:from-[#833AB4] hover:via-[#E1306C] hover:to-[#F77737] hover:text-white hover:border-transparent hover:scale-115 hover:-translate-y-0.5 active:scale-95 transition-all duration-200"
                         >
                           <InstagramIcon />
                         </a>
@@ -189,7 +205,7 @@ export default async function TeamDirectoryPage() {
                             rel="noopener noreferrer"
                             aria-label={`${member.name} on ${link.label || config.label}`}
                             title={link.label || config.label}
-                            className={`relative z-20 w-7 h-7 flex items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-700/80 shadow-2xs ${config.hoverBgClass} hover:scale-115 hover:-translate-y-0.5 active:scale-95 transition-all duration-200`}
+                            className={`relative z-20 w-9 h-9 flex items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-700/80 shadow-2xs ${config.hoverBgClass} hover:scale-115 hover:-translate-y-0.5 active:scale-95 transition-all duration-200`}
                           >
                             <PlatformIcon platform={link.platform} className="w-3.5 h-3.5" />
                           </a>

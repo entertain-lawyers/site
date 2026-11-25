@@ -287,7 +287,7 @@ export default function PrescribedCasesView({
                 value={searchQuery}
                 onChange={handleSearchChange}
                 placeholder="Search case name, number, or summary..."
-                className="w-full pl-11 pr-10 py-3.5 rounded-2xl border border-black/10 dark:border-white/10 bg-slate-50/50 dark:bg-zinc-900 text-sm font-medium text-navy dark:text-white shadow-xs focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all placeholder:text-text-muted"
+                className="w-full pl-11 pr-10 py-3.5 rounded-2xl border border-black/10 dark:border-white/10 bg-slate-50/50 dark:bg-zinc-900 text-base sm:text-sm font-medium text-navy dark:text-white shadow-xs focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all placeholder:text-text-muted"
               />
               {searchQuery && (
                 <button
@@ -493,7 +493,7 @@ export default function PrescribedCasesView({
 
         {/* Pagination matching Acts & Laws: (1) (2) (3) [Next] */}
         {totalPages > 1 && (
-          <div className="mt-12 flex items-center justify-center gap-2">
+          <div className="mt-10 sm:mt-12 flex flex-wrap items-center justify-center gap-2">
             <button
               type="button"
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}

@@ -71,6 +71,7 @@ vi.mock('@/lib/i18n', () => ({
 vi.mock('@/modules/entitlements/entitlement.service', () => ({
   canAccessResource: vi.fn().mockResolvedValue(false),
   requiresSignIn: vi.fn().mockReturnValue(false),
+  getAccessibleResourceIds: vi.fn(async () => new Set<string>()),
 }));
 vi.mock('@/lib/seo', () => ({
   serializeJsonLd: (data: any) => JSON.stringify(data),

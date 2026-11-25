@@ -74,3 +74,82 @@ export async function canAccessResource(userId: string, resourceId: string): Pro
   // 5. Otherwise, access is denied
   return false;
 }
+
+/**
+ * Batch version of access evaluation for resource lists (avoids N+1 queries).
+ * Matches `canAccessResource` and guest access policy exactly.
+ */
+export async function getAccessibleResourceIds(
+  userId: string | undefined,
+  resources: ReadonlyArray<{ id: string; type: string; isPremium: boolean; status?: string }>,
+): Promise<Set<string>> {
+  const accessible = new Set<string>();
+  if (resources.length === 0) return accessible;
+
+  const premiumIds: string[] = [];
+
+  for (const r of resources) {
+    if (r.status !== undefined && r.status !== "PUBLISHED") continue;
+
+    if (!userId) {
+      if (!r.isPremium && !requiresSignIn(r.type)) {
+        accessible.add(r.id);
+      }
+      continue;
+    }
+
+    if (!r.isPremium) {
+      accessible.add(r.id);
+    } else {
+      premiumIds.push(r.id);
+    }
+  }
+
+  if (!userId || premiumIds.length === 0) {
+    return accessible;
+  }
+
+  const now = new Date();
+  const [user, subscriptionEntitlement] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    }),
+    prisma.entitlement.findFirst({
+      where: {
+        userId,
+        sourceType: "SUBSCRIPTION",
+        subscription: {
+          status: "ACTIVE",
+          currentPeriodEnd: { gt: now },
+        },
+      },
+      select: { id: true },
+    }),
+  ]);
+
+  if (user?.role === "ADMIN" || user?.role === "EDITOR" || subscriptionEntitlement) {
+    for (const id of premiumIds) {
+      accessible.add(id);
+    }
+    return accessible;
+  }
+
+  const purchaseEntitlements = await prisma.entitlement.findMany({
+    where: {
+      userId,
+      resourceId: { in: premiumIds },
+      sourceType: "PURCHASE",
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+    },
+    select: { resourceId: true },
+  });
+
+  for (const ent of purchaseEntitlements) {
+    if (ent.resourceId) {
+      accessible.add(ent.resourceId);
+    }
+  }
+
+  return accessible;
+}

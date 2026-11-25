@@ -144,7 +144,7 @@ export default function AnnouncementModal({ announcement }: AnnouncementModalPro
           {/* Centered modal panel */}
           <DialogPanel
             ref={modalRef}
-            className="relative w-full max-w-lg rounded-2xl border border-black/10 dark:border-white/10 bg-surface dark:bg-zinc-900 p-6 sm:p-8 shadow-2xl z-10 max-h-[90vh] overflow-y-auto"
+            className="relative w-full max-w-lg rounded-2xl border border-black/10 dark:border-white/10 bg-surface dark:bg-zinc-900 p-5 sm:p-8 shadow-2xl z-10 max-h-[90dvh] overflow-y-auto"
           >
             {/* Top Close Button */}
             <button

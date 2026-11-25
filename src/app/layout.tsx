@@ -214,7 +214,7 @@ export default async function RootLayout({
           <PublicOnly>
             <Navbar dict={dict} session={session} semesters={uniqueSemesters} locale={locale} />
           </PublicOnly>
-          <main id="main-content" tabIndex={-1} className="flex-grow flex flex-col focus:outline-none">
+          <main id="main-content" tabIndex={-1} className="flex-grow flex flex-col min-h-0 focus:outline-none">
             {children}
           </main>
           <PublicOnly>

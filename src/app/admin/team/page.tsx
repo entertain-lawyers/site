@@ -82,7 +82,13 @@ export default async function AdminTeamPage() {
                     <td className="p-4">
                       {member.imageUrl ? (
                         <div className="w-12 h-12 rounded-full overflow-hidden relative bg-slate-100 dark:bg-zinc-800">
-                          <Image src={member.imageUrl} alt={member.name} fill className="object-cover" />
+                          <Image
+                            src={member.imageUrl}
+                            alt={member.name}
+                            fill
+                            className="object-cover"
+                            unoptimized={member.imageUrl.startsWith("/api/")}
+                          />
                         </div>
                       ) : (
                         <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-zinc-800 flex items-center justify-center text-text-muted font-bold text-lg">

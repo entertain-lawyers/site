@@ -118,7 +118,7 @@ export default function StudySelector({
       <div className={`grid grid-cols-1 ${isOldQuestion ? 'sm:grid-cols-1 lg:grid-cols-1 max-w-sm mx-auto' : 'sm:grid-cols-2 lg:grid-cols-3'} gap-4 sm:gap-6 md:gap-8`}>
         {/* Semester */}
         <div>
-          <label className="block text-[10px] font-semibold text-text-muted uppercase tracking-[0.15em] mb-1.5 sm:mb-2">
+          <label className="block text-[10px] font-semibold text-text-muted uppercase tracking-[0.15em] mb-2">
             {dict.semester}
           </label>
           <CustomSelect
@@ -132,7 +132,7 @@ export default function StudySelector({
         {/* Subject */}
         {!isOldQuestion && (
           <div>
-            <label className="block text-[10px] font-semibold text-text-muted uppercase tracking-[0.15em] mb-3">
+            <label className="block text-[10px] font-semibold text-text-muted uppercase tracking-[0.15em] mb-2">
               {dict.subject}
             </label>
             <CustomSelect
@@ -148,7 +148,7 @@ export default function StudySelector({
         {/* Unit */}
         {!isOldQuestion && (
           <div>
-            <label className="block text-[10px] font-semibold text-text-muted uppercase tracking-[0.15em] mb-3">
+            <label className="block text-[10px] font-semibold text-text-muted uppercase tracking-[0.15em] mb-2">
               {dict.unit}
             </label>
             <CustomSelect

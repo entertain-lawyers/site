@@ -91,13 +91,13 @@ export default function HomeSearchBar() {
           role="combobox"
           aria-controls="hero-search-results"
           autoComplete="off"
-          className="w-full pl-6 pr-14 py-3 rounded-full border-2 border-border bg-surface text-text-primary focus:outline-none focus:border-accent shadow-sm transition-all text-sm sm:text-base"
+          className="w-full pl-5 sm:pl-6 pr-14 py-3 sm:py-3.5 rounded-full border-2 border-border bg-surface text-text-primary focus:outline-none focus:border-accent shadow-sm transition-all text-base"
         />
         <button
           type="button"
           aria-label="Search"
           onClick={runSearch}
-          className="absolute right-2 top-2 bottom-2 aspect-square bg-navy dark:bg-accent text-white rounded-full flex items-center justify-center hover:bg-navy-light dark:hover:bg-accent-hover transition-colors"
+          className="absolute right-1.5 top-1.5 bottom-1.5 min-w-[40px] min-h-[40px] aspect-square bg-navy dark:bg-accent text-white rounded-full flex items-center justify-center hover:bg-navy-light dark:hover:bg-accent-hover transition-colors"
         >
           <Search className="w-5 h-5" />
         </button>

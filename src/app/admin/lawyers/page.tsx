@@ -157,7 +157,13 @@ export default async function AdminLawyersPage() {
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-xl overflow-hidden relative bg-slate-100 dark:bg-zinc-800 shrink-0 border border-border">
                           {lawyer.imageUrl ? (
-                            <Image src={lawyer.imageUrl} alt={lawyer.name} fill className="object-cover" />
+                            <Image
+                              src={lawyer.imageUrl}
+                              alt={lawyer.name}
+                              fill
+                              className="object-cover"
+                              unoptimized={lawyer.imageUrl.startsWith("/api/")}
+                            />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center font-bold text-accent text-lg">
                               {lawyer.name.charAt(0)}

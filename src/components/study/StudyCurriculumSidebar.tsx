@@ -179,7 +179,7 @@ export default function StudyCurriculumSidebar({
   return (
     <nav aria-labelledby="curriculum-sidebar-heading" className="w-full">
       {/* Main Companion Card: constrained to viewport height with internal scroll */}
-      <div className="flex flex-col max-h-[calc(100vh-7rem)] rounded-2xl border border-border bg-surface p-3.5 sm:p-4 shadow-xs transition-all">
+      <div className="flex flex-col max-h-[calc(100vh-7rem)] supports-[height:100dvh]:max-h-[calc(100dvh-7rem)] rounded-2xl border border-border bg-surface p-3.5 sm:p-4 shadow-xs transition-all">
         {/* Header (Compact) */}
         <div className="border-b border-border/70 pb-3 mb-2.5 shrink-0">
           <div className="flex items-center justify-between gap-2">

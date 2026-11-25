@@ -799,9 +799,7 @@
   }
 
   .el-ai-float {
-    animation:
-      el-ai-pop 3.2s ease-in-out infinite,
-      el-ai-glow 3.2s ease-in-out infinite;
+    animation: el-ai-pop 3.2s ease-in-out infinite;
     will-change: transform;
   }
 
@@ -855,6 +853,14 @@
     max-height: calc(100dvh - 2rem) !important;
     scrollbar-gutter: stable;
   }
+}
+
+/* Bound viewport height strictly when the full-viewport PDF reader is mounted */
+body:has([data-pdf-reader-shell]) {
+  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* Rich text written in the admin editor inside .prose (events, publications,

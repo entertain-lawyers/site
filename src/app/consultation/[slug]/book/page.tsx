@@ -57,7 +57,13 @@ export default async function LawyerBookingPage({ params }: LawyerBookingPagePro
         <div className="flex items-center gap-4 rounded-3xl border border-border bg-surface p-4 shadow-sm sm:p-5">
           <div className="relative aspect-[4/5] w-14 shrink-0 overflow-hidden rounded-xl bg-surface-alt ring-1 ring-border sm:w-16">
             {lawyer.imageUrl ? (
-              <Image src={lawyer.imageUrl} alt={lawyer.name} fill className="object-cover" />
+              <Image
+                src={lawyer.imageUrl}
+                alt={lawyer.name}
+                fill
+                className="object-cover"
+                unoptimized={lawyer.imageUrl.startsWith("/api/")}
+              />
             ) : (
               <div aria-hidden="true" className="flex h-full w-full items-center justify-center text-xl font-black text-accent">
                 {lawyer.name.charAt(0).toUpperCase()}

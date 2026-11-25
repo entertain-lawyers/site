@@ -50,6 +50,7 @@ async function paintPage(
   pageNumber: number,
   canvas: HTMLCanvasElement,
   watermarkLines: string[],
+  exportDataUrl = true,
 ): Promise<string | undefined> {
   const pdfPage = await doc.getPage(pageNumber);
   const base = pdfPage.getViewport({ scale: 1 });
@@ -82,6 +83,8 @@ async function paintPage(
   }
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   canvas.dataset.rendered = "1";
+
+  if (!exportDataUrl) return undefined;
 
   try {
     return canvas.toDataURL("image/webp", 0.92);
@@ -195,6 +198,7 @@ export default function SecurePdfViewer({
 
   const [aspect, setAspect] = useState<number | null>(null);
   const [numPages, setNumPages] = useState<number | null>(initialNumPages ?? null);
+  const [docSeq, setDocSeq] = useState(0);
   const [page, setPage] = useState(0); // 0-based index
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -208,6 +212,7 @@ export default function SecurePdfViewer({
     zoomRef.current = zoom;
   }, [zoom]);
 
+  const [isPinching, setIsPinching] = useState(false);
   const isPinchingRef = useRef(false);
   const didPinchJustEndRef = useRef(false);
 
@@ -225,7 +230,15 @@ export default function SecurePdfViewer({
     let initialScrollLeft = 0;
     let initialScrollTop = 0;
     let initialBoxRect: DOMRect | null = null;
+
+    // Validated single-finger quick tap tracking (prevents scroll flicks from triggering double-tap zoom)
+    let tapStartTime = 0;
+    let tapStartX = 0;
+    let tapStartY = 0;
+    let tapMovedTooFar = false;
     let lastTapTime = 0;
+    let lastTapX = 0;
+    let lastTapY = 0;
 
     const getDistance = (e: TouchEvent) => {
       if (e.touches.length < 2) return 0;
@@ -236,25 +249,22 @@ export default function SecurePdfViewer({
     };
 
     const onTouchStart = (e: TouchEvent) => {
-      // Double tap on single page mode toggles zoom between 1.0x (Fit Width) and 1.5x
       if (e.touches.length === 1) {
-        const now = performance.now();
-        if (now - lastTapTime < 280) {
-          lastTapTime = 0;
-          if (zoomRef.current > 1.05) {
-            handleResetZoom();
-          } else {
-            setZoom(1.5);
-          }
-          return;
-        }
-        lastTapTime = now;
+        tapStartTime = performance.now();
+        tapStartX = e.touches[0].clientX;
+        tapStartY = e.touches[0].clientY;
+        tapMovedTooFar = false;
+      } else {
+        // Any multi-touch interaction invalidates tap detection
+        tapMovedTooFar = true;
+        lastTapTime = 0;
       }
 
       if (e.touches.length === 2) {
         const d = getDistance(e);
         if (d >= 20) {
           isPinchingRef.current = true;
+          setIsPinching(true);
           initialDist = d;
           initialZ = zoomRef.current;
           midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
@@ -271,6 +281,15 @@ export default function SecurePdfViewer({
     };
 
     const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 1 && !tapMovedTooFar) {
+        if (
+          Math.abs(e.touches[0].clientX - tapStartX) > 12 ||
+          Math.abs(e.touches[0].clientY - tapStartY) > 12
+        ) {
+          tapMovedTooFar = true;
+        }
+      }
+
       if (e.touches.length === 2) {
         // Prevent browser native viewport zoom from conflicting with PDF zoom
         if (e.cancelable) e.preventDefault();
@@ -279,6 +298,8 @@ export default function SecurePdfViewer({
         // Guard against zero/near-zero distance causing extreme zoom multipliers
         if (initialDist <= 20) {
           if (curDist >= 20) {
+            isPinchingRef.current = true;
+            setIsPinching(true);
             initialDist = curDist;
             initialZ = zoomRef.current;
             midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
@@ -328,6 +349,38 @@ export default function SecurePdfViewer({
     };
 
     const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length === 0 && !tapMovedTooFar && e.changedTouches.length === 1 && mode === "single") {
+        const now = performance.now();
+        const duration = now - tapStartTime;
+        const target = e.target as HTMLElement | null;
+        const isInteractive = Boolean(target?.closest("button, input, a, [role='button']"));
+        if (!isInteractive && duration < 260) {
+          const endX = e.changedTouches[0].clientX;
+          const endY = e.changedTouches[0].clientY;
+          if (
+            lastTapTime > 0 &&
+            now - lastTapTime < 300 &&
+            Math.hypot(endX - lastTapX, endY - lastTapY) < 36
+          ) {
+            lastTapTime = 0;
+            if (zoomRef.current > 1.05) {
+              zoomRef.current = 1.0;
+              setZoom(1.0);
+              setBookPan({ x: 0, y: 0 });
+            } else {
+              zoomRef.current = 1.5;
+              setZoom(1.5);
+            }
+          } else {
+            lastTapTime = now;
+            lastTapX = endX;
+            lastTapY = endY;
+          }
+        } else {
+          lastTapTime = 0;
+        }
+      }
+
       if (e.touches.length < 2) {
         if (pinchRaf) {
           cancelAnimationFrame(pinchRaf);
@@ -338,12 +391,15 @@ export default function SecurePdfViewer({
           setZoom(pendingZoom);
           pendingZoom = null;
         }
-        initialDist = 0;
-        didPinchJustEndRef.current = true;
-        setTimeout(() => {
+        if (isPinchingRef.current) {
+          didPinchJustEndRef.current = true;
           isPinchingRef.current = false;
-          didPinchJustEndRef.current = false;
-        }, 120);
+          setIsPinching(false);
+          setTimeout(() => {
+            didPinchJustEndRef.current = false;
+          }, 120);
+        }
+        initialDist = 0;
       }
     };
 
@@ -456,10 +512,7 @@ export default function SecurePdfViewer({
           continue;
         }
         try {
-          const dataUrl = await paintPage(doc, best + 1, canvas, watermarkRef.current);
-          if (dataUrl) {
-            setPageImages((prev) => (prev[best] ? prev : { ...prev, [best]: dataUrl }));
-          }
+          await paintPage(doc, best + 1, canvas, watermarkRef.current, false);
           if (best === pageRef.current) setReady(true);
         } catch {
           // ignore paint errors
@@ -478,20 +531,24 @@ export default function SecurePdfViewer({
     [drainSingle],
   );
 
-  // Measure container area
+  // Measure container area immediately on mount and track resizes
   useEffect(() => {
     const el = measureRef.current;
     if (!el) return;
     let t: ReturnType<typeof setTimeout>;
-    const ro = new ResizeObserver(() => {
-      clearTimeout(t);
-      t = setTimeout(() => {
-        const w = el.clientWidth;
-        const h = el.clientHeight;
+    const measure = () => {
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      if (w > 0 && h > 0) {
         setBox((prev) =>
           Math.abs(prev.w - w) > 2 || Math.abs(prev.h - h) > 2 ? { w, h } : prev,
         );
-      }, 100);
+      }
+    };
+    measure();
+    const ro = new ResizeObserver(() => {
+      clearTimeout(t);
+      t = setTimeout(measure, 100);
     });
     ro.observe(el);
     return () => {
@@ -519,13 +576,14 @@ export default function SecurePdfViewer({
           return;
         }
         pdfRef.current = doc;
-        bookCanvasRefs.current = new Array(doc.numPages).fill(null);
-        singleCanvasRefs.current = new Array(doc.numPages).fill(null);
-        singlePageRowRefs.current = new Array(doc.numPages).fill(null);
+        bookCanvasRefs.current.length = doc.numPages;
+        singleCanvasRefs.current.length = doc.numPages;
+        singlePageRowRefs.current.length = doc.numPages;
         pendingBookRef.current.clear();
         pendingSingleRef.current.clear();
         pageRef.current = 0;
         setNumPages(doc.numPages);
+        setDocSeq((s) => s + 1);
         setAspect(v.height / v.width);
         setPage(0);
         setReady(false);
@@ -573,9 +631,9 @@ export default function SecurePdfViewer({
     for (let i = from; i < to; i++) {
       scheduleBookPaint(i);
     }
-  }, [mode, page, numPages, scheduleBookPaint]);
+  }, [mode, page, numPages, docSeq, scheduleBookPaint]);
 
-  // Preload pages around current page in Single Page Mode
+  // Preload pages around current page in Single Page Mode and prune far off-screen bitmaps
   useEffect(() => {
     if (mode !== "single" || !numPages) return;
     const from = Math.max(0, page - PRELOAD_WINDOW);
@@ -583,7 +641,31 @@ export default function SecurePdfViewer({
     for (let i = from; i < to; i++) {
       scheduleSinglePaint(i);
     }
-  }, [mode, page, numPages, scheduleSinglePaint]);
+    // Free backing store bitmaps far outside the viewport to keep mobile GPU memory bounded
+    const keepFrom = Math.max(0, page - 8);
+    const keepTo = Math.min(numPages - 1, page + 8);
+    for (let i = 0; i < numPages; i++) {
+      if (i < keepFrom || i > keepTo) {
+        const c = singleCanvasRefs.current[i];
+        if (c && c.dataset.rendered === "1") {
+          c.width = 0;
+          c.height = 0;
+          delete c.dataset.rendered;
+        }
+      }
+    }
+  }, [mode, page, numPages, docSeq, scheduleSinglePaint]);
+
+  const singleCanvasRefList = useMemo(
+    () =>
+      Array.from({ length: numPages || 0 }, (_, idx) => (el: HTMLCanvasElement | null) => {
+        singleCanvasRefs.current[idx] = el;
+        if (el && Math.abs(idx - pageRef.current) <= PRELOAD_WINDOW + 1) {
+          scheduleSinglePaint(idx);
+        }
+      }),
+    [numPages, scheduleSinglePaint],
+  );
 
   // IntersectionObserver for Single Page Mode scrolling
   useEffect(() => {
@@ -883,6 +965,7 @@ export default function SecurePdfViewer({
     let activePointerId: number | null = null;
 
     const onPointerDown = (e: PointerEvent) => {
+      if (isPinchingRef.current) return;
       if (e.pointerType === 'mouse' && e.button !== 0) return;
       isDragging = true;
       setIsBookDragging(true);
@@ -900,12 +983,21 @@ export default function SecurePdfViewer({
 
     const onPointerMove = (e: PointerEvent) => {
       if (!isDragging || e.pointerId !== activePointerId) return;
+      if (isPinchingRef.current) {
+        isDragging = false;
+        setIsBookDragging(false);
+        activePointerId = null;
+        return;
+      }
       e.preventDefault();
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
+      const rect = measureRef.current?.getBoundingClientRect();
+      const maxX = rect ? Math.max(80, rect.width * 0.55 * (zoomRef.current - 1) + 40) : 400;
+      const maxY = rect ? Math.max(80, rect.height * 0.55 * (zoomRef.current - 1) + 40) : 400;
       setBookPan({
-        x: initialPanX + dx,
-        y: initialPanY + dy,
+        x: Math.min(maxX, Math.max(-maxX, initialPanX + dx)),
+        y: Math.min(maxY, Math.max(-maxY, initialPanY + dy)),
       });
     };
 
@@ -1199,21 +1291,9 @@ export default function SecurePdfViewer({
                     }`}
                   >
                     <canvas
-                      ref={(el) => {
-                        singleCanvasRefs.current[i] = el;
-                        if (el && mode === "single") scheduleSinglePaint(i);
-                      }}
+                      ref={singleCanvasRefList[i]}
                       className="block w-full h-full"
                     />
-                    {pageImages[i] && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={pageImages[i]}
-                        alt={`Page ${i + 1}`}
-                        className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
-                        draggable={false}
-                      />
-                    )}
                     <div className="absolute bottom-2 right-2 text-[10px] font-semibold text-slate-400 select-none bg-white/80 px-1.5 py-0.5 rounded shadow-xs">
                       Page {i + 1}
                     </div>
@@ -1228,7 +1308,7 @@ export default function SecurePdfViewer({
                 style={{
                   transform: `scale(${zoom}) translate(${bookPan.x / zoom}px, ${bookPan.y / zoom}px)`,
                   transformOrigin: "center center",
-                  transition: isBookDragging ? "none" : "transform 0.15s ease-out",
+                  transition: isBookDragging || isPinching ? "none" : "transform 0.15s ease-out",
                   willChange: "transform",
                   backfaceVisibility: "hidden",
                   touchAction: zoom > 1.02 ? "none" : "auto",
