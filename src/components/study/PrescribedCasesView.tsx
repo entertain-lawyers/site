@@ -287,7 +287,7 @@ export default function PrescribedCasesView({
                 value={searchQuery}
                 onChange={handleSearchChange}
                 placeholder="Search case name, number, or summary..."
-                className="w-full pl-11 pr-10 py-3.5 rounded-2xl border border-black/10 dark:border-white/10 bg-slate-50/50 dark:bg-zinc-900 text-sm font-medium text-navy dark:text-white shadow-xs focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all placeholder:text-text-muted"
+                className="w-full pl-11 pr-10 py-3.5 rounded-2xl border border-black/10 dark:border-white/10 bg-slate-50/50 dark:bg-zinc-900 text-base sm:text-sm font-medium text-navy dark:text-white shadow-xs focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all placeholder:text-text-muted"
               />
               {searchQuery && (
                 <button
@@ -427,33 +427,51 @@ export default function PrescribedCasesView({
           </span>
         </div>
 
-        {/* 2-Column Grid Layout matching Acts & Laws */}
+        {/* 2-Column Grid Layout matching Acts & Laws:
+            - Desktop (>= md): Preserved 2-Column Zigzag Layout (Left: 1, 3, 5... Right: 2, 4, 6...)
+            - Mobile (< md): Clean Linear Ascending Order (1, 2, 3, 4, 5...)
+        */}
         {paginatedCases.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-5">
-            {/* Left Column (Items 1, 3, 5...) */}
-            <div className="space-y-4">
-              {leftColumnCases.map(({ item, index }) => (
-                <PrescribedCaseCard
-                  key={item.id}
-                  item={item}
-                  index={index}
-                  onDownload={() => handleDownload(item)}
-                />
-              ))}
+          <>
+            {/* Desktop Layout (>= md): Preserved 2-column zigzag */}
+            <div className="hidden md:grid md:grid-cols-2 gap-4 lg:gap-5">
+              {/* Left Column (Items 1, 3, 5...) */}
+              <div className="space-y-4">
+                {leftColumnCases.map(({ item, index }) => (
+                  <PrescribedCaseCard
+                    key={item.id}
+                    item={item}
+                    index={index}
+                    onDownload={() => handleDownload(item)}
+                  />
+                ))}
+              </div>
+
+              {/* Right Column (Items 2, 4, 6...) */}
+              <div className="space-y-4">
+                {rightColumnCases.map(({ item, index }) => (
+                  <PrescribedCaseCard
+                    key={item.id}
+                    item={item}
+                    index={index}
+                    onDownload={() => handleDownload(item)}
+                  />
+                ))}
+              </div>
             </div>
 
-            {/* Right Column (Items 2, 4, 6...) */}
-            <div className="space-y-4">
-              {rightColumnCases.map(({ item, index }) => (
+            {/* Mobile Layout (< md): Clean Ascending Order (1, 2, 3, 4, 5...) */}
+            <div className="space-y-4 md:hidden">
+              {paginatedCases.map((item, i) => (
                 <PrescribedCaseCard
-                  key={item.id}
+                  key={`mobile-${item.id}`}
                   item={item}
-                  index={index}
+                  index={startIndex + i + 1}
                   onDownload={() => handleDownload(item)}
                 />
               ))}
             </div>
-          </div>
+          </>
         ) : (
           <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-black/5 dark:border-white/10 p-12 text-center max-w-lg mx-auto shadow-sm">
             <BookOpen className="h-10 w-10 text-text-muted mx-auto mb-3 opacity-40" aria-hidden="true" />
@@ -475,7 +493,7 @@ export default function PrescribedCasesView({
 
         {/* Pagination matching Acts & Laws: (1) (2) (3) [Next] */}
         {totalPages > 1 && (
-          <div className="mt-12 flex items-center justify-center gap-2">
+          <div className="mt-10 sm:mt-12 flex flex-wrap items-center justify-center gap-2">
             <button
               type="button"
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}

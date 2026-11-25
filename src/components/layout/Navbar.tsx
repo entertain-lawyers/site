@@ -3,11 +3,12 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import MobileMenu from './MobileMenu';
 import NavbarSearch from './NavbarSearch';
 import { Dictionary, Locale } from '@/lib/i18n';
 import { usePathname } from 'next/navigation';
-import { BookOpen, User, LogIn, LayoutDashboard, Shield, LogOut, FileEdit, ChevronDown, ChevronRight } from 'lucide-react';
+import { User, LogIn, LayoutDashboard, Shield, LogOut, FileEdit, ChevronDown, ChevronRight } from 'lucide-react';
 import { signOut } from 'next-auth/react';
 import { AnimatePresence, FlyoutPanel, PopoverPanel, Press, m } from '@/components/motion/primitives';
 import { springSnappy } from '@/lib/motion';
@@ -124,9 +125,62 @@ export default function Navbar({ dict, session, semesters, locale }: NavbarProps
     <header className="sticky top-2 sm:top-4 z-40 transition-colors duration-300 w-full pointer-events-none">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="relative flex items-center justify-between h-12 sm:h-14 px-3 sm:px-5 bg-white/95 dark:bg-zinc-950/95 backdrop-blur-xl border border-border/50 dark:border-white/10 shadow-[0_8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.4)] rounded-full pointer-events-auto">
+          {/* Mobile & Tablet: round brand logo + quick links to balance the pill */}
+          <div className="flex items-center gap-3 lg:hidden min-w-0">
+            <Link
+              href={isNepaliPage ? '/nepali' : '/'}
+              className="flex items-center gap-2 min-h-[36px] pr-1.5 py-1 rounded-full text-navy dark:text-white font-extrabold text-sm tracking-tight hover:text-accent transition-colors truncate"
+            >
+              <Image
+                src="/logo-round.png"
+                alt="Entertain Lawyers"
+                width={28}
+                height={28}
+                className="w-7 h-7 rounded-full object-contain shrink-0"
+              />
+              <span className="truncate">Entertain Lawyers</span>
+            </Link>
+            {!isNepaliPage && (
+              <div className="hidden md:flex items-center gap-1">
+                <Link
+                  href="/study"
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                    pathname?.startsWith('/study') || pathname?.startsWith('/semesters')
+                      ? 'bg-accent/10 text-accent'
+                      : 'text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5'
+                  }`}
+                >
+                  {dict.study}
+                </Link>
+                <Link
+                  href="/pricing"
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                    pathname?.startsWith('/pricing')
+                      ? 'bg-accent/10 text-accent'
+                      : 'text-text-secondary hover:text-accent hover:bg-black/5 dark:hover:bg-white/5'
+                  }`}
+                >
+                  {dict.pricing}
+                </Link>
+              </div>
+            )}
+          </div>
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-1 flex-1 min-w-0" aria-label="Main navigation">
+            <Link
+              href={isNepaliPage ? '/nepali' : '/'}
+              aria-label="Entertain Lawyers Home"
+              className="flex items-center justify-center shrink-0 mr-1.5 rounded-full hover:scale-105 transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+            >
+              <Image
+                src="/logo-round.png"
+                alt="Entertain Lawyers"
+                width={32}
+                height={32}
+                className="w-8 h-8 rounded-full object-contain"
+              />
+            </Link>
             <Link
               href={navLinks[0].href}
               prefetch={true}

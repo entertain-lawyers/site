@@ -52,7 +52,7 @@ export default function Footer({ dict, settings }: FooterProps) {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-px bg-gradient-to-r from-transparent via-accent/20 dark:via-white/20 to-transparent" />
       <div className="absolute -top-24 left-1/4 w-96 h-96 bg-accent/10 dark:bg-accent/5 rounded-full blur-[100px] pointer-events-none" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-4 sm:pt-10 sm:pb-4 relative z-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-24 sm:pt-10 md:pb-6 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-6 mb-8">
 
           {/* 1. About */}
@@ -82,6 +82,37 @@ export default function Footer({ dict, settings }: FooterProps) {
                 </a>
               </li>
             </ul>
+          </div>
+
+          {/* Mobile Connect & Quick Links */}
+          <div className="md:hidden space-y-4 pt-2 border-t border-border/40">
+            <div>
+              <h4 className="text-xs font-black tracking-widest text-navy dark:text-[#ddba76] uppercase mb-3">Connect With Us</h4>
+              <div className="flex flex-wrap gap-2">
+                {socialLinks.map((social) => (
+                  <a
+                    key={social.name}
+                    href={social.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-full border border-border bg-surface-alt/50 text-xs font-bold text-navy dark:text-white min-h-[44px] ${social.className}`}
+                    aria-label={social.name}
+                  >
+                    {social.icon}
+                    <span>{social.name}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+            <div className="pt-1">
+              <h4 className="text-xs font-black tracking-widest text-navy dark:text-[#ddba76] uppercase mb-2">Quick Links</h4>
+              <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs font-semibold text-text-secondary dark:text-white">
+                <Link href="/about" className="hover:text-accent py-1 min-h-[36px] inline-flex items-center">About</Link>
+                <Link href="/team" className="hover:text-accent py-1 min-h-[36px] inline-flex items-center">Team</Link>
+                <Link href="/events" className="hover:text-accent py-1 min-h-[36px] inline-flex items-center">Events</Link>
+                <Link href="/faqs" className="hover:text-accent py-1 min-h-[36px] inline-flex items-center">FAQs</Link>
+              </div>
+            </div>
           </div>
 
           {/* 3. Connect With Us Online */}

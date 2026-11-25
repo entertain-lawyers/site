@@ -93,6 +93,7 @@ export function LawyerCard({ lawyer }: {
               fill
               className="object-cover"
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              unoptimized={lawyer.imageUrl.startsWith("/api/")}
             />
           ) : (
             <div aria-hidden="true" className="flex h-full w-full items-center justify-center text-5xl font-black text-accent">

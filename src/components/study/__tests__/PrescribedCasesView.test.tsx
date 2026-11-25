@@ -167,4 +167,39 @@ describe('PrescribedCasesView Component', () => {
     expect(html).toContain('No prescribed cases found');
     expect(html).toContain('Reset Filters');
   });
+
+  it('renders mobile layout in clean ascending order (1, 2, 3...) while preserving desktop 2-column zigzag layout', () => {
+    const cases: PrescribedCaseItem[] = [
+      { ...MOCK_CASES[0], id: 'c-1', title: 'Case One (2080)', order: 1 },
+      { ...MOCK_CASES[1], id: 'c-2', title: 'Case Two (2081)', order: 2 },
+      { ...MOCK_CASES[2], id: 'c-3', title: 'Case Three (2082)', order: 3 },
+    ];
+
+    const html = renderToStaticMarkup(
+      <PrescribedCasesView
+        cases={cases}
+        unitName="Prescribed Cases"
+        unitTitle="Landmark Prescribed Cases"
+      />
+    );
+
+    // Desktop container has hidden md:grid md:grid-cols-2
+    expect(html).toContain('hidden md:grid md:grid-cols-2');
+
+    // Mobile container has space-y-4 md:hidden
+    expect(html).toContain('space-y-4 md:hidden');
+
+    const mobileStartIndex = html.indexOf('class="space-y-4 md:hidden"');
+    expect(mobileStartIndex).toBeGreaterThan(0);
+    const mobileHtml = html.slice(mobileStartIndex);
+
+    // In the mobile container, cases must appear in sequential ascending order: Case One -> Case Two -> Case Three
+    const mobilePos1 = mobileHtml.indexOf('Case One (2080)');
+    const mobilePos2 = mobileHtml.indexOf('Case Two (2081)');
+    const mobilePos3 = mobileHtml.indexOf('Case Three (2082)');
+
+    expect(mobilePos1).toBeGreaterThanOrEqual(0);
+    expect(mobilePos2).toBeGreaterThan(mobilePos1);
+    expect(mobilePos3).toBeGreaterThan(mobilePos2);
+  });
 });

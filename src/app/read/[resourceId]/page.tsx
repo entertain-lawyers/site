@@ -17,6 +17,7 @@ const SecurePdfViewer = dynamic(() => import('@/components/SecurePdfViewer'), {
 });
 
 import StudyOutlineSidebar from '@/components/study/StudyOutlineSidebar';
+import MobileStudyOutlineDrawer from '@/components/study/MobileStudyOutlineDrawer';
 import { Metadata } from 'next';
 import { getDictionary } from '@/lib/i18n';
 import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
@@ -605,13 +606,13 @@ export default async function ReadResourcePage({
   })) || [];
 
   return (
-    <div className="h-[calc(100dvh-44px)] flex flex-col bg-background overflow-hidden transition-colors duration-300">
+    <div data-pdf-reader-shell="" className="flex-1 flex flex-col min-h-0 h-full bg-background overflow-hidden transition-colors duration-300">
       {/* Top Header/Breadcrumb */}
       <div className="h-11 bg-surface border-b border-border flex items-center px-3 shrink-0 shadow-sm z-10 justify-between">
         <div className="flex items-center text-sm">
           <Link
             href={studyBackUrl}
-            className="text-text-muted hover:text-accent mr-3 transition-colors flex items-center justify-center bg-surface-alt hover:bg-surface-alt/80 rounded-full w-8 h-8 min-h-[36px] min-w-[36px]"
+            className="text-text-muted hover:text-accent mr-3 transition-colors flex items-center justify-center bg-surface-alt hover:bg-surface-alt/80 rounded-full w-9 h-9 min-h-[40px] min-w-[40px]"
             aria-label={studyBackLabel}
             title={studyBackLabel}
           >
@@ -696,7 +697,14 @@ export default async function ReadResourcePage({
             {resource.title}
           </h1>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {hasSyllabus && filteredUnits.length > 0 && (
+            <MobileStudyOutlineDrawer
+              units={filteredUnits}
+              currentResourceId={resource.id}
+              currentUnitId={resource.unitId}
+            />
+          )}
           {(() => {
             const displayAuthor = resource.author ?? resource.createdBy;
             const resourceAuthor = {
@@ -710,7 +718,7 @@ export default async function ReadResourcePage({
             return (
               <div className="flex items-center gap-2">
                 <span className="hidden sm:inline text-xs font-bold text-text-muted uppercase tracking-wider">{dict.author}:</span>
-                <AuthorBioTrigger author={resourceAuthor} size="xs" showName />
+                <AuthorBioTrigger author={resourceAuthor} size="xs" showName className="min-h-[38px] px-1" />
               </div>
             );
           })()}
@@ -733,7 +741,7 @@ export default async function ReadResourcePage({
         {/* PDF Viewer Area */}
         <div className="flex-1 relative bg-surface-alt flex flex-col h-full">
           <div className="flex-1 overflow-hidden relative">
-            <SecurePdfViewer url={pdfUrl} watermarkLines={watermarkLines} />
+            <SecurePdfViewer url={pdfUrl} watermarkLines={watermarkLines} initialFullscreen={false} />
           </div>
         </div>
       </div>

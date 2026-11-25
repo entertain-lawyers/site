@@ -71,6 +71,7 @@ vi.mock('@/lib/content-authors', () => ({
 vi.mock('@/modules/entitlements/entitlement.service', () => ({
   canAccessResource: vi.fn().mockResolvedValue(true),
   requiresSignIn: vi.fn().mockReturnValue(false),
+  getAccessibleResourceIds: vi.fn(async (_uid: string | undefined, list: Array<{ id: string }>) => new Set(list.map((r) => r.id))),
 }));
 
 vi.mock('@/lib/i18n', () => ({

@@ -16,7 +16,7 @@ import { Reveal } from '@/components/motion/primitives';
 import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 
 import { auth } from '@/lib/auth';
-import { canAccessResource, requiresSignIn } from '@/modules/entitlements/entitlement.service';
+import { getAccessibleResourceIds } from '@/modules/entitlements/entitlement.service';
 import { studyMaterialLoginUrl } from '@/lib/callback-url';
 import PrescribedCasesView, { PrescribedCaseItem } from '@/components/study/PrescribedCasesView';
 import UnitDirectContentView, { UnitResourceData } from '@/components/study/UnitDirectContentView';
@@ -510,59 +510,49 @@ export default async function StudyPage(props: { searchParams: SearchParams }) {
       })
     : [];
 
+  const accessibleResourceIds = await getAccessibleResourceIds(
+    session?.user?.id,
+    isPrescribed ? prescribedCases : selectedUnitId ? resources : [],
+  );
+
   const prescribedCasesWithAccess: PrescribedCaseItem[] = isPrescribed
-    ? await Promise.all(
-        prescribedCases.map(async (resource) => {
-          const canAccess = session?.user?.id
-            ? await canAccessResource(session.user.id, resource.id)
-            : !resource.isPremium && !requiresSignIn(resource.type);
-
-          return {
-            id: resource.id,
-            title: resource.title,
-            content: resource.content,
-            metaTitle: resource.metaTitle,
-            metaDesc: resource.subject?.name ? `${resource.subject.name} • Case Law` : undefined,
-            documentId: resource.documentId,
-            document: resource.document,
-            isPremium: resource.isPremium,
-            priceAmount: resource.priceAmount,
-            currency: resource.currency || 'NPR',
-            order: resource.order ?? 0,
-            author: resource.author,
-            createdBy: resource.createdBy,
-            canAccess,
-          };
-        })
-      )
+    ? prescribedCases.map((resource) => ({
+        id: resource.id,
+        title: resource.title,
+        content: resource.content,
+        metaTitle: resource.metaTitle,
+        metaDesc: resource.subject?.name ? `${resource.subject.name} • Case Law` : undefined,
+        documentId: resource.documentId,
+        document: resource.document,
+        isPremium: resource.isPremium,
+        priceAmount: resource.priceAmount,
+        currency: resource.currency || 'NPR',
+        order: resource.order ?? 0,
+        author: resource.author,
+        createdBy: resource.createdBy,
+        canAccess: accessibleResourceIds.has(resource.id),
+      }))
     : [];
 
-  const unitResourcesWithAccess: UnitResourceData[] = selectedUnitId && !isPrescribed
-    ? await Promise.all(
-        resources.map(async (resource) => {
-          const canAccess = session?.user?.id
-            ? await canAccessResource(session.user.id, resource.id)
-            : !resource.isPremium && !requiresSignIn(resource.type);
-
-          return {
-            id: resource.id,
-            title: resource.title,
-            type: resource.type,
-            metaTitle: resource.metaTitle,
-            isPremium: resource.isPremium,
-            priceAmount: resource.priceAmount,
-            currency: resource.currency || 'NPR',
-            content: resource.content,
-            documentId: resource.documentId,
-            document: resource.document,
-            author: resource.author,
-            createdBy: resource.createdBy,
-            updatedAt: resource.updatedAt,
-            canAccess,
-          };
-        })
-      )
-    : [];
+  const unitResourcesWithAccess: UnitResourceData[] =
+    selectedUnitId && !isPrescribed
+      ? resources.map((resource) => ({
+          id: resource.id,
+          title: resource.title,
+          type: resource.type,
+          metaTitle: resource.metaTitle,
+          isPremium: resource.isPremium,
+          priceAmount: resource.priceAmount,
+          currency: resource.currency || 'NPR',
+          content: resource.content,
+          documentId: resource.documentId,
+          document: resource.document,
+          author: resource.author,
+          createdBy: resource.createdBy,
+          updatedAt: resource.updatedAt,
+          canAccess: accessibleResourceIds.has(resource.id),
+        }))
+      : [];
 
   let pageTitle = dict.studyMaterialsTitle;
   let pageDesc = dict.studyMaterialsDesc || "Explore our comprehensive collection of academic resources tailored for law students.";

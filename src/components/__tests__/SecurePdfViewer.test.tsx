@@ -70,9 +70,10 @@ describe('SecurePdfViewer Component Regression Suite', () => {
       />
     );
 
-    // Must have vertical scrollable container
+    // Must have vertical scrollable container with hardware-accelerated touch containment
     expect(html).toContain('overflow-y-auto');
-    expect(html).toContain('scroll-smooth');
+    expect(html).toContain('overscroll-behavior:contain');
+    expect(html).toContain('touch-action:pan-x pan-y');
 
     // Must render all individual page rows
     expect(html).toContain('data-page-index="0"');
@@ -121,4 +122,88 @@ describe('SecurePdfViewer Component Regression Suite', () => {
     // User text selection suppression
     expect(html).toContain('select-none');
   });
+
+  it('renders Fit Width, Fit Page, and Fullscreen viewer controls', () => {
+    const html = renderToStaticMarkup(
+      <SecurePdfViewer
+        url="/api/documents/doc-1/pdf"
+        watermarkLines={['Test Watermark']}
+        initialMode="single"
+        initialNumPages={5}
+      />
+    );
+
+    expect(html).toContain('Fit Width');
+    expect(html).toContain('Fit Page');
+    expect(html).toContain('aria-label="Toggle Fullscreen"');
+    expect(html).toContain('aria-label="Reset zoom to 100%"');
+  });
+
+  it('renders mobile-optimized responsive navigation and page jump trigger', () => {
+    const html = renderToStaticMarkup(
+      <SecurePdfViewer
+        url="/api/documents/doc-1/pdf"
+        watermarkLines={['Mobile User']}
+        initialMode="single"
+        initialNumPages={10}
+      />
+    );
+
+    // Mobile toolbar has touch-friendly navigation buttons
+    expect(html).toContain('aria-label="Open page jump menu"');
+    expect(html).toContain('1 / 10');
+  });
+
+  it('opens in normal embedded mode by default without fullscreen overlay', () => {
+    const html = renderToStaticMarkup(
+      <SecurePdfViewer
+        url="/api/documents/doc-1/pdf"
+        watermarkLines={['Default Embedded Student']}
+        initialMode="single"
+        initialNumPages={5}
+      />
+    );
+
+    // Should NOT have fixed fullscreen overlay by default
+    expect(html).not.toContain('fixed inset-0 z-[100]');
+    // Should NOT render floating Exit Fullscreen button
+    expect(html).not.toContain('aria-label="Exit Fullscreen"');
+    // Regular fullscreen toggle should be available in toolbar
+    expect(html).toContain('aria-label="Toggle Fullscreen"');
+  });
+
+  it('opens in fullscreen mode when initialFullscreen is explicitly true', () => {
+    const html = renderToStaticMarkup(
+      <SecurePdfViewer
+        url="/api/documents/doc-1/pdf"
+        watermarkLines={['Fullscreen Student']}
+        initialMode="single"
+        initialNumPages={5}
+        initialFullscreen={true}
+      />
+    );
+
+    // Fullscreen layout classes applied with 100dvh
+    expect(html).toContain('fixed inset-0 z-[100]');
+    expect(html).toContain('h-[100dvh]');
+    // Floating Exit Fullscreen pill button
+    expect(html).toContain('aria-label="Exit Fullscreen"');
+    expect(html).toContain('Exit Fullscreen');
+  });
+
+  it('renders clean single-mode canvas layers without duplicate page img overlays', () => {
+    const html = renderToStaticMarkup(
+      <SecurePdfViewer
+        url="/api/documents/doc-1/pdf"
+        watermarkLines={['Single Mode Student']}
+        initialMode="single"
+        initialNumPages={12}
+      />
+    );
+
+    const canvasMatches = html.match(/<canvas/g) ?? [];
+    expect(canvasMatches).toHaveLength(12);
+    expect(html).not.toContain('alt="Page 1"');
+  });
 });
+

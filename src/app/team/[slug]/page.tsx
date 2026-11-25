@@ -98,7 +98,15 @@ export default async function TeamProfilePage({ params }: { params: Promise<{ sl
             <div className="md:col-span-4 lg:col-span-4 bg-slate-100 dark:bg-zinc-950 p-8 flex flex-col">
               <div className="aspect-[3/4] w-full relative rounded-2xl overflow-hidden shadow-inner bg-slate-200 dark:bg-zinc-800 mb-6">
                 {member.imageUrl ? (
-                  <Image src={member.imageUrl} alt={member.name} fill className="object-cover" sizes="(max-width: 768px) 100vw, 33vw" priority />
+                  <Image
+                    src={member.imageUrl}
+                    alt={member.name}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 33vw"
+                    unoptimized={member.imageUrl.startsWith("/api/")}
+                    preload
+                  />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-7xl font-bold text-text-muted">
                     {member.name.charAt(0).toUpperCase()}

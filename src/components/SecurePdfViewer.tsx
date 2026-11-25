@@ -4,7 +4,20 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import HTMLFlipBook from "react-pageflip";
 import * as pdfjsLib from "pdfjs-dist";
 import type { PDFDocumentProxy } from "pdfjs-dist";
-import { BookOpen, FileText, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
+import {
+  BookOpen,
+  FileText,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw,
+  Maximize2,
+  Minimize2,
+  MoveHorizontal,
+  SlidersHorizontal,
+  X,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
 // Serve the worker from our own origin.
 if (typeof window !== "undefined") {
@@ -18,6 +31,7 @@ interface SecurePdfViewerProps {
   watermarkLines: string[];
   initialMode?: PdfViewerMode;
   initialNumPages?: number;
+  initialFullscreen?: boolean;
 }
 
 const TARGET_RENDER_W = 1200;
@@ -36,6 +50,7 @@ async function paintPage(
   pageNumber: number,
   canvas: HTMLCanvasElement,
   watermarkLines: string[],
+  exportDataUrl = true,
 ): Promise<string | undefined> {
   const pdfPage = await doc.getPage(pageNumber);
   const base = pdfPage.getViewport({ scale: 1 });
@@ -68,6 +83,8 @@ async function paintPage(
   }
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   canvas.dataset.rendered = "1";
+
+  if (!exportDataUrl) return undefined;
 
   try {
     return canvas.toDataURL("image/webp", 0.92);
@@ -119,14 +136,45 @@ BookPage.displayName = "BookPage";
 export default function SecurePdfViewer({
   url,
   watermarkLines,
-  initialMode = "book",
+  initialMode,
   initialNumPages,
+  initialFullscreen = false,
 }: SecurePdfViewerProps) {
-  const [mode, setMode] = useState<PdfViewerMode>(initialMode);
+  const [mode, setMode] = useState<PdfViewerMode>(initialMode ?? "book");
   const [zoom, setZoom] = useState(1.0);
+  const [isFullscreen, setIsFullscreen] = useState(initialFullscreen);
+  const [isQuickJumpOpen, setIsQuickJumpOpen] = useState(false);
+  const [bookPan, setBookPan] = useState({ x: 0, y: 0 });
+  const [isBookDragging, setIsBookDragging] = useState(false);
 
+  const rootRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLDivElement>(null);
+  const bookContainerRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
+
+  // On small mobile screens (< 768px), default to continuous single-page mode for immediate reading comfort
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768 && !initialMode) {
+      setMode("single");
+    }
+  }, [initialMode]);
+
+  // Track native fullscreen changes (syncing exit when user leaves native fullscreen)
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      if (document.fullscreenElement) {
+        setIsFullscreen(true);
+      } else {
+        setIsFullscreen(false);
+      }
+    };
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", onFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", onFullscreenChange);
+    };
+  }, []);
 
   const pdfRef = useRef<PDFDocumentProxy | null>(null);
   const taskRef = useRef<ReturnType<typeof pdfjsLib.getDocument> | null>(null);
@@ -150,6 +198,7 @@ export default function SecurePdfViewer({
 
   const [aspect, setAspect] = useState<number | null>(null);
   const [numPages, setNumPages] = useState<number | null>(initialNumPages ?? null);
+  const [docSeq, setDocSeq] = useState(0);
   const [page, setPage] = useState(0); // 0-based index
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -157,6 +206,237 @@ export default function SecurePdfViewer({
   useEffect(() => {
     watermarkRef.current = watermarkLines;
   }, [watermarkLines]);
+
+  const zoomRef = useRef(zoom);
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
+
+  const [isPinching, setIsPinching] = useState(false);
+  const isPinchingRef = useRef(false);
+  const didPinchJustEndRef = useRef(false);
+
+  // Multi-touch pinch-to-zoom gesture and double-tap zoom for mobile/tablet touchscreens
+  useEffect(() => {
+    const el = measureRef.current;
+    if (!el) return;
+
+    let initialDist = 0;
+    let initialZ = 1.0;
+    let pinchRaf: number | null = null;
+    let pendingZoom: number | null = null;
+    let midX = 0;
+    let midY = 0;
+    let initialScrollLeft = 0;
+    let initialScrollTop = 0;
+    let initialBoxRect: DOMRect | null = null;
+
+    // Validated single-finger quick tap tracking (prevents scroll flicks from triggering double-tap zoom)
+    let tapStartTime = 0;
+    let tapStartX = 0;
+    let tapStartY = 0;
+    let tapMovedTooFar = false;
+    let lastTapTime = 0;
+    let lastTapX = 0;
+    let lastTapY = 0;
+
+    const getDistance = (e: TouchEvent) => {
+      if (e.touches.length < 2) return 0;
+      return Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        tapStartTime = performance.now();
+        tapStartX = e.touches[0].clientX;
+        tapStartY = e.touches[0].clientY;
+        tapMovedTooFar = false;
+      } else {
+        // Any multi-touch interaction invalidates tap detection
+        tapMovedTooFar = true;
+        lastTapTime = 0;
+      }
+
+      if (e.touches.length === 2) {
+        const d = getDistance(e);
+        if (d >= 20) {
+          isPinchingRef.current = true;
+          setIsPinching(true);
+          initialDist = d;
+          initialZ = zoomRef.current;
+          midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+          midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+
+          const container = singleScrollContainerRef.current;
+          if (container) {
+            initialScrollLeft = container.scrollLeft;
+            initialScrollTop = container.scrollTop;
+            initialBoxRect = container.getBoundingClientRect();
+          }
+        }
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 1 && !tapMovedTooFar) {
+        if (
+          Math.abs(e.touches[0].clientX - tapStartX) > 12 ||
+          Math.abs(e.touches[0].clientY - tapStartY) > 12
+        ) {
+          tapMovedTooFar = true;
+        }
+      }
+
+      if (e.touches.length === 2) {
+        // Prevent browser native viewport zoom from conflicting with PDF zoom
+        if (e.cancelable) e.preventDefault();
+
+        const curDist = getDistance(e);
+        // Guard against zero/near-zero distance causing extreme zoom multipliers
+        if (initialDist <= 20) {
+          if (curDist >= 20) {
+            isPinchingRef.current = true;
+            setIsPinching(true);
+            initialDist = curDist;
+            initialZ = zoomRef.current;
+            midX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+            midY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+            const container = singleScrollContainerRef.current;
+            if (container) {
+              initialScrollLeft = container.scrollLeft;
+              initialScrollTop = container.scrollTop;
+              initialBoxRect = container.getBoundingClientRect();
+            }
+          }
+          return;
+        }
+
+        if (curDist > 20 && initialDist > 20) {
+          const rawScale = curDist / initialDist;
+          const nextZ = Math.min(2.5, Math.max(0.5, +(initialZ * rawScale).toFixed(2)));
+          pendingZoom = nextZ;
+
+          const curMidX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+          const curMidY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+
+          if (!pinchRaf) {
+            pinchRaf = requestAnimationFrame(() => {
+              if (pendingZoom !== null && pendingZoom !== zoomRef.current) {
+                const prevZ = zoomRef.current;
+                zoomRef.current = pendingZoom;
+                setZoom(pendingZoom);
+
+                // Natural focal-point zoom adjustment around the fingers + pan tracking
+                const c = singleScrollContainerRef.current;
+                if (c && prevZ > 0 && initialBoxRect && mode === "single") {
+                  const focalX = midX - initialBoxRect.left;
+                  const focalY = midY - initialBoxRect.top;
+                  const panDx = curMidX - midX;
+                  const panDy = curMidY - midY;
+                  const ratio = pendingZoom / initialZ;
+                  c.scrollLeft = (initialScrollLeft + focalX) * ratio - (focalX + panDx);
+                  c.scrollTop = (initialScrollTop + focalY) * ratio - (focalY + panDy);
+                }
+              }
+              pinchRaf = null;
+            });
+          }
+        }
+      }
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length === 0 && !tapMovedTooFar && e.changedTouches.length === 1 && mode === "single") {
+        const now = performance.now();
+        const duration = now - tapStartTime;
+        const target = e.target as HTMLElement | null;
+        const isInteractive = Boolean(target?.closest("button, input, a, [role='button']"));
+        if (!isInteractive && duration < 260) {
+          const endX = e.changedTouches[0].clientX;
+          const endY = e.changedTouches[0].clientY;
+          if (
+            lastTapTime > 0 &&
+            now - lastTapTime < 300 &&
+            Math.hypot(endX - lastTapX, endY - lastTapY) < 36
+          ) {
+            lastTapTime = 0;
+            if (zoomRef.current > 1.05) {
+              zoomRef.current = 1.0;
+              setZoom(1.0);
+              setBookPan({ x: 0, y: 0 });
+            } else {
+              zoomRef.current = 1.5;
+              setZoom(1.5);
+            }
+          } else {
+            lastTapTime = now;
+            lastTapX = endX;
+            lastTapY = endY;
+          }
+        } else {
+          lastTapTime = 0;
+        }
+      }
+
+      if (e.touches.length < 2) {
+        if (pinchRaf) {
+          cancelAnimationFrame(pinchRaf);
+          pinchRaf = null;
+        }
+        if (pendingZoom !== null) {
+          zoomRef.current = pendingZoom;
+          setZoom(pendingZoom);
+          pendingZoom = null;
+        }
+        if (isPinchingRef.current) {
+          didPinchJustEndRef.current = true;
+          isPinchingRef.current = false;
+          setIsPinching(false);
+          setTimeout(() => {
+            didPinchJustEndRef.current = false;
+          }, 120);
+        }
+        initialDist = 0;
+      }
+    };
+
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    el.addEventListener("touchcancel", onTouchEnd, { passive: true });
+
+    return () => {
+      if (pinchRaf) cancelAnimationFrame(pinchRaf);
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, [mode]);
+
+  // Desktop trackpad pinch and Ctrl+mousewheel zooming support
+  useEffect(() => {
+    const el = measureRef.current;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        const factor = Math.exp(-e.deltaY * 0.008);
+        setZoom((z) => {
+          const next = Math.min(2.5, Math.max(0.5, +(z * factor).toFixed(2)));
+          zoomRef.current = next;
+          return next;
+        });
+      }
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
 
   // Painting queue
   const pendingBookRef = useRef<Set<number>>(new Set());
@@ -232,10 +512,7 @@ export default function SecurePdfViewer({
           continue;
         }
         try {
-          const dataUrl = await paintPage(doc, best + 1, canvas, watermarkRef.current);
-          if (dataUrl) {
-            setPageImages((prev) => (prev[best] ? prev : { ...prev, [best]: dataUrl }));
-          }
+          await paintPage(doc, best + 1, canvas, watermarkRef.current, false);
           if (best === pageRef.current) setReady(true);
         } catch {
           // ignore paint errors
@@ -254,20 +531,24 @@ export default function SecurePdfViewer({
     [drainSingle],
   );
 
-  // Measure container area
+  // Measure container area immediately on mount and track resizes
   useEffect(() => {
     const el = measureRef.current;
     if (!el) return;
     let t: ReturnType<typeof setTimeout>;
-    const ro = new ResizeObserver(() => {
-      clearTimeout(t);
-      t = setTimeout(() => {
-        const w = el.clientWidth;
-        const h = el.clientHeight;
+    const measure = () => {
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      if (w > 0 && h > 0) {
         setBox((prev) =>
           Math.abs(prev.w - w) > 2 || Math.abs(prev.h - h) > 2 ? { w, h } : prev,
         );
-      }, 100);
+      }
+    };
+    measure();
+    const ro = new ResizeObserver(() => {
+      clearTimeout(t);
+      t = setTimeout(measure, 100);
     });
     ro.observe(el);
     return () => {
@@ -295,13 +576,14 @@ export default function SecurePdfViewer({
           return;
         }
         pdfRef.current = doc;
-        bookCanvasRefs.current = new Array(doc.numPages).fill(null);
-        singleCanvasRefs.current = new Array(doc.numPages).fill(null);
-        singlePageRowRefs.current = new Array(doc.numPages).fill(null);
+        bookCanvasRefs.current.length = doc.numPages;
+        singleCanvasRefs.current.length = doc.numPages;
+        singlePageRowRefs.current.length = doc.numPages;
         pendingBookRef.current.clear();
         pendingSingleRef.current.clear();
         pageRef.current = 0;
         setNumPages(doc.numPages);
+        setDocSeq((s) => s + 1);
         setAspect(v.height / v.width);
         setPage(0);
         setReady(false);
@@ -349,9 +631,9 @@ export default function SecurePdfViewer({
     for (let i = from; i < to; i++) {
       scheduleBookPaint(i);
     }
-  }, [mode, page, numPages, scheduleBookPaint]);
+  }, [mode, page, numPages, docSeq, scheduleBookPaint]);
 
-  // Preload pages around current page in Single Page Mode
+  // Preload pages around current page in Single Page Mode and prune far off-screen bitmaps
   useEffect(() => {
     if (mode !== "single" || !numPages) return;
     const from = Math.max(0, page - PRELOAD_WINDOW);
@@ -359,7 +641,31 @@ export default function SecurePdfViewer({
     for (let i = from; i < to; i++) {
       scheduleSinglePaint(i);
     }
-  }, [mode, page, numPages, scheduleSinglePaint]);
+    // Free backing store bitmaps far outside the viewport to keep mobile GPU memory bounded
+    const keepFrom = Math.max(0, page - 8);
+    const keepTo = Math.min(numPages - 1, page + 8);
+    for (let i = 0; i < numPages; i++) {
+      if (i < keepFrom || i > keepTo) {
+        const c = singleCanvasRefs.current[i];
+        if (c && c.dataset.rendered === "1") {
+          c.width = 0;
+          c.height = 0;
+          delete c.dataset.rendered;
+        }
+      }
+    }
+  }, [mode, page, numPages, docSeq, scheduleSinglePaint]);
+
+  const singleCanvasRefList = useMemo(
+    () =>
+      Array.from({ length: numPages || 0 }, (_, idx) => (el: HTMLCanvasElement | null) => {
+        singleCanvasRefs.current[idx] = el;
+        if (el && Math.abs(idx - pageRef.current) <= PRELOAD_WINDOW + 1) {
+          scheduleSinglePaint(idx);
+        }
+      }),
+    [numPages, scheduleSinglePaint],
+  );
 
   // IntersectionObserver for Single Page Mode scrolling
   useEffect(() => {
@@ -460,7 +766,322 @@ export default function SecurePdfViewer({
 
   const handleZoomIn = () => setZoom((z) => Math.min(2.5, +(z + 0.25).toFixed(2)));
   const handleZoomOut = () => setZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)));
-  const handleResetZoom = () => setZoom(1.0);
+  const handleResetZoom = () => {
+    setZoom(1.0);
+    setBookPan({ x: 0, y: 0 });
+    if (singleScrollContainerRef.current) {
+      singleScrollContainerRef.current.scrollLeft = 0;
+    }
+  };
+
+  const handleFitWidth = useCallback(() => {
+    setBookPan({ x: 0, y: 0 });
+    if (mode === "single") {
+      setZoom(1.0);
+      if (singleScrollContainerRef.current) {
+        singleScrollContainerRef.current.scrollLeft = 0;
+      }
+    } else if (geom && box.w > 0) {
+      const totalSpreadW = geom.portrait ? geom.pageW : geom.pageW * 2;
+      const targetScale = Math.min(2.5, Math.max(0.5, +((box.w - 24) / totalSpreadW).toFixed(2)));
+      setZoom(targetScale);
+    }
+  }, [mode, geom, box.w]);
+
+  const handleFitPage = useCallback(() => {
+    setBookPan({ x: 0, y: 0 });
+    if (mode === "single" && aspect && box.h > 0) {
+      const baseH = singleBaseWidth * aspect;
+      const targetScale = Math.min(2.5, Math.max(0.5, +((box.h - 48) / baseH).toFixed(2)));
+      setZoom(targetScale);
+    } else {
+      setZoom(1.0);
+    }
+  }, [mode, aspect, box.h, singleBaseWidth]);
+
+  // Zoom-anchoring: preserves center reading focus point when zooming in or out via toolbar controls
+  const prevZoomRef = useRef(zoom);
+  useEffect(() => {
+    const prev = prevZoomRef.current;
+    prevZoomRef.current = zoom;
+    // Never interfere with active or just-completed pinch-to-zoom gestures
+    if (isPinchingRef.current || didPinchJustEndRef.current) return;
+
+    if (mode === "single" && singleScrollContainerRef.current && prev !== zoom && prev > 0) {
+      const container = singleScrollContainerRef.current;
+      const ratio = zoom / prev;
+
+      // Maintain vertical reading focus point, but preserve top anchor if near page start
+      if (container.scrollTop < 10) {
+        container.scrollTop = 0;
+      } else {
+        const centerY = container.scrollTop + container.clientHeight / 2;
+        container.scrollTop = Math.max(0, centerY * ratio - container.clientHeight / 2);
+      }
+
+      // Maintain horizontal center focus point
+      if (zoom > 1.02) {
+        const centerX = container.scrollLeft + container.clientWidth / 2;
+        container.scrollLeft = Math.max(0, centerX * ratio - container.clientWidth / 2);
+      } else {
+        container.scrollLeft = 0;
+      }
+    } else if (mode === "book" && zoom <= 1.02) {
+      setBookPan({ x: 0, y: 0 });
+    }
+  }, [zoom, mode]);
+
+  // Desktop mouse drag panning in Single Page Mode when zoomed in (touchscreens use native GPU scrolling)
+  useEffect(() => {
+    const container = singleScrollContainerRef.current;
+    if (!container || mode !== "single") return;
+
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let startScrollLeft = 0;
+    let startScrollTop = 0;
+    let activePointerId: number | null = null;
+    let lastTime = 0;
+    let lastX = 0;
+    let lastY = 0;
+    let velX = 0;
+    let velY = 0;
+    let rafId: number | null = null;
+
+    const onPointerDown = (e: PointerEvent) => {
+      // ONLY intercept mouse on desktop! Touch screens use native hardware-accelerated scrolling.
+      if (e.pointerType !== 'mouse') return;
+      if (zoomRef.current <= 1.02) return;
+      if (e.button !== 0) return;
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'BUTTON' || target.tagName === 'INPUT' || target.tagName === 'A')) return;
+
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+
+      isDragging = true;
+      activePointerId = e.pointerId;
+      startX = e.clientX;
+      startY = e.clientY;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      lastTime = performance.now();
+      velX = 0;
+      velY = 0;
+      startScrollLeft = container.scrollLeft;
+      startScrollTop = container.scrollTop;
+
+      try {
+        container.setPointerCapture(e.pointerId);
+      } catch {
+        // Pointer capture fallback
+      }
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!isDragging || e.pointerId !== activePointerId || zoomRef.current <= 1.02) return;
+      e.preventDefault();
+
+      const now = performance.now();
+      const dt = Math.max(1, now - lastTime);
+      velX = (e.clientX - lastX) / dt;
+      velY = (e.clientY - lastY) / dt;
+      lastX = e.clientX;
+      lastY = e.clientY;
+      lastTime = now;
+
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      container.scrollLeft = startScrollLeft - dx;
+      container.scrollTop = startScrollTop - dy;
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      if (e.pointerId === activePointerId) {
+        isDragging = false;
+        activePointerId = null;
+        try {
+          container.releasePointerCapture(e.pointerId);
+        } catch {
+          // Ignore
+        }
+
+        // Apply smooth momentum/inertia on flick
+        const speed = Math.hypot(velX, velY);
+        if (speed > 0.3) {
+          let currentVelX = velX * 16;
+          let currentVelY = velY * 16;
+          const friction = 0.92;
+
+          const step = () => {
+            if (Math.abs(currentVelX) < 0.5 && Math.abs(currentVelY) < 0.5) {
+              rafId = null;
+              return;
+            }
+            container.scrollLeft -= currentVelX;
+            container.scrollTop -= currentVelY;
+            currentVelX *= friction;
+            currentVelY *= friction;
+            rafId = requestAnimationFrame(step);
+          };
+          rafId = requestAnimationFrame(step);
+        }
+      }
+    };
+
+    container.addEventListener('pointerdown', onPointerDown, { passive: true });
+    container.addEventListener('pointermove', onPointerMove, { passive: false });
+    container.addEventListener('pointerup', onPointerUp, { passive: true });
+    container.addEventListener('pointercancel', onPointerUp, { passive: true });
+
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      container.removeEventListener('pointerdown', onPointerDown);
+      container.removeEventListener('pointermove', onPointerMove);
+      container.removeEventListener('pointerup', onPointerUp);
+      container.removeEventListener('pointercancel', onPointerUp);
+    };
+  }, [mode]);
+
+  const bookPanRef = useRef(bookPan);
+  useEffect(() => {
+    bookPanRef.current = bookPan;
+  }, [bookPan]);
+
+  // Pointer drag panning in Book Mode when zoomed in
+  useEffect(() => {
+    const el = bookContainerRef.current;
+    if (!el || mode !== "book" || zoom <= 1.02) return;
+
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let initialPanX = 0;
+    let initialPanY = 0;
+    let activePointerId: number | null = null;
+
+    const onPointerDown = (e: PointerEvent) => {
+      if (isPinchingRef.current) return;
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      isDragging = true;
+      setIsBookDragging(true);
+      activePointerId = e.pointerId;
+      startX = e.clientX;
+      startY = e.clientY;
+      initialPanX = bookPanRef.current.x;
+      initialPanY = bookPanRef.current.y;
+      try {
+        el.setPointerCapture(e.pointerId);
+      } catch {
+        // Fallback
+      }
+    };
+
+    const onPointerMove = (e: PointerEvent) => {
+      if (!isDragging || e.pointerId !== activePointerId) return;
+      if (isPinchingRef.current) {
+        isDragging = false;
+        setIsBookDragging(false);
+        activePointerId = null;
+        return;
+      }
+      e.preventDefault();
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      const rect = measureRef.current?.getBoundingClientRect();
+      const maxX = rect ? Math.max(80, rect.width * 0.55 * (zoomRef.current - 1) + 40) : 400;
+      const maxY = rect ? Math.max(80, rect.height * 0.55 * (zoomRef.current - 1) + 40) : 400;
+      setBookPan({
+        x: Math.min(maxX, Math.max(-maxX, initialPanX + dx)),
+        y: Math.min(maxY, Math.max(-maxY, initialPanY + dy)),
+      });
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      if (e.pointerId === activePointerId) {
+        isDragging = false;
+        setIsBookDragging(false);
+        activePointerId = null;
+        try {
+          el.releasePointerCapture(e.pointerId);
+        } catch {
+          // Fallback
+        }
+      }
+    };
+
+    el.addEventListener('pointerdown', onPointerDown, { passive: true });
+    el.addEventListener('pointermove', onPointerMove, { passive: false });
+    el.addEventListener('pointerup', onPointerUp, { passive: true });
+    el.addEventListener('pointercancel', onPointerUp, { passive: true });
+
+    return () => {
+      el.removeEventListener('pointerdown', onPointerDown);
+      el.removeEventListener('pointermove', onPointerMove);
+      el.removeEventListener('pointerup', onPointerUp);
+      el.removeEventListener('pointercancel', onPointerUp);
+    };
+  }, [mode, zoom]);
+
+  const toggleFullscreen = useCallback(() => {
+    if (!rootRef.current) return;
+    if (isFullscreen) {
+      setIsFullscreen(false);
+      if (document.fullscreenElement) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const doc = document as any;
+        if (doc.exitFullscreen) {
+          void doc.exitFullscreen().catch(() => {});
+        } else if (doc.webkitExitFullscreen) {
+          void doc.webkitExitFullscreen().catch(() => {});
+        }
+      }
+    } else {
+      setIsFullscreen(true);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const el = rootRef.current as any;
+      if (el.requestFullscreen) {
+        void el.requestFullscreen().catch(() => {});
+      } else if (el.webkitRequestFullscreen) {
+        void el.webkitRequestFullscreen().catch(() => {});
+      }
+    }
+  }, [isFullscreen]);
+
+  // Gracefully preserve scroll position across mobile orientation changes
+  useEffect(() => {
+    const handleOrientationChange = () => {
+      setTimeout(() => {
+        if (mode === "single") {
+          const el = singlePageRowRefs.current[pageRef.current];
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }
+      }, 200);
+    };
+    window.addEventListener("orientationchange", handleOrientationChange);
+    return () => window.removeEventListener("orientationchange", handleOrientationChange);
+  }, [mode]);
+
+  // Seamlessly maintain active page view when transitioning between fullscreen and embedded mode
+  useEffect(() => {
+    if (mode === "single") {
+      const el = singlePageRowRefs.current[pageRef.current];
+      if (el) {
+        isScrollingRef.current = true;
+        el.scrollIntoView({ behavior: "auto", block: "start" });
+        const timer = setTimeout(() => {
+          isScrollingRef.current = false;
+        }, 150);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [isFullscreen, mode]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -482,11 +1103,17 @@ export default function SecurePdfViewer({
       } else if (e.key === "0") {
         e.preventDefault();
         handleResetZoom();
+      } else if (e.key === "f" || e.key === "F") {
+        e.preventDefault();
+        toggleFullscreen();
+      } else if (e.key === "Escape" && isFullscreen) {
+        e.preventDefault();
+        toggleFullscreen();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [flipNext, flipPrev]);
+  }, [flipNext, flipPrev, toggleFullscreen, isFullscreen]);
 
   // Book pages elements
   const bookPages = useMemo(() => {
@@ -577,7 +1204,6 @@ export default function SecurePdfViewer({
       ? page + 1 >= numPages
       : page + (geom?.portrait ? 1 : 2) >= numPages);
 
-
   const spreadLabel = numPages
     ? mode === "single"
       ? `${page + 1} / ${numPages}`
@@ -589,14 +1215,38 @@ export default function SecurePdfViewer({
     : "";
 
   return (
-    <div className="flex h-full flex-col select-none" onContextMenu={(e) => e.preventDefault()}>
+    <div
+      ref={rootRef}
+      className={`flex h-full flex-col select-none ${
+        isFullscreen
+          ? "fixed inset-0 z-[100] bg-slate-900 w-full h-[100dvh] max-h-[100dvh] overflow-hidden"
+          : "relative w-full h-full min-h-0"
+      }`}
+      onContextMenu={(e) => e.preventDefault()}
+    >
       {error && (
         <div className="m-4 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 p-4 rounded-xl border border-red-200 dark:border-red-900/50">
           {error}
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-hidden bg-slate-200 p-1.5 sm:p-2.5 dark:bg-zinc-900">
+      {/* Floating Exit Fullscreen Button in Fullscreen mode */}
+      {isFullscreen && (
+        <div className="absolute top-[calc(0.75rem+env(safe-area-inset-top,0px))] right-[calc(0.75rem+env(safe-area-inset-right,0px))] z-30 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 min-h-[38px] rounded-full bg-slate-800/80 hover:bg-slate-700/90 text-white text-xs font-semibold backdrop-blur-sm border border-white/20 shadow-lg transition-all active:scale-[0.98]"
+            aria-label="Exit Fullscreen"
+            title="Exit Fullscreen (Esc)"
+          >
+            <Minimize2 className="w-3.5 h-3.5 text-accent" />
+            <span className="hidden sm:inline">Exit Fullscreen</span>
+          </button>
+        </div>
+      )}
+
+      <div className="min-h-0 flex-1 overflow-hidden bg-slate-200 p-1 sm:p-2.5 dark:bg-zinc-900">
         <div ref={measureRef} className="relative h-full w-full flex items-center justify-center overflow-hidden">
           {!ready && !error && (
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-surface-alt/70 backdrop-blur-xs">
@@ -610,11 +1260,18 @@ export default function SecurePdfViewer({
           {mode === "single" ? (
             <div
               ref={singleScrollContainerRef}
-              className="h-full w-full overflow-y-auto overflow-x-auto p-3 sm:p-6 flex flex-col items-center gap-4 sm:gap-6 bg-slate-200 dark:bg-zinc-900 scroll-smooth"
+              className={`h-full w-full overflow-y-auto overflow-x-auto px-2 py-3 sm:px-6 sm:py-6 flex flex-col gap-3 sm:gap-6 bg-slate-200 dark:bg-zinc-900 ${
+                zoom > 1.02 ? "items-start cursor-grab active:cursor-grabbing" : "items-center"
+              }`}
+              style={{
+                touchAction: "pan-x pan-y",
+                overscrollBehavior: "contain",
+                WebkitOverflowScrolling: "touch",
+              }}
               tabIndex={0}
             >
               {Array.from({ length: numPages || 0 }, (_, i) => {
-                const pageW = Math.max(280, Math.round(singleBaseWidth * zoom));
+                const pageW = Math.max(260, Math.round(singleBaseWidth * zoom));
                 const pageH = Math.round(pageW * (aspect || 1.414));
                 return (
                   <div
@@ -629,24 +1286,14 @@ export default function SecurePdfViewer({
                       minWidth: pageW,
                       minHeight: pageH,
                     }}
-                    className="relative flex-shrink-0 bg-white shadow-xl rounded-sm border border-slate-300 dark:border-zinc-700 overflow-hidden"
+                    className={`relative flex-shrink-0 bg-white shadow-xl rounded-xs sm:rounded-sm border border-slate-300 dark:border-zinc-700 overflow-hidden ${
+                      zoom <= 1.02 ? "mx-auto" : ""
+                    }`}
                   >
                     <canvas
-                      ref={(el) => {
-                        singleCanvasRefs.current[i] = el;
-                        if (el && mode === "single") scheduleSinglePaint(i);
-                      }}
+                      ref={singleCanvasRefList[i]}
                       className="block w-full h-full"
                     />
-                    {pageImages[i] && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={pageImages[i]}
-                        alt={`Page ${i + 1}`}
-                        className="absolute inset-0 w-full h-full object-contain pointer-events-none select-none"
-                        draggable={false}
-                      />
-                    )}
                     <div className="absolute bottom-2 right-2 text-[10px] font-semibold text-slate-400 select-none bg-white/80 px-1.5 py-0.5 rounded shadow-xs">
                       Page {i + 1}
                     </div>
@@ -657,14 +1304,18 @@ export default function SecurePdfViewer({
           ) : (
             geom && bookPages && numPages && (
               <div
+                ref={bookContainerRef}
                 style={{
-                  transform: `scale(${zoom})`,
+                  transform: `scale(${zoom}) translate(${bookPan.x / zoom}px, ${bookPan.y / zoom}px)`,
                   transformOrigin: "center center",
-                  transition: "transform 0.15s ease-out",
+                  transition: isBookDragging || isPinching ? "none" : "transform 0.15s ease-out",
                   willChange: "transform",
                   backfaceVisibility: "hidden",
+                  touchAction: zoom > 1.02 ? "none" : "auto",
                 }}
-                className="h-full w-full flex items-center justify-center overflow-hidden"
+                className={`h-full w-full flex items-center justify-center overflow-hidden ${
+                  zoom > 1.02 ? "cursor-grab active:cursor-grabbing" : ""
+                }`}
               >
                 <HTMLFlipBook
                   ref={bookRef}
@@ -683,12 +1334,12 @@ export default function SecurePdfViewer({
                   drawShadow={true}
                   maxShadowOpacity={0.2}
                   flippingTime={400}
-                  useMouseEvents={true}
-                  swipeDistance={30}
-                  showPageCorners={true}
+                  useMouseEvents={zoom <= 1.02}
+                  swipeDistance={zoom > 1.02 ? 99999 : 30}
+                  showPageCorners={zoom <= 1.02}
                   mobileScrollSupport={false}
                   clickEventForward={false}
-                  disableFlipByClick={false}
+                  disableFlipByClick={zoom > 1.02}
                   startZIndex={1}
                   autoSize={false}
                   onFlip={onFlip}
@@ -702,142 +1353,403 @@ export default function SecurePdfViewer({
       </div>
 
       {numPages != null && !error && (
-        <div className="flex flex-wrap items-center justify-between gap-2 px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] bg-surface border-t border-border">
-          {/* Mode Switcher */}
-          <div className="flex items-center gap-1 rounded-lg border border-border bg-surface-alt/50 p-1 shadow-xs" role="tablist" aria-label="PDF viewing mode">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === "book"}
-              onClick={() => {
-                setMode("book");
-              }}
-              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-bold transition-all ${
-                mode === "book"
-                  ? "bg-accent text-white shadow-xs"
-                  : "text-text-secondary hover:text-navy dark:hover:text-white"
-              }`}
-            >
-              <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>Book Mode</span>
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mode === "single"}
-              onClick={() => {
-                setMode("single");
-              }}
-              className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-bold transition-all ${
-                mode === "single"
-                  ? "bg-accent text-white shadow-xs"
-                  : "text-text-secondary hover:text-navy dark:hover:text-white"
-              }`}
-            >
-              <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>Single Page</span>
-            </button>
+        <div className="relative bg-surface border-t border-border z-20 shrink-0 shadow-lg">
+          {/* Quick Page Scrubber Popover */}
+          {isQuickJumpOpen && (
+            <div className="border-b border-border bg-surface-alt/95 p-3 shadow-md animate-in slide-in-from-bottom-2 duration-150">
+              <div className="max-w-md mx-auto space-y-2.5">
+                <div className="flex items-center justify-between text-xs font-bold text-navy dark:text-white">
+                  <span className="flex items-center gap-1.5">
+                    <SlidersHorizontal className="h-3.5 w-3.5 text-accent" />
+                    Quick Page Jump
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsQuickJumpOpen(false)}
+                    className="p-1 rounded text-text-muted hover:text-navy dark:hover:text-white"
+                    aria-label="Close page jump"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-semibold tabular-nums text-text-muted">1</span>
+                  <input
+                    type="range"
+                    min={1}
+                    max={numPages}
+                    value={page + 1}
+                    onChange={(e) => goTo(Number(e.target.value))}
+                    className="flex-1 accent-accent h-2 bg-border rounded-lg cursor-pointer"
+                    aria-label="Page scrubber slider"
+                  />
+                  <span className="text-xs font-semibold tabular-nums text-text-muted">{numPages}</span>
+                </div>
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      goTo(1);
+                      setIsQuickJumpOpen(false);
+                    }}
+                    className="px-2.5 py-1 text-xs font-bold rounded bg-surface border border-border text-text-secondary hover:text-navy dark:hover:text-white"
+                  >
+                    Page 1
+                  </button>
+                  <form
+                    className="flex items-center gap-1"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const input = e.currentTarget.elements.namedItem("page") as HTMLInputElement;
+                      if (input?.value) {
+                        goTo(parseInt(input.value, 10));
+                        setIsQuickJumpOpen(false);
+                      }
+                    }}
+                  >
+                    <input
+                      name="page"
+                      type="number"
+                      min={1}
+                      max={numPages}
+                      placeholder={String(page + 1)}
+                      className="w-16 rounded border border-border bg-surface px-2 py-1 text-xs tabular-nums text-text-primary text-center"
+                      aria-label="Go to page"
+                    />
+                    <button
+                      type="submit"
+                      className="rounded bg-accent text-white px-2.5 py-1 text-xs font-bold hover:bg-accent-hover transition-colors"
+                    >
+                      Go
+                    </button>
+                  </form>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      goTo(numPages);
+                      setIsQuickJumpOpen(false);
+                    }}
+                    className="px-2.5 py-1 text-xs font-bold rounded bg-surface border border-border text-text-secondary hover:text-navy dark:hover:text-white"
+                  >
+                    Page {numPages}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Desktop Toolbar (sm and up) */}
+          <div className="hidden sm:flex flex-wrap items-center justify-between gap-2 px-3 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]">
+            {/* Mode Switcher */}
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-surface-alt/50 p-1 shadow-xs" role="tablist" aria-label="PDF viewing mode">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === "book"}
+                onClick={() => setMode("book")}
+                className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-bold transition-all ${
+                  mode === "book"
+                    ? "bg-accent text-white shadow-xs"
+                    : "text-text-secondary hover:text-navy dark:hover:text-white"
+                }`}
+              >
+                <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Book Mode</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={mode === "single"}
+                onClick={() => setMode("single")}
+                className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-bold transition-all ${
+                  mode === "single"
+                    ? "bg-accent text-white shadow-xs"
+                    : "text-text-secondary hover:text-navy dark:hover:text-white"
+                }`}
+              >
+                <FileText className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Single Page</span>
+              </button>
+            </div>
+
+            {/* Page Controls */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-0.5 rounded-lg border border-border bg-surface px-1.5 py-1 shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => goTo(1)}
+                  disabled={atStart}
+                  className="rounded px-1.5 py-1 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
+                  aria-label="First page"
+                >
+                  First
+                </button>
+                <button
+                  type="button"
+                  onClick={flipPrev}
+                  disabled={atStart}
+                  className="rounded px-1.5 py-1 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
+                  aria-label="Previous page"
+                >
+                  ‹ Prev
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsQuickJumpOpen(!isQuickJumpOpen)}
+                  className="min-w-[5.5rem] px-1.5 py-0.5 text-center text-xs font-semibold tabular-nums text-text-primary hover:bg-surface-alt rounded transition-colors"
+                  title="Click to jump to page"
+                >
+                  {spreadLabel}
+                </button>
+                <button
+                  type="button"
+                  onClick={flipNext}
+                  disabled={atEnd}
+                  className="rounded px-1.5 py-1 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
+                  aria-label="Next page"
+                >
+                  Next ›
+                </button>
+                <button
+                  type="button"
+                  onClick={() => numPages && goTo(numPages)}
+                  disabled={atEnd}
+                  className="rounded px-1.5 py-1 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
+                  aria-label="Last page"
+                >
+                  Last
+                </button>
+              </div>
+              <form
+                className="flex items-center gap-1"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const input = e.currentTarget.elements.namedItem("page") as HTMLInputElement;
+                  if (input?.value) goTo(parseInt(input.value, 10));
+                }}
+              >
+                <input
+                  name="page"
+                  type="number"
+                  min={1}
+                  max={numPages}
+                  placeholder="Page"
+                  className="w-16 rounded-lg border border-border bg-surface px-2 py-1 text-xs tabular-nums text-text-primary"
+                  aria-label="Go to page"
+                />
+                <button
+                  type="submit"
+                  className="rounded-lg border border-border bg-surface px-2 py-1 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary"
+                >
+                  Go
+                </button>
+              </form>
+            </div>
+
+            {/* Zoom & Fullscreen Controls */}
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-surface px-1.5 py-1 shadow-sm">
+              <button
+                type="button"
+                onClick={handleZoomOut}
+                disabled={zoom <= 0.5}
+                className="rounded p-1 text-xs font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary disabled:opacity-30"
+                title="Zoom Out (-)"
+                aria-label="Zoom Out"
+              >
+                <ZoomOut className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={handleResetZoom}
+                className="min-w-[3rem] text-center text-xs font-semibold tabular-nums text-text-primary hover:text-accent transition-colors"
+                title="Reset zoom to 100%"
+                aria-label="Reset zoom to 100%"
+              >
+                {Math.round(zoom * 100)}%
+              </button>
+              <button
+                type="button"
+                onClick={handleZoomIn}
+                disabled={zoom >= 2.5}
+                className="rounded p-1 text-xs font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary disabled:opacity-30"
+                title="Zoom In (+)"
+                aria-label="Zoom In"
+              >
+                <ZoomIn className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={handleResetZoom}
+                className="rounded px-1.5 py-0.5 text-[11px] font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary"
+                title="Reset Zoom (Fit)"
+                aria-label="Reset Zoom"
+              >
+                <RotateCcw className="h-3 w-3" />
+              </button>
+              <button
+                type="button"
+                onClick={handleFitWidth}
+                className="rounded px-1.5 py-0.5 text-[11px] font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary border-l border-border/60 ml-0.5 pl-1.5"
+                title="Fit to Width"
+                aria-label="Fit to Width"
+              >
+                Fit Width
+              </button>
+              <button
+                type="button"
+                onClick={handleFitPage}
+                className="rounded px-1.5 py-0.5 text-[11px] font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary"
+                title="Fit to Page"
+                aria-label="Fit to Page"
+              >
+                Fit Page
+              </button>
+              <button
+                type="button"
+                onClick={toggleFullscreen}
+                className="rounded p-1 text-xs font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary border-l border-border/60 ml-0.5 pl-1.5"
+                title={isFullscreen ? "Exit Fullscreen (F)" : "Fullscreen (F)"}
+                aria-label="Toggle Fullscreen"
+              >
+                {isFullscreen ? <Minimize2 className="h-3.5 w-3.5 text-accent" /> : <Maximize2 className="h-3.5 w-3.5" />}
+              </button>
+            </div>
           </div>
 
-          {/* Page Controls */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-0.5 rounded-lg border border-border bg-surface px-1.5 py-1 shadow-sm">
+          {/* Mobile Toolbar (< sm) — compact, ergonomic, touch-friendly */}
+          <div className="flex sm:hidden flex-col gap-1.5 px-2.5 pt-1.5 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]">
+            {/* Mobile Row 1: Primary Navigation with large touch targets */}
+            <div className="flex items-center justify-between gap-1 w-full">
               <button
+                type="button"
                 onClick={() => goTo(1)}
                 disabled={atStart}
-                className="rounded px-1.5 py-1 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
+                className="min-h-[44px] px-2 text-xs font-bold text-text-secondary hover:text-navy dark:hover:text-white disabled:opacity-30 rounded-lg bg-surface-alt/50 active:bg-surface-alt shrink-0"
                 aria-label="First page"
               >
                 First
               </button>
               <button
+                type="button"
                 onClick={flipPrev}
                 disabled={atStart}
-                className="rounded px-1.5 py-1 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
+                className="min-h-[44px] flex-1 flex items-center justify-center gap-1 rounded-lg bg-surface-alt hover:bg-surface-alt/80 border border-border text-xs font-bold text-navy dark:text-white disabled:opacity-30 active:scale-[0.98] transition-all"
                 aria-label="Previous page"
               >
-                ‹ Prev
+                <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                <span>Prev</span>
               </button>
-              <span className="min-w-[5.5rem] text-center text-xs font-semibold tabular-nums text-text-primary">
-                {spreadLabel}
-              </span>
               <button
+                type="button"
+                onClick={() => setIsQuickJumpOpen(!isQuickJumpOpen)}
+                className="min-h-[44px] px-3 flex items-center justify-center gap-1 rounded-lg bg-accent/10 border border-accent/20 text-xs font-extrabold tabular-nums text-accent active:scale-[0.98] transition-all shrink-0"
+                aria-label="Open page jump menu"
+              >
+                <span>{spreadLabel}</span>
+                <SlidersHorizontal className="h-3 w-3 opacity-70" />
+              </button>
+              <button
+                type="button"
                 onClick={flipNext}
                 disabled={atEnd}
-                className="rounded px-1.5 py-1 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
+                className="min-h-[44px] flex-1 flex items-center justify-center gap-1 rounded-lg bg-surface-alt hover:bg-surface-alt/80 border border-border text-xs font-bold text-navy dark:text-white disabled:opacity-30 active:scale-[0.98] transition-all"
                 aria-label="Next page"
               >
-                Next ›
+                <span>Next</span>
+                <ChevronRight className="h-4 w-4" aria-hidden="true" />
               </button>
               <button
+                type="button"
                 onClick={() => numPages && goTo(numPages)}
                 disabled={atEnd}
-                className="rounded px-1.5 py-1 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
+                className="min-h-[44px] px-2 text-xs font-bold text-text-secondary hover:text-navy dark:hover:text-white disabled:opacity-30 rounded-lg bg-surface-alt/50 active:bg-surface-alt shrink-0"
                 aria-label="Last page"
               >
                 Last
               </button>
             </div>
-            <form
-              className="hidden sm:flex items-center gap-1"
-              onSubmit={(e) => {
-                e.preventDefault();
-                const input = e.currentTarget.elements.namedItem("page") as HTMLInputElement;
-                if (input?.value) goTo(parseInt(input.value, 10));
-              }}
-            >
-              <input
-                name="page"
-                type="number"
-                min={1}
-                max={numPages}
-                placeholder="Page"
-                className="w-16 rounded-lg border border-border bg-surface px-2 py-1 text-xs tabular-nums text-text-primary"
-                aria-label="Go to page"
-              />
-              <button
-                type="submit"
-                className="rounded-lg border border-border bg-surface px-2 py-1 text-xs font-bold text-text-secondary transition-colors hover:bg-surface-alt hover:text-text-primary"
-              >
-                Go
-              </button>
-            </form>
-          </div>
 
-          {/* Zoom Controls */}
-          <div className="flex items-center gap-1 rounded-lg border border-border bg-surface px-1.5 py-1 shadow-sm">
-            <button
-              type="button"
-              onClick={handleZoomOut}
-              disabled={zoom <= 0.5}
-              className="rounded p-1 text-xs font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary disabled:opacity-30"
-              title="Zoom Out (-)"
-              aria-label="Zoom Out"
-            >
-              <ZoomOut className="h-3.5 w-3.5" />
-            </button>
-            <span className="min-w-[3rem] text-center text-xs font-semibold tabular-nums text-text-primary">
-              {Math.round(zoom * 100)}%
-            </span>
-            <button
-              type="button"
-              onClick={handleZoomIn}
-              disabled={zoom >= 2.5}
-              className="rounded p-1 text-xs font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary disabled:opacity-30"
-              title="Zoom In (+)"
-              aria-label="Zoom In"
-            >
-              <ZoomIn className="h-3.5 w-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={handleResetZoom}
-              className="rounded px-1.5 py-0.5 text-[11px] font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary"
-              title="Reset Zoom (Fit)"
-              aria-label="Reset Zoom"
-            >
-              <RotateCcw className="h-3 w-3" />
-            </button>
+            {/* Mobile Row 2: Mode Toggle, Zoom & Fullscreen */}
+            <div className="flex items-center justify-between gap-1 w-full pt-0.5">
+              {/* Compact Mode Switcher */}
+              <div className="flex items-center gap-0.5 rounded-lg border border-border bg-surface-alt/50 p-0.5 shadow-xs shrink-0" role="tablist" aria-label="PDF viewing mode">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === "book"}
+                  onClick={() => setMode("book")}
+                  className={`min-h-[40px] inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-bold transition-all ${
+                    mode === "book"
+                      ? "bg-accent text-white shadow-xs"
+                      : "text-text-secondary hover:text-navy dark:hover:text-white"
+                  }`}
+                >
+                  <BookOpen className="h-3 w-3" aria-hidden="true" />
+                  <span>Book</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === "single"}
+                  onClick={() => setMode("single")}
+                  className={`min-h-[40px] inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-[11px] font-bold transition-all ${
+                    mode === "single"
+                      ? "bg-accent text-white shadow-xs"
+                      : "text-text-secondary hover:text-navy dark:hover:text-white"
+                  }`}
+                >
+                  <FileText className="h-3 w-3" aria-hidden="true" />
+                  <span>Single</span>
+                </button>
+              </div>
+
+              {/* Mobile Zoom & Fullscreen Controls */}
+              <div className="flex items-center gap-0.5 rounded-lg border border-border bg-surface px-1 py-0.5 shadow-sm">
+                <button
+                  type="button"
+                  onClick={handleZoomOut}
+                  disabled={zoom <= 0.5}
+                  className="min-h-[40px] min-w-[38px] flex items-center justify-center rounded p-1 text-xs font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary disabled:opacity-30"
+                  aria-label="Zoom Out"
+                >
+                  <ZoomOut className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleResetZoom}
+                  className="min-w-[2.5rem] px-1 text-center text-[11px] font-bold tabular-nums text-text-primary hover:text-accent transition-colors"
+                  title="Reset zoom to 100%"
+                  aria-label="Reset zoom to 100%"
+                >
+                  {Math.round(zoom * 100)}%
+                </button>
+                <button
+                  type="button"
+                  onClick={handleZoomIn}
+                  disabled={zoom >= 2.5}
+                  className="min-h-[40px] min-w-[38px] flex items-center justify-center rounded p-1 text-xs font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary disabled:opacity-30"
+                  aria-label="Zoom In"
+                >
+                  <ZoomIn className="h-3.5 w-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={handleFitWidth}
+                  className="min-h-[40px] min-w-[38px] px-2 text-[11px] font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary border-l border-border/60"
+                  aria-label="Fit to Width"
+                >
+                  Fit
+                </button>
+                <button
+                  type="button"
+                  onClick={toggleFullscreen}
+                  className="min-h-[40px] min-w-[38px] flex items-center justify-center rounded p-1 text-xs font-bold text-text-secondary hover:bg-surface-alt hover:text-text-primary border-l border-border/60"
+                  aria-label="Toggle Fullscreen"
+                >
+                  {isFullscreen ? <Minimize2 className="h-3.5 w-3.5 text-accent" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

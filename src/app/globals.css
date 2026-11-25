@@ -299,11 +299,12 @@
       Tahoma,
       sans-serif;
     font-size: 1rem;      /* 16px — matches the old site on mobile */
-    line-height: 2.25;    /* 36px */
-    text-align: justify;
-    text-justify: inter-word;
+    line-height: 1.85;    /* comfortable, natural reading line-height */
+    text-align: start;    /* natural readable text alignment prevents excessive word gaps */
     text-wrap: pretty;    /* avoids lonely last words and cramped line breaks */
-    hyphens: none;
+    overflow-wrap: break-word;
+    word-break: normal;
+    word-spacing: normal;
     color: var(--text-primary);
   }
   @media (min-width: 768px) {
@@ -384,7 +385,21 @@
      (article detail uses .article-body, Nepali/law-note pages use .prose). */
   :is(.article-body, .prose) .ql-align-center { text-align: center; }
   :is(.article-body, .prose) .ql-align-right { text-align: right; }
-  :is(.article-body, .prose) .ql-align-justify { text-align: justify; }
+  :is(.article-body, .prose) .ql-align-justify {
+    text-align: justify;
+    text-justify: auto;
+    hyphens: auto;
+    word-spacing: normal;
+    overflow-wrap: break-word;
+  }
+  @media (max-width: 640px) {
+    /* Narrow mobile viewports cannot justify text without extreme word spacing */
+    :is(.article-body, .prose) .ql-align-justify,
+    :is(.article-body, .prose) [style*="text-align: justify"],
+    :is(.article-body, .prose) [style*="text-align:justify"] {
+      text-align: start !important;
+    }
+  }
   :is(.article-body, .prose) .ql-indent-1 { padding-left: 3em; }
   :is(.article-body, .prose) .ql-indent-2 { padding-left: 6em; }
   :is(.article-body, .prose) .ql-indent-3 { padding-left: 9em; }
@@ -677,11 +692,12 @@
       Tahoma,
       sans-serif;
     font-size: 1rem;      /* 16px — matches the old site on mobile */
-    line-height: 2.25;    /* 36px */
-    text-align: justify;
-    text-justify: inter-word;
+    line-height: 1.85;    /* comfortable, natural reading line-height */
+    text-align: start;    /* natural readable text alignment prevents excessive word gaps */
     text-wrap: pretty;    /* avoids lonely last words and cramped line breaks */
-    hyphens: none;
+    overflow-wrap: break-word;
+    word-break: normal;
+    word-spacing: normal;
     color: var(--text-primary);
   }
   @media (min-width: 768px) {
@@ -783,9 +799,7 @@
   }
 
   .el-ai-float {
-    animation:
-      el-ai-pop 3.2s ease-in-out infinite,
-      el-ai-glow 3.2s ease-in-out infinite;
+    animation: el-ai-pop 3.2s ease-in-out infinite;
     will-change: transform;
   }
 
@@ -839,6 +853,14 @@
     max-height: calc(100dvh - 2rem) !important;
     scrollbar-gutter: stable;
   }
+}
+
+/* Bound viewport height strictly when the full-viewport PDF reader is mounted */
+body:has([data-pdf-reader-shell]) {
+  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
 }
 
 /* Rich text written in the admin editor inside .prose (events, publications,

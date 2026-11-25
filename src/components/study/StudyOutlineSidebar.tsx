@@ -45,12 +45,7 @@ const getResourceTypeIcon = (type: string) => {
 };
 
 export default function StudyOutlineSidebar({ units, currentResourceId, currentUnitId }: StudyOutlineSidebarProps) {
-  const [isOpen, setIsOpen] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return window.innerWidth >= 768;
-    }
-    return true; // SSR default: open (desktop)
-  });
+  const [isOpen, setIsOpen] = useState(true);
   const [expandedUnits, setExpandedUnits] = useState<Set<string>>(new Set(currentUnitId ? [currentUnitId] : []));
 
   const toggleSidebar = () => setIsOpen(!isOpen);

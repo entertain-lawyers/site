@@ -98,19 +98,7 @@ export default function ActsAndLawsClient({ initialActs }: ActsAndLawsClientProp
     return filteredActs.slice(start, start + ITEMS_PER_PAGE);
   }, [filteredActs, validCurrentPage]);
 
-  // Zigzag numbering matching the sketch: 1 left, 2 right, 3 left, 4 right…
-  const leftColumnActs: { act: ActItem; index: number }[] = [];
-  const rightColumnActs: { act: ActItem; index: number }[] = [];
-
   const startIndex = (validCurrentPage - 1) * ITEMS_PER_PAGE;
-  paginatedActs.forEach((act, i) => {
-    const itemIndex = startIndex + i + 1;
-    if (itemIndex % 2 === 1) {
-      leftColumnActs.push({ act, index: itemIndex });
-    } else {
-      rightColumnActs.push({ act, index: itemIndex });
-    }
-  });
 
   const handleDownload = (act: ActItem) => {
     if (!act.documentUrl) {
@@ -261,36 +249,19 @@ export default function ActsAndLawsClient({ initialActs }: ActsAndLawsClientProp
           </span>
         </div>
 
-        {/* 2-Column Grid Layout matching the sketch */}
+        {/* 2-Column Grid Layout: linear on mobile, balanced 2 columns on desktop */}
         {paginatedActs.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-5">
-            {/* Left Column (Items 1, 2, 3...) */}
-            <div className="space-y-4">
-              {leftColumnActs.map(({ act, index }) => (
-                <ActCard
-                  key={act.id}
-                  act={act}
-                  index={index}
-                  categoryLabel={categoryLabelMap.get(act.category) || act.category}
-                  onView={() => handleView(act)}
-                  onDownload={() => handleDownload(act)}
-                />
-              ))}
-            </div>
-
-            {/* Right Column (Items 4, 5, 6...) */}
-            <div className="space-y-4">
-              {rightColumnActs.map(({ act, index }) => (
-                <ActCard
-                  key={act.id}
-                  act={act}
-                  index={index}
-                  categoryLabel={categoryLabelMap.get(act.category) || act.category}
-                  onView={() => handleView(act)}
-                  onDownload={() => handleDownload(act)}
-                />
-              ))}
-            </div>
+            {paginatedActs.map((act, i) => (
+              <ActCard
+                key={act.id}
+                act={act}
+                index={startIndex + i + 1}
+                categoryLabel={categoryLabelMap.get(act.category) || act.category}
+                onView={() => handleView(act)}
+                onDownload={() => handleDownload(act)}
+              />
+            ))}
           </div>
         ) : (
           <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-black/5 dark:border-white/10 p-12 text-center max-w-lg mx-auto">

@@ -114,7 +114,8 @@ export default function LawyerProfileView({ lawyer }: LawyerProfileViewProps) {
                   fill
                   sizes="(max-width: 1024px) 280px, 300px"
                   className="object-cover"
-                  priority
+                  unoptimized={lawyer.imageUrl.startsWith("/api/")}
+                  preload
                 />
               ) : (
                 <div aria-hidden="true" className="flex h-full w-full items-center justify-center text-7xl font-black text-accent">
