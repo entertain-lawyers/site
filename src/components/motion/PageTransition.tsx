@@ -15,7 +15,7 @@ import { hasClientNavigated, markClientNavigation } from './navigation-state';
  */
 export default function PageTransition({
   children,
-  className = 'flex flex-col flex-grow min-w-0',
+  className = 'flex flex-col flex-grow min-w-0 min-h-0',
 }: {
   children: React.ReactNode;
   className?: string;

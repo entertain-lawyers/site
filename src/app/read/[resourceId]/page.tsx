@@ -726,7 +726,7 @@ export default async function ReadResourcePage({
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex min-h-0 min-w-0 overflow-hidden">
         {/* Sidebar - desktop-only syllabus outline for notes and prescribed cases */}
         {hasSyllabus && filteredUnits.length > 0 && (
           <div className="hidden lg:flex h-full shrink-0">
@@ -739,8 +739,8 @@ export default async function ReadResourcePage({
         )}
 
         {/* PDF Viewer Area */}
-        <div className="flex-1 relative bg-surface-alt flex flex-col h-full">
-          <div className="flex-1 overflow-hidden relative">
+        <div className="flex-1 relative bg-surface-alt flex flex-col min-h-0 min-w-0 h-full">
+          <div className="flex-1 min-h-0 min-w-0 overflow-hidden relative">
             <SecurePdfViewer url={pdfUrl} watermarkLines={watermarkLines} initialFullscreen={false} />
           </div>
         </div>
