@@ -166,6 +166,13 @@ export default async function RootLayout({
                   "@id": `${siteUrl}/#organization`,
                   "name": settings.organizationName,
                   "url": siteUrl,
+                  "logo": {
+                    "@type": "ImageObject",
+                    "url": `${siteUrl}/logo.jpg`,
+                    "width": 512,
+                    "height": 512
+                  },
+                  "image": `${siteUrl}/logo.jpg`,
                   "email": settings.contactEmail,
                   "telephone": settings.contactPhone,
                   "address": {
