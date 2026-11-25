@@ -161,6 +161,9 @@ export default function SecurePdfViewer({
   const measureRef = useRef<HTMLDivElement>(null);
   const bookContainerRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
+  // Stable ref so the touch-handler closure (created once at mount) can always
+  // call the latest playPageTurnSound without it being in its deps array.
+  const playPageTurnSoundRef = useRef<() => void>(() => {});
 
   // On small mobile screens (< 768px), default to continuous single-page mode for immediate reading comfort
   useEffect(() => {
@@ -415,10 +418,12 @@ export default function SecurePdfViewer({
             const next = cur + 1;
             pageRef.current = next;
             setPage(next);
+            playPageTurnSoundRef.current();
           } else if (dx > 0 && cur > 0) {
             const prev = cur - 1;
             pageRef.current = prev;
             setPage(prev);
+            playPageTurnSoundRef.current();
           }
           lastTapTime = 0;
           return;
@@ -1296,8 +1301,46 @@ export default function SecurePdfViewer({
     ));
   }, [geom, numPages, mode, isMobileBook, scheduleBookPaint]);
 
+  // ── DearFlip page-flip audio ──────────────────────────────────────────────
+  // Primary: real page-flip.mp3 (the same asset used by the DearFlip WordPress
+  // plugin on the old CMS site). Clone the Audio node on every flip so rapid
+  // consecutive flips never cut each other short.
+  // Fallback: Web Audio API synthesis (original implementation).
+  const flipAudioRef = useRef<HTMLAudioElement | null>(null);
+  const flipAudioReadyRef = useRef(false);
   const audioCtxRef = useRef<AudioContext | null>(null);
+
+  // Preload the audio asset once on mount so the first flip has no latency.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const audio = new Audio('/sounds/page-flip.mp3');
+    audio.preload = 'auto';
+    audio.volume = 0.6;
+    const onCanPlay = () => { flipAudioReadyRef.current = true; };
+    audio.addEventListener('canplaythrough', onCanPlay);
+    flipAudioRef.current = audio;
+    return () => {
+      audio.removeEventListener('canplaythrough', onCanPlay);
+      flipAudioRef.current = null;
+      flipAudioReadyRef.current = false;
+    };
+  }, []);
+
   const playPageTurnSound = () => {
+    // ── Primary: HTMLAudio clone (DearFlip asset) ─────────────────────────
+    if (flipAudioRef.current && flipAudioReadyRef.current) {
+      try {
+        // cloneNode allows overlapping playback; original stays cached/preloaded
+        const clone = flipAudioRef.current.cloneNode() as HTMLAudioElement;
+        clone.volume = 0.6;
+        void clone.play().catch(() => { /* autoplay policy – silent */ });
+        return;
+      } catch {
+        // fall through to synthesis fallback
+      }
+    }
+
+    // ── Fallback: Web Audio API synthesis ────────────────────────────────
     try {
       if (typeof window === 'undefined') return;
       const AudioContextClass =
@@ -1350,6 +1393,8 @@ export default function SecurePdfViewer({
       // Audio autoplay restrictions or errors
     }
   };
+  // Keep ref in sync so the touch-handler closure always calls the latest version.
+  playPageTurnSoundRef.current = playPageTurnSound;
 
   const onFlip = (e: { data: number | { page: number } | undefined }) => {
     const p = typeof e.data === "number" ? e.data : (e.data?.page ?? 0);
