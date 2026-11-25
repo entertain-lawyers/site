@@ -161,17 +161,13 @@ export default function SecurePdfViewer({
   const measureRef = useRef<HTMLDivElement>(null);
   const bookContainerRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
+  // Direction of the last mobile book-mode page flip: "next" flips left, "prev" flips right
+  const [mobileFlipDir, setMobileFlipDir] = useState<"next" | "prev" | null>(null);
+  const mobileFlipDirRef = useRef<"next" | "prev" | null>(null);
   // Stable ref so the touch-handler closure (created once at mount) can always
   // call the latest playPageTurnSound without it being in its deps array.
   const playPageTurnSoundRef = useRef<() => void>(() => {});
 
-  // On small mobile screens (< 768px), default to continuous single-page mode for immediate reading comfort
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.innerWidth < 768 && !initialMode) {
-      const id = requestAnimationFrame(() => setMode("single"));
-      return () => cancelAnimationFrame(id);
-    }
-  }, [initialMode]);
 
   // Track native fullscreen changes (syncing exit when user leaves native fullscreen)
   useEffect(() => {
@@ -417,11 +413,15 @@ export default function SecurePdfViewer({
           if (dx < 0 && cur + 1 < total) {
             const next = cur + 1;
             pageRef.current = next;
+            mobileFlipDirRef.current = "next";
+            setMobileFlipDir("next");
             setPage(next);
             playPageTurnSoundRef.current();
           } else if (dx > 0 && cur > 0) {
             const prev = cur - 1;
             pageRef.current = prev;
+            mobileFlipDirRef.current = "prev";
+            setMobileFlipDir("prev");
             setPage(prev);
             playPageTurnSoundRef.current();
           }
@@ -869,9 +869,13 @@ export default function SecurePdfViewer({
 
   const flipApi = useCallback((): FlipApi | undefined => bookRef.current?.pageFlip(), []);
 
-  const goTo = (n: number) => {
+  const goTo = (n: number, dir?: "next" | "prev") => {
     if (!numPages) return;
     const target = Math.min(Math.max(1, n), numPages) - 1;
+    if (isMobileBook && mode === "book" && dir) {
+      mobileFlipDirRef.current = dir;
+      setMobileFlipDir(dir);
+    }
     pageRef.current = target;
     setPage(target);
 
@@ -896,7 +900,8 @@ export default function SecurePdfViewer({
     if (mode === "book") {
       if (isMobileBook) {
         if (page + 1 < numPages) {
-          goTo(page + 2);
+          goTo(page + 2, "next");
+          playPageTurnSoundRef.current();
         }
       } else {
         flipApi()?.flipNext();
@@ -914,7 +919,8 @@ export default function SecurePdfViewer({
     if (mode === "book") {
       if (isMobileBook) {
         if (page > 0) {
-          goTo(page);
+          goTo(page, "prev");
+          playPageTurnSoundRef.current();
         }
       } else {
         flipApi()?.flipPrev();
@@ -954,13 +960,18 @@ export default function SecurePdfViewer({
   const handleFitPage = useCallback(() => {
     setBookPan({ x: 0, y: 0 });
     if (mode === "single" && aspect && box.h > 0) {
+      // Single mode: scale so one page height fills the available viewport height
       const baseH = singleBaseWidth * aspect;
       const targetScale = Math.min(2.5, Math.max(0.5, +((box.h - 48) / baseH).toFixed(2)));
+      setZoom(targetScale);
+    } else if (mode === "book" && geom && box.h > 0) {
+      // Book mode: scale so the page height fits the available viewport height
+      const targetScale = Math.min(2.5, Math.max(0.5, +((box.h - 24) / geom.pageH).toFixed(2)));
       setZoom(targetScale);
     } else {
       setZoom(1.0);
     }
-  }, [mode, aspect, box.h, singleBaseWidth]);
+  }, [mode, aspect, box.h, singleBaseWidth, geom]);
 
   // Zoom-anchoring: preserves center reading focus point when zooming in or out via toolbar controls
   const prevZoomRef = useRef(zoom);
@@ -1301,43 +1312,73 @@ export default function SecurePdfViewer({
     ));
   }, [geom, numPages, mode, isMobileBook, scheduleBookPaint]);
 
-  // ── DearFlip page-flip audio ──────────────────────────────────────────────
-  // Primary: real page-flip.mp3 (the same asset used by the DearFlip WordPress
-  // plugin on the old CMS site). Clone the Audio node on every flip so rapid
-  // consecutive flips never cut each other short.
-  // Fallback: Web Audio API synthesis (original implementation).
-  const flipAudioRef = useRef<HTMLAudioElement | null>(null);
-  const flipAudioReadyRef = useRef(false);
+  // ── DearFlip page-flip audio — 0ms latency via pre-decoded AudioBuffer ───
+  // We fetch + decodeAudioData on mount so the PCM samples are in RAM.
+  // createBufferSource() + start() fires instantly — no decoder warmup, no I/O.
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const flipBufferRef = useRef<AudioBuffer | null>(null);
 
-  // Preload the audio asset once on mount so the first flip has no latency.
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const audio = new Audio('/sounds/page-flip.mp3');
-    audio.preload = 'auto';
-    audio.volume = 0.6;
-    const onCanPlay = () => { flipAudioReadyRef.current = true; };
-    audio.addEventListener('canplaythrough', onCanPlay);
-    flipAudioRef.current = audio;
-    return () => {
-      audio.removeEventListener('canplaythrough', onCanPlay);
-      flipAudioRef.current = null;
-      flipAudioReadyRef.current = false;
+    let cancelled = false;
+
+    const getAudioCtx = () => {
+      const AudioContextClass =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (!AudioContextClass) return null;
+      if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
+        audioCtxRef.current = new AudioContextClass();
+      }
+      return audioCtxRef.current;
     };
+
+    // Fetch and decode the MP3 into a raw AudioBuffer (happens once on mount)
+    (async () => {
+      try {
+        const ctx = getAudioCtx();
+        if (!ctx) return;
+        const res = await fetch('/sounds/page-flip.mp3');
+        if (cancelled || !res.ok) return;
+        const arrayBuf = await res.arrayBuffer();
+        if (cancelled) return;
+        const decoded = await ctx.decodeAudioData(arrayBuf);
+        if (!cancelled) flipBufferRef.current = decoded;
+      } catch {
+        // Silently ignore — synthesis fallback covers it
+      }
+    })();
+
+    return () => { cancelled = true; };
   }, []);
 
   const playPageTurnSound = () => {
-    // ── Primary: HTMLAudio clone (DearFlip asset) ─────────────────────────
-    if (flipAudioRef.current && flipAudioReadyRef.current) {
-      try {
-        // cloneNode allows overlapping playback; original stays cached/preloaded
-        const clone = flipAudioRef.current.cloneNode() as HTMLAudioElement;
-        clone.volume = 0.6;
-        void clone.play().catch(() => { /* autoplay policy – silent */ });
-        return;
-      } catch {
-        // fall through to synthesis fallback
+    // ── Primary: AudioBuffer playback (0ms latency, pre-decoded PCM) ─────
+    try {
+      const AudioContextClass =
+        typeof window !== 'undefined'
+          ? (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)
+          : null;
+      if (AudioContextClass) {
+        if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
+          audioCtxRef.current = new AudioContextClass();
+        }
+        const ctx = audioCtxRef.current;
+        if (ctx.state === 'suspended') void ctx.resume();
+
+        if (flipBufferRef.current) {
+          const src = ctx.createBufferSource();
+          src.buffer = flipBufferRef.current;
+          const gain = ctx.createGain();
+          gain.gain.value = 0.6;
+          src.connect(gain);
+          gain.connect(ctx.destination);
+          src.start(0); // 0 = play immediately at audio clock
+          return;
+        }
       }
+    } catch {
+      // fall through to synthesis fallback
     }
 
     // ── Fallback: Web Audio API synthesis ────────────────────────────────
@@ -1531,36 +1572,81 @@ export default function SecurePdfViewer({
                   zoom > 1.02 ? "cursor-grab active:cursor-grabbing" : ""
                 }`}
               >
+                {/* CSS page-flip: perspective container */}
                 <div
-                  className="relative overflow-hidden bg-white shadow-md rounded-xs select-none"
-                  style={{ width: geom.pageW, height: geom.pageH }}
+                  className="relative select-none"
+                  style={{
+                    width: geom.pageW,
+                    height: geom.pageH,
+                    perspective: `${geom.pageW * 2.5}px`,
+                    perspectiveOrigin: "50% 50%",
+                  }}
                 >
+                  {/* Render prev, current, next — only current and its neighbor are visible */}
                   {[page - 1, page, page + 1]
                     .filter((idx) => idx >= 0 && idx < numPages)
-                    .map((idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          width: geom.pageW,
-                          height: geom.pageH,
-                          transform: `translate3d(${(idx - page) * 100}%, 0, 0)`,
-                          transition: "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)",
-                        }}
-                        className="absolute inset-0 bg-white overflow-hidden"
-                      >
-                        <canvas
-                          ref={(el) => {
-                            bookCanvasRefs.current[idx] = el;
-                            if (el && mode === "book") scheduleBookPaint(idx);
+                    .map((idx) => {
+                      const offset = idx - page; // -1, 0, or 1
+                      // The flipping page: outgoing (current during "next" flip = offset 0 going right)
+                      // Animation: when dir="next", offset=0 page flips from rotateY(0) → rotateY(-90deg)
+                      //            when dir="prev", offset=0 page flips from rotateY(0) → rotateY(90deg)
+                      // Incoming page (offset 1 for next, offset -1 for prev) is simply revealed underneath.
+                      const isFlipping = mobileFlipDir !== null && offset === 0;
+                      const flipAngle = isFlipping
+                        ? (mobileFlipDir === "next" ? -90 : 90)
+                        : offset * 90; // hide off-screen pages at ±90°
+
+                      return (
+                        <div
+                          key={idx}
+                          style={{
+                            position: "absolute",
+                            inset: 0,
+                            width: geom.pageW,
+                            height: geom.pageH,
+                            backfaceVisibility: "hidden",
+                            WebkitBackfaceVisibility: "hidden",
+                            transformStyle: "preserve-3d",
+                            // Flip from left edge for "next" (turn right to left), right edge for "prev"
+                            transformOrigin: mobileFlipDir === "next" || (!mobileFlipDir && offset === 0)
+                              ? "right center"
+                              : "left center",
+                            transform: `rotateY(${flipAngle}deg)`,
+                            transition: isFlipping
+                              ? "transform 320ms cubic-bezier(0.4, 0, 0.2, 1)"
+                              : offset === 0
+                              ? "none"
+                              : "none",
+                            zIndex: offset === 0 ? 2 : 1,
+                            backgroundColor: "white",
+                            boxShadow: offset === 0
+                              ? "0 4px 24px 0 rgba(0,0,0,0.18)"
+                              : "0 2px 8px 0 rgba(0,0,0,0.08)",
+                            borderRadius: "1px",
+                            overflow: "hidden",
                           }}
-                          className="block w-full h-full"
-                          style={{ width: geom.pageW, height: geom.pageH }}
-                        />
-                        <div className="absolute bottom-2 right-2 text-[10px] font-semibold text-slate-400 select-none bg-white/75 px-1.5 py-0.5 rounded">
-                          {idx + 1}
+                          onTransitionEnd={() => {
+                            // After flip completes, clear the direction so next render is instant
+                            if (isFlipping) {
+                              setMobileFlipDir(null);
+                              mobileFlipDirRef.current = null;
+                            }
+                          }}
+                        >
+                          <canvas
+                            ref={(el) => {
+                              bookCanvasRefs.current[idx] = el;
+                              if (el && mode === "book") scheduleBookPaint(idx);
+                            }}
+                            className="block w-full h-full"
+                            style={{ width: geom.pageW, height: geom.pageH }}
+                          />
+                          <div className="absolute bottom-2 right-2 text-[10px] font-semibold text-slate-400 select-none bg-white/75 px-1.5 py-0.5 rounded">
+                            {idx + 1}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                 </div>
               </div>
             )

@@ -466,7 +466,7 @@ describe('Reader and Resource navigation & breadcrumbs', () => {
     expect(hrefs.some((h) => h.includes('unit-prescribed'))).toBe(false);
   });
 
-  it('opens PDF resources directly in fullscreen mode (initialFullscreen=true)', async () => {
+   it('opens PDF resources in embedded mode by default (no initialFullscreen)', async () => {
     (prisma.resource.findUnique as any).mockResolvedValue({
       id: 'pdf-res-1',
       title: 'Constitutional Law Notes PDF',
@@ -508,7 +508,8 @@ describe('Reader and Resource navigation & breadcrumbs', () => {
 
     const viewerProps = findPropsByUrl(vdom, '/api/documents/pdf-res-1/pdf');
     expect(viewerProps).not.toBeNull();
-    expect(viewerProps.initialFullscreen).toBe(true);
+    // Client requirement: PDF viewer opens embedded (not fullscreen) by default
+    expect(viewerProps.initialFullscreen).toBeFalsy();
   });
 });
 
