@@ -161,9 +161,16 @@ export default function SecurePdfViewer({
   const measureRef = useRef<HTMLDivElement>(null);
   const bookContainerRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
-  // Direction of the last mobile book-mode page flip: "next" flips left, "prev" flips right
-  const [mobileFlipDir, setMobileFlipDir] = useState<"next" | "prev" | null>(null);
-  const mobileFlipDirRef = useRef<"next" | "prev" | null>(null);
+  // Active mobile book-mode 3D page flip state (2-layer GPU rotateY around left spine)
+  const [mobileFlip, setMobileFlip] = useState<{
+    from: number;
+    to: number;
+    dir: "next" | "prev";
+    active: boolean;
+  } | null>(null);
+  const mobileFlipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mobileFlipRafRef = useRef<number | null>(null);
+  const triggerMobileFlipRef = useRef<(from: number, to: number, dir: "next" | "prev") => void>(() => {});
   // Stable ref so the touch-handler closure (created once at mount) can always
   // call the latest playPageTurnSound without it being in its deps array.
   const playPageTurnSoundRef = useRef<() => void>(() => {});
@@ -436,15 +443,13 @@ export default function SecurePdfViewer({
           if (dx < 0 && cur + 1 < total) {
             const next = cur + 1;
             pageRef.current = next;
-            mobileFlipDirRef.current = "next";
-            setMobileFlipDir("next");
+            triggerMobileFlipRef.current(cur, next, "next");
             setPage(next);
             playPageTurnSoundRef.current();
           } else if (dx > 0 && cur > 0) {
             const prev = cur - 1;
             pageRef.current = prev;
-            mobileFlipDirRef.current = "prev";
-            setMobileFlipDir("prev");
+            triggerMobileFlipRef.current(cur, prev, "prev");
             setPage(prev);
             playPageTurnSoundRef.current();
           }
@@ -892,12 +897,29 @@ export default function SecurePdfViewer({
 
   const flipApi = useCallback((): FlipApi | undefined => bookRef.current?.pageFlip(), []);
 
+  const triggerMobileFlip = useCallback((from: number, to: number, dir: "next" | "prev") => {
+    if (from === to) return;
+    if (mobileFlipTimerRef.current) clearTimeout(mobileFlipTimerRef.current);
+    if (mobileFlipRafRef.current) cancelAnimationFrame(mobileFlipRafRef.current);
+    setMobileFlip({ from, to, dir, active: false });
+    mobileFlipRafRef.current = requestAnimationFrame(() => {
+      mobileFlipRafRef.current = requestAnimationFrame(() => {
+        setMobileFlip((cur) => (cur && cur.to === to ? { ...cur, active: true } : cur));
+      });
+    });
+    mobileFlipTimerRef.current = setTimeout(() => {
+      setMobileFlip((cur) => (cur && cur.to === to ? null : cur));
+    }, 360);
+  }, []);
+  triggerMobileFlipRef.current = triggerMobileFlip;
+
   const goTo = (n: number, dir?: "next" | "prev") => {
     if (!numPages) return;
+    const prevPage = pageRef.current;
     const target = Math.min(Math.max(1, n), numPages) - 1;
-    if (isMobileBook && mode === "book" && dir) {
-      mobileFlipDirRef.current = dir;
-      setMobileFlipDir(dir);
+    if (isMobileBook && mode === "book" && prevPage !== target) {
+      const resolvedDir = dir ?? (target > prevPage ? "next" : "prev");
+      triggerMobileFlip(prevPage, target, resolvedDir);
     }
     pageRef.current = target;
     setPage(target);
@@ -1644,81 +1666,126 @@ export default function SecurePdfViewer({
                   zoom > 1.02 ? "cursor-grab active:cursor-grabbing" : ""
                 }`}
               >
-                {/* CSS page-flip: perspective container */}
+                {/* Realistic 3D book-spine page flip (GPU transform + opacity only, 60fps) */}
                 <div
                   className="relative select-none"
                   style={{
                     width: geom.pageW,
                     height: geom.pageH,
-                    perspective: `${geom.pageW * 2.5}px`,
+                    perspective: `${Math.max(1200, geom.pageW * 3.2)}px`,
                     perspectiveOrigin: "50% 50%",
                   }}
                 >
-                  {/* Render prev, current, next — only current and its neighbor are visible */}
-                  {[page - 1, page, page + 1]
-                    .filter((idx) => idx >= 0 && idx < numPages)
-                    .map((idx) => {
-                      const offset = idx - page; // -1, 0, or 1
-                      // The flipping page: outgoing (current during "next" flip = offset 0 going right)
-                      // Animation: when dir="next", offset=0 page flips from rotateY(0) → rotateY(-90deg)
-                      //            when dir="prev", offset=0 page flips from rotateY(0) → rotateY(90deg)
-                      // Incoming page (offset 1 for next, offset -1 for prev) is simply revealed underneath.
-                      const isFlipping = mobileFlipDir !== null && offset === 0;
-                      const flipAngle = isFlipping
-                        ? (mobileFlipDir === "next" ? -90 : 90)
-                        : offset * 90; // hide off-screen pages at ±90°
+                  {Array.from(
+                    new Set(
+                      [page - 1, page, page + 1, mobileFlip?.from].filter(
+                        (idx): idx is number => typeof idx === "number" && idx >= 0 && idx < numPages,
+                      ),
+                    ),
+                  ).map((idx) => {
+                    const isNextFlip = mobileFlip?.dir === "next";
+                    const isPrevFlip = mobileFlip?.dir === "prev";
+                    const isFlippingLayer =
+                      (isNextFlip && idx === mobileFlip.from) ||
+                      (isPrevFlip && idx === mobileFlip.to);
+                    const isBaseLayer = mobileFlip
+                      ? (isNextFlip && idx === mobileFlip.to) || (isPrevFlip && idx === mobileFlip.from)
+                      : idx === page;
 
-                      return (
-                        <div
-                          key={idx}
-                          style={{
-                            position: "absolute",
-                            inset: 0,
-                            width: geom.pageW,
-                            height: geom.pageH,
-                            backfaceVisibility: "hidden",
-                            WebkitBackfaceVisibility: "hidden",
-                            transformStyle: "preserve-3d",
-                            // Flip from left edge for "next" (turn right to left), right edge for "prev"
-                            transformOrigin: mobileFlipDir === "next" || (!mobileFlipDir && offset === 0)
-                              ? "right center"
-                              : "left center",
-                            transform: `rotateY(${flipAngle}deg)`,
-                            transition: isFlipping
-                              ? "transform 320ms cubic-bezier(0.4, 0, 0.2, 1)"
-                              : offset === 0
-                              ? "none"
-                              : "none",
-                            zIndex: offset === 0 ? 2 : 1,
-                            backgroundColor: "white",
-                            boxShadow: offset === 0
-                              ? "0 4px 24px 0 rgba(0,0,0,0.18)"
-                              : "0 2px 8px 0 rgba(0,0,0,0.08)",
-                            borderRadius: "1px",
-                            overflow: "hidden",
-                          }}
-                          onTransitionEnd={() => {
-                            // After flip completes, clear the direction so next render is instant
-                            if (isFlipping) {
-                              setMobileFlipDir(null);
-                              mobileFlipDirRef.current = null;
+                    let rotateY = 0;
+                    let opacity = 0;
+                    let zIndex = 0;
+                    let transition = "none";
+
+                    if (isFlippingLayer && mobileFlip) {
+                      zIndex = 3;
+                      if (mobileFlip.dir === "next") {
+                        rotateY = mobileFlip.active ? -108 : 0;
+                        opacity = mobileFlip.active ? 0.12 : 1;
+                        transition =
+                          "transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity 300ms ease-out";
+                      } else {
+                        rotateY = mobileFlip.active ? 0 : -108;
+                        opacity = mobileFlip.active ? 1 : 0.15;
+                        transition =
+                          "transform 300ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity 240ms ease-in";
+                      }
+                    } else if (isBaseLayer) {
+                      zIndex = 2;
+                      rotateY = 0;
+                      opacity = 1;
+                    }
+
+                    return (
+                      <div
+                        key={idx}
+                        style={{
+                          position: "absolute",
+                          inset: 0,
+                          width: geom.pageW,
+                          height: geom.pageH,
+                          transformOrigin: "left center",
+                          backfaceVisibility: "hidden",
+                          WebkitBackfaceVisibility: "hidden",
+                          transform: `rotateY(${rotateY}deg)`,
+                          opacity,
+                          transition,
+                          willChange: isFlippingLayer ? "transform, opacity" : "auto",
+                          zIndex,
+                          backgroundColor: "white",
+                          boxShadow: isFlippingLayer
+                            ? "0 8px 28px rgba(0,0,0,0.22)"
+                            : isBaseLayer
+                            ? "0 4px 16px rgba(0,0,0,0.14)"
+                            : "none",
+                          borderRadius: "2px",
+                          overflow: "hidden",
+                          pointerEvents: isBaseLayer || isFlippingLayer ? "auto" : "none",
+                        }}
+                        onTransitionEnd={(e) => {
+                          if (
+                            isFlippingLayer &&
+                            e.propertyName === "transform" &&
+                            mobileFlip?.active
+                          ) {
+                            if (mobileFlipTimerRef.current) {
+                              clearTimeout(mobileFlipTimerRef.current);
+                              mobileFlipTimerRef.current = null;
                             }
+                            setMobileFlip(null);
+                          }
+                        }}
+                      >
+                        <canvas
+                          ref={(el) => {
+                            bookCanvasRefs.current[idx] = el;
+                            if (el && mode === "book") scheduleBookPaint(idx);
                           }}
-                        >
-                          <canvas
-                            ref={(el) => {
-                              bookCanvasRefs.current[idx] = el;
-                              if (el && mode === "book") scheduleBookPaint(idx);
+                          className="block w-full h-full"
+                          style={{ width: geom.pageW, height: geom.pageH }}
+                        />
+                        {/* Subtle left-edge book spine crease for tactile book feel */}
+                        <div
+                          aria-hidden="true"
+                          className="pointer-events-none absolute inset-y-0 left-0 w-3 bg-gradient-to-r from-black/10 via-black/[0.03] to-transparent"
+                        />
+                        {/* Subtle curl shading on the turning sheet */}
+                        {isFlippingLayer && (
+                          <div
+                            aria-hidden="true"
+                            style={{
+                              opacity: mobileFlip?.active ? 0.25 : 0.04,
+                              transition: "opacity 300ms ease-out",
                             }}
-                            className="block w-full h-full"
-                            style={{ width: geom.pageW, height: geom.pageH }}
+                            className="pointer-events-none absolute inset-0 bg-gradient-to-l from-black/25 via-transparent to-black/15"
                           />
-                          <div className="absolute bottom-2 right-2 text-[10px] font-semibold text-slate-400 select-none bg-white/75 px-1.5 py-0.5 rounded">
-                            {idx + 1}
-                          </div>
+                        )}
+                        <div className="absolute bottom-2 right-2 text-[10px] font-semibold text-slate-400 select-none bg-white/75 px-1.5 py-0.5 rounded">
+                          {idx + 1}
                         </div>
-                      );
-                    })}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )
