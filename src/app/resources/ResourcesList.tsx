@@ -54,7 +54,7 @@ export const getCachedResources = unstable_cache(
     });
   },
   ['public-resources-list'],
-  { revalidate: 60, tags: [RESOURCES_CACHE_TAG] }
+  { revalidate: 3600, tags: [RESOURCES_CACHE_TAG] }
 );
 
 export async function ResourcesList({

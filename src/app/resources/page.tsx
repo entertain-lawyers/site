@@ -11,12 +11,12 @@ import { RESOURCES_PAGE_SIZE, parseResourcePage } from './pagination';
 import ResourcesListSkeleton from './ResourcesListSkeleton';
 import { ResourcesList } from './ResourcesList';
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 const getCachedResourceCount = unstable_cache(
   async () => prisma.resource.count({ where: { status: 'PUBLISHED' } }),
   ['public-resources-count'],
-  { revalidate: 60, tags: [RESOURCES_CACHE_TAG] }
+  { revalidate: 3600, tags: [RESOURCES_CACHE_TAG] }
 );
 
 type SearchParams = Promise<{ page?: string }>;

@@ -128,7 +128,7 @@ const getCachedSubjectResources = unstable_cache(
       ],
     })) ?? [],
   ['study-subject-resources-summary-v2'],
-  { revalidate: 60, tags: [RESOURCES_CACHE_TAG] }
+  { revalidate: 3600, tags: [RESOURCES_CACHE_TAG] }
 );
 
 /**
@@ -247,7 +247,7 @@ const getCachedResourceList = unstable_cache(
     });
   },
   ['study-resources-listing-v3'],
-  { revalidate: 60, tags: [RESOURCES_CACHE_TAG] }
+  { revalidate: 3600, tags: [RESOURCES_CACHE_TAG] }
 );
 
 export default async function StudyPage(props: { searchParams: SearchParams }) {
