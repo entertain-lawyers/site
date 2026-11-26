@@ -66,23 +66,26 @@ export const envSchema = z.object({
   message: "NEXT_PUBLIC_APP_URL must be a valid production URL, not localhost.",
   path: ["NEXT_PUBLIC_APP_URL"]
 }).refine(data => {
-  if (data.NODE_ENV === 'production') {
-    // Production must explicitly enable storage and provide valid B2 configuration
-    if (data.STORAGE_ENABLED !== "true") return false;
-    if (!data.B2_ENDPOINT || !data.B2_ACCESS_KEY_ID || !data.B2_SECRET_ACCESS_KEY || !data.B2_BUCKET_NAME) return false;
-    if (data.RATE_LIMITING_ENABLED === "true" && (!data.UPSTASH_REDIS_REST_URL || !data.UPSTASH_REDIS_REST_TOKEN)) return false;
-  } else {
-    // If STORAGE_ENABLED is true in non-production, B2 configuration is required
-    if (data.STORAGE_ENABLED === "true" && (!data.B2_ENDPOINT || !data.B2_ACCESS_KEY_ID || !data.B2_SECRET_ACCESS_KEY || !data.B2_BUCKET_NAME)) return false;
+  // If STORAGE_ENABLED is true, B2 must be fully configured
+  if (data.STORAGE_ENABLED === "true") {
+    if (!data.B2_ENDPOINT || !data.B2_ACCESS_KEY_ID || !data.B2_SECRET_ACCESS_KEY || !data.B2_BUCKET_NAME) {
+      return false;
+    }
   }
   
-  if (data.NODE_ENV === 'production' && data.PAYMENTS_ENABLED === 'true') {
+  if (data.RATE_LIMITING_ENABLED === "true") {
+    if (!data.UPSTASH_REDIS_REST_URL || !data.UPSTASH_REDIS_REST_TOKEN) {
+      return false;
+    }
+  }
+  
+  if (data.PAYMENTS_ENABLED === 'true') {
     if (!data.KHALTI_SECRET_KEY || !data.KHALTI_PUBLIC_KEY) return false;
     if (!data.ESEWA_MERCHANT_ID || !data.ESEWA_SECRET_KEY || !data.ESEWA_SUCCESS_URL || !data.ESEWA_FAILURE_URL) return false;
   }
   return true;
 }, {
-  message: "Storage configuration: In production, STORAGE_ENABLED must be 'true' and B2 must be fully configured (B2_ENDPOINT, B2_ACCESS_KEY_ID, B2_SECRET_ACCESS_KEY, B2_BUCKET_NAME). If STORAGE_ENABLED is 'true' in non-production, B2 must also be fully configured. If RATE_LIMITING_ENABLED is true, Upstash must be configured. If PAYMENTS_ENABLED is true, Khalti and eSewa must be configured.",
+  message: "Storage configuration: When STORAGE_ENABLED is 'true', B2 must be configured (B2_ENDPOINT, B2_ACCESS_KEY_ID, B2_SECRET_ACCESS_KEY, B2_BUCKET_NAME). When RATE_LIMITING_ENABLED is true, Upstash must be configured. When PAYMENTS_ENABLED is true, Khalti and eSewa must be configured.",
 });
 
 // For Next.js to properly evaluate NEXT_PUBLIC_ variables during build, they must be explicitly provided.
