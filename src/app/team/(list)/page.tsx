@@ -69,7 +69,7 @@ export default async function TeamDirectoryPage() {
         <div className="text-center mb-10 sm:mb-14">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-navy dark:text-white tracking-tight">Our Team</h1>
           <p className="mt-3 sm:mt-4 text-base sm:text-xl text-text-secondary max-w-3xl mx-auto">
-            Meet the experienced professionals dedicated to providing exceptional legal services and strategic counsel.
+            Meet our website team, dedicated to providing you with the best resources and materials to support your legal studies.
           </p>
         </div>
 
