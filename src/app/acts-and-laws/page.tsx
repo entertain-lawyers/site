@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import ActsAndLawsClient, { type ActItem } from '@/components/acts/ActsAndLawsClient';
 import { isMissingTableError } from '@/lib/prisma-errors';
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: 'Acts and Laws — Nepal Legal Documents & Regulations',

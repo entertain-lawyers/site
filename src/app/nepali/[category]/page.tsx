@@ -7,7 +7,7 @@ import { PostType } from '@prisma/client';
 import { batchResolvePostAuthorsForDisplay } from '@/lib/post-author';
 import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 const CATEGORY_MAP: Record<string, { type: PostType, title: string, icon: string, description: string }> = {
   'samanya-samachar': { type: 'NEPALI_SAMANYA_SAMACHAR', title: 'सामान्य समाचार', icon: '📰', description: 'दैनिक र सामान्य समाचारहरू' },

@@ -212,7 +212,7 @@ export default async function proxy(req: any, event: any) {
 }
 
 export const config = {
-  // Exclude WordPress media paths and app icons so middleware (CSP, redirects,
-  // locale cookie) does not add overhead or headers to static icon crawls.
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|logo-round.png|logo.jpg|wp-content|nepali/wp-content).*)"],
+  // Exclude WordPress media paths, static assets, and metadata routes so middleware
+  // (CSP, redirects, locale cookie) does not consume CPU on static asset crawls.
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|logo-round.png|logo.jpg|robots\\.txt|sitemap\\.xml|manifest\\.webmanifest|pdf\\.worker\\.min\\.mjs|images/|sounds/|uploads/|wp-content|nepali/wp-content|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?|ttf|mjs|mp3|wav)$).*)"],
 };

@@ -30,7 +30,7 @@ import { getWordPressPosts } from '@/lib/wordpress';
 import { batchResolvePostAuthorsForDisplay } from '@/lib/post-author';
 import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 export default async function NepaliLandingPage() {
   const wpRes = await getWordPressPosts({

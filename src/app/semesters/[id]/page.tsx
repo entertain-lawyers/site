@@ -13,7 +13,7 @@ import CaseCategoryBadge from '@/components/study/CaseCategoryBadge';
 import CaseLawCategoryBadge from '@/components/study/CaseLawCategoryBadge';
 import { ResourceType } from '@prisma/client';
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 interface PageProps {
   params: Promise<{ id: string }>;

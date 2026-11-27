@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   alternates: { canonical: '/news' },
 };
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 export default async function NewsPage() {
   const wpRes = await getWordPressPosts({

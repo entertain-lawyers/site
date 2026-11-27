@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   alternates: { canonical: '/blogs' },
 };
 
-export const revalidate = 60; // Revalidate every minute
+export const revalidate = 3600;
 
 export default async function BlogsPage() {
   const wpRes = await getWordPressPosts({

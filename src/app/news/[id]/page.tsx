@@ -7,7 +7,7 @@ import { postMetadata } from '@/lib/seo';
 import { resolvePostAuthorForDisplay } from '@/lib/post-author';
 import { getPublishedNewsPost } from './validate';
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;

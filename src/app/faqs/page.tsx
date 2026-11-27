@@ -4,7 +4,7 @@ import { sanitizeHtml } from '@/lib/sanitize';
 import { HelpCircle } from 'lucide-react';
 import { Metadata } from 'next';
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: 'Frequently Asked Questions',

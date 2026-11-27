@@ -20,7 +20,7 @@ export const metadata = {
   alternates: { canonical: '/' },
 };
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 export default async function HomePage() {
   const [config, activeAnnouncement] = await Promise.all([

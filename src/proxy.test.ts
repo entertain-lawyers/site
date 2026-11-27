@@ -8,8 +8,7 @@ import { describe, it, expect } from 'vitest';
 
 describe('Middleware Matcher (proxy.ts config)', () => {
   // The matcher pattern from proxy.ts line 217:
-  // "/((?!api|_next/static|_next/image|favicon.ico|wp-content|nepali/wp-content).*)"
-  const matcherPattern = /^\/((?!api|_next\/static|_next\/image|favicon\.ico|wp-content|nepali\/wp-content).*)/;
+  const matcherPattern = /^\/((?!api|_next\/static|_next\/image|favicon\.ico|icon\.png|apple-icon\.png|logo-round\.png|logo\.jpg|robots\.txt|sitemap\.xml|manifest\.webmanifest|pdf\.worker\.min\.mjs|images\/|sounds\/|uploads\/|wp-content|nepali\/wp-content|.*\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?|ttf|mjs|mp3|wav)$).*)/;
 
   const shouldMatch = (pathname: string) => matcherPattern.test(pathname);
 
@@ -55,8 +54,12 @@ describe('Middleware Matcher (proxy.ts config)', () => {
     expect(shouldMatch('/_next/image?url=...')).toBe(false);
   });
 
-  it('should NOT match favicon.ico', () => {
+  it('should NOT match favicon.ico or static assets', () => {
     expect(shouldMatch('/favicon.ico')).toBe(false);
+    expect(shouldMatch('/wordmark.png')).toBe(false);
+    expect(shouldMatch('/pdf.worker.min.mjs')).toBe(false);
+    expect(shouldMatch('/robots.txt')).toBe(false);
+    expect(shouldMatch('/sitemap.xml')).toBe(false);
   });
 
   it('should still match paths containing wp-content as a substring in other contexts', () => {

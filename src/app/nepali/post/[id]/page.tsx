@@ -9,7 +9,7 @@ import { resolvePostAuthorForDisplay } from '@/lib/post-author';
 import { getPublishedNepaliPost } from './validate';
 import AuthorBioTrigger from '@/components/author/AuthorBioTrigger';
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;

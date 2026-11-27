@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   alternates: { canonical: '/publications' },
 };
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 export default async function PublicationsPage() {
   const publications = await prisma.publication.findMany({

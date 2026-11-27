@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   alternates: { canonical: '/historical-facts/historical' },
 };
 
-export const revalidate = 60;
+export const revalidate = 3600;
 
 export default async function HistoricalFactsSubPage() {
   const wpRes = await getWordPressPosts({
